@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sólo Android 8.1 / API 27+ admite iconos oscuros en la barra de navegación. -->
+    <style name="Theme.AERIQ.Visual" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#F4F7F6</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>
