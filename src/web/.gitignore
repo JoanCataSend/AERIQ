@@ -1,0 +1,6 @@
+# Nunca versionar credenciales ni paquetes instalados.
+/server/SDBaseDatos.php
+/server/SMTPConfig.php
+/vendor/*
+!/vendor/.htaccess
+/server/MailConfig.php

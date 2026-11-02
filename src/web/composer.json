@@ -1,0 +1,8 @@
+{
+  "name": "aeriq/web-pbio",
+  "description": "Correo transaccional para registro AERIQ",
+  "require": {
+    "php": ">=8.1",
+    "phpmailer/phpmailer": "^7.0"
+  }
+}

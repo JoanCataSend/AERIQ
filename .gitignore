@@ -1,0 +1,27 @@
+# Copias locales anteriores a la sincronización; no forman parte del despliegue.
+/.local-backups/
+
+# Paquetes de despliegue generados.
+/.dist/
+
+# Configuración privada (también protegida por el .gitignore de src/web).
+**/SDBaseDatos.php
+**/SMTPConfig.php
+**/MailConfig.php
+.env
+.env.*
+!.env.example
+
+# Entorno Android, compilados y cachés.
+**/local.properties
+**/.gradle/
+**/.kotlin/
+**/build/
+**/.idea/
+**/.cxx/
+**/.externalNativeBuild/
+*.apk
+*.aab
+*.iml
+__pycache__/
+*.pyc

@@ -1,0 +1,4 @@
+# AERIQ - nunca servir dependencias ni ficheros de configuración al navegador.
+<FilesMatch "^(composer\.(json|lock)|\.env.*|\.htaccess)$">
+    Require all denied
+</FilesMatch>

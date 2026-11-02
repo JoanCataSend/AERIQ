@@ -1,0 +1,197 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/Logica.php';
+
+function auth_responder(int $status, array $payload): never {
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+function auth_body(): array {
+    if ((int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 16384) auth_responder(413, ['error'=>'Petición demasiado grande']);
+    $obj=json_decode(file_get_contents('php://input') ?: '', true);
+    if (!is_array($obj) || (count($obj)>0 && array_is_list($obj))) auth_responder(400,['error'=>'Se esperaba un objeto JSON']);
+    return $obj;
+}
+function auth_email(mixed $value): string {
+    $email=strtolower(trim((string)$value));
+    if (strlen($email)>254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) auth_responder(422,['error'=>'Correo electrónico no válido']);
+    return $email;
+}
+function auth_string(mixed $value, int $limit): string {
+    $s=trim((string)$value);
+    if ($s==='' || (function_exists('mb_strlen') ? mb_strlen($s,'UTF-8') : strlen($s))>$limit) auth_responder(422,['error'=>'Revisa los datos introducidos']);
+    return $s;
+}
+function auth_password(mixed $value): string {
+    $p=(string)$value;
+    if (strlen($p)<12 || strlen($p)>256) auth_responder(422,['error'=>'La contraseña debe contener al menos 12 caracteres (máximo 256)']);
+    return $p;
+}
+function auth_rate(string $action, string $subject, int $limit, int $interval=900): void {
+    $db=conexionBD();
+    $key=hash('sha256',$action.'|'.($_SERVER['REMOTE_ADDR']??'unknown').'|'.$subject);
+    $now=time();
+    $cutoff=date('Y-m-d H:i:s',$now-$interval);
+    $stmt=$db->prepare('INSERT INTO AeriqAuthRate(clave_hash,ventana_en,intentos) VALUES (?,NOW(),1) ON DUPLICATE KEY UPDATE intentos=IF(ventana_en<? ,1,intentos+1), ventana_en=IF(ventana_en<? ,NOW(),ventana_en)');
+    $stmt->bind_param('sss',$key,$cutoff,$cutoff);
+    $stmt->execute();
+    $stmt=$db->prepare('SELECT intentos FROM AeriqAuthRate WHERE clave_hash=?');$stmt->bind_param('s',$key);$stmt->execute();
+    if ((int)($stmt->get_result()->fetch_assoc()['intentos']??0)>$limit) auth_responder(429,['error'=>'Demasiados intentos. Vuelve a intentarlo más tarde.']);
+}
+function auth_find(string $email): ?array {
+    $s=conexionBD()->prepare('SELECT id,nombre,apellidos,email,telefono,password_hash,verificado_en FROM AeriqUsuario WHERE email=? LIMIT 1');
+    $s->bind_param('s',$email);$s->execute(); return $s->get_result()->fetch_assoc()?:null;
+}
+function auth_public(array $user): array {
+    return ['id'=>(int)$user['id'],'name'=>$user['nombre'],'last'=>$user['apellidos'],'email'=>$user['email'],'phone'=>$user['telefono']??''];
+}
+function auth_current(): ?array {
+    if (empty($_SESSION['user_id'])) return null;
+    $id=(int)$_SESSION['user_id'];
+    if (!empty($_SESSION['last_seen']) && time()-(int)$_SESSION['last_seen']>3600) {
+        unset($_SESSION['user_id'],$_SESSION['last_seen']);return null;
+    }
+    $s=conexionBD()->prepare('SELECT id,nombre,apellidos,email,telefono,verificado_en FROM AeriqUsuario WHERE id=? AND verificado_en IS NOT NULL');
+    $s->bind_param('i',$id);$s->execute();$user=$s->get_result()->fetch_assoc()?:null;
+    if (!$user) {unset($_SESSION['user_id']);return null;}
+    $_SESSION['last_seen']=time();return $user;
+}
+function auth_require_user(): array {
+    $u=auth_current(); if (!$u) auth_responder(401,['error'=>'Debes iniciar sesión']);return $u;
+}
+function auth_login_session(int $id): void {
+    session_regenerate_id(true);
+    $_SESSION['user_id']=$id;
+    $_SESSION['last_seen']=time();
+    $_SESSION['csrf']=bin2hex(random_bytes(24));
+}
+/**
+ * Transporte: SMTP opcional cuando hay SMTPConfig.php;
+ * de lo contrario, PHP mail() del alojamiento Plesk.
+ * MailConfig.php es opcional y solo contiene el remitente (no secretos).
+ */
+function auth_mail_config_ok(): array {
+    $smtpFile=__DIR__.'/SMTPConfig.php';
+    if (is_file($smtpFile)) {
+        $vendor=dirname(__DIR__).'/vendor/autoload.php';
+        if (!is_file($vendor)) auth_responder(503,['error'=>'La configuración SMTP necesita PHPMailer (Composer).']);
+        $smtp=require $smtpFile;
+        if (!is_array($smtp)) auth_responder(503,['error'=>'Revisa la configuración de correo SMTP.']);
+        foreach (['host','port','username','password','from_email'] as $key) {
+            if (empty($smtp[$key]) || str_contains((string)$smtp[$key],'tudominio.es') || str_contains((string)$smtp[$key],'CONTRASENA')) {
+                auth_responder(503,['error'=>'Revisa SMTPConfig.php o retíralo para utilizar PHP mail().']);
+            }
+        }
+        if (!filter_var((string)$smtp['from_email'],FILTER_VALIDATE_EMAIL)) auth_responder(503,['error'=>'Remitente SMTP no válido.']);
+        return ['transport'=>'smtp','smtp'=>$smtp];
+    }
+
+    $opts=[];
+    $mailFile=__DIR__.'/MailConfig.php';
+    if (is_file($mailFile)) {
+        $opts=require $mailFile;
+        if (!is_array($opts)) auth_responder(503,['error'=>'MailConfig.php debe devolver un array.']);
+    }
+    $from=trim((string)($opts['from_email'] ?? getenv('AERIQ_MAIL_FROM') ?: ''));
+    if ($from==='') {
+        // SERVER_NAME procede de la configuración del virtual host, no de HTTP_HOST.
+        $domain=strtolower(trim((string)($_SERVER['SERVER_NAME']??'')));
+        if (preg_match('/^[a-z0-9.-]+$/D',$domain) && str_contains($domain,'.')) {
+            $from='no-reply@'.$domain;
+        }
+    }
+    if (!function_exists('mail') || !filter_var($from,FILTER_VALIDATE_EMAIL)) {
+        auth_responder(503,['error'=>'El envío PHP mail() no está disponible o falta un remitente válido. Configura server/MailConfig.php.']);
+    }
+    $fromName=trim((string)($opts['from_name']??'AERIQ'));
+    // Evitar inyección de cabeceras incluso si el fichero de configuración se modifica.
+    $fromName=str_replace(["\r","\n"],'',$fromName);
+    if ($fromName==='') $fromName='AERIQ';
+    return ['transport'=>'php_mail','from_email'=>$from,'from_name'=>$fromName];
+}
+
+/** Envía un código, pero el éxito de mail() no garantiza entrega en la bandeja de entrada. */
+function auth_send_mail(string $recipient,string $code,string $purpose): void {
+    $cfg=auth_mail_config_ok();
+    if (!filter_var($recipient,FILTER_VALIDATE_EMAIL) || !preg_match('/^[0-9]{6}$/',$code)) {
+        auth_responder(422,['error'=>'Datos de correo no válidos.']);
+    }
+    $subject=$purpose==='registro'?'AERIQ · Verifica tu cuenta':'AERIQ · Recupera tu contraseña';
+    $plain="Tu código AERIQ es: {$code}\n\nCaduca en 10 minutos. Si no lo has solicitado, ignora este mensaje.\nNunca compartas este código.";
+    if ($cfg['transport']==='smtp') {
+        $smtp=$cfg['smtp'];
+        require_once dirname(__DIR__).'/vendor/autoload.php';
+        $mailer=new PHPMailer\PHPMailer\PHPMailer(true);
+        try {
+            $mailer->isSMTP();
+            $mailer->Host=$smtp['host'];$mailer->Port=(int)$smtp['port'];
+            $mailer->SMTPAuth=true;$mailer->Username=$smtp['username'];$mailer->Password=$smtp['password'];
+            $mailer->SMTPSecure=($smtp['encryption']??'tls')==='ssl' ? PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS : PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mailer->CharSet='UTF-8';$mailer->setFrom($smtp['from_email'],$smtp['from_name']??'AERIQ');
+            $mailer->addAddress($recipient);$mailer->Subject=$subject;$mailer->Body=$plain;
+            $mailer->send();
+        } catch (Throwable $ex) {
+            error_log('AERIQ: fallo en transporte SMTP (sin registrar códigos ni credenciales): '.$ex->getMessage());
+            auth_responder(503,['error'=>'No se ha podido enviar el correo. Revisa la configuración del servidor.']);
+        }
+        return;
+    }
+
+    // Opción simple, como Boticardo: servidor local de correo del alojamiento.
+    $boundary='aeriq_'.bin2hex(random_bytes(12));
+    $html='<!doctype html><html lang="es"><body style="margin:0;background:#f6f8f6;padding:30px 14px;font-family:Arial,sans-serif;color:#17201d">'
+      .'<main style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4ebe7;border-radius:18px;padding:30px">'
+      .'<p style="font-size:15px;font-weight:bold;letter-spacing:.16em;color:#0e6b5e">AERIQ</p>'
+      .'<h1 style="font-size:24px;line-height:1.25">'.($purpose==='registro'?'Verifica tu cuenta':'Recupera tu contraseña').'</h1>'
+      .'<p>Introduce este código en la web de AERIQ:</p>'
+      .'<p style="font-size:36px;font-weight:bold;letter-spacing:.22em;text-align:center;background:#eef6f2;color:#0e6b5e;padding:20px;border-radius:12px">'.$code.'</p>'
+      .'<p>El código caduca en <b>10 minutos</b>. Si no lo has solicitado, ignora este mensaje.</p>'
+      .'<p style="color:#77847e;font-size:12px">No compartas el código con nadie.</p></main></body></html>';
+    $parts=[
+        '--'.$boundary,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit','',$plain,
+        '--'.$boundary,'Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: 8bit','',$html,
+        '--'.$boundary.'--',''
+    ];
+    $headers=[
+        'From: '.$cfg['from_name'].' <'.$cfg['from_email'].'>',
+        'Reply-To: '.$cfg['from_email'],
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="'.$boundary.'"',
+        'X-Mailer: AERIQ'
+    ];
+    $encodedSubject='=?UTF-8?B?'.base64_encode($subject).'?=';
+    $ok=@mail($recipient,$encodedSubject,implode("\r\n",$parts),implode("\r\n",$headers));
+    if (!$ok) {
+        error_log('AERIQ: PHP mail() ha rechazado el mensaje de verificación o recuperación.');
+        auth_responder(503,['error'=>'El alojamiento no ha aceptado el correo. Comprueba que PHP mail() esté habilitado en Plesk.']);
+    }
+}
+function auth_generate_code(int $userId,string $purpose,string $email,bool $throttle=true): void {
+    $db=conexionBD();
+    if ($throttle) {
+        $stmt=$db->prepare('SELECT enviado_en FROM AeriqCodigoEmail WHERE usuario_id=? AND proposito=?');
+        $stmt->bind_param('is',$userId,$purpose);$stmt->execute();$old=$stmt->get_result()->fetch_assoc();
+        if ($old && time()-strtotime($old['enviado_en'])<60) auth_responder(429,['error'=>'Espera un minuto antes de solicitar otro código.']);
+    }
+    auth_mail_config_ok();
+    $code=(string)random_int(100000,999999);
+    $hash=password_hash($code,PASSWORD_DEFAULT);
+    // No se invalida un código anterior si el servidor rechaza el correo nuevo.
+    auth_send_mail($email,$code,$purpose);
+    $stmt=$db->prepare('INSERT INTO AeriqCodigoEmail(usuario_id,proposito,codigo_hash,vence_en,enviado_en,intentos) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE),NOW(),0) ON DUPLICATE KEY UPDATE codigo_hash=VALUES(codigo_hash),vence_en=VALUES(vence_en),enviado_en=VALUES(enviado_en),intentos=0');
+    $stmt->bind_param('iss',$userId,$purpose,$hash);$stmt->execute();
+}
+function auth_verify_code(int $id,string $purpose,string $code): void {
+    if (!preg_match('/^[0-9]{6}$/',$code)) auth_responder(422,['error'=>'Introduce el código de seis cifras']);
+    $db=conexionBD();
+    $s=$db->prepare('SELECT codigo_hash,vence_en,intentos FROM AeriqCodigoEmail WHERE usuario_id=? AND proposito=?');
+    $s->bind_param('is',$id,$purpose);$s->execute();$row=$s->get_result()->fetch_assoc();
+    if (!$row || strtotime($row['vence_en'])<time() || (int)$row['intentos']>=5) auth_responder(422,['error'=>'Código caducado o bloqueado. Solicita uno nuevo.']);
+    $update=$db->prepare('UPDATE AeriqCodigoEmail SET intentos=intentos+1 WHERE usuario_id=? AND proposito=?');
+    $update->bind_param('is',$id,$purpose);$update->execute();
+    if (!password_verify($code,$row['codigo_hash'])) auth_responder(422,['error'=>'Código incorrecto']);
+    $delete=$db->prepare('DELETE FROM AeriqCodigoEmail WHERE usuario_id=? AND proposito=?');
+    $delete->bind_param('is',$id,$purpose);$delete->execute();
+}
