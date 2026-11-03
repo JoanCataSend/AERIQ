@@ -1,4 +1,4 @@
-/* AERIQ · Hoja de estilos GLOBAL · 9 páginas de Figma · 2026 */
+/* AERIQ · Hoja de estilos global · 2026 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 :root {
     --forest:#0e6b5e;
@@ -2917,3 +2917,9 @@ form label input,form label textarea,form label select {
 [hidden] {display:none !important;}
 .auth-card input[readonly]{background:#f3f6f4;cursor:not-allowed;}
 .auth-card button.text-link{cursor:pointer;}
+
+/* Área de organizaciones y solicitudes */
+.portal-page{padding-top:48px;padding-bottom:80px}.portal-section{padding:24px;margin:24px 0}.portal-section h2,.portal-section h3{margin-bottom:18px}.portal-section p{margin-top:14px}.portal-section form{margin:18px 0}.portal-section [hidden], [data-admin][hidden]{display:none!important}.portal-section canvas{border:1px solid var(--line);border-radius:12px}.portal-section .devices-table{min-width:650px}.portal-section button{white-space:normal}
+.workspace-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:25px;margin-top:28px;align-items:start}.workspace-content{min-width:0}.workspace-nav{display:grid;gap:5px;background:white;padding:12px;border:1px solid var(--line);border-radius:17px;position:sticky;top:20px}.workspace-nav a{padding:12px 15px;border-radius:10px;font-size:13px;font-weight:650;color:var(--muted)}.workspace-nav a.active,.workspace-nav a:hover{color:var(--forest);background:var(--soft)}.workspace-content .portal-section:first-child{margin-top:0}.workspace-overview .stat{padding:18px 14px}.workspace-overview .stat strong{font-size:26px}.portal-section form .btn{align-self:end}.contact-options{display:grid;align-content:center;gap:20px;padding-left:28px;border-left:1px solid var(--line)}.map-period-label{font-size:10px}.map-period-label select{padding:6px!important;min-height:32px!important;font-size:11px!important}.portal-section textarea{width:100%}
+.modal{max-height:calc(100dvh - 40px);overflow-y:auto}
+@media(max-width:800px){.workspace-layout{grid-template-columns:1fr;gap:12px}.workspace-nav{position:static;display:flex;overflow:auto;white-space:nowrap;padding:7px}.workspace-nav a{padding:10px 12px}.portal-page{padding-top:28px}.portal-section{padding:18px}.contact-options{border-left:0;padding-left:0}.workspace-overview .stats-grid{gap:8px}.workspace-overview .stat small{font-size:10px}}

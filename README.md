@@ -1,103 +1,61 @@
-# AERIQ · Sprint 1
+# AERIQ · Orb · Código Norte
 
-Proyecto universitario de Aplicaciones de Biometría y Medio Ambiente: una
-aplicación Android recibe anuncios Bluetooth de un nodo PBIO y puede enviar sus
-lecturas a un servidor PHP/MariaDB. La web permite explorar un mapa, consultar
-mediciones almacenadas y gestionar una cuenta compartida con Android.
+Plataforma de monitorización ambiental: **AERIQ** es el producto, **Orb** el sensor y **Código Norte** la empresa desarrolladora. El flujo es Orb → BLE/iBeacon → Android → API PHP → MariaDB → web y mapas.
 
-La web procede de la copia de Plesk facilitada en `tal.zip`. El repositorio
-organiza esa implementación y la aplicación móvil para que cada parte tenga una
-entrada clara, documentación y pasos de comprobación.
+Esta revisión conserva los diseños, recursos, galería y visor 3D anteriores. Completa las historias HU01–HU30 aportadas y las tareas T13–T30, manteniendo la separación entre datos reales y simulados y entre organizaciones. Las funciones antiguas de suscripción/venta ciudadana se sustituyen por presupuestos para organizaciones, como pide el backlog.
 
-## Por dónde empezar
+## Entradas
 
-| Necesito… | Ir a… |
+| Necesito… | Documento |
 | --- | --- |
-| Entender cómo se conecta todo | [Arquitectura](doc/arquitectura.md) |
-| Abrir la app en Android Studio | [Android](src/android/README.md) |
-| Trabajar en las pantallas web | [Web](src/web/README.md) |
-| Entender las API y el servidor | [Backend](src/web/server/README.md) y [contratos](doc/api.md) |
-| Preparar la base de datos | [Base de datos](src/database/README.md) |
-| Publicar una carpeta compatible con Plesk | [Despliegue](doc/despliegue.md) |
-| Revisar qué funciona y qué falta | [Estado del proyecto](doc/estado.md) |
-| Comprobar una entrega | [Pruebas](doc/pruebas.md) |
-
-## Estructura
+| Entender las partes | [Arquitectura](doc/arquitectura.md) |
+| Trabajar en la web | [README web](src/web/README.md) |
+| Abrir la app | [README Android](src/android/README.md) |
+| Entender o recrear la base | [README base de datos](src/database/README.md) |
+| Preparar Plesk | [Despliegue](doc/despliegue.md) |
+| Revisar las 15 historias | [Historias](doc/historias-usuario.md) |
+| Revisar las 18 tareas | [Sprint backlog](doc/tareas-sprint.md) |
+| Ejecutar comprobaciones | [Pruebas](doc/pruebas.md) |
+| Conocer límites pendientes | [Estado](doc/estado.md) |
 
 ```text
 AERIQ/
-├── README.md                 # Presentación y puntos de entrada
-├── .gitignore                # Secretos, cachés y resultados generados
 ├── src/
-│   ├── README.md
-│   ├── android/              # Proyecto Android Studio: Kotlin y Compose
-│   │   ├── README.md
-│   │   ├── app/src/          # Aplicación, recursos y pruebas
-│   │   ├── design_assets/   # SVG de referencia visual
-│   │   └── gradle/          # Wrapper y catálogo de versiones
-│   ├── web/                  # Raíz web desplegable en /AERIQ/
-│   │   ├── README.md
-│   │   ├── *.html           # Pantallas web
-│   │   ├── app.js           # Interacciones de la interfaz
-│   │   ├── styles.css       # Estilos compartidos
-│   │   ├── *-client.js      # Clientes de autenticación y medidas
-│   │   ├── *.php            # Entradas HTTP de las API
-│   │   ├── server/          # Lógica PHP y configuración privada
-│   │   ├── assets/          # Imágenes, iconos y modelo 3D
-│   │   └── vendor/          # Dependencias de Composer cuando se instalen
-│   └── database/             # Requisitos del esquema y restauración
-├── doc/
-│   ├── README.md            # Índice de documentación
-│   ├── arquitectura.md
-│   ├── web.md
-│   ├── android.md
-│   ├── api.md
-│   ├── base-de-datos.md
-│   ├── despliegue.md
-│   ├── pruebas.md
-│   ├── estado.md
-│   ├── contribucion.md
-│   └── historico/           # Notas de entregas anteriores
-└── scripts/
-    ├── README.md
-    ├── audit-repository.py   # Enlaces, estructura y sintaxis disponible
-    └── build-plesk-package.py # Genera .dist/plesk/AERIQ/
+│   ├── android/              # Proyecto Android Studio, pruebas y recursos originales
+│   ├── web/                  # Raíz desplegable: HTML/CSS/JS, API PHP y server/
+│   └── database/
+│       ├── schema.sql        # Esquema único, nombres en español, relaciones y vistas
+│       └── seed-demo.sql     # Organizaciones, cuentas y lecturas ficticias comprensibles
+├── scripts/
+│   ├── audit-repository.py
+│   ├── build-plesk-package.py
+│   ├── reset-database.py     # Recreación explícita con copia previa y modo de simulación
+│   ├── migrate-legacy.php    # Importación a otra base vacía, sin borrar el origen
+│   ├── bootstrap-organization.php
+│   └── tests/
+└── doc/                      # Diseños, pruebas, despliegue, HU, tareas e histórico
 ```
 
-## Arranque rápido
+## Base de demostración
 
-Desde la raíz, con Python 3.9 o superior:
+El esquema nuevo no necesita las tablas antiguas de Plesk. Tiene once tablas con nombres claros y dos vistas: `vista_mediciones` y `vista_flota`. El [README de datos](src/database/README.md) explica las relaciones y las seis cuentas de ejemplo.
+
+Antes de borrar nada puedes consultar el plan, sin conectar a la base:
+
+```powershell
+python scripts/reset-database.py --database aeriq_demo --user root --demo --dry-run
+```
+
+El borrado real requiere el nombre exacto y `--confirm RECREAR:nombre_base`; el script crea una copia completa antes de ejecutar DROP. Nunca se ejecuta automáticamente desde la web. Para conservar datos anteriores se utiliza `migrate-legacy.php` hacia una base diferente y vacía.
+
+## Comprobaciones
 
 ```powershell
 python scripts/audit-repository.py
-python scripts/build-plesk-package.py
+node scripts/tests/aeriq-domain.test.js
+python scripts/tests/integration-aeriq.py
 ```
 
-Para Android, abre `src/android/` en Android Studio y sincroniza Gradle. Para
-el sitio completo necesitas PHP 8.1+, MariaDB y configuración de correo;
-[la guía](doc/despliegue.md) explica los requisitos. Abrir un HTML o usar un
-servidor estático no ejecuta las API PHP.
+Android: abre `src/android/` y ejecuta sus tareas Gradle. Los scripts usan Python 3.9+; la integración aislada necesita PHP y MariaDB locales. La aplicación utiliza el mismo origen `/AERIQ/` para cuentas, captura y mapas, centralizado en `ApiRoutes.kt`.
 
-## Alcance actual
-
-Hay código para cuentas reales con verificación por correo, sesión web, tokens
-móviles y consulta de medidas. Los sensores coloreados del mapa son simulados;
-las lecturas BLE del firmware de referencia también pueden ser valores de prueba.
-Cartografía real no significa medición ambiental validada.
-
-Pagos, OAuth de Google/Apple, avisos, recorridos y varias funciones comerciales
-siguen pendientes. El ZIP no incluía el volcado SQL ni las dependencias SMTP
-instaladas. Consulta [el estado detallado](doc/estado.md).
-
-## Relación con Sprint 0
-
-La organización `src/`, `doc/` y `scripts/` toma como referencia el
-[repositorio PBIO de Sprint 0](https://github.com/JoanCataSend/PBIO-O3-GTI3A-2026).
-Aquí se conserva la estructura interna desplegable de la web para mantener sus
-rutas relativas. El firmware no está incluido en esta entrega; su contrato BLE
-se describe en [Android](doc/android.md).
-
-Las antiguas carpetas `AERIQ_Android/` y `AERIQ_Web/` están ahora en
-`src/android/` y `src/web/`. Las notas anteriores se conservan en
-[el histórico](doc/historico/README.md). La reorganización no publica cambios
-en Plesk ni modifica los endpoints configurados en la app.
+No se ha borrado, migrado ni publicado nada en Plesk. La batería/LED del Orb necesita hardware y firmware que no están incluidos. Las pruebas de radio/GPS en móvil y la revisión visual final se registran aparte de la compilación y de las pruebas automatizadas.

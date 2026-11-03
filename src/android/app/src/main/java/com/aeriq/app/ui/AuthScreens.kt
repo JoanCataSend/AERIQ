@@ -74,9 +74,8 @@ fun LoginScreen(auth: AeriqAuthManager, onGo: (Screen) -> Unit, onMessage: (Stri
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center) {
-            AeriqText("¿No tienes cuenta?", 13, false, AeriqColors.muted)
+            AeriqText("Tu organización crea tu cuenta de trabajador.", 13, false, AeriqColors.muted)
             Spacer(Modifier.width(6.dp))
-            LabeledLink("Regístrate", { onGo(Screen.REGISTER) })
         }
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(AeriqColors.soft)
             .clickable { onGo(Screen.MAP) }.padding(16.dp),
@@ -229,11 +228,12 @@ fun EditProfileScreen(auth: AeriqAuthManager, onGo: (Screen) -> Unit, onMessage:
 }
 
 @Composable
-fun ChangePasswordScreen(auth: AeriqAuthManager, onGo: (Screen) -> Unit, onMessage: (String) -> Unit) {
+fun ChangePasswordScreen(auth: AeriqAuthManager, onGo: (Screen) -> Unit, onMessage: (String) -> Unit, mandatory: Boolean = false) {
     var current by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirm by rememberSaveable { mutableStateOf("") }
-    AuthLayout("Cambiar contraseña", "Protege tu cuenta de AERIQ.", onBack = { onGo(Screen.ACCOUNT) }) {
+    AuthLayout(if (mandatory) "Sustituye tu contraseña temporal" else "Cambiar contraseña", "Elige una contraseña diferente de al menos 12 caracteres.", onBack = if (mandatory) null else ({ onGo(Screen.ACCOUNT) })) {
+        if (mandatory) LabeledLink("Cerrar sesión", { auth.logout { onGo(Screen.LOGIN) } })
         Pane(padding = 20.dp) {
             InputField("Contraseña actual", current, { current = it }, "Contraseña actual", true)
             InputField("Nueva contraseña", password, { password = it }, "Mínimo 12 caracteres", true)
@@ -242,7 +242,7 @@ fun ChangePasswordScreen(auth: AeriqAuthManager, onGo: (Screen) -> Unit, onMessa
                 if (password.length < 12 || password != confirm) onMessage("Introduce una contraseña de al menos 12 caracteres y repítela.")
                 else auth.changePassword(current, password) { result ->
                     current = ""; password = ""; confirm = ""
-                    if (result.success) { onMessage("Contraseña actualizada. Se han cerrado las otras sesiones móviles."); onGo(Screen.ACCOUNT) }
+                    if (result.success) { onMessage("Contraseña actualizada."); onGo(Screen.MAP) }
                     else onMessage(result.message)
                 }
             }

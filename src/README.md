@@ -1,13 +1,9 @@
-# Código del proyecto
+# Código AERIQ
 
-| Carpeta | Responsabilidad | Punto de entrada |
-| --- | --- | --- |
-| [android](android/README.md) | App móvil, BLE, mapa y clientes HTTP | `app/src/main/java/com/aeriq/app/MainActivity.kt` |
-| [web](web/README.md) | Interfaz web y backend PHP desplegable | `index.html`, `api.php`, `auth.php`, `mobile-auth.php` |
-| [database](database/README.md) | Requisitos para restaurar MariaDB | Documentación del esquema; falta la exportación SQL |
+| Carpeta | Contenido |
+| --- | --- |
+| [android](android/README.md) | App Kotlin/Compose, BLE, cuentas y pruebas |
+| [web](web/README.md) | Interfaces y API PHP desplegable |
+| [database](database/README.md) | Esquema único, datos demo y procedimientos |
 
-No hay copias paralelas del código. `scripts/build-plesk-package.py` genera
-una carpeta de publicación a partir de `web/`. Las dependencias y resultados
-de compilación se regeneran en cada entorno.
-
-Consulta la [arquitectura](../doc/arquitectura.md) para el recorrido de datos.
+No hay copias paralelas de implementación. El generador de `scripts/` construye la raíz de despliegue; `doc/` explica decisiones y `doc/historico/` conserva referencias anteriores. Consulta [arquitectura](../doc/arquitectura.md).

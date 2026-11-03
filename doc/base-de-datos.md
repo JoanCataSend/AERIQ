@@ -1,44 +1,39 @@
-# Persistencia MariaDB
+# Modelo de datos
 
-## Qué se conoce
+## Once tablas, una sola fuente de verdad
 
-La siguiente tabla enumera campos que utiliza el código PHP. No es un esquema
-DDL: tipos, índices, relaciones y valores por defecto deben contrastarse con
-una exportación real de la base de Plesk.
+| Tabla | Qué guarda |
+| --- | --- |
+| `organizaciones` | Nombre y creación de cada entidad |
+| `usuarios` | Identidad, organización, rol, contraseña cifrada, activación e invitación |
+| `campanas` | Zona, fechas, publicación, umbrales de proyecto y radio de interpolación |
+| `dispositivos` | Orb, organización, dirección BLE, alta y clasificación de procedencia |
+| `asignaciones` | Historial de relación Orb–trabajador–campaña |
+| `magnitudes` | Ozono/temperatura, unidades y límites de formato |
+| `mediciones` | Evento único, asignación, magnitud, valor, fecha UTC y GPS opcional |
+| `solicitudes` | Datos y estado de cada petición comercial |
+| `codigos_email` | Hash de códigos de verificación/recuperación de un solo uso |
+| `sesiones_moviles` | Hash del token y caducidad, sin contraseña en texto |
+| `limites_acceso` | Contadores de intentos para proteger el acceso |
 
-| Tabla | Campos observados | Uso |
-| --- | --- | --- |
-| `Dispositivo` | `dispositivoId`, `nombre` | Emisores conocidos |
-| `TipoMedida` | `tipoMedidaId`, `nombre`, `unidad` | Magnitudes y unidades |
-| `Medida` | `dispositivoId`, `tipoMedidaId`, `valor`, `fechaHora` | Lecturas persistidas |
-| `AeriqUsuario` | `id`, `nombre`, `apellidos`, `email`, `telefono`, `password_hash`, `verificado_en` | Cuentas web y móviles |
-| `AeriqCodigoEmail` | `usuario_id`, `proposito`, `codigo_hash`, `vence_en`, `enviado_en`, `intentos` | Verificación y recuperación |
-| `AeriqAuthRate` | `clave_hash`, `ventana_en`, `intentos` | Limitación de intentos |
-| `AeriqSesionMovil` | `token_hash`, `usuario_id`, `vence_en` | Sesiones Android |
-| `AeriqMapaDemo` | `id`, `nombre`, `latitud`, `longitud`, `valor_ug_m3`, `nivel`, `simulado`, `actualizado_en` | Puntos simulados web |
+`vista_mediciones` y `vista_flota` facilitan la lectura con nombres en phpMyAdmin. No son copias de datos ni endpoints públicos. Las API aplican permisos antes de consultar o devolver registros.
 
-Las inserciones de cuentas y medidas omiten algunos campos, por lo que dependen
-de los valores por defecto y claves definidos en el servidor. Los `ON DUPLICATE
-KEY UPDATE` de códigos e intentos dependen de índices que no pueden reconstruirse
-con certeza solo mirando las consultas.
+## Relaciones
 
-## Material pendiente
+Una organización tiene usuarios, campañas y dispositivos. Cada asignación vincula esas tres entidades dentro de la misma organización mediante claves foráneas compuestas. Solo puede existir una asignación abierta por Orb. Al reasignar, se cierra la anterior y se abre otra; las mediciones conservan su asignación histórica.
 
-El ZIP no contiene SQL. Para una instalación reproducible falta incorporar un
-esquema revisado y sus migraciones en `src/database/`. Una exportación privada
-completa puede contener cuentas y sesiones; no debe añadirse al repositorio.
-Consulta [el procedimiento](../src/database/README.md).
+Cada medición referencia la magnitud que define su unidad. El evento UUID es único, incluso si se reintenta el envío. Una lectura nueva debe corresponder al trabajador, MAC, asignación y campaña autorizados y a sus fechas. El servidor valida rangos y unidad; las restricciones SQL respaldan la integridad.
 
-## Conexión
+El GPS se guarda completo o no se guarda: latitud, longitud y precisión no admiten estados parciales. Datos importados sin contador/RSSI mantienen esos campos nulos. No se inventan coordenadas ni batería.
 
-`src/web/server/Logica.php` carga `SDBaseDatos.php`, abre una conexión MySQLi y
-configura `utf8mb4`. Los ejemplos incluyen las claves `host`, `user`, `password`,
-`database` y `port`. El archivo real está ignorado por Git y no se incluye en
-el paquete generado por defecto.
+## Acceso y privacidad
 
-## Límites de los datos
+La cuenta integra rol, organización y activación, sin una tabla adicional de permisos redundante. Una invitación crea una cuenta no operativa y una contraseña temporal cuyo hash se guarda; vence a las 24 h por defecto. Sustituirla o recuperar el acceso por correo activa la cuenta. Las organizaciones no pueden asignar trabajadores ni campañas de otra entidad.
 
-No hay una relación de propiedad de sensores por usuario implementada en las
-consultas observadas. La tabla visual de «mis sensores» no acredita esa relación.
-Los puntos de `AeriqMapaDemo` son simulados y no deben confundirse con `Medida`.
-No se ha exportado ni modificado la base remota durante esta reorganización.
+La procedencia real/simulada se toma del Orb al recibir la lectura y queda conservada. Publicar en el mapa es una autorización de campaña distinta de registrar en servidor. Los informes solo incluyen lecturas válidas del ámbito autorizado.
+
+## Crear, recrear o migrar
+
+Utiliza los procedimientos del [README de datos](../src/database/README.md). El esquema se crea desde cero con `schema.sql`; `reset-database.py` es explícitamente destructivo, con copia previa y confirmación del nombre. `migrate-legacy.php` trabaja sobre otra base vacía y conserva el origen. El SQL antiguo se archiva en `doc/historico/database/` y ya no es un requisito del sistema.
+
+Para evolucionar el producto, añade migraciones versionadas al esquema nuevo. `magnitudes` permite extender tipos de medida; la recepción BLE necesitará también el contrato de firmware correspondiente. No se ha validado físicamente batería ni calibración ambiental.

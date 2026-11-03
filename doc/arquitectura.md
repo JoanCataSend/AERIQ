@@ -1,59 +1,34 @@
-# Arquitectura
-
-## Vista general
+# Arquitectura AERIQ
 
 ```text
-Emisor PBIO (firmware externo a esta carpeta)
-    │ anuncios BLE iBeacon
-    ▼
-Android: ble/ → MainActivity → data/PbioApiClient
-    │ HTTPS JSON, si el usuario activa compartir
-    ▼
-/biometria/api.php (destino configurado en Android)
-    │
-    ▼
-MariaDB ← lógica PHP ← src/web/api.php ← pbio-client.js ← interfaz web
-
-Interfaz web → auth-client.js → auth.php → AuthCore.php → MariaDB / correo
-Android → AeriqAuthManager → mobile-auth.php → AuthCore.php → MariaDB / correo
+Orb → anuncios BLE iBeacon → Android / AeriqFieldClient → field.php
+                                                        ↓
+                                                    AeriqCore
+                                                        ↓
+                        usuarios · asignaciones · mediciones (MariaDB)
+                                                        ↓
+          Mapa público web / Android ← public.php (solo publicación autorizada)
+          Panel web y flota ← portal.php (rol + organización + CSRF)
+          Formularios → solicitudes → panel comercial de Código Norte
 ```
 
-El destino de envío de medidas Android pertenece al despliegue de Sprint 0.
-El endpoint que incluye este repositorio se publica bajo `/AERIQ/api.php`.
-El código local no demuestra que ambos despliegues usen la misma base: hay que
-confirmar sus configuraciones en el servidor.
+Las cuentas web (`auth.php`, cookie/CSRF) y móviles (`mobile-auth.php`, token cifrado en Android) comparten `usuarios`, sin duplicar identidades. La nueva base es autosuficiente y no necesita tablas heredadas de Sprint 0.
 
-## Responsabilidades
+## Código y responsabilidades
 
-| Capa | Ubicación | Función |
-| --- | --- | --- |
-| Interfaz móvil | `src/android/app/src/main/java/com/aeriq/app/ui/` | Pantallas Compose |
-| Recepción BLE | `src/android/app/src/main/java/com/aeriq/app/ble/` | Escaneo y parser |
-| Clientes móviles | `src/android/app/src/main/java/com/aeriq/app/data/` | HTTP y token cifrado |
-| Interfaz web | `src/web/*.html`, `app.js`, `styles.css` | Presentación e interacción |
-| Clientes web | `src/web/auth-client.js`, `pbio-client.js` | Encapsulan fetch y JSON |
-| Comunicación servidor | `src/web/api.php`, `auth.php`, `mobile-auth.php` | Despacho HTTP |
-| Lógica servidor | `src/web/server/` | Validación, sesiones, correo y persistencia |
-| Persistencia | MariaDB externa | Medidas, cuentas, códigos y sensores simulados |
+- `src/android/`: pantallas Compose originales adaptadas, BLE, captura autorizada, historial, exportación y ubicación en primer plano. `ApiRoutes.kt` centraliza el origen del servidor.
+- `src/web/`: HTML y CSS compartidos; conserva galería, visor 3D, mockups y navegación originales. Los scripts especializados conectan flota, informes, mapas y solicitudes.
+- `aeriq-client.js`: clientes nuevos; `auth-client.js`: sesión existente; `aeriq-domain.js`: cálculos de informes, CSV e IDW sin DOM.
+- `server/AuthCore.php`: identidad y correo reutilizados. `AeriqCore.php`: dominio y permisos. `AeriqHttp.php`: adaptación HTTP y errores.
+- `src/database/schema.sql`: entidades, claves, índices y vistas de lectura.
+- `scripts/`: empaquetado, auditoría, recreación respaldada, importación no destructiva y pruebas aisladas.
 
-Las capas web se mantienen dentro de la raíz desplegable para conservar los
-`require` PHP y los enlaces relativos. No se han duplicado en carpetas paralelas.
+## Conservar lo que funciona
 
-## Dos clases de datos ambientales
+Los recursos gráficos no se sustituyen. «Mi sensor», vinculación, historial, configuración, mapa, Aprende y Cuenta permanecen; sus datos y permisos se actualizan. La comparación se mantiene gratuita. Las suscripciones y compras ciudadanas se adaptan a soluciones para organizaciones, porque el backlog actual las excluye.
 
-`Medida` conserva lecturas recibidas del firmware. Una fila persistida puede
-contener un valor de prueba emitido por ese firmware; estar en MariaDB no valida
-la precisión del sensor. `AeriqMapaDemo` alimenta los puntos simulados del mapa web.
-El mapa Android mantiene ejemplos definidos en código y no consulta esa tabla.
+La API `api.php` conserva consultas de compatibilidad sobre el esquema nuevo y exige permisos para lecturas privadas. Las escrituras operativas utilizan `field.php`; no hay un segundo camino anónimo de inserción. El firmware iBeacon mantiene su contrato 12/14 y no depende de las tablas internas del servidor.
 
-Las lecturas BLE de ozono se expresan en ppb. Los ejemplos del mapa usan µg/m³.
-No existe una conversión entre ambos flujos en esta implementación.
+## Datos
 
-## Identidad y privacidad
-
-La web usa cookie de sesión y CSRF. Android usa tokens enviados por cabecera,
-guardados cifrados mediante Android Keystore. Ambos clientes utilizan las tablas
-de cuentas a través de endpoints distintos. La ubicación del teléfono se usa en
-el mapa Android; el envío PBIO actual no añade coordenadas.
-
-Más información: [API](api.md), [Android](android.md), [web](web.md).
+Ozono en ppb, temperatura en °C, fechas UTC. No se convierten unidades sin base física. Datos reales y simulados se separan; IDW limita cercanía y soporte. Enviar al servidor no equivale a publicar en el mapa. Los límites ambientales configurados son parámetros del proyecto, no umbrales oficiales.

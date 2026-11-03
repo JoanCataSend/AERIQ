@@ -14,12 +14,14 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
 
 /** Autenticación real contra mobile-auth.php de Plesk. Misma tabla de cuentas que la web. */
-data class AeriqUser(val id: Long, val name: String, val last: String, val email: String, val phone: String) {
+data class AeriqUser(val id: Long, val name: String, val last: String, val email: String, val phone: String,
+                     val role: String = "visitante", val organization: String = "", val mustChangePassword: Boolean = false) {
     val fullName: String get() = "$name $last".trim()
     companion object {
         fun fromJson(o: JSONObject) = AeriqUser(
             o.getLong("id"), o.optString("name"), o.optString("last"),
-            o.getString("email"), o.optString("phone")
+            o.getString("email"), o.optString("phone"), o.optString("role", "visitante"),
+            o.optString("organization", ""), o.optBoolean("mustChangePassword")
         )
     }
 }
@@ -28,8 +30,9 @@ data class AuthResult(val success: Boolean, val message: String, val needsVerifi
 
 class AeriqAuthManager(context: Context) {
     /** URL pública de /httpdocs/AERIQ/mobile-auth.php en Plesk. */
-    private val endpoint = "https://jcatsen.upv.edu.es/AERIQ/mobile-auth.php"
+    private val endpoint = ApiRoutes.AUTH
     private val tokenStore = AeriqTokenStore(context.applicationContext)
+    internal fun sessionToken(): String? = tokenStore.read()
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 

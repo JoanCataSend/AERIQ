@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
+date_default_timezone_set('UTC');
 
 require_once __DIR__ . '/Logica.php';
+require_once __DIR__ . '/AeriqCore.php';
 
 function auth_responder(int $status, array $payload): never {
     http_response_code($status);
@@ -10,21 +12,24 @@ function auth_responder(int $status, array $payload): never {
 }
 function auth_body(): array {
     if ((int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 16384) auth_responder(413, ['error'=>'Petición demasiado grande']);
-    $obj=json_decode(file_get_contents('php://input') ?: '', true);
-    if (!is_array($obj) || (count($obj)>0 && array_is_list($obj))) auth_responder(400,['error'=>'Se esperaba un objeto JSON']);
-    return $obj;
+    $obj=json_decode(file_get_contents('php://input') ?: '');
+    if (!$obj instanceof stdClass) auth_responder(400,['error'=>'Se esperaba un objeto JSON']);
+    return get_object_vars($obj);
 }
 function auth_email(mixed $value): string {
+    if (!is_string($value)) auth_responder(422,['error'=>'Correo electrónico no válido']);
     $email=strtolower(trim((string)$value));
     if (strlen($email)>254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) auth_responder(422,['error'=>'Correo electrónico no válido']);
     return $email;
 }
 function auth_string(mixed $value, int $limit): string {
+    if (!is_string($value)) auth_responder(422,['error'=>'Texto no válido']);
     $s=trim((string)$value);
     if ($s==='' || (function_exists('mb_strlen') ? mb_strlen($s,'UTF-8') : strlen($s))>$limit) auth_responder(422,['error'=>'Revisa los datos introducidos']);
     return $s;
 }
 function auth_password(mixed $value): string {
+    if (!is_string($value)) auth_responder(422,['error'=>'Contraseña no válida']);
     $p=(string)$value;
     if (strlen($p)<12 || strlen($p)>256) auth_responder(422,['error'=>'La contraseña debe contener al menos 12 caracteres (máximo 256)']);
     return $p;
@@ -34,18 +39,28 @@ function auth_rate(string $action, string $subject, int $limit, int $interval=90
     $key=hash('sha256',$action.'|'.($_SERVER['REMOTE_ADDR']??'unknown').'|'.$subject);
     $now=time();
     $cutoff=date('Y-m-d H:i:s',$now-$interval);
-    $stmt=$db->prepare('INSERT INTO AeriqAuthRate(clave_hash,ventana_en,intentos) VALUES (?,NOW(),1) ON DUPLICATE KEY UPDATE intentos=IF(ventana_en<? ,1,intentos+1), ventana_en=IF(ventana_en<? ,NOW(),ventana_en)');
+    $stmt=$db->prepare('INSERT INTO limites_acceso(clave_hash,ventana_en,intentos) VALUES (?,NOW(),1) ON DUPLICATE KEY UPDATE intentos=IF(ventana_en<? ,1,intentos+1), ventana_en=IF(ventana_en<? ,NOW(),ventana_en)');
     $stmt->bind_param('sss',$key,$cutoff,$cutoff);
     $stmt->execute();
-    $stmt=$db->prepare('SELECT intentos FROM AeriqAuthRate WHERE clave_hash=?');$stmt->bind_param('s',$key);$stmt->execute();
+    $stmt=$db->prepare('SELECT intentos FROM limites_acceso WHERE clave_hash=?');$stmt->bind_param('s',$key);$stmt->execute();
     if ((int)($stmt->get_result()->fetch_assoc()['intentos']??0)>$limit) auth_responder(429,['error'=>'Demasiados intentos. Vuelve a intentarlo más tarde.']);
 }
 function auth_find(string $email): ?array {
-    $s=conexionBD()->prepare('SELECT id,nombre,apellidos,email,telefono,password_hash,verificado_en FROM AeriqUsuario WHERE email=? LIMIT 1');
+    $s=conexionBD()->prepare('SELECT * FROM usuarios WHERE email=? LIMIT 1');
     $s->bind_param('s',$email);$s->execute(); return $s->get_result()->fetch_assoc()?:null;
 }
+function auth_login_allowed(array $user): void {
+    $a=aeriq_access((int)$user['id']);
+    if ((int)$a['cambiar_clave']) {
+        if (!$a['invitacion_expira_en'] || strtotime($a['invitacion_expira_en'])<=time()) throw new AeriqError('La invitación ha caducado. Recupera el acceso para activar tu cuenta.',403);
+    } elseif (!(int)$a['activo']) throw new AeriqError('Cuenta desactivada. Contacta con tu organización.',403);
+}
 function auth_public(array $user): array {
-    return ['id'=>(int)$user['id'],'name'=>$user['nombre'],'last'=>$user['apellidos'],'email'=>$user['email'],'phone'=>$user['telefono']??''];
+    $a=aeriq_access((int)$user['id']);
+    auth_login_allowed($user);
+    return ['id'=>(int)$user['id'],'name'=>$user['nombre'],'last'=>$user['apellidos'],'email'=>$user['email'],'phone'=>$user['telefono']??'',
+        'role'=>$a['rol'],'organizationId'=>$a['organizacion_id'],'organization'=>$a['organizacion'],
+        'mustChangePassword'=>(bool)$a['cambiar_clave']];
 }
 function auth_current(): ?array {
     if (empty($_SESSION['user_id'])) return null;
@@ -53,13 +68,13 @@ function auth_current(): ?array {
     if (!empty($_SESSION['last_seen']) && time()-(int)$_SESSION['last_seen']>3600) {
         unset($_SESSION['user_id'],$_SESSION['last_seen']);return null;
     }
-    $s=conexionBD()->prepare('SELECT id,nombre,apellidos,email,telefono,verificado_en FROM AeriqUsuario WHERE id=? AND verificado_en IS NOT NULL');
+    $s=conexionBD()->prepare('SELECT * FROM usuarios WHERE id=? AND (verificado_en IS NOT NULL OR debe_cambiar_clave=1)');
     $s->bind_param('i',$id);$s->execute();$user=$s->get_result()->fetch_assoc()?:null;
     if (!$user) {unset($_SESSION['user_id']);return null;}
     $_SESSION['last_seen']=time();return $user;
 }
 function auth_require_user(): array {
-    $u=auth_current(); if (!$u) auth_responder(401,['error'=>'Debes iniciar sesión']);return $u;
+    $u=auth_current(); if (!$u) auth_responder(401,['error'=>'Debes iniciar sesión']);auth_login_allowed($u);return $u;
 }
 function auth_login_session(int $id): void {
     session_regenerate_id(true);
@@ -76,15 +91,15 @@ function auth_mail_config_ok(): array {
     $smtpFile=__DIR__.'/SMTPConfig.php';
     if (is_file($smtpFile)) {
         $vendor=dirname(__DIR__).'/vendor/autoload.php';
-        if (!is_file($vendor)) auth_responder(503,['error'=>'La configuración SMTP necesita PHPMailer (Composer).']);
+        if (!is_file($vendor)) throw new AeriqError('La configuración SMTP necesita PHPMailer (Composer).',503);
         $smtp=require $smtpFile;
-        if (!is_array($smtp)) auth_responder(503,['error'=>'Revisa la configuración de correo SMTP.']);
+        if (!is_array($smtp)) throw new AeriqError('Revisa la configuración de correo SMTP.',503);
         foreach (['host','port','username','password','from_email'] as $key) {
             if (empty($smtp[$key]) || str_contains((string)$smtp[$key],'tudominio.es') || str_contains((string)$smtp[$key],'CONTRASENA')) {
-                auth_responder(503,['error'=>'Revisa SMTPConfig.php o retíralo para utilizar PHP mail().']);
+                throw new AeriqError('Revisa SMTPConfig.php o retíralo para utilizar PHP mail().',503);
             }
         }
-        if (!filter_var((string)$smtp['from_email'],FILTER_VALIDATE_EMAIL)) auth_responder(503,['error'=>'Remitente SMTP no válido.']);
+        if (!filter_var((string)$smtp['from_email'],FILTER_VALIDATE_EMAIL)) throw new AeriqError('Remitente SMTP no válido.',503);
         return ['transport'=>'smtp','smtp'=>$smtp];
     }
 
@@ -92,7 +107,7 @@ function auth_mail_config_ok(): array {
     $mailFile=__DIR__.'/MailConfig.php';
     if (is_file($mailFile)) {
         $opts=require $mailFile;
-        if (!is_array($opts)) auth_responder(503,['error'=>'MailConfig.php debe devolver un array.']);
+        if (!is_array($opts)) throw new AeriqError('MailConfig.php debe devolver un array.',503);
     }
     $from=trim((string)($opts['from_email'] ?? getenv('AERIQ_MAIL_FROM') ?: ''));
     if ($from==='') {
@@ -103,7 +118,7 @@ function auth_mail_config_ok(): array {
         }
     }
     if (!function_exists('mail') || !filter_var($from,FILTER_VALIDATE_EMAIL)) {
-        auth_responder(503,['error'=>'El envío PHP mail() no está disponible o falta un remitente válido. Configura server/MailConfig.php.']);
+        throw new AeriqError('El envío PHP mail() no está disponible o falta un remitente válido. Configura server/MailConfig.php.',503);
     }
     $fromName=trim((string)($opts['from_name']??'AERIQ'));
     // Evitar inyección de cabeceras incluso si el fichero de configuración se modifica.
@@ -171,7 +186,7 @@ function auth_send_mail(string $recipient,string $code,string $purpose): void {
 function auth_generate_code(int $userId,string $purpose,string $email,bool $throttle=true): void {
     $db=conexionBD();
     if ($throttle) {
-        $stmt=$db->prepare('SELECT enviado_en FROM AeriqCodigoEmail WHERE usuario_id=? AND proposito=?');
+        $stmt=$db->prepare('SELECT enviado_en FROM codigos_email WHERE usuario_id=? AND proposito=?');
         $stmt->bind_param('is',$userId,$purpose);$stmt->execute();$old=$stmt->get_result()->fetch_assoc();
         if ($old && time()-strtotime($old['enviado_en'])<60) auth_responder(429,['error'=>'Espera un minuto antes de solicitar otro código.']);
     }
@@ -180,18 +195,18 @@ function auth_generate_code(int $userId,string $purpose,string $email,bool $thro
     $hash=password_hash($code,PASSWORD_DEFAULT);
     // No se invalida un código anterior si el servidor rechaza el correo nuevo.
     auth_send_mail($email,$code,$purpose);
-    $stmt=$db->prepare('INSERT INTO AeriqCodigoEmail(usuario_id,proposito,codigo_hash,vence_en,enviado_en,intentos) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE),NOW(),0) ON DUPLICATE KEY UPDATE codigo_hash=VALUES(codigo_hash),vence_en=VALUES(vence_en),enviado_en=VALUES(enviado_en),intentos=0');
+    $stmt=$db->prepare('INSERT INTO codigos_email(usuario_id,proposito,codigo_hash,vence_en,enviado_en,intentos) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE),NOW(),0) ON DUPLICATE KEY UPDATE codigo_hash=VALUES(codigo_hash),vence_en=VALUES(vence_en),enviado_en=VALUES(enviado_en),intentos=0');
     $stmt->bind_param('iss',$userId,$purpose,$hash);$stmt->execute();
 }
 function auth_verify_code(int $id,string $purpose,string $code): void {
     if (!preg_match('/^[0-9]{6}$/',$code)) auth_responder(422,['error'=>'Introduce el código de seis cifras']);
     $db=conexionBD();
-    $s=$db->prepare('SELECT codigo_hash,vence_en,intentos FROM AeriqCodigoEmail WHERE usuario_id=? AND proposito=?');
+    $s=$db->prepare('SELECT codigo_hash,vence_en,intentos FROM codigos_email WHERE usuario_id=? AND proposito=?');
     $s->bind_param('is',$id,$purpose);$s->execute();$row=$s->get_result()->fetch_assoc();
     if (!$row || strtotime($row['vence_en'])<time() || (int)$row['intentos']>=5) auth_responder(422,['error'=>'Código caducado o bloqueado. Solicita uno nuevo.']);
-    $update=$db->prepare('UPDATE AeriqCodigoEmail SET intentos=intentos+1 WHERE usuario_id=? AND proposito=?');
+    $update=$db->prepare('UPDATE codigos_email SET intentos=intentos+1 WHERE usuario_id=? AND proposito=?');
     $update->bind_param('is',$id,$purpose);$update->execute();
     if (!password_verify($code,$row['codigo_hash'])) auth_responder(422,['error'=>'Código incorrecto']);
-    $delete=$db->prepare('DELETE FROM AeriqCodigoEmail WHERE usuario_id=? AND proposito=?');
+    $delete=$db->prepare('DELETE FROM codigos_email WHERE usuario_id=? AND proposito=?');
     $delete->bind_param('is',$id,$purpose);$delete->execute();
 }

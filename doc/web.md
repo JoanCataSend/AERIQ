@@ -1,41 +1,22 @@
-# Diseño web
+# Web: conservar diseño, completar funciones
 
-## Entrada y navegación
+## Diseño recuperado
 
-Las once páginas están en `src/web/`. Comparten `styles.css` y `app.js`.
-Las funciones de inicialización comprueban si existe el elemento correspondiente
-antes de registrar sus eventos. Las páginas cargan los clientes que necesitan
-antes del script de interfaz.
+La portada conserva su composición original, las maquetas web/móvil y el visor 3D. La ficha Orb conserva sus cuatro imágenes transparentes, la galería y el selector de cantidad. La cuenta y la flota recuperan la estructura anterior de tarjetas, barra lateral, tabla, búsqueda, filtros y diálogo de edición. Se mantienen logotipo, colores, CSS global y adaptación responsive.
 
-## Estado
+Los antiguos planes se convierten en tres tarjetas de servicios: kits para administraciones, kits para empresas y estudios de Código Norte. El recorrido cantidad → revisión → formulario se conserva como solicitud de presupuesto, sin pagos ni suscripciones personales. Las rutas antiguas `carrito.html` y `checkout.html` siguen existiendo con esa nueva finalidad.
 
-`localStorage` conserva cantidades del carrito y apariencia del mapa con prefijo
-`aeriq_`. La autenticación vigente se consulta a `auth.php`; la versión actual
-ya no utiliza un usuario ficticio de localStorage para acreditar una cuenta.
-Contraseñas y códigos se envían al servidor, sin guardarse en ese almacenamiento.
+## Pantallas operativas
 
-## Datos y servicios
+- `portal.html`: resumen y navegación por trabajadores, campañas, dispositivos, informes o solicitudes según función.
+- `sensores.html` + `fleet.js`: tabla organizativa real; alta/baja administrativa, nombre, asignaciones, origen y última actividad.
+- `mapa.html` + `public-map.js`: controles, búsqueda local, capas, aspecto claro/oscuro recordado, selección y CSV. Origen real/simulado, periodo y ámbito público/organización.
+- `perfil.html`: datos y contraseña existentes; organización, función y herramientas de campaña en lugar de pedidos ficticios.
+- `solicitar.html`: formulario de kits/estudios, campos condicionales, consentimiento y confirmación persistida.
+- `cambiar-clave.html`: activación por cambio inicial, protegida también en servidor.
 
-- `auth-client.js`: obtiene sesión/CSRF, envía operaciones de cuenta y renueva la
-  caché de sesión tras operaciones relevantes.
-- `pbio-client.js`: consultas de medidas, tipos, dispositivos, última lectura,
-  salud y sensores simulados. Incluye un tiempo máximo de petición.
-- Mapa: Leaflet, teselas OpenStreetMap y consulta de `mapa-demo` cada 30 segundos
-  si la página está visible. El modo oscuro filtra visualmente las teselas.
-- Panel PBIO: consulta de medidas cada 15 segundos si la página está visible;
-  agrupa la lectura más reciente disponible por dispositivo y tipo.
-- Producto: galería local y visor model-viewer con archivo GLB local.
+## Informes
 
-## Límites de la interfaz
+Campaña, zona, varios dispositivos y fechas UTC; estadísticas, evolución diaria/semanal, tabla y sucesos de umbral. Series reales y simuladas separadas. CSV con escape de texto y coordenadas negativas numéricas. El servidor rechaza resultados de más de 10.000 filas en vez de exportarlos incompletos sin avisar.
 
-Los formularios de contacto y compra no envían pedidos ni cobran. Los botones
-sociales no implementan OAuth. La tabla de dispositivos, sus nombres y controles
-de privacidad siguen siendo una demostración; el panel PBIO es un flujo diferente.
-Las direcciones y pedidos del perfil tampoco tienen persistencia implementada.
-
-## Cambios frecuentes
-
-Para una pantalla cambia el HTML y las clases en el CSS compartido. Las llamadas
-HTTP pertenecen a los clientes, y las operaciones de servidor a PHP. Al añadir una
-página actualiza el [README web](../src/web/README.md) y comprueba referencias con
-`python scripts/audit-repository.py` desde la raíz.
+La vista de mapa limita a las 2.000 mediciones más recientes del filtro y acota el muestreo por rendimiento. No se utilizan círculos ficticios de 125 m como interpolación científica ni datos locales inventados ante fallos de la API.

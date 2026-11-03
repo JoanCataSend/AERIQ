@@ -1,71 +1,50 @@
-# Contratos HTTP observados
+# Contratos API AERIQ
 
-Las rutas siguientes se refieren a la carpeta web desplegada en `/AERIQ/`.
-Las respuestas son JSON; la validación definitiva requiere el servidor y su base.
+Las rutas se publican en `/AERIQ/`. El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
 
-## Medidas: `api.php`
+## Cuentas
 
-| Método | Consulta | Resultado |
+Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `register,verify,resend,login,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`. El registro público solo crea un visitante sin permisos organizativos.
+
+Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login/verificación/recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`.
+
+`user` añade función, organización y `mustChangePassword`. Una cuenta invitada está inactiva y solo puede sustituir su contraseña antes de la caducidad. La contraseña temporal vence a las 24 h por defecto; `AERIQ_INVITATION_HOURS` permite 1–168 h. Recuperar por correo permite activar un acceso caducado. No se permite operar antes de activar la cuenta.
+
+## Organización: `portal.php?action=…`
+
+| Acción | Método / función | Datos |
 | --- | --- | --- |
-| GET | `?accion=health` | Estado de conexión y nombre de base |
-| GET | `?accion=medidas` | Hasta 500 filas, ordenadas por fecha descendente |
-| GET | `?accion=dispositivos` | Dispositivos registrados |
-| GET | `?accion=tipos` | Tipos y unidades |
-| GET | `?accion=ultima&dispositivoId=…&tipoMedidaId=…` | Última lectura del par |
-| GET | `?accion=mapa-demo` | Sensores de `AeriqMapaDemo` con `simulado=true` |
-| POST | Sin acción obligatoria | Inserta una medida y devuelve la última lectura |
+| `dashboard` | GET admin/analista | Personas, campañas y flota propias |
+| `worker` | POST admin | `name,last,email,role` (trabajador/analista) |
+| `campaign` | POST admin | `id?`, `name,zone,start,end,active,public,radius,medium,high` |
+| `device` | POST admin | `id?`, `name,address,worker,campaign,active,simulated` |
+| `readings` | GET admin/analista | `campaign,devices` (IDs con comas), `zone,from,to` |
+| `map` | GET admin/analista/trabajador | Mismo formato de mapa público, dentro del ámbito privado autorizado |
+| `requests` | GET comercial | Solicitudes recibidas |
+| `request-status` | POST comercial | `id,status` (pendiente/en revision/respondida/cerrada) |
 
-`medidas` admite `dispositivoId`, `tipoMedidaId`, `desde` y `hasta`. Las fechas
-usan `YYYY-MM-DD HH:MM:SS`; los identificadores de dispositivo tienen 16 caracteres.
+Todo POST del panel requiere CSRF. El rol y la organización se consultan en servidor. Las asignaciones preservan su histórico; dar de baja no borra mediciones. Fechas de campaña `YYYY-MM-DD`, radio 20–50 m y umbrales de ozono en ppb. Un informe de más de 10.000 filas devuelve 413 y pide acotar el filtro.
 
-Cuerpo de ejemplo del POST, correspondiente a valores de prueba PBIO:
+## Campo Android: `field.php`
+
+GET devuelve `assignments` vigentes. GET `?action=history` devuelve hasta 1.000 lecturas válidas de las asignaciones actuales y anteriores del trabajador. Se valida token, activación y función.
+
+POST incluye:
 
 ```json
-{"uuid":"EPSG-GTI-PROY-3A","tipoMedidaId":14,"valor":123,"contador":7,"rssi":-60}
+{"eventId":"014be610-334a-49cb-8f78-345af82a2551","deviceId":1,"assignmentId":1,"campaignId":1,"address":"D0:00:00:00:00:01","type":14,"unit":"ppb","value":68,"capturedAt":"2026-11-03T12:00:00.000Z","counter":7,"rssi":-60,"latitude":38.99665,"longitude":-0.166,"accuracy":5}
 ```
 
-El identificador del ejemplo tiene 16 caracteres ASCII y debe existir en la base
-para aceptar una escritura. Usa el identificador real registrado en tu entorno.
+GPS es opcional como conjunto. El servidor consulta el rango/unidad de `magnitudes`, comprueba asignación y fechas, y toma la procedencia del Orb. `assignmentId` y `unit` se comprueban si se incluyen; la app actual siempre los envía. No se permite que un cliente elija otra organización o declare su lectura como real.
 
-La API exige los cinco campos, valida rangos y requiere que dispositivo y tipo
-existan. Contador y RSSI se reciben pero no se guardan en `Medida`.
-La API heredada no exige autenticación de cuenta para insertar; no se ha cambiado
-ese contrato en esta reorganización. No ejecutes pruebas de escritura en producción
-como comprobación rutinaria.
+El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta: `ok,id,eventId,duplicate`. Reutilizar el evento con datos diferentes devuelve 409; cambiar de asignación no reasigna lecturas históricas.
 
-## Cuenta web: `auth.php?action=…`
+## Público: `public.php`
 
-`GET session` devuelve `ok`, `csrf` y `user` (o `null`). Las demás operaciones son
-POST JSON con cookie de sesión y cabecera `X-CSRF-Token` obtenida en esa consulta.
+GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 2.000 lecturas recientes del filtro, sin identidad del trabajador.
 
-| Acción | Campos |
-| --- | --- |
-| `register` | `name`, `last`, `email`, `password` |
-| `verify` | `email`, `code` |
-| `resend`, `forgot` | `email` |
-| `login` | `email`, `password` |
-| `reset-password` | `email`, `code`, `password` |
-| `profile` | `name`, `last`, `phone` |
-| `change-password` | `current`, `password` |
-| `logout` | Objeto vacío |
+POST `?action=request`: `service` (administracion/empresa/estudio), `entity,contact,email,phone,zone,needs,consent`. Kits requieren `quantity`; estudios `surface,duration`. Devuelve número y confirmación de registro. El fallo del aviso a `AERIQ_COMMERCIAL_EMAIL` no revierte la solicitud guardada.
 
-Las contraseñas se validan en PHP entre 12 y 256 bytes. Los códigos son de seis
-cifras, caducan a los diez minutos y tienen límite de intentos. `profile` y
-`change-password` requieren una cuenta autenticada. Los errores incluyen `error`;
-un login pendiente puede incluir `needsVerification`.
+## Adaptador de consultas anteriores
 
-## Cuenta móvil: `mobile-auth.php?action=…`
-
-Comparte las acciones de cuenta y sus campos, sin utilizar cookies ni CSRF.
-Las peticiones protegidas envían `X-AERIQ-Token`. `GET session` requiere ese token.
-Login, verificación y restablecimiento pueden devolver `token` y `user`; cambiar
-contraseña también emite un token nuevo. Los tokens se almacenan en MariaDB como
-SHA-256 y vencen a los 30 días. Este endpoint exige HTTPS fuera de loopback.
-
-## URLs Android actuales
-
-- Cuentas: `https://jcatsen.upv.edu.es/AERIQ/mobile-auth.php`.
-- Escritura PBIO: `https://jcatsen.upv.edu.es/biometria/api.php`.
-
-La web consulta su `api.php` del mismo origen. Confirma la configuración de los
-dos despliegues antes de concluir que la web verá las medidas enviadas por Android.
+`api.php?accion=health` comprueba conexión/esquema; `tipos` expone magnitudes. `dispositivos`, `medidas` y `ultima` necesitan sesión admin/analista y se proyectan desde el esquema único. No hay inserción anónima de compatibilidad: las escrituras usan el endpoint autenticado de campo.

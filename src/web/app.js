@@ -15,7 +15,7 @@ function initNavigation(){
   if(typeof AeriqAuth==='undefined')return;
   AeriqAuth.session().then(s=>{
     const a=$('#account-link');
-    if(a){a.href=s.user?'perfil.html':'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
+    if(a){a.href=s.user?(s.user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(s.user.role)?'portal.html':'perfil.html')):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
   }).catch(()=>{});
 }
 function authFeedback(error){
@@ -37,8 +37,8 @@ function initForms(){
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
     try{
       const email=f.elements.namedItem('email').value;
-      await AeriqAuth.post('login',{email,password:f.elements.namedItem('password').value});
-      location.href='perfil.html';
+      const result=await AeriqAuth.post('login',{email,password:f.elements.namedItem('password').value});
+      location.href=result.user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(result.user.role)?'portal.html':'perfil.html');
     }catch(error){
       if(error.needsVerification)location.href='verificar.html?email='+encodeURIComponent(f.elements.namedItem('email').value);
       else authFeedback(error);
@@ -98,7 +98,7 @@ function initSensorProduct(){
  function show(){const el=$('#product-qty');if(el)el.textContent=n}
  $('[data-qty-minus]')?.addEventListener('click',()=>{n=Math.max(1,n-1);show()});
  $('[data-qty-plus]')?.addEventListener('click',()=>{n=Math.min(99,n+1);show()});
- $('#add-to-cart')?.addEventListener('click',()=>{setCart(cartCount()+n);toast(`${n} sensor(es) añadidos al carrito.`)});
+ $('#add-to-cart')?.addEventListener('click',()=>{setCart(n);location.href='carrito.html'});
  $$('[data-angle]').forEach(button=>button.addEventListener('click',()=>{
    $$('[data-angle]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button))});
    if(main){main.src=button.dataset.imageSrc;main.alt=button.dataset.imageAlt||'Sensor AERIQ O₃'}
@@ -112,133 +112,7 @@ function initCheckout(){if(!$('input[name="delivery"]'))return;if(!cartCount()){
  $$('input[name="payment"]').forEach(x=>x.addEventListener('change',()=>$$('.payment-methods .choice').forEach(c=>c.classList.toggle('selected',$('input',c).checked))));
  $$('input[name="address-source"]').forEach(x=>x.addEventListener('change',()=>{if(x.checked&&x.value==='saved'){const address=$('input[name="address"]');if(address)address.value='C/ del Jardín, 12';$('input[name="zip"]').value='46001';$('input[name="city"]').value='Valencia';$('input[name="province"]').value='Valencia'}}));
  $('#checkout-form')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;if($('input[name="delivery"]:checked').value==='pickup'){toast('La recogida no está disponible: faltan puntos confirmados. No se ha realizado ningún pago.');return}toast('Compra de demostración: no se ha realizado ningún pedido ni cobro.')});refreshCheckout();}
-async function initMap(){
-  const host=$('#real-gandia-map');if(!host)return;
-  const campus=[38.996651,-0.166009];
-  let sensors=[],selected=null,source='all';
-  const list=$('#map-sensor-list');const status=$('#map-loading');
-  const colors={green:'#219c72',orange:'#eea22d',red:'#e35b5d'};
-  if(typeof L==='undefined'){
-    if(status)status.textContent='No se ha podido cargar Leaflet. Comprueba la conexión a Internet.';
-    return;
-  }
-  const mapVisual=host.closest('.map-visual');
-  function setMapStyle(style){
-    const mode=style==='light'?'light':'dark';
-    host.classList.toggle('map-theme-dark',mode==='dark');
-    mapVisual?.classList.toggle('is-dark-map',mode==='dark');
-    $$('[data-map-style]').forEach(b=>{const active=b.dataset.mapStyle===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
-    store.set('mapStyle',mode);
-  }
-  $$('[data-map-style]').forEach(b=>b.addEventListener('click',()=>setMapStyle(b.dataset.mapStyle)));
-  setMapStyle(store.get('mapStyle','dark'));
-  const map=L.map(host,{zoomControl:false,scrollWheelZoom:true,preferCanvas:true}).setView([38.9974,-0.1633],16);
-  const tileLayer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
-  }).addTo(map);
-  tileLayer.on('load',()=>{if(status)status.hidden=true});
-  const circles=L.layerGroup().addTo(map),pins=L.layerGroup().addTo(map),layers=new Map();
-  const esc=(v)=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  function choose(id,pan){
-    const s=sensors.find(x=>x.id===id);if(!s)return;
-    selected=s;
-    $('#selected-id').textContent=s.id;
-    $('#map-id').textContent='#'+s.id;
-    $('#map-value').textContent=String(s.value);
-    $('#map-location').textContent=s.name;
-    $('#map-quality').textContent=s.quality;
-    $$('.sensor-list-item').forEach(b=>b.classList.toggle('chosen',b.dataset.sensorId===id));
-    layers.forEach(({marker,sensor})=>{
-      marker.getElement()?.querySelector('.aeriq-map-marker')?.classList.toggle('active',sensor.id===id);
-    });
-    if(pan)map.flyTo(s.coordinates,Math.max(map.getZoom(),16),{duration:.45});
-  }
-  function renderList(){
-    if(!list)return;
-    if(source==='mine'){
-      list.innerHTML='<p class="map-empty-sensors">No hay sensores propios conectados. Selecciona «Todos» para ver los simulados de MariaDB.</p>';
-      return;
-    }
-    if(!sensors.length){list.innerHTML='<p class="map-empty-sensors">No hay datos simulados disponibles en MariaDB.</p>';return;}
-    list.innerHTML=sensors.map(s=>`<button class="sensor-list-item${s.id===selected?.id?' chosen':''}" type="button" data-sensor-id="${esc(s.id)}"><strong>${esc(s.name)}</strong><span>#${esc(s.id)} · ${s.value} µg/m³ · ${esc(s.quality)} (SIMULADO)</span><i class="sensor-state ${s.color}"></i></button>`).join('');
-  }
-  function toggleSource(){
-    if(source==='all'){
-      pins.addTo(map);circles.addTo(map);
-      if(!$('#marker-toggle')?.checked)map.removeLayer(pins);
-      if(!$('#heat-toggle')?.checked)map.removeLayer(circles);
-    }else{map.removeLayer(pins);map.removeLayer(circles)}
-    renderList();
-  }
-  async function refreshSensors(){
-    try {
-      if(typeof AeriqPbio==='undefined')throw new Error('Cliente PBIO no cargado');
-      const result=await AeriqPbio.listarMapaDemo();
-      if(!Array.isArray(result))throw new Error('Respuesta incorrecta del servidor');
-      const parsed=result.filter(s=>s&&s.simulado===true&&Array.isArray(s.coordinates)&&s.coordinates.length===2&&Number.isFinite(Number(s.coordinates[0]))&&Number.isFinite(Number(s.coordinates[1]))&&Number.isFinite(Number(s.value))&&['bajo','moderado','alto'].includes(s.quality))
-        .map(s=>({id:String(s.id),name:String(s.name),coordinates:s.coordinates.map(Number),value:Number(s.value),quality:s.quality,color:({bajo:'green',moderado:'orange',alto:'red'})[s.quality]}));
-      sensors=parsed;
-      const selectedId=selected?.id;
-      pins.clearLayers();circles.clearLayers();layers.clear();
-      if(sensors.length) {
-        selected=sensors.find(x=>x.id===selectedId)||sensors.find(x=>x.id==='017')||sensors[0];
-        for(const s of sensors){
-          const circle=L.circle(s.coordinates,{radius:125,color:colors[s.color],weight:0,fillColor:colors[s.color],fillOpacity:.20,interactive:false}).addTo(circles);
-          const icon=L.divIcon({className:'aeriq-marker-container',html:`<div class="aeriq-map-marker ${s.color}${s.id===selected.id?' active':''}"><span class="marker-center"></span></div>`,iconSize:[32,32],iconAnchor:[16,16]});
-          const marker=L.marker(s.coordinates,{icon,keyboard:true,title:`Sensor SIMULADO #${s.id} · ${s.name}`}).addTo(pins);
-          marker.on('click',()=>choose(s.id,true));layers.set(s.id,{marker,circle,sensor:s});
-        }
-        choose(selected.id,false);
-      }else{
-        selected=null;
-        $('#map-location').textContent='Sin sensores simulados en la base de datos';
-        $('#map-value').textContent='—';$('#map-id').textContent='—';$('#selected-id').textContent='—';
-      }
-      toggleSource();
-      if(status && status.textContent?.startsWith('Error'))status.hidden=true;
-    }catch(e){
-      console.warn('AERIQ mapa-demo',e);
-      if(list)list.textContent='No se pueden consultar los sensores simulados de MariaDB. Revisa api.php, la migración SQL y la conexión.';
-      if(!sensors.length){$('#map-location').textContent='Servidor no disponible';$('#map-value').textContent='—';}
-      // El mapa de calles sigue utilizable, pero no se inventan resultados locales.
-    }
-  }
-  list?.addEventListener('click',e=>{const b=e.target.closest('[data-sensor-id]');if(b)choose(b.dataset.sensorId,true)});
-  $$('[data-source]').forEach(b=>b.addEventListener('click',()=>{
-    source=b.dataset.source;$$('[data-source]').forEach(v=>v.classList.toggle('selected',v===b));toggleSource();
-  }));
-  $('#toggle-map-layers')?.addEventListener('click',()=>{const l=$('#map-layer-options');if(l)l.hidden=!l.hidden});
-  $('#heat-toggle')?.addEventListener('change',e=>{if(source==='all'&&e.target.checked)circles.addTo(map);else map.removeLayer(circles)});
-  $('#marker-toggle')?.addEventListener('change',e=>{if(source==='all'&&e.target.checked)pins.addTo(map);else map.removeLayer(pins)});
-  $('#map-reset')?.addEventListener('click',()=>map.flyTo(campus,16,{duration:.6}));
-  ['#map-zoom-in','#zoomin-map'].forEach(x=>$(x)?.addEventListener('click',()=>map.zoomIn()));
-  $('#zoomout-map')?.addEventListener('click',()=>map.zoomOut());
-  const search=$('#map-search');
-  function searchPlace(){
-    const q=(search?.value||'').trim().toLowerCase();
-    if(!q)return;
-    if(q.includes('upv')||q.includes('campus')||q.includes('universidad')){map.flyTo(campus,17,{duration:.6});choose('011',false)}
-    else if(q.includes('playa')||q.includes('platja')){map.flyTo([38.9990,-0.1589],16,{duration:.6});choose('017',false)}
-    else if(q.includes('grau')||q.includes('grao'))map.flyTo([38.9922,-0.1656],15,{duration:.6});
-    else toast('Búsqueda de prueba: UPV, playa de Gandía o Grau de Gandía.');
-  }
-  search?.addEventListener('change',searchPlace);
-  search?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchPlace();search.blur()}});
-  $('#export-sensor')?.addEventListener('click',()=>{
-    if(!selected){toast('Selecciona un sensor de MariaDB.');return;}
-    const s=selected;
-    const csv='id_sensor;zona_aproximada;latitud;longitud;ozono_ug_m3;calidad;tipo_de_dato\n'+
-      `${s.id};"${s.name.replaceAll('"','""')}";${s.coordinates[0]};${s.coordinates[1]};${s.value};${s.quality};SIMULADO\n`;
-    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`aeriq_gandia_${s.id}_SIMULADO.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2500);
-    toast('CSV simulado exportado desde los datos de MariaDB.');
-  });
-  await refreshSensors();
-  // Recargar datos cuando se editen coordenadas en phpMyAdmin.
-  setInterval(()=>{if(!document.hidden)void refreshSensors()},30000);
-  requestAnimationFrame(()=>map.invalidateSize());
-  window.addEventListener('resize',()=>map.invalidateSize());
-}
+function initMap(){ if(typeof initAeriqMap==='function')initAeriqMap(); }
 function initModelViewer(){
  const model=$('.sensor-model-viewer');if(!model)return;
  const shell=model.closest('.sensor-3d-shell');
@@ -250,16 +124,18 @@ function initModelViewer(){
  if(model.loaded)ready();
  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)model.removeAttribute('auto-rotate');
 }
-function initDevices(){const rows=$$('.device-row');let filter='all';function apply(){let q=($('#device-search')?.value||'').toLowerCase().trim();let count=0;rows.forEach(r=>{let ok=(filter==='all'||(filter==='active')===(r.dataset.active==='true'))&&(!q||r.dataset.name.includes(q)||r.dataset.id.toLowerCase().includes(q));r.classList.toggle('hidden',!ok);if(ok)count++});let tb=$('.table-bottom');if(tb)tb.firstChild.textContent=`${count} de ${rows.length} sensores `}
- $('#device-search')?.addEventListener('input',apply);$$('[data-device-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.deviceFilter;$$('[data-device-filter]').forEach(a=>a.classList.toggle('selected',a===b));apply()}));
- $$('[data-private]').forEach(x=>x.addEventListener('change',()=>toast('Preferencia guardada solo visualmente (sin servidor).')));
- const modal=$('#device-modal'),edit=$('#device-new-name');let current=null;$$('[data-edit-device]').forEach(b=>b.addEventListener('click',()=>{current=b.closest('tr');edit.value=$('.device-title',current).textContent;modal.showModal()}));$('#device-modal-close')?.addEventListener('click',()=>modal.close());$('#device-edit-form')?.addEventListener('submit',e=>{e.preventDefault();if(current&&edit.value.trim()){$('.device-title',current).textContent=edit.value.trim();current.dataset.name=edit.value.trim().toLowerCase();toast('Nombre actualizado en esta demostración.');apply()}modal.close()});$('#add-device')?.addEventListener('click',()=>toast('Para registrar un sensor real será necesario conectar el backend.'))}
+function initDevices(){if(typeof initFleet==='function')void initFleet();}
 async function initProfile(){
   const form=$('#profile-form');if(!form)return;
   try{
     const session=await AeriqAuth.session();
     if(!session.user){location.href='login.html';return;}
     const user=session.user;
+    const organization=document.querySelector('#profile-organization'),role=document.querySelector('#profile-role');
+    if(organization)organization.textContent=user.organization||'Cuenta de consulta pública, sin organización asignada';
+    if(role)role.textContent='Función: '+user.role;
+    const avatar=document.querySelector('.avatar');if(avatar)avatar.textContent=(user.name?.[0]||'')+(user.last?.[0]||'');
+    if(user.mustChangePassword){location.href="cambiar-clave.html";return;}
     form.elements.namedItem('name').value=user.name||'';
     form.elements.namedItem('last').value=user.last||'';
     form.elements.namedItem('email').value=user.email||'';

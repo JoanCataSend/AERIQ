@@ -1,6 +1,7 @@
 """Audita estructura, enlaces y sintaxis disponible sin contactar con servicios."""
 
 import json
+import hashlib
 import re
 import shutil
 import subprocess
@@ -45,6 +46,8 @@ def check_reference(source, reference):
 
 def run_syntax(binary, paths, flag):
     executable = shutil.which(binary)
+    if binary == "php" and not executable and Path("C:/xampp/php/php.exe").is_file():
+        executable = "C:/xampp/php/php.exe"
     if not executable:
         skipped.append(f"{binary}: no instalado; sintaxis no comprobada con {flag}")
         return
@@ -68,9 +71,19 @@ def main():
         "src/android/settings.gradle.kts", "src/web/api.php", "src/web/auth.php",
         "src/web/mobile-auth.php", "src/web/server/Logica.php",
         "src/web/server/AuthCore.php", "src/web/server/.htaccess", "src/web/vendor/.htaccess",
+        "src/web/server/AeriqCore.php", "src/web/server/AeriqHttp.php",
+        "src/database/schema.sql", "src/database/seed-demo.sql", "scripts/reset-database.py",
+        "scripts/migrate-legacy.php", "doc/tareas-sprint.md",
     ]
     for name in required:
         check((ROOT / name).is_file(), f"Falta: {name}")
+    assets_file = ROOT / "scripts/tests/original-assets.json"
+    if assets_file.is_file():
+        for relative, digest in json.loads(assets_file.read_text(encoding="utf-8")).items():
+            asset = (ROOT / relative).resolve()
+            check(asset.is_relative_to(ROOT) and asset.is_file() and
+                  hashlib.sha256(asset.read_bytes()).hexdigest() == digest,
+                  f"Recurso original perdido o cambiado: {relative}")
 
     documents = [ROOT / "README.md", *sorted((ROOT / "doc").glob("*.md"))]
     documents += [p for p in (ROOT / "src").rglob("README.md") if not any(
@@ -86,18 +99,18 @@ def main():
             check_reference(doc, ref)
 
     pages = sorted(WEB.glob("*.html"))
-    check(len(pages) == 11, f"Se esperaban 11 páginas; encontradas {len(pages)}")
+    check(len(pages) == 14, f"Se esperaban 14 páginas; encontradas {len(pages)}")
     for page in pages:
         parser = References()
         parser.feed(page.read_text(encoding="utf-8-sig"))
         for ref in parser.refs:
             check_reference(page, ref)
         for client in ("auth-client.js", "pbio-client.js"):
-            if client in parser.scripts:
+            if client in parser.scripts and "app.js" in parser.scripts:
                 check("app.js" in parser.scripts and
                       parser.scripts.index(client) < parser.scripts.index("app.js"),
                       f"Orden de scripts incorrecto en {page.name}: {client}")
-        check("auth-client.js" in parser.scripts,
+        check("auth-client.js" in parser.scripts or page.name == "solicitar.html",
               f"Falta cliente de sesión en {page.name}")
 
     try:

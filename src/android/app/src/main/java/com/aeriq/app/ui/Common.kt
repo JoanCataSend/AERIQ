@@ -182,7 +182,7 @@ fun BottomNavigation(selected:Screen,onGo:(Screen)->Unit){
         .border(0.5.dp,AeriqColors.border),verticalAlignment=Alignment.CenterVertically){
         tabs.forEach{(route,label,icon)->
             val active=selected==route||(selected in listOf(Screen.LINK,Screen.HISTORY,Screen.CONFIG)&&route==Screen.SENSOR)
-                ||(selected==Screen.COMPARE&&route==Screen.MAP)||(selected==Screen.PREMIUM&&route==Screen.ACCOUNT)
+                ||(selected==Screen.COMPARE&&route==Screen.MAP)||(selected==Screen.SERVICES&&route==Screen.ACCOUNT)
             Column(Modifier.weight(1f).fillMaxHeight().clickable {onGo(route)}.padding(top=8.dp),
                 horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
                 Box(Modifier.width(56.dp).height(31.dp).background(if(active)AeriqColors.soft else Color.Transparent,RoundedCornerShape(18.dp)),

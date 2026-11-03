@@ -32,6 +32,8 @@ class AeriqBleController(
         private set
     var selectedAddress by mutableStateOf<String?>(null)
         private set
+    var lastAdvertisementAt by mutableStateOf(0L)
+        private set
     var lastO3 by mutableStateOf<LiveMeasurement?>(null)
         private set
     var lastTemperature by mutableStateOf<LiveMeasurement?>(null)
@@ -80,6 +82,7 @@ class AeriqBleController(
                     devices = (devices.filterNot { it.address == addr } + candidate)
                         .sortedByDescending { it.lastSeen }
                     if (selectedAddress != addr) return@post
+                    lastAdvertisementAt = now
                     val key = "$addr/${parsed.typeId}"
                     // El mismo anuncio se repite muchas veces durante 1200 ms. El contador
                     // no cambia hasta el siguiente ciclo, así que no se publica dos veces.
@@ -129,7 +132,9 @@ class AeriqBleController(
 
     fun select(address: String) {
         if (devices.none { it.address == address }) { status = "Sensor no disponible"; return }
+        if (selectedAddress.equals(address, true)) return
         selectedAddress = address
+        lastAdvertisementAt = 0L
         lastO3 = null
         lastTemperature = null
         lastSeenCounters.clear()
@@ -138,6 +143,7 @@ class AeriqBleController(
 
     fun unlink() {
         selectedAddress = null
+        lastAdvertisementAt = 0L
         lastO3 = null
         lastTemperature = null
         lastSeenCounters.clear()

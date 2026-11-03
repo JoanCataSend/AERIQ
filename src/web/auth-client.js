@@ -20,7 +20,7 @@ const AeriqAuth = (() => {
     let data;
     try { data=await response.json(); } catch { throw new Error('El servidor no devolvió JSON. Comprueba Plesk/PHP.'); }
     if (!response.ok) {const err=new Error(data.error||`HTTP ${response.status}`);err.needsVerification=Boolean(data.needsVerification);throw err;}
-    if (['verify','login','logout','reset-password','profile'].includes(action)) sessionPromise=null;
+    if (['verify','login','logout','reset-password','profile','change-password'].includes(action)) sessionPromise=null;
     return data;
   }
   return {session,post};

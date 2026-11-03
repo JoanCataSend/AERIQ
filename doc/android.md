@@ -1,57 +1,24 @@
-# Diseño Android
+# Android AERIQ
 
-## Organización
+## Pantallas conservadas y adaptadas
 
-`MainActivity.kt` crea los controladores, solicita permisos BLE y compone
-`AeriqApplication`. La navegación usa un enum `Screen`; las pantallas restringidas
-redirigen a login cuando falta una cuenta. `ui/Common.kt` centraliza componentes,
-colores, tipografía y navegación inferior. `ui/theme/` conserva el tema generado
-del proyecto; el tema aplicado por la actividad es `AeriqTheme` de `Common.kt`.
+- Mapa de ozono: búsqueda, capas, oscuro/claro, ubicación opcional, leyenda, marcadores y comparación. Consulta la API pública autorizada, no una lista de puntos incrustada.
+- Mi sensor: tarjeta Orb, O₃ actual, gráfica, resumen de campaña, recepción BLE y envío separados, asignaciones y control de captura.
+- Vincular: mantiene la imagen Orb y las tarjetas originales; solo selecciona emisores asignados.
+- Historial: Día/Semana/Mes/Año, gráficas por procedencia, mínimo/máximo y exportación CSV mediante selector de archivo Android. Datos guardados de las asignaciones del trabajador, no gráficos ficticios.
+- Configurar: datos administrados del Orb, privacidad, envío y deselección.
+- Aprende y Cuenta: contenido e identidad originales; cuenta/organización, contraseña, historial, ayuda y soluciones. No hay suscripciones personales.
 
-`AuthScreens.kt` contiene registro, verificación, recuperación, perfil y contraseña.
-`SensorScreens.kt` contiene sensor, vinculación, historial y configuración.
-`MapScreens.kt` y `RealOzoneMap.kt` gestionan mapa y localización.
-`CommercialScreens.kt` contiene comparación, Premium y cuenta.
+## Red
 
-## Contrato BLE
+`data/ApiRoutes.kt` centraliza `/AERIQ/`. `AeriqAuthManager` reutiliza login, verificación, recuperación y token cifrado. La contraseña temporal bloquea la app hasta activar/cambiarla; una invitación caducada requiere recuperar acceso.
 
-| Campo | Valor o interpretación |
-| --- | --- |
-| Fabricante | `0x004C` |
-| Prefijo | `02 15` |
-| Identificador | `EPSG-GTI-PROY-3A`, 16 bytes ASCII |
-| Major | Byte alto: tipo; byte bajo: contador |
-| Tipo ozono | `14`, valor natural de 16 bits en ppb |
-| Tipo temperatura | `12`, valor de 16 bits con signo en °C |
-| Minor | Valor de la lectura |
+`AeriqFieldClient` obtiene asignaciones e historial privados. Los POST incluyen evento estable, dispositivo, asignación, campaña, unidad, fecha UTC y GPS opcional. Reintenta una vez un fallo de transporte usando el mismo evento. La cola es de 30 lecturas, no persistente tras cerrar la app; no se promete conservación offline. Una actualización fallida de asignaciones no borra de pantalla el Orb previamente conocido y no se confunde con pérdida de Bluetooth; el servidor sigue validando cada envío.
 
-El emisor es un iBeacon no conectable: «vincular» selecciona su dirección,
-sin conexión GATT. El controlador evita publicar repetidamente el mismo contador
-por dirección y tipo. El escaneo se detiene al pasar la actividad a segundo plano.
-El firmware de referencia de Sprint 0 emite valores de prueba; su código no se
-ha incorporado a esta entrega.
+## BLE y ubicación
 
-## Red y cuenta
+Se mantienen fabricante `0x004C`, prefijo `02 15`, identificador ASCII `EPSG-GTI-PROY-3A`, tipos 14 ppb y 12 °C, contador de 8 bits y temperatura con signo. Vincular significa seleccionar anuncios iBeacon, no una conexión GATT permanente. Seleccionar de nuevo el mismo Orb no reinicia la deduplicación.
 
-`PbioApiClient` envía JSON en una cola serial limitada a 30 trabajos y no reintenta
-las escrituras automáticamente. Se activa desde la opción voluntaria de compartir.
-No incorpora GPS ni token de cuenta a ese POST de Sprint 0.
+Tras 15 s sin anuncios se indica ausencia de recepción; el estado del servidor es independiente. Los permisos BLE dependen de versión Android. El GPS es opcional, solo se adjunta una posición reciente y se detiene en segundo plano. El mapa distingue el punto del teléfono de las mediciones.
 
-`AeriqAuthManager` comunica las operaciones de cuenta con `mobile-auth.php`.
-`AeriqTokenStore` guarda el token de sesión con AES-GCM y Android Keystore.
-Las URLs vigentes se documentan en [API](api.md); el cambio de carpetas no las altera.
-
-## Mapa y permisos
-
-osmdroid muestra calles OpenStreetMap. Los cinco puntos de ozono son ejemplos
-definidos en `RealOzoneMap.kt`. El punto azul representa la localización obtenida
-del teléfono si hay permiso aproximado o preciso. La suscripción a ubicaciones se
-retira al salir de la composición del mapa; el ciclo de primer plano/segundo plano
-debe incluirse en las pruebas en dispositivo.
-
-BLE solicita `BLUETOOTH_SCAN` y `BLUETOOTH_CONNECT` en Android 12+; en versiones
-anteriores utiliza permiso de ubicación precisa. El mapa solicita ubicación
-aproximada y precisa. No hay permiso de ubicación en segundo plano.
-
-El historial, recorridos, gráficos y funciones Premium incluyen comportamientos
-ilustrativos. Consulta [estado](estado.md) y [pruebas](pruebas.md).
+La batería no se inventa: el contrato actual no transmite ese dato y falta el firmware/circuito para T22. Las pruebas físicas de radio, GPS y LED no se sustituyen por compilar.

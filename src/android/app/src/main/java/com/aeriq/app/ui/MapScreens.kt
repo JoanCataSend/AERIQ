@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.aeriq.app.Screen
 import org.osmdroid.util.GeoPoint
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 private fun locationAllowed(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -38,12 +41,13 @@ private fun locationAllowed(context: Context): Boolean =
 /** Localización exclusivamente en primer plano, mientras se visita la pestaña Mapa. */
 @SuppressLint("MissingPermission")
 @Composable
-private fun rememberForegroundLocation(allowed: Boolean): Location? {
+internal fun rememberForegroundLocation(allowed: Boolean): Location? {
     val context = LocalContext.current
     val manager = remember(context) { context.getSystemService(Context.LOCATION_SERVICE) as LocationManager }
     var lastPosition by remember { mutableStateOf<Location?>(null) }
+    val owner = LocalLifecycleOwner.current
 
-    DisposableEffect(allowed, manager) {
+    DisposableEffect(allowed, manager, owner) {
         if (!allowed) {
             lastPosition = null
             onDispose { }
@@ -61,245 +65,30 @@ private fun rememberForegroundLocation(allowed: Boolean): Location? {
                 add(LocationManager.NETWORK_PROVIDER)
             }
 
-            // Se admite una posición en caché reciente mientras llega una lectura nueva.
-            providers.forEach { provider ->
-                runCatching {
-                    val cached = manager.getLastKnownLocation(provider)
-                    if (cached != null && System.currentTimeMillis() - cached.time < 10 * 60 * 1000L &&
-                        (lastPosition == null || cached.time > (lastPosition?.time ?: 0))) {
-                        lastPosition = cached
-                    }
-                    if (manager.isProviderEnabled(provider)) {
-                        manager.requestLocationUpdates(provider, 2500L, 3f, listener, Looper.getMainLooper())
+            fun startLocation() {
+                runCatching { manager.removeUpdates(listener) }
+                providers.forEach { provider ->
+                    runCatching {
+                        val cached = manager.getLastKnownLocation(provider)
+                        if (cached != null && System.currentTimeMillis() - cached.time in 0..600000L &&
+                            (lastPosition == null || cached.time > (lastPosition?.time ?: 0))) lastPosition = cached
+                        if (manager.isProviderEnabled(provider)) manager.requestLocationUpdates(provider, 2500L, 3f, listener, Looper.getMainLooper())
                     }
                 }
             }
-            onDispose { runCatching { manager.removeUpdates(listener) } }
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) startLocation()
+                if (event == Lifecycle.Event.ON_PAUSE) runCatching { manager.removeUpdates(listener) }
+            }
+            owner.lifecycle.addObserver(observer)
+            if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) startLocation()
+            onDispose {
+                owner.lifecycle.removeObserver(observer)
+                runCatching { manager.removeUpdates(listener) }
+            }
         }
     }
     return lastPosition
-}
-
-@Composable
-fun MapScreen(onGo: (Screen) -> Unit, onMessage: (String) -> Unit) {
-    val context = LocalContext.current
-    var term by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf("Todos") }
-    var dark by rememberSaveable { mutableStateOf(false) }
-    var layersVisible by rememberSaveable { mutableStateOf(false) }
-    var zonesEnabled by rememberSaveable { mutableStateOf(true) }
-    var markersEnabled by rememberSaveable { mutableStateOf(true) }
-    var selectedId by rememberSaveable { mutableStateOf("017") }
-    var permissionGranted by remember { mutableStateOf(locationAllowed(context)) }
-    var focusPoint by remember { mutableStateOf(GANDIA_CAMPUS) }
-    var focusNonce by remember { mutableIntStateOf(0) }
-    var recenterRequested by remember { mutableStateOf(true) }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        permissionGranted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (!permissionGranted) {
-            onMessage("Puedes explorar el mapa sin dar permiso. Para ver tu ubicación, pulsa el icono de la diana.")
-        }
-    }
-    // El diálogo de Android aparece al abrir Mapa, nunca al iniciar sesión.
-    LaunchedEffect(Unit) {
-        if (!locationAllowed(context)) {
-            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-        } else permissionGranted = true
-    }
-    val deviceLocation = rememberForegroundLocation(permissionGranted)
-    val myGeoPoint = deviceLocation?.let { GeoPoint(it.latitude, it.longitude) }
-    val selected = ozoneDemoSensors.firstOrNull { it.id == selectedId } ?: ozoneDemoSensors[1]
-
-    fun focus(point: GeoPoint) {
-        recenterRequested = false
-        focusPoint = point
-        focusNonce++
-    }
-    fun search() {
-        when {
-            term.contains("campus", true) || term.contains("universidad", true) ||
-                term.contains("universitat", true) || term.contains("upv", true) -> focus(GANDIA_CAMPUS)
-            term.contains("playa", true) || term.contains("platja", true) -> focus(GeoPoint(38.9990, -0.1589))
-            term.contains("grau", true) || term.contains("grao", true) ||
-                term.contains("gandía", true) || term.contains("gandia", true) -> focus(GeoPoint(38.995, -0.163))
-            else -> onMessage("En este prototipo busca UPV, Gandía, Grau o playa. La búsqueda de cualquier dirección necesita un geocodificador.")
-        }
-    }
-
-    AeriqPage("Mapa de ozono", Screen.MAP, onGo, trailing = "bell", onTrailing = {
-        onMessage("Las alertas ambientales todavía no están conectadas a datos oficiales.")
-    }) {
-        OutlinedTextField(
-            value = term, onValueChange = { term = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { AeriqText("Buscar zona: UPV, playa de Gandía…", 13) },
-            singleLine = true,
-            leadingIcon = { AeriqIcon("search", size = 20.dp, tint = AeriqColors.muted) },
-            trailingIcon = { TextButton(onClick = { search() }) { AeriqText("Ir", 12, true, AeriqColors.green) } },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { search() }),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = Color.White, focusedContainerColor = Color.White,
-                unfocusedBorderColor = AeriqColors.border, focusedBorderColor = AeriqColors.green
-            )
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf("Todos", "Red colaborativa", "Estaciones oficiales").forEach { choice ->
-                val active = filter == choice
-                Box(
-                    Modifier.clip(RoundedCornerShape(13.dp))
-                        .background(if (active) AeriqColors.forest else Color.White)
-                        .clickable { filter = choice }
-                        .padding(horizontal = 9.dp, vertical = 12.dp)
-                ) { AeriqText(choice, 10, true, if (active) Color.White else AeriqColors.dark) }
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth().background(Color(0xFFE8F1EE), RoundedCornerShape(14.dp))
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AeriqIcon("info", size = 18.dp, tint = AeriqColors.green)
-            AeriqText("Mapa real de calles · sensores y lecturas de ozono ficticios.", 11,
-                color = AeriqColors.green, modifier = Modifier.weight(1f))
-        }
-        Box(
-            Modifier.fillMaxWidth().height(365.dp).clip(RoundedCornerShape(18.dp))
-                .border(1.dp, AeriqColors.border, RoundedCornerShape(18.dp))
-        ) {
-            RealOzoneMap(
-                selectedId = selectedId,
-                visibleSensors = markersEnabled && filter != "Estaciones oficiales",
-                visibleZones = zonesEnabled && filter != "Estaciones oficiales",
-                darkMode = dark,
-                location = myGeoPoint,
-                centerMyLocation = recenterRequested,
-                focusPoint = focusPoint,
-                focusNonce = focusNonce,
-                onSelectSensor = { selectedId = it },
-                modifier = Modifier.fillMaxSize()
-            )
-            // Los controles son Compose nativos y se superponen al mapa de calles.
-            Column(
-                Modifier.align(Alignment.TopEnd).padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                MapControl("target", "Ir a mi ubicación") {
-                    if (!permissionGranted) {
-                        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                    } else if (myGeoPoint == null) {
-                        onMessage("Esperando una ubicación del dispositivo. Comprueba que la localización del móvil esté activada.")
-                    } else {
-                        focus(myGeoPoint)
-                    }
-                }
-                MapControl("layers", "Mostrar capas") { layersVisible = !layersVisible }
-                MapControl("location", "Volver al campus UPV") { focus(GANDIA_CAMPUS) }
-            }
-            if (layersVisible) {
-                Column(
-                    Modifier.align(Alignment.TopStart).padding(10.dp)
-                        .background(Color.White, RoundedCornerShape(14.dp))
-                        .border(1.dp, AeriqColors.border, RoundedCornerShape(14.dp))
-                        .padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    AeriqText("Capas de la maqueta", 11, true)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(zonesEnabled, { zonesEnabled = it }, modifier = Modifier.size(34.dp))
-                        AeriqText("Zonas O₃", 11)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(markersEnabled, { markersEnabled = it }, modifier = Modifier.size(34.dp))
-                        AeriqText("Sensores", 11)
-                    }
-                    TextButton(onClick = { dark = !dark }) {
-                        AeriqText(if (dark) "☀ Modo claro" else "☾ Modo oscuro", 11, true, AeriqColors.green)
-                    }
-                }
-            }
-            Row(
-                Modifier.align(Alignment.BottomStart).padding(8.dp)
-                    .background(Color.White.copy(alpha = 0.96f), RoundedCornerShape(18.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                AeriqText("Leyenda", 10, true)
-                listOf(
-                    "Bajo" to AeriqColors.good,
-                    "Moderado" to AeriqColors.orange,
-                    "Alto" to AeriqColors.red
-                ).forEach { (name, color) ->
-                    Box(Modifier.size(7.dp).background(color, RoundedCornerShape(50)))
-                    AeriqText(name, 9, color = AeriqColors.muted)
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(10.dp).background(Color(0xFF1E79DF), RoundedCornerShape(50)))
-            AeriqText(
-                if (!permissionGranted) "Ubicación sin permiso · mapa disponible"
-                else if (deviceLocation == null) "Buscando ubicación del móvil…"
-                else "Punto azul: tu ubicación real (${if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) "precisa" else "aproximada"})",
-                11, color = AeriqColors.muted, modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = { focus(GANDIA_CAMPUS) }) { AeriqText("Ver UPV", 11, true, AeriqColors.green) }
-        }
-        if (filter == "Estaciones oficiales") {
-            Pane {
-                AeriqText("Estaciones oficiales", 17, true)
-                CaptionNote("Todavía no hemos conectado una fuente pública de estaciones oficiales. No presentamos estos datos como mediciones reales.")
-            }
-        } else {
-            Pane(padding = 15.dp) {
-                DemoChip()
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(12.dp).background(
-                        if (selected.level == "Alto") AeriqColors.red else if (selected.level == "Moderado") AeriqColors.orange else AeriqColors.good,
-                        RoundedCornerShape(50)))
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        AeriqText(selected.name, 15, true)
-                        CaptionNote("Red colaborativa · sensor #${selected.id} (demo)")
-                    }
-                    AeriqText("${selected.value}", 29, true)
-                    AeriqText("µg/m³", 11, color = AeriqColors.muted)
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    Box(Modifier.background(Color(0xFFFFF2DD), RoundedCornerShape(16.dp))
-                        .padding(horizontal = 11.dp, vertical = 6.dp)) {
-                        AeriqText("Nivel: ${selected.level}", 11, true, Color(0xFFA36C17))
-                    }
-                    CaptionNote("Lectura ficticia · sin actualización real")
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.weight(1f)) { OutlineAction("Ver historial", { onGo(Screen.HISTORY) }) }
-                    Box(Modifier.weight(1f)) { PrimaryButton("Comparar · Premium", { onGo(Screen.COMPARE) }, dark = true) }
-                }
-                CaptionNote("El mapa de calles y la ubicación del móvil son reales. Los puntos y colores de ozono son ilustrativos; no sustituyen a las estaciones oficiales.")
-            }
-        }
-        CaptionNote("Cartografía © OpenStreetMap contributors · Se necesita Internet para descargar las calles.")
-    }
-}
-
-@Composable
-private fun MapControl(icon: String, description: String, onClick: () -> Unit) {
-    Box(
-        Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Color.White)
-            .border(1.dp, AeriqColors.border, RoundedCornerShape(13.dp))
-            .clickable(onClick = onClick).semantics { contentDescription = description },
-        contentAlignment = Alignment.Center
-    ) {
-        AeriqIcon(icon, size = 21.dp)
-    }
 }
 
 @Composable

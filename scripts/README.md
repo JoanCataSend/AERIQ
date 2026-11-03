@@ -1,35 +1,32 @@
-# Herramientas del repositorio
+# Herramientas AERIQ
 
-Requieren Python 3.9 o superior y solo usan la biblioteca estándar. Puedes ejecutarlas desde
-cualquier carpeta: resuelven la raíz a partir de su propio archivo.
+Python 3.9+ y biblioteca estándar, salvo la prueba DOM opcional. Se resuelve la raíz desde cada script.
 
-## Auditoría
+| Script | Función |
+| --- | --- |
+| `audit-repository.py` | Estructura, referencias, exclusión de secretos y sintaxis JS/PHP disponible |
+| `build-plesk-package.py` | Raíz web sin secretos/dependencias instaladas; salida nueva dentro de `.dist/` |
+| `reset-database.py` | Recreación de una base explícita con copia previa, confirmación y `--dry-run` |
+| `migrate-legacy.php` | Inventario/importación a otra base vacía; no borra el origen |
+| `bootstrap-organization.php` | Primer administrador/comercial, únicamente por CLI sobre visitante verificado |
+
+El [README de datos](../src/database/README.md) contiene comandos de recreación y migración. No ejecutes los scripts destructivos como paso rutinario de compilación ni desde un endpoint web. Los respaldos y configuraciones temporales están en `.local-backups/` e ignorados por Git.
+
+## Comprobaciones
 
 ```powershell
 python scripts/audit-repository.py
+node scripts/tests/aeriq-domain.test.js
+python scripts/tests/integration-aeriq.py --php C:/xampp/php/php.exe --mysql-bin C:/xampp/mysql/bin
 ```
 
-Comprueba rutas documentadas, referencias HTML y disponibilidad de clientes,
-JSON de Composer y exclusión Git de configuraciones privadas. Si están disponibles,
-ejecuta Node para revisar sintaxis JS y PHP para revisar sintaxis del backend.
-Devuelve código 1 ante un fallo y 0 si pasan las comprobaciones disponibles;
-informa por separado de las omitidas por falta de herramientas.
+La integración crea instancias aisladas, prueba recreación/importación y apaga sus procesos al terminar. No carga configuración real de Plesk y usa SMTP falso retenido localmente.
 
-## Paquete Plesk
+La prueba DOM necesita jsdom, instalado solo como herramienta local, no como dependencia de ejecución de la web:
 
 ```powershell
-python scripts/build-plesk-package.py
+npm install --prefix .local-backups/test-tools jsdom --no-audit --no-fund
+node scripts/tests/ui-contract.test.js
 ```
 
-Genera `.dist/plesk/AERIQ/` desde `src/web/`. Incluye archivos de ejecución,
-recursos, ejemplos de configuración y protecciones Apache. Omite archivos privados,
-documentación y dependencias instaladas, que se configuran en el alojamiento.
-No conecta con Plesk ni con MariaDB.
-
-Si el destino existe, no lo sustituye. Usa una ruta nueva dentro de `.dist/`:
-
-```powershell
-python scripts/build-plesk-package.py --output .dist/revision-02/AERIQ
-```
-
-Consulta [despliegue](../doc/despliegue.md) para completar la instalación.
+`preview-aeriq.js` sirve la interfaz con respuestas ficticias para una revisión manual local en `127.0.0.1:8766`. No ejecuta PHP ni acredita pruebas de permisos; se detiene con Ctrl+C.
