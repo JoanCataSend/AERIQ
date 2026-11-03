@@ -78,6 +78,16 @@ def main():
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='6'
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='9'
             assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_NAME='Medida'")=='0'
+        for _ in range(2):
+            sql((ROOT/'src/database/anadir-mediciones-publicas-privadas.sql').read_text(encoding='utf-8'))
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='45'
+            assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae100000-%' AND c.publicar=1")=='12'
+            assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae100000-%' AND c.publicar=0")=='24'
+        for _ in range(2):
+            sql((ROOT/'src/database/anadir-mediciones-playa-gandia.sql').read_text(encoding='utf-8'))
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='99'
+            assert sql("USE jcatsen_pbio; SELECT SUM(valor<60),SUM(valor>=60 AND valor<100),SUM(valor>=100) FROM mediciones WHERE evento LIKE 'ae200000-%'")=='18\t18\t18'
+            assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae200000-%' AND c.publicar=1 AND m.simulado=1")=='54'
         sql("CREATE DATABASE aeriq_old_test; USE aeriq_old_test; CREATE TABLE AeriqUsuario(id BIGINT PRIMARY KEY,nombre VARCHAR(90),apellidos VARCHAR(120),email VARCHAR(254),telefono VARCHAR(40),password_hash VARCHAR(255),verificado_en DATETIME); CREATE TABLE Dispositivo(dispositivoId VARCHAR(16),nombre VARCHAR(100)); CREATE TABLE TipoMedida(tipoMedidaId INT,nombre VARCHAR(30),unidad VARCHAR(16)); CREATE TABLE Medida(id INT,dispositivoId VARCHAR(16),tipoMedidaId INT,valor INT,fechaHora DATETIME); INSERT INTO Dispositivo VALUES('EPSG-GTI-PROY-3A','Orb de Sprint 0'); INSERT INTO TipoMedida VALUES(14,'Ozono','ppb'),(12,'Temperatura','°C'); INSERT INTO Medida VALUES(1,'EPSG-GTI-PROY-3A',14,123,UTC_TIMESTAMP()),(2,'EPSG-GTI-PROY-3A',12,-12,UTC_TIMESTAMP());")
         sql('CREATE DATABASE aeriq_import_test; USE aeriq_import_test;'+(ROOT/'src/database/schema.sql').read_text())
         configs=[]

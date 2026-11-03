@@ -52,6 +52,10 @@ La primera orden es un inventario de solo lectura. La segunda conserva cuentas, 
 
 ## Cuentas de demostración
 
+Para ampliar el mapa de playa, importa [anadir-mediciones-playa-gandia.sql](anadir-mediciones-playa-gandia.sql) en `jcatsen_pbio`. Añade 54 lecturas públicas simuladas (18 verdes, 18 naranjas y 18 rojas), con posiciones ilustrativas repartidas por el entorno de la playa de Gandía. No borra datos y puede repetirse sin duplicarlos. Verlas en **Simulados**; sus fechas se actualizan al importarlas. Requiere las cuentas y el esquema demo actuales.
+
+Para añadir ejemplos sin recrear la base de Plesk, importa [anadir-mediciones-publicas-privadas.sql](anadir-mediciones-publicas-privadas.sql) en `jcatsen_pbio`, una vez instalado el esquema actual y las cuentas demo. Añade tres campañas con doce lecturas simuladas cada una: campus público, recinto municipal privado y recinto de empresa privado. Se puede repetir sin duplicar lecturas; actualiza sus fechas. En el mapa selecciona **Simulados**. El mapa público muestra la campaña pública; el mapa de organización requiere sesión y restringe las privadas a su organización y, para trabajadores, a sus propias asignaciones. No cambia contraseñas ni activa trabajadores pendientes.
+
 Contraseña de todas: `AeriqDemo-2026!`. Son cuentas ficticias con dominios `.example`, no direcciones de contacto.
 
 | Correo | Función |

@@ -15,7 +15,7 @@ function initNavigation(){
   if(typeof AeriqAuth==='undefined')return;
   AeriqAuth.session().then(s=>{
     const a=$('#account-link');
-    if(a){a.href=s.user?(s.user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(s.user.role)?'portal.html':'perfil.html')):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
+    if(a){a.href=s.user?(s.user.mustChangePassword?'cambiar-clave.html':'perfil.html'):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
   }).catch(()=>{});
 }
 function authFeedback(error){
@@ -165,9 +165,10 @@ async function initProfile(){
       f.reset();toast('Contraseña actualizada.');
     }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
   });
-  $('#logout')?.addEventListener('click',async()=>{
-    try{await AeriqAuth.post('logout');location.href='login.html'}catch(error){authFeedback(error)}
-  });
+  $$('#logout').forEach(button=>button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try{await AeriqAuth.post('logout');location.href='login.html'}catch(error){button.disabled=false;authFeedback(error)}
+  }));
   $('#delete-address')?.addEventListener('click',()=>toast('Las direcciones siguen siendo una maqueta; no se guardan en servidor.'));
   $('#edit-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.'));
   $('#add-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.'));

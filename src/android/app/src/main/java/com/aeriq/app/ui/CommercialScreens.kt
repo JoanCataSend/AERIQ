@@ -61,7 +61,7 @@ private fun AccountRow(icon: String,title: String,subtitle: String="",onClick: (
 @Composable
 fun AccountScreen(name: String,sharing: Boolean,user: AeriqUser,onGo: (Screen)->Unit,onMessage: (String)->Unit,onLogout: ()->Unit) {
     val context=LocalContext.current
-    AeriqPage("Cuenta",Screen.ACCOUNT,onGo) {
+    AeriqPage("Mi cuenta",Screen.ACCOUNT,onGo) {
         Pane {Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
             Box(Modifier.size(58.dp).background(AeriqColors.soft,RoundedCornerShape(50)),contentAlignment=Alignment.Center){AeriqText(user.name.take(1)+user.last.take(1),21,true,AeriqColors.green)}
             Column {AeriqText(user.fullName,18,true);CaptionNote(user.email);CaptionNote(user.organization.ifBlank{"Consulta pública"});AeriqText(user.role.replaceFirstChar{it.uppercase()},11,true,AeriqColors.green)}
