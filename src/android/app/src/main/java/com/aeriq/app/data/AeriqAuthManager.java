@@ -1,0 +1,128 @@
+package com.aeriq.app.data;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import org.json.JSONObject;
+import org.json.JSONException;
+import java.util.Locale;
+import java.util.concurrent.*;
+import java.util.function.Consumer;
+
+public final class AeriqAuthManager implements AutoCloseable {
+    public static final class User {
+        public final long id;
+        public final String name, last, email, phone, role, organization;
+        public final boolean mustChangePassword;
+
+        User(JSONObject data) throws JSONException {
+            id = data.getLong("id");
+            name = data.optString("name");
+            last = data.optString("last");
+            email = data.getString("email");
+            phone = data.optString("phone");
+            role = data.optString("role", "visitante");
+            organization = data.optString("organization");
+            mustChangePassword = data.optBoolean("mustChangePassword");
+        }
+
+        public String fullName() { return (name + " " + last).trim(); }
+    }
+
+    public static final class Result {
+        public final boolean success, needsVerification;
+        public final String message;
+
+        Result(boolean success, String message, boolean needsVerification) {
+            this.success = success;
+            this.message = message;
+            this.needsVerification = needsVerification;
+        }
+    }
+
+    private final AeriqTokenStore store;
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private volatile boolean closed;
+    public User user;
+    public boolean busy;
+    public String pendingEmail = "";
+
+    public AeriqAuthManager(Context context) { store = new AeriqTokenStore(context.getApplicationContext()); }
+
+    public String sessionToken() { return store.read(); }
+
+    public void restore(Consumer<Result> done) {
+        String token = store.read();
+        if (token == null) {
+            done.accept(new Result(false, "", false));
+            return;
+        }
+        execute("session", null, true, done);
+    }
+
+    public void submit(String action, Consumer<Result> done, Object... fields) {
+        boolean authorized = "profile".equals(action) || "change-password".equals(action);
+        for (int i = 0; i < fields.length; i += 2) {
+            if ("email".equals(fields[i])) {
+                pendingEmail = fields[i + 1].toString().trim().toLowerCase(Locale.ROOT);
+                fields[i + 1] = pendingEmail;
+            }
+        }
+        execute(action, JsonHttp.object(fields), authorized, done);
+    }
+
+    private void execute(String action, JSONObject body, boolean authorized, Consumer<Result> done) {
+        if (busy || closed) return;
+        busy = true;
+        worker.execute(() -> {
+            User returnedUser = null;
+            boolean invalidSession = false;
+            Result result;
+            try {
+                JsonHttp.Response response = JsonHttp.request(ApiRoutes.AUTH + "?action=" + action,
+                    body, authorized ? store.read() : null);
+                if (response.ok()) {
+                    JSONObject userJson = response.json.optJSONObject("user");
+                    if (userJson != null) returnedUser = new User(userJson);
+                    String token = response.json.optString("token");
+                    if (!token.isEmpty()) store.write(token);
+                    result = new Result(true, response.json.optString("message", "Operación completada"), false);
+                } else {
+                    invalidSession = authorized && (response.status == 401 || "session".equals(action));
+                    if (invalidSession) store.clear();
+                    result = new Result(false, response.message(), response.json.optBoolean("needsVerification"));
+                }
+            } catch (Exception error) {
+                result = new Result(false, "No se pudo conectar con AERIQ: " + error.getMessage(), false);
+            }
+            User received = returnedUser;
+            boolean clearUser = invalidSession;
+            Result outcome = result;
+            main.post(() -> {
+                if (closed) return;
+                busy = false;
+                if (clearUser) user = null;
+                if (received != null) user = received;
+                done.accept(outcome);
+            });
+        });
+    }
+
+    public void logout() {
+        if (busy || closed) return;
+        String token = store.read();
+        store.clear();
+        user = null;
+        pendingEmail = "";
+        if (token != null) worker.execute(() -> {
+            try { JsonHttp.request(ApiRoutes.AUTH + "?action=logout", new JSONObject(), token); }
+            catch (Exception ignored) { /* La sesión local ya se ha cerrado. */ }
+        });
+    }
+
+    @Override public void close() {
+        closed = true;
+        worker.shutdown();
+    }
+}
