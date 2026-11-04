@@ -119,6 +119,8 @@ public final class MainActivity extends Activity {
         scroll.scrollTo(0, 0);
         boolean form = current.ordinal() <= Screen.RESET.ordinal()
             || current == Screen.EDIT_PROFILE || current == Screen.CHANGE_PASSWORD;
+        navigation.setVisibility(form ? View.GONE : View.VISIBLE);
+        header.setVisibility(form ? View.GONE : View.VISIBLE);
         if (form) {
             new AuthScreens(this, ui, auth).show(current, body);
             return;
@@ -169,15 +171,17 @@ public final class MainActivity extends Activity {
     }
 
     public void title(String title, Screen back) {
-        View left = back == null ? ui.image(R.drawable.aeriq_mark, 28, 28)
-            : ui.action("‹", Views.BACKGROUND, Views.INK, () -> go(back));
-        header.addView(left, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
+        ImageView left = ui.image(back == null ? R.drawable.aeriq_mark : R.drawable.ic_back, 28, 28);
+        left.setPadding(0, ui.dp(18), ui.dp(20), ui.dp(18));
+        if (back != null) {
+            left.setContentDescription("Atrás");
+            left.setOnClickListener(view -> go(back));
+        }
+        header.addView(left, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(66)));
         TextView label = ui.text(title, 17, true, Views.INK);
         label.setGravity(Gravity.CENTER);
         ui.weighted(header, label);
-        View right = current == Screen.SENSOR
-            ? ui.action("⚙", Views.BACKGROUND, Views.INK, () -> go(Screen.CONFIG))
-            : new View(this);
+        View right = new View(this);
         header.addView(right, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
     }
 

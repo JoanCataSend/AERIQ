@@ -82,7 +82,9 @@ public final class Views {
         button.setTextSize(14);
         button.setTextColor(foreground);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        button.setMinHeight(dp(48));
+        button.setMinHeight(dp(52));
+        button.setStateListAnimator(null);
+        button.setElevation(0);
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x220e6b5e),
             shape(background, 14, background == WHITE ? LINE : 0), null));
         button.setOnClickListener(view -> click.run());
@@ -100,18 +102,24 @@ public final class Views {
     }
 
     public void link(LinearLayout parent, String label, Runnable click) {
-        add(parent, action(label, BACKGROUND, GREEN, click));
+        TextView link = text(label, 13, true, GREEN);
+        link.setPadding(0, dp(4), 0, dp(4));
+        link.setFocusable(true);
+        link.setOnClickListener(view -> click.run());
+        add(parent, link);
     }
 
     public EditText field(LinearLayout parent, String label, String value, int type) {
         TextView caption = text(label, 13, true, INK);
+        caption.setPadding(0, 0, 0, dp(5));
         parent.addView(caption);
         LinearLayout row = row();
-        row.setBackground(shape(BACKGROUND, 14, LINE));
+        row.setBackground(shape(0xffeff3f1, 14, LINE));
         EditText input = new EditText(context);
         input.setId(View.generateViewId());
         input.setSingleLine(true);
         input.setInputType(type);
+        input.setTypeface(Typeface.DEFAULT);
         input.setTextSize(15);
         input.setTextColor(INK);
         input.setHintTextColor(MUTED);
@@ -123,7 +131,12 @@ public final class Views {
         caption.setLabelFor(input.getId());
         weighted(row, input);
         if ((type & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_PASSWORD) {
-            Button show = action("Mostrar", BACKGROUND, GREEN, () -> {});
+            input.setSaveEnabled(false);
+            TextView show = text("Mostrar", 13, false, GREEN);
+            show.setGravity(Gravity.CENTER);
+            show.setMinWidth(dp(72));
+            show.setMinHeight(dp(48));
+            show.setFocusable(true);
             show.setOnClickListener(view -> {
                 boolean hidden = input.getTransformationMethod() instanceof android.text.method.PasswordTransformationMethod;
                 input.setTransformationMethod(hidden ? null : android.text.method.PasswordTransformationMethod.getInstance());
@@ -134,6 +147,65 @@ public final class Views {
         }
         add(parent, row);
         return input;
+    }
+
+    public void segments(LinearLayout parent, String[] labels, int initial,
+                         java.util.function.IntConsumer selected) {
+        LinearLayout strip = row();
+        strip.setPadding(dp(4), dp(4), dp(4), dp(4));
+        strip.setBackground(shape(0xffeff3f1, 14, 0));
+        TextView[] items = new TextView[labels.length];
+        for (int index = 0; index < labels.length; index++) {
+            final int option = index;
+            TextView item = text(labels[index], 12, true, MUTED);
+            item.setGravity(Gravity.CENTER_VERTICAL);
+            item.setPadding(dp(8), 0, dp(4), 0);
+            item.setMinHeight(dp(34));
+            item.setFocusable(true);
+            items[index] = item;
+            weighted(strip, item);
+            item.setOnClickListener(view -> {
+                selectSegment(items, option);
+                selected.accept(option);
+            });
+        }
+        selectSegment(items, initial);
+        add(parent, strip);
+    }
+
+    private void selectSegment(TextView[] items, int active) {
+        for (int i = 0; i < items.length; i++) {
+            items[i].setSelected(i == active);
+            items[i].setTextColor(i == active ? GREEN : MUTED);
+            items[i].setBackground(i == active ? shape(WHITE, 10, LINE) : null);
+        }
+    }
+
+    public void info(LinearLayout parent, String label, String value) {
+        LinearLayout line = row();
+        weighted(line, text(label, 13, false, MUTED));
+        weighted(line, text(value, 13, true, INK));
+        add(parent, line);
+    }
+
+    public void menu(LinearLayout parent, int icon, String title, int color, Runnable click) {
+        LinearLayout item = row();
+        item.setMinimumHeight(dp(60));
+        ImageView picture = image(icon, 40, 40);
+        picture.setBackground(shape(SOFT, 12, 0));
+        picture.setPadding(dp(10), dp(10), dp(10), dp(10));
+        item.addView(picture, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        TextView label = text(title, 14, true, color);
+        label.setPadding(dp(12), 0, dp(8), 0);
+        weighted(item, label);
+        item.addView(image(com.aeriq.app.R.drawable.ic_chevron, 18, 18),
+            new LinearLayout.LayoutParams(dp(18), dp(18)));
+        item.setFocusable(true);
+        item.setOnClickListener(view -> click.run());
+        parent.addView(item, new LinearLayout.LayoutParams(-1, -2));
+        View divider = new View(context);
+        divider.setBackgroundColor(LINE);
+        parent.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
     }
 
     public ImageView image(int resource, int width, int height) {

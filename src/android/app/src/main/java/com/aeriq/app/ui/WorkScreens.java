@@ -30,7 +30,8 @@ public final class WorkScreens {
         ui.note(device, selected == null ? "Sin Orb seleccionado" : selected.campaign);
         TextView reception = ui.label(device, ble.status, 13, true, GREEN);
         LinearLayout current = ui.card(body);
-        ui.label(current, "O₃ ahora" + (selected != null && selected.simulated ? " · SIMULADO" : ""), 15, true, GREEN);
+        ui.label(current, "O₃ ahora", 17, true, INK);
+        if (selected != null && selected.simulated) ui.label(current, "SIMULADO", 11, true, GREEN);
         TextView ozone = ui.label(current, "— ppb", 46, true, INK);
         List<Double> values = new ArrayList<>();
         List<StoredReading> sorted = new ArrayList<>(history);
@@ -41,26 +42,39 @@ public final class WorkScreens {
             }
         }
         graph(current, values);
+        ui.label(current, "Histórico guardado · fechas UTC", 11, false, MUTED);
         ui.outline(current, "Ver historial y exportar →", () -> activity.go(Screen.HISTORY));
-        LinearLayout health = ui.card(body);
-        ui.label(health, "Recepción BLE y servidor", 17, true, INK);
-        TextView server = ui.label(health, serverStatus, 13, false, MUTED);
+        LinearLayout health = ui.row();
+        LinearLayout receptionColumn = ui.column(), serverColumn = ui.column();
+        ui.weighted(health, receptionColumn);
+        health.addView(new android.view.View(activity), new LinearLayout.LayoutParams(ui.dp(10), 1));
+        ui.weighted(health, serverColumn);
+        LinearLayout receptionCard = section(receptionColumn, "Recepción BLE", ble.status);
+        TextView healthStatus = (TextView) receptionCard.getChildAt(1);
+        LinearLayout serverCard = section(serverColumn, "Servidor", serverStatus);
+        TextView server = (TextView) serverCard.getChildAt(1);
+        ui.add(body, health);
         LinearLayout campaign = ui.card(body);
         ui.label(campaign, "Tu campaña", 19, true, INK);
-        ui.note(campaign, "Lecturas guardadas: " + values.size());
-        ui.note(campaign, "Media disponible: " + average(values));
+        ui.info(campaign, "Lecturas guardadas", Integer.toString(values.size()));
+        ui.info(campaign, "Media disponible", average(values));
         TextView temperature = ui.label(campaign, "Temperatura BLE: — · Batería: no transmitida", 13, false, MUTED);
         LinearLayout assigned = ui.card(body);
         ui.label(assigned, "Orb asignados", 18, true, INK);
         ui.note(assigned, assignmentStatus);
         for (OrbAssignment orb : assignments) ui.note(assigned, orb.name + " · " + orb.campaign);
-        ui.button(assigned, "Buscar o vincular Orb", () -> activity.go(Screen.LINK));
+        Button scan = ui.button(assigned, "Buscar o vincular Orb", () -> {
+            if (ble.scanning) activity.toggleScan();
+            else activity.go(Screen.LINK);
+        });
         ui.outline(assigned, "Actualizar asignaciones", activity::refreshAssignments);
-        sharing(body, sending, selected != null);
+        sharing(body, sending, selected != null, "Enviar a la campaña");
         activity.updateLive(() -> {
             long age = (System.currentTimeMillis() - ble.lastAdvertisementAt) / 1000;
             reception.setText(ble.scanning && ble.lastAdvertisementAt > 0
                 ? (age <= 15 ? "Anuncio recibido hace " : "Sin anuncios desde hace ") + age + " s" : ble.status);
+            healthStatus.setText(reception.getText());
+            scan.setText(ble.scanning ? "Detener búsqueda / recepción" : "Buscar o vincular Orb");
             ozone.setText(ble.lastO3 == null ? "— ppb" : ble.lastO3.reading.value + " ppb");
             server.setText(activity.serverStatus());
             temperature.setText("Temperatura BLE: " + (ble.lastTemperature == null ? "—" : ble.lastTemperature.reading.value)
@@ -75,17 +89,22 @@ public final class WorkScreens {
         ui.note(body, "Enciende el Orb y acércalo al móvil. AERIQ lo encontrará por Bluetooth.");
         LinearLayout setup = ui.card(body);
         ui.label(setup, "Bluetooth", 17, true, INK);
-        TextView status = ui.label(setup, ble.status, 13, false, MUTED);
-        Button scan = ui.button(setup, "Buscar sensores", activity::toggleScan);
-        ui.note(setup, "Ubicación opcional para situar las mediciones.");
+        ui.note(setup, "Necesario para leer el sensor");
+        Switch scan = new Switch(activity);
+        scan.setContentDescription("Buscar sensores Bluetooth");
+        scan.setOnClickListener(view -> activity.toggleScan());
+        ui.add(setup, scan);
+        ui.info(setup, "Ubicación", "Solo con permiso");
         ui.label(body, "Sensores cercanos", 18, true, INK);
+        TextView status = ui.label(body, ble.status, 12, false, MUTED);
         LinearLayout devices = ui.column();
         ui.add(body, devices);
+        section(body, "¿Aún no tienes sensor?", "El mapa público sigue siendo gratis.");
         ui.note(body, "Vincular selecciona el emisor iBeacon asignado por tu organización.");
         final String[] previous = {null};
         activity.updateLive(() -> {
             status.setText(ble.status);
-            scan.setText(ble.scanning ? "Detener búsqueda" : "Buscar sensores");
+            scan.setChecked(ble.scanning);
             Map<String, AeriqBleController.FoundDevice> visible = new LinkedHashMap<>();
             for (AeriqBleController.FoundDevice device : ble.devices()) {
                 if (System.currentTimeMillis() - device.lastSeen > 15_000) continue;
@@ -109,23 +128,11 @@ public final class WorkScreens {
     }
 
     public void history(LinearLayout body, List<StoredReading> history, String status) {
-        Spinner period = new Spinner(activity);
-        ArrayAdapter<String> options = new ArrayAdapter<>(activity, android.R.layout.simple_spinner_dropdown_item,
-            new String[]{"Día", "Semana", "Mes", "Año"});
-        period.setAdapter(options);
-        period.setSelection(1);
-        ui.add(body, period);
-        ui.note(body, status);
-        ui.outline(body, "Actualizar", activity::refreshHistory);
         LinearLayout results = ui.column();
+        ui.segments(body, new String[]{"Día", "Semana", "Mes", "Año"}, 1,
+            index -> showHistory(results, history, new int[]{1, 7, 30, 365}[index]));
         ui.add(body, results);
-        period.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, android.view.View view, int index, long id) {
-                int days = new int[]{1, 7, 30, 365}[index];
-                showHistory(results, history, days);
-            }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
-        });
+        showHistory(results, history, 7);
     }
 
     private void showHistory(LinearLayout results, List<StoredReading> history, int days) {
@@ -138,16 +145,34 @@ public final class WorkScreens {
         for (StoredReading reading : history) if (reading.type == 14 && reading.date.compareTo(cutoff) >= 0) rows.add(reading);
         rows.sort(Comparator.comparing(reading -> reading.date));
         for (StoredReading reading : rows) groups.computeIfAbsent(reading.simulated, key -> new ArrayList<>()).add(reading.value);
-        ui.label(results, "O₃ · últimos " + days + " días", 19, true, INK);
+        LinearLayout summary = ui.card(results);
+        ui.label(summary, "O₃ · últimos " + days + " días", 19, true, INK);
+        ui.note(summary, "UTC · Máximo 1.000 lecturas recientes de tus asignaciones.");
         if (rows.isEmpty()) ui.note(results, "No hay mediciones en este periodo.");
         for (Map.Entry<Boolean, List<Double>> group : groups.entrySet()) {
             List<Double> values = group.getValue();
-            LinearLayout card = ui.card(results);
+            LinearLayout card = summary;
             ui.label(card, group.getKey() ? "Serie simulada" : "Serie real", 17, true, INK);
-            graph(card, values);
-            ui.note(card, "Media: " + average(values) + " · Mínimo: " + Collections.min(values) + " · Máximo: " + Collections.max(values));
+            card.addView(new MeasurementGraph(activity, values, true), new LinearLayout.LayoutParams(-1, ui.dp(145)));
+            ui.info(card, "Media de esta serie", average(values));
         }
+        if (!rows.isEmpty()) {
+            LinearLayout extremes = ui.row();
+            LinearLayout low = ui.column(), high = ui.column();
+            ui.weighted(extremes, low);
+            extremes.addView(new android.view.View(activity), new LinearLayout.LayoutParams(ui.dp(10), 1));
+            ui.weighted(extremes, high);
+            section(low, Collections.min(rows.stream().map(reading -> reading.value)
+                .collect(java.util.stream.Collectors.toList())) + " ppb", "Mínimo");
+            section(high, Collections.max(rows.stream().map(reading -> reading.value)
+                .collect(java.util.stream.Collectors.toList())) + " ppb", "Máximo");
+            ui.add(results, extremes);
+        }
+        LinearLayout count = ui.card(results);
+        ui.info(count, "Mediciones", Integer.toString(rows.size()));
+        ui.note(count, "Series reales y simuladas separadas.");
         ui.button(results, "Exportar mediciones CSV", () -> activity.export(rows)).setEnabled(!rows.isEmpty());
+        ui.outline(results, "Actualizar", activity::refreshHistory);
         for (int index = rows.size() - 1; index >= Math.max(0, rows.size() - 80); index--) {
             StoredReading reading = rows.get(index);
             LinearLayout card = ui.card(results);
@@ -160,52 +185,76 @@ public final class WorkScreens {
     public void settings(LinearLayout body, OrbAssignment orb, boolean sending) {
         LinearLayout card = ui.card(body);
         ui.label(card, "Tu dispositivo", 19, true, INK);
-        ui.note(card, "Nombre: " + (orb == null ? "Sin selección" : orb.name));
-        ui.note(card, "Campaña: " + (orb == null ? "Sin asignación" : orb.campaign));
-        ui.note(card, "Recepción: anuncios iBeacon · Batería: no transmitida");
+        ui.info(card, "Nombre", orb == null ? "Sin selección" : orb.name);
+        ui.info(card, "Campaña", orb == null ? "Sin asignación" : orb.campaign);
+        ui.info(card, "Recepción", "Anuncios iBeacon");
+        ui.info(card, "Batería", "No transmitida");
         ui.note(card, "El administrador gestiona el nombre, el alta y la asignación desde la web.");
-        sharing(body, sending, orb != null);
+        sharing(body, sending, orb != null, "Enviar lecturas");
         ui.outline(body, "Buscar / cambiar Orb", () -> activity.go(Screen.LINK));
         ui.outline(body, "Deseleccionar este Orb", activity::unlink);
     }
 
-    private void sharing(LinearLayout body, boolean sending, boolean enabled) {
+    private void sharing(LinearLayout body, boolean sending, boolean enabled, String title) {
         LinearLayout card = ui.card(body);
         Switch toggle = new Switch(activity);
-        toggle.setText("Enviar lecturas a la campaña");
+        ui.label(card, title, 19, true, INK);
+        ui.note(card, "GPS opcional y solo en primer plano");
+        toggle.setContentDescription("Enviar lecturas a la campaña");
         toggle.setEnabled(enabled);
         toggle.setChecked(sending);
         toggle.setOnCheckedChangeListener((button, checked) -> activity.setSharing(checked));
         ui.add(card, toggle);
-        ui.note(card, "GPS opcional y solo en primer plano. La publicación se autoriza en la campaña.");
+        ui.label(card, "La publicación se autoriza en la campaña; enviar al servidor no publica automáticamente tu ubicación.", 11, false, MUTED);
     }
 
     public void account(LinearLayout body, AeriqAuthManager.User user, OrbAssignment orb, boolean sharing) {
         LinearLayout profile = ui.card(body);
-        ui.label(profile, user.fullName(), 19, true, INK);
-        ui.note(profile, user.email);
-        ui.note(profile, user.organization.isEmpty() ? "Consulta pública" : user.organization);
-        ui.label(profile, user.role, 13, true, GREEN);
+        LinearLayout identity = ui.row();
+        TextView avatar = ui.text(initial(user.name) + initial(user.last), 21, true, GREEN);
+        avatar.setGravity(android.view.Gravity.CENTER);
+        avatar.setBackground(ui.shape(SOFT, 29, 0));
+        identity.addView(avatar, new LinearLayout.LayoutParams(ui.dp(58), ui.dp(58)));
+        LinearLayout details = ui.column();
+        details.setPadding(ui.dp(14), 0, 0, 0);
+        details.addView(ui.text(user.fullName(), 18, true, INK));
+        details.addView(ui.text(user.email, 12, false, MUTED));
+        details.addView(ui.text(user.organization.isEmpty() ? "Consulta pública" : user.organization, 11, false, MUTED));
+        details.addView(ui.text(user.role, 11, true, GREEN));
+        ui.weighted(identity, details);
+        ui.add(profile, identity);
         LinearLayout data = ui.card(body);
-        menu(data, "Datos personales", Screen.EDIT_PROFILE);
-        menu(data, "Mi sensor · " + (orb == null ? "Sin Orb seleccionado" : orb.name), Screen.SENSOR);
+        menu(data, R.drawable.figma_nav_user, "Datos personales", Screen.EDIT_PROFILE);
+        menu(data, R.drawable.figma_nav_chip, "Mi sensor", Screen.SENSOR);
         LinearLayout security = ui.card(body);
-        menu(security, "Cambiar contraseña", Screen.CHANGE_PASSWORD);
-        ui.outline(security, "Acceso biométrico · mejora prevista", () -> activity.message("La sesión utiliza Android Keystore."));
+        menu(security, R.drawable.ic_lock, "Cambiar contraseña", Screen.CHANGE_PASSWORD);
+        ui.menu(security, R.drawable.ic_fingerprint, "Acceso biométrico", INK,
+            () -> activity.message("La sesión utiliza Android Keystore."));
+        ui.label(security, "Mejora prevista", 11, false, MUTED);
         LinearLayout privacy = ui.card(body);
-        menu(privacy, "Envío de campaña · " + (sharing ? "Activado" : "Desactivado"), Screen.CONFIG);
-        menu(privacy, "Historial y exportación", Screen.HISTORY);
-        menu(privacy, "Privacidad y ubicación", Screen.CONFIG);
-        ui.add(body, ui.action("Soluciones para organizaciones", DARK, WHITE, () -> activity.go(Screen.SERVICES)));
+        menu(privacy, R.drawable.aeriq_community, "Envío de campaña", Screen.CONFIG);
+        menu(privacy, R.drawable.ic_download, "Historial y exportación", Screen.HISTORY);
+        menu(privacy, R.drawable.ic_shield, "Privacidad y ubicación", Screen.CONFIG);
+        LinearLayout solutions = ui.card(body);
+        solutions.setBackground(ui.shape(DARK, 20, 0));
+        ui.label(solutions, "Soluciones para organizaciones", 16, true, WHITE);
+        ui.label(solutions, "Kits Orb y estudios de Código Norte", 12, false, WHITE);
+        solutions.setOnClickListener(view -> activity.go(Screen.SERVICES));
         LinearLayout organization = ui.card(body);
-        ui.outline(organization, "Panel de organización ↗", () -> activity.open(ApiRoutes.BASE + "portal.html"));
-        menu(organization, "Ayuda y contacto", Screen.SERVICES);
-        ui.add(ui.card(body), ui.action("Cerrar sesión", WHITE, RED, activity::logout));
+        ui.menu(organization, R.drawable.ic_globe, "Panel de organización", INK,
+            () -> activity.open(ApiRoutes.BASE + "portal.html"));
+        ui.label(organization, "Trabajadores, campañas e informes en la web", 11, false, MUTED);
+        menu(organization, R.drawable.ic_info, "Ayuda y contacto", Screen.SERVICES);
+        ui.menu(ui.card(body), R.drawable.ic_logout, "Cerrar sesión", RED, activity::logout);
         ui.note(body, "AERIQ · Orb · Desarrollado por Código Norte");
     }
 
-    private void menu(LinearLayout card, String label, Screen destination) {
-        ui.outline(card, label, () -> activity.go(destination));
+    private String initial(String name) {
+        return name.isEmpty() ? "" : name.substring(0, 1).toUpperCase(Locale.ROOT);
+    }
+
+    private void menu(LinearLayout card, int icon, String label, Screen destination) {
+        ui.menu(card, icon, label, INK, () -> activity.go(destination));
     }
 
     public void services(LinearLayout body) {
@@ -222,27 +271,33 @@ public final class WorkScreens {
     }
 
     public void learn(LinearLayout body) {
-        section(body, "Un aire limpio empieza por conocerlo.", "Qué contamina, cómo afecta a tu salud y qué dice la normativa.");
-        section(body, "¿Qué es el ozono troposférico?", "Se forma cerca del suelo cuando la luz del sol reacciona con contaminantes del tráfico y la industria.");
-        section(body, "Efectos en la salud", "• Irritación de ojos, nariz y garganta\n• Tos y dificultad para respirar\n• Puede empeorar el asma.");
-        section(body, "Cómo protegerte", "• Consulta el mapa antes de hacer deporte\n• Evita el ejercicio intenso en las horas de más sol.");
-        section(body, "Normativa", "Consulta los valores vigentes en las fuentes oficiales.");
-        section(body, "Otros contaminantes", "Ozono (O₃)\nDióxido de nitrógeno (NO₂)\nPartículas (PM10 y PM2,5)\nMonóxido de carbono (CO)");
+        LinearLayout intro = ui.card(body);
+        intro.setBackground(ui.shape(GREEN, 22, 0));
+        ui.label(intro, "Un aire limpio empieza por conocerlo.", 26, true, WHITE);
+        ui.label(intro, "Qué contamina, cómo afecta a tu salud y qué dice la normativa.", 13, false, WHITE);
+        LinearLayout sections = ui.column();
+        LinearLayout[] anchors = new LinearLayout[3];
+        ui.segments(body, new String[]{"Ozono", "Salud", "Normativa"}, 0, index -> {
+            if (anchors[index] != null) anchors[index].requestRectangleOnScreen(
+                new android.graphics.Rect(0, 0, anchors[index].getWidth(), anchors[index].getHeight()));
+        });
+        ui.add(body, sections);
+        anchors[0] = section(sections, "¿Qué es el ozono troposférico?", "Se forma cerca del suelo cuando la luz del sol reacciona con contaminantes del tráfico y la industria.");
+        anchors[1] = section(sections, "Efectos en la salud", "• Irritación de ojos, nariz y garganta\n• Tos y dificultad para respirar\n• Puede empeorar el asma.");
+        section(sections, "Cómo protegerte", "• Consulta el mapa antes de hacer deporte\n• Evita el ejercicio intenso en las horas de más sol.");
+        anchors[2] = section(sections, "Normativa", "Consulta los valores vigentes en las fuentes oficiales.");
+        section(sections, "Otros contaminantes", "Ozono (O₃)\nDióxido de nitrógeno (NO₂)\nPartículas (PM10 y PM2,5)\nMonóxido de carbono (CO)");
         ui.note(body, "Las mediciones complementan las estaciones oficiales de vigilancia ambiental.");
     }
 
     public void compare(LinearLayout body, ExecutorService worker) {
         section(body, "Conoce las zonas medidas", "Compara datos publicados. Las zonas sin mediciones no reciben un valor estimado.");
-        Switch simulated = new Switch(activity);
-        simulated.setText("Mediciones simuladas");
-        simulated.setChecked(true);
-        ui.add(body, simulated);
+        final boolean[] simulated = {true};
         LinearLayout results = ui.column();
-        ui.add(body, results);
         int[] request = {0};
         Runnable load = () -> {
             int generation = ++request[0];
-            boolean demo = simulated.isChecked();
+            boolean demo = simulated[0];
             results.removeAllViews();
             ui.note(results, "Consultando mediciones públicas…");
             worker.execute(() -> {
@@ -263,8 +318,9 @@ public final class WorkScreens {
                             LinearLayout card = ui.card(results);
                             ui.label(card, zone.getKey(), 17, true, INK);
                             graph(card, values);
-                            ui.note(card, "Mediciones: " + values.size() + " · Media: " + average(values));
-                            ui.note(card, "Mínimo / máximo: " + Collections.min(values) + " / " + Collections.max(values));
+                            ui.info(card, "Mediciones", Integer.toString(values.size()));
+                            ui.info(card, "Media", average(values));
+                            ui.info(card, "Mínimo / máximo", Collections.min(values) + " / " + Collections.max(values));
                         }
                     });
                 } catch (Exception error) {
@@ -276,7 +332,11 @@ public final class WorkScreens {
                 }
             });
         };
-        simulated.setOnCheckedChangeListener((button, checked) -> load.run());
+        ui.segments(body, new String[]{"Reales", "Simulados"}, 1, index -> {
+            simulated[0] = index == 1;
+            load.run();
+        });
+        ui.add(body, results);
         load.run();
     }
 

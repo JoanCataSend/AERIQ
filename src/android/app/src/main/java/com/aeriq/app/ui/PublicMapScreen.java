@@ -28,7 +28,8 @@ public final class PublicMapScreen {
     private final ForegroundCaptureLocation location;
     private final MapView map;
     private final TextView status, detail;
-    private final CheckBox simulated, markers, zones;
+    private final CheckBox markers, zones;
+    private boolean simulated;
     private List<Reading> readings = Collections.emptyList();
     private int request;
     private boolean closed;
@@ -50,23 +51,48 @@ public final class PublicMapScreen {
                 && action != android.view.MotionEvent.ACTION_CANCEL);
             return false;
         });
-        EditText query = ui.field(body, "Buscar zona", "", android.text.InputType.TYPE_CLASS_TEXT);
+        EditText query = ui.field(body, "Buscar ciudad o zona", "", android.text.InputType.TYPE_CLASS_TEXT);
         query.setHint("UPV, playa, Grau…");
-        ui.outline(body, "Buscar", () -> search(query.getText().toString()));
-        simulated = toggle(body, "Mostrar mediciones simuladas", false);
+        query.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        query.setOnEditorActionListener((view, action, event) -> {
+            if (action != android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) return false;
+            search(query.getText().toString());
+            return true;
+        });
+        ui.segments(body, new String[]{"Reales", "Simulados"}, 0, index -> {
+            simulated = index == 1;
+            load();
+        });
         status = ui.label(body, "Consultando mediciones autorizadas…", 12, false, MUTED);
-        LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(-1, ui.dp(380));
+        LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(-1, ui.dp(190));
         map.setBackground(ui.shape(SOFT, 18, LINE));
         map.setClipToOutline(true);
-        body.addView(map, mapParams);
-        LinearLayout zoom = ui.row();
-        ui.weighted(zoom, ui.action("+", WHITE, INK, () -> map.getController().zoomIn()));
-        ui.weighted(zoom, ui.action("−", WHITE, INK, () -> map.getController().zoomOut()));
-        ui.weighted(zoom, ui.action("UPV", WHITE, INK, () -> map.getController().animateTo(CAMPUS)));
-        ui.weighted(zoom, ui.action("Actualizar", WHITE, INK, this::load));
-        ui.add(body, zoom);
-        LinearLayout layers = ui.card(body);
-        ui.label(layers, "Capas del mapa", 16, true, INK);
+        FrameLayout mapFrame = new FrameLayout(activity);
+        mapFrame.addView(map, new FrameLayout.LayoutParams(-1, -1));
+        body.addView(mapFrame, mapParams);
+        LinearLayout legend = ui.row();
+        legend.addView(ui.text("● Bajo     ● Medio     ● Alto", 11, true, GREEN));
+        ui.add(body, legend);
+        ui.segments(body, new String[]{"Acercar", "Alejar", "UPV", "Actualizar"}, 0, index -> {
+            switch (index) {
+                case 0: map.getController().zoomIn(); break;
+                case 1: map.getController().zoomOut(); break;
+                case 2: map.getController().animateTo(CAMPUS); break;
+                default: load();
+            }
+        });
+        LinearLayout layers = ui.column();
+        android.app.AlertDialog layerDialog = new android.app.AlertDialog.Builder(activity)
+            .setTitle("Capas del mapa").setView(layers).setPositiveButton("Cerrar", null).create();
+        ImageView layersButton = ui.image(com.aeriq.app.R.drawable.ic_layers, 40, 40);
+        layersButton.setPadding(ui.dp(10), ui.dp(10), ui.dp(10), ui.dp(10));
+        layersButton.setBackground(ui.shape(WHITE, 12, LINE));
+        layersButton.setContentDescription("Capas del mapa");
+        layersButton.setOnClickListener(view -> layerDialog.show());
+        FrameLayout.LayoutParams control = new FrameLayout.LayoutParams(ui.dp(40), ui.dp(40),
+            android.view.Gravity.TOP | android.view.Gravity.END);
+        control.setMargins(0, ui.dp(8), ui.dp(8), 0);
+        mapFrame.addView(layersButton, control);
         zones = toggle(layers, "Interpolación local de 20–50 m", true);
         markers = toggle(layers, "Mediciones", true);
         CheckBox dark = toggle(layers, "Modo oscuro", false);
@@ -76,19 +102,13 @@ public final class PublicMapScreen {
                 : null);
             map.invalidate();
         });
-        LinearLayout legend = ui.row();
-        ui.weighted(legend, ui.text("● Bajo", 13, true, 0xff219c72));
-        ui.weighted(legend, ui.text("● Medio", 13, true, 0xffae6600));
-        ui.weighted(legend, ui.text("● Alto", 13, true, RED));
-        ui.add(body, legend);
-        detail = ui.label(ui.card(body), "Selecciona una medición en el mapa.", 14, false, INK);
         ui.outline(body, "Mostrar mi ubicación", () -> {
             if (location.allowed()) locate();
             else activity.locateMap();
         });
+        detail = ui.label(ui.card(body), "Selecciona una medición en el mapa.", 16, true, INK);
         ui.outline(body, "Comparar zonas publicadas", () -> activity.go(Screen.COMPARE));
         ui.note(body, "© OpenStreetMap contributors. Sin al menos tres ubicaciones próximas, las áreas permanecen sin color.");
-        simulated.setOnCheckedChangeListener((button, checked) -> load());
         zones.setOnCheckedChangeListener((button, checked) -> draw());
         markers.setOnCheckedChangeListener((button, checked) -> draw());
         load();
@@ -104,7 +124,7 @@ public final class PublicMapScreen {
 
     private void load() {
         int generation = ++request;
-        boolean demo = simulated.isChecked();
+        boolean demo = simulated;
         readings = Collections.emptyList();
         draw();
         detail.setText("Selecciona una medición en el mapa.");
