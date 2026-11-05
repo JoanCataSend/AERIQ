@@ -132,18 +132,21 @@ public final class Views {
         weighted(row, input);
         if ((type & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_PASSWORD) {
             input.setSaveEnabled(false);
-            TextView show = text("Mostrar", 13, false, GREEN);
-            show.setGravity(Gravity.CENTER);
-            show.setMinWidth(dp(72));
-            show.setMinHeight(dp(48));
-            show.setFocusable(true);
-            show.setOnClickListener(view -> {
+            ImageView toggle = new ImageView(context);
+            toggle.setImageResource(com.aeriq.app.R.drawable.ic_eye);
+            toggle.setContentDescription("Mostrar u ocultar contraseña");
+            toggle.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            int p = dp(14);
+            toggle.setPadding(p, p, p, p);
+            toggle.setFocusable(true);
+            toggle.setClickable(true);
+            toggle.setOnClickListener(view -> {
                 boolean hidden = input.getTransformationMethod() instanceof android.text.method.PasswordTransformationMethod;
                 input.setTransformationMethod(hidden ? null : android.text.method.PasswordTransformationMethod.getInstance());
                 input.setSelection(input.length());
-                show.setText(hidden ? "Ocultar" : "Mostrar");
+                toggle.setImageResource(hidden ? com.aeriq.app.R.drawable.ic_eye_off : com.aeriq.app.R.drawable.ic_eye);
             });
-            row.addView(show);
+            row.addView(toggle, new LinearLayout.LayoutParams(dp(48), dp(48)));
         }
         add(parent, row);
         return input;
