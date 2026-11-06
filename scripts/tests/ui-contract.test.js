@@ -38,6 +38,10 @@ async function page(name,search=''){
 (async()=>{
   let p=await page('index.html');
   assert(p.document.querySelector('model-viewer'));assert(p.document.querySelector('.desktop-mock img'));assert(p.document.querySelector('.phone-mock img'));
+  // Vista explosionada: entre el hero y «El dispositivo», etiquetas HTML reales y, sin anime.js, estado estático.
+  const explode=p.document.querySelector('#por-dentro');assert(explode);assert(explode.previousElementSibling.classList.contains('hero-section'));assert(explode.nextElementSibling.classList.contains('feature-section'));
+  assert.equal(explode.querySelectorAll('.explode-labels li h3 + p').length,5);assert.equal(explode.querySelectorAll('.explode-part').length,5);
+  assert([...explode.querySelectorAll('img')].every(img=>img.hasAttribute('alt')));assert(!explode.classList.contains('is-animated'));
   assert(!/Plan personal|Premium|3,99/.test(p.document.body.textContent));assert(p.document.querySelectorAll('#planes a[href*="solicitar"]').length===3);assert.deepEqual(p.errors,[]);p.close();
   p=await page('sensor.html');assert.equal(p.document.querySelectorAll('[data-angle]').length,4);p.document.querySelector('[data-angle="back"]').click();assert(p.document.querySelector('#product-main-image').src.includes('trasera'));assert.equal(p.document.querySelector('#add-to-cart').textContent,'Solicitar este kit ↗');assert.deepEqual(p.errors,[]);p.close();
   p=await page('perfil.html');assert(p.document.querySelector('#account-link').href.endsWith('/perfil.html'));assert(!p.document.querySelector('[data-logout]'));assert(p.document.querySelector('#logout'));p.document.querySelector('#logout').click();await wait();assert(p.calls.some(c=>c.path==='/auth.php'&&c.action==='logout'));assert.deepEqual(p.errors,[]);p.close();

@@ -2,7 +2,7 @@
 
 ## Diseño recuperado
 
-La portada conserva su composición original, las maquetas web/móvil y el visor 3D. La ficha Orb conserva sus cuatro imágenes transparentes, la galería y el selector de cantidad. La cuenta y la flota recuperan la estructura anterior de tarjetas, barra lateral, tabla, búsqueda, filtros y diálogo de edición. Se mantienen logotipo, colores, CSS global y adaptación responsive.
+La portada conserva su composición original, las maquetas web/móvil y el visor 3D. Entre el hero y «El dispositivo» hay una vista explosionada del Orb (`product-explode.js`): la sección se fija y anime.js 4 (CDN, `onScroll` con `sync`) abre la carcasa, separa los componentes, muestra sus etiquetas HTML y enciende el logotipo; el recorrido se invierte al subir. Sin anime.js o con `prefers-reduced-motion` se muestra el estado abierto estático. Añade `?explode-debug` a la URL para superponer el render cerrado y ver la máscara de la pared frontal al calibrar. La ficha Orb conserva sus cuatro imágenes transparentes, la galería y el selector de cantidad. La cuenta y la flota recuperan la estructura anterior de tarjetas, barra lateral, tabla, búsqueda, filtros y diálogo de edición. Se mantienen logotipo, colores, CSS global y adaptación responsive.
 
 Los antiguos planes se convierten en tres tarjetas de servicios: kits para administraciones, kits para empresas y estudios de Código Norte. El recorrido cantidad → revisión → formulario se conserva como solicitud de presupuesto, sin pagos ni suscripciones personales. Las rutas antiguas `carrito.html` y `checkout.html` siguen existiendo con esa nueva finalidad.
 
