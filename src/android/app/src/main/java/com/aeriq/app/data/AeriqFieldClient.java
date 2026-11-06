@@ -1,6 +1,7 @@
 package com.aeriq.app.data;
 
 import android.location.Location;
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import com.aeriq.app.ble.LiveMeasurement;
@@ -9,17 +10,24 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.*;
 
 public final class AeriqFieldClient implements AutoCloseable {
     private final Supplier<String> token;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
-    private final AtomicInteger pending = new AtomicInteger();
+    private final AtomicBoolean syncing = new AtomicBoolean();
+    private final ExecutorService writer = Executors.newSingleThreadExecutor();
+    private final ExecutorService sender = Executors.newSingleThreadExecutor();
+    private final Supplier<Long> owner;
+    private final ReadingOutbox outbox;
     private volatile boolean closed;
 
-    public AeriqFieldClient(Supplier<String> token) { this.token = token; }
+    public AeriqFieldClient(Context context, Supplier<String> token, Supplier<Long> owner) {
+        this.token = token; this.owner = owner;
+        outbox = new ReadingOutbox(context.getApplicationContext());
+    }
 
     private JSONObject request(String credential, String action, JSONObject body) throws Exception {
         if (!credential.equals(token.get())) throw new IllegalStateException("La sesión ha cambiado");
@@ -81,17 +89,17 @@ public final class AeriqFieldClient implements AutoCloseable {
 
     public void upload(LiveMeasurement reading, OrbAssignment assignment, Location location, Consumer<String> done) {
         String credential = token.get();
-        if (credential == null) {
-            done.accept("No enviado: inicia sesión");
+        long account = owner.get();
+        if (credential == null || account == 0) {
+            done.accept("No guardado: inicia sesión");
             return;
         }
-        if (pending.incrementAndGet() > 30) {
-            pending.decrementAndGet();
-            done.accept("Cola llena: lectura no guardada");
+        if (assignment.simulated) {
+            done.accept("No guardado: selecciona un sensor real");
             return;
         }
-        worker.execute(() -> {
-            String status;
+        // Persistir no espera a la red: un timeout HTTP no retrasa la captura BLE.
+        writer.execute(() -> {
             try {
                 SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT);
                 date.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -106,25 +114,83 @@ public final class AeriqFieldClient implements AutoCloseable {
                     body.put("longitude", location.getLongitude());
                     body.put("accuracy", location.getAccuracy());
                 }
-                JSONObject saved;
-                try { saved = request(credential, "", body); }
-                catch (IOException error) { saved = request(credential, "", body); }
-                if (!event.equals(saved.optString("eventId"))) throw new IllegalStateException("Respuesta de guardado incorrecta");
-                status = saved.optBoolean("duplicate") ? "Servidor: lectura ya registrada" : "Servidor: lectura guardada";
+                outbox.add(account, event, body.toString());
+                main.post(() -> {
+                    if (!closed && credential.equals(token.get()) && account == owner.get()) {
+                        done.accept("Lectura guardada en el móvil; sincronizando…");
+                        flushPending(done);
+                    }
+                });
             } catch (Exception error) {
-                status = "No se pudo guardar la lectura: " + error.getMessage();
-            } finally {
-                pending.decrementAndGet();
+                postStatus(credential, account, "Error al guardar en el móvil: " + error.getMessage(), done);
             }
-            String message = status;
-            main.post(() -> {
-                if (!closed && credential.equals(token.get())) done.accept(message);
-            });
+        });
+    }
+
+    private void postStatus(String credential, long account, String status, Consumer<String> done) {
+        main.post(() -> {
+            if (!closed && credential.equals(token.get()) && account == owner.get()) done.accept(status);
+        });
+    }
+
+    public void flushPending(Consumer<String> done) {
+        String credential = token.get();
+        long account = owner.get();
+        if (closed || credential == null || account == 0 || !syncing.compareAndSet(false, true)) return;
+        sender.execute(() -> {
+            int saved = 0;
+            String error = "";
+            try {
+                for (ReadingOutbox.Entry entry : outbox.next(account)) {
+                    if (closed || !credential.equals(token.get()) || account != owner.get()) break;
+                    try {
+                        JsonHttp.Response response = JsonHttp.request(ApiRoutes.FIELD, new JSONObject(entry.payload), credential);
+                        if (!credential.equals(token.get()) || account != owner.get()) break;
+                        if (!response.ok()) {
+                            error = "HTTP " + response.status + ": " + response.message();
+                            // No bloquear toda la cola por una asignación borrada/revocada.
+                            if (response.status == 403 || response.status == 409 || response.status == 422) {
+                                outbox.block(account, entry.event, error);
+                                continue;
+                            }
+                            break;
+                        }
+                        if (!entry.event.equals(response.json.optString("eventId"))) throw new IOException("Confirmación del servidor incorrecta");
+                        outbox.acknowledge(account, entry.event);
+                        ++saved;
+                    } catch (Exception failure) { error = failure.getMessage(); break; }
+                }
+                int remaining = outbox.count(account, false), blocked = outbox.count(account, true);
+                String status = (saved > 0 ? "Servidor: " + saved + " lecturas confirmadas. " : "")
+                    + remaining + " pendientes · " + blocked + " requieren revisión";
+                if (!error.isEmpty()) status += ". " + error;
+                if (remaining == 0 && blocked == 0 && saved == 0) return;
+                postStatus(credential, account, status, done);
+            } catch (Exception failure) {
+                postStatus(credential, account, "Error de sincronización: " + failure.getMessage(), done);
+            } finally { syncing.set(false); }
+        });
+    }
+
+    public void retryPending(Consumer<String> done) {
+        long account = owner.get();
+        if (closed || account == 0) return;
+        writer.execute(() -> {
+            outbox.retry(account);
+            main.post(() -> { if (!closed && account == owner.get()) flushPending(done); });
         });
     }
 
     @Override public void close() {
         closed = true;
         worker.shutdownNow();
+        // Las escrituras ya recibidas se completan incluso si se destruye la Activity.
+        writer.shutdown();
+        sender.shutdown();
+        CompletableFuture.runAsync(() -> {
+            try {
+                if (writer.awaitTermination(60, TimeUnit.SECONDS) && sender.awaitTermination(60, TimeUnit.SECONDS)) outbox.close();
+            } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+        });
     }
 }

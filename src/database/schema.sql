@@ -43,7 +43,7 @@ CREATE TABLE dispositivos (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, organizacion_id BIGINT UNSIGNED NOT NULL,
  nombre VARCHAR(160) NOT NULL, direccion_ble VARCHAR(17) NULL UNIQUE,
  identificador_legacy VARCHAR(80) NULL,
- activo BOOLEAN NOT NULL DEFAULT TRUE, simulado BOOLEAN NOT NULL DEFAULT TRUE,
+ activo BOOLEAN NOT NULL DEFAULT TRUE, simulado BOOLEAN NOT NULL DEFAULT FALSE,
  UNIQUE KEY dispositivo_organizacion (id,organizacion_id),
  FOREIGN KEY (organizacion_id) REFERENCES organizaciones(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

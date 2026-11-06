@@ -53,6 +53,7 @@ public final class WorkScreens {
         TextView healthStatus = (TextView) receptionCard.getChildAt(1);
         LinearLayout serverCard = section(serverColumn, "Servidor", serverStatus);
         TextView server = (TextView) serverCard.getChildAt(1);
+        ui.outline(serverCard, "Reintentar pendientes", activity::retryUploads);
         ui.add(body, health);
         LinearLayout campaign = ui.card(body);
         ui.label(campaign, "Tu campaña", 19, true, INK);
@@ -232,13 +233,14 @@ public final class WorkScreens {
         LinearLayout card = ui.card(body);
         Switch toggle = new Switch(activity);
         ui.label(card, title, 19, true, INK);
-        ui.note(card, "GPS opcional y solo en primer plano");
+        ui.note(card, "Guardado automático al seleccionar tu sensor. GPS opcional y solo en primer plano.");
         toggle.setContentDescription("Enviar lecturas a la campaña");
         toggle.setEnabled(enabled);
         toggle.setChecked(sending);
         toggle.setOnCheckedChangeListener((button, checked) -> activity.setSharing(checked));
         ui.add(card, toggle);
         ui.label(card, "La publicación se autoriza en la campaña; enviar al servidor no publica automáticamente tu ubicación.", 11, false, MUTED);
+        ui.note(card, "Si falla Internet, las lecturas quedan guardadas en el móvil y se reintentan. Desactivar este interruptor pausa las nuevas capturas, no borra las pendientes.");
     }
 
     public void account(LinearLayout body, AeriqAuthManager.User user, OrbAssignment orb, boolean sharing, List<OrbAssignment> assignments) {
@@ -334,7 +336,7 @@ public final class WorkScreens {
 
     public void compare(LinearLayout body, ExecutorService worker) {
         section(body, "Conoce las zonas medidas", "Compara datos publicados. Las zonas sin mediciones no reciben un valor estimado.");
-        final boolean[] simulated = {true};
+        final boolean[] simulated = {false};
         LinearLayout results = ui.column();
         int[] request = {0};
         Runnable load = () -> {
@@ -374,7 +376,7 @@ public final class WorkScreens {
                 }
             });
         };
-        ui.segments(body, new String[]{"Reales", "Simulados"}, 1, index -> {
+        ui.segments(body, new String[]{"Reales", "Simulados"}, 0, index -> {
             simulated[0] = index == 1;
             load.run();
         });

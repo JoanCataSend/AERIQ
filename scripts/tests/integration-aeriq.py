@@ -72,6 +72,18 @@ def main():
         assert 'Copia previa:' in recreated.stdout
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
         # Migración de un Sprint 0 mínimo: conserva valores y no inventa GPS ni MAC.
+        sql('CREATE DATABASE aeriq_cleanup_test; USE aeriq_cleanup_test;'+(ROOT/'src/database/schema.sql').read_text()+(ROOT/'src/database/seed-demo.sql').read_text())
+        sql(f"USE aeriq_cleanup_test; INSERT INTO mediciones(evento,asignacion_id,tipo,valor,capturada_en,simulado) SELECT '{uuid.uuid4()}',id,14,73,UTC_TIMESTAMP(3),0 FROM asignaciones ORDER BY id LIMIT 1")
+        accounts_before=sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
+        orgs_before=sql('USE aeriq_cleanup_test; SELECT * FROM organizaciones ORDER BY id')
+        for _ in range(2):
+            sql('USE aeriq_cleanup_test;'+(ROOT/'src/database/limpiar-simulados-y-sensores.sql').read_text(encoding='utf-8'))
+            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM mediciones')=='0'
+            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM dispositivos')=='0'
+            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM asignaciones')=='0'
+            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM archivo_sensores_mediciones WHERE simulado=0 AND valor=73')=='1'
+            assert accounts_before==sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
+            assert orgs_before==sql('USE aeriq_cleanup_test; SELECT * FROM organizaciones ORDER BY id')
         sql('CREATE DATABASE jcatsen_pbio; USE jcatsen_pbio; CREATE TABLE AeriqUsuario(id INT PRIMARY KEY); CREATE TABLE AeriqCodigoEmail(id INT, FOREIGN KEY(id) REFERENCES AeriqUsuario(id)); CREATE TABLE AeriqSesionMovil(id INT, FOREIGN KEY(id) REFERENCES AeriqUsuario(id)); CREATE TABLE Dispositivo(id INT PRIMARY KEY); CREATE TABLE TipoMedida(id INT PRIMARY KEY); CREATE TABLE Medida(id INT, dispositivo_id INT, tipo INT, FOREIGN KEY(dispositivo_id) REFERENCES Dispositivo(id), FOREIGN KEY(tipo) REFERENCES TipoMedida(id)); INSERT INTO Medida(id) VALUES(1);')
         for _ in range(2):
             sql((ROOT/'src/database/recrear-jcatsen-pbio.sql').read_text(encoding='utf-8'))
@@ -238,6 +250,22 @@ class PHPMailer {
         repeated=expect(200,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Otro nombre'},token=token)
         assert next(row for row in repeated['assignments'] if row['id']==own['id'])['asignacion_id']==own['asignacion_id']
         assert any(row['id']==own['id'] for row in expect(200,'field.php',token=token)['assignments'])
+        # Sensor BLE real -> API -> BBDD -> historial/informe, incluso sin GPS.
+        actual={**reading,'eventId':str(uuid.uuid4()),'deviceId':own['id'],'assignmentId':own['asignacion_id'],
+                'campaignId':own['campana_id'],'address':own['direccion_ble'],'capturedAt':dt.datetime.now(dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00','Z')}
+        for key in ['latitude','longitude','accuracy']:actual.pop(key,None)
+        expect(200,'field.php',actual,token=token)
+        assert expect(200,'field.php',actual,token=token)['duplicate'] is True
+        saved_real=next(row for row in expect(200,'field.php?action=history',token=token)['readings'] if row['dispositivo_id']==own['id'])
+        assert int(saved_real['simulado'])==0 and saved_real['latitud'] is None
+        report=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}",identity='a')['readings']
+        assert any(row['evento']==actual['eventId'] and int(row['simulado'])==0 for row in report)
+        # GPS real: aparece en el mapa privado y sigue excluido del mapa público.
+        gps={**actual,'eventId':str(uuid.uuid4()),'latitude':38.99665,'longitude':-0.166,'accuracy':8}
+        expect(200,'field.php',gps,token=token)
+        private_real=expect(200,'portal.php?action=map&mode=real',identity='a')['measurements']
+        assert any(int(row['campaignId'])==int(own['campana_id']) for row in private_real)
+        assert not any(int(row['campaignId'])==int(own['campana_id']) for row in expect(200,'public.php?action=map&mode=real')['measurements'])
         sql("USE aeriq_test; INSERT INTO dispositivos(organizacion_id,nombre,direccion_ble,simulado) VALUES(2,'Otra organización','AA:BB:CC:DD:EE:72',0),(1,'Ocupado','AA:BB:CC:DD:EE:73',0);")
         sql(f"USE aeriq_test; INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) SELECT 1,id,50,{own['campana_id']} FROM dispositivos WHERE direccion_ble='AA:BB:CC:DD:EE:73'")
         for address in ['AA:BB:CC:DD:EE:72','AA:BB:CC:DD:EE:73']:

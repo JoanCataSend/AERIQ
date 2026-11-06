@@ -44,7 +44,7 @@ public final class AeriqAuthManager implements AutoCloseable {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean closed;
-    public User user;
+    public volatile User user;
     public boolean busy;
     public String pendingEmail = "";
 

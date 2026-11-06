@@ -37,6 +37,7 @@ public final class MainActivity extends Activity {
     private ScrollView scroll;
     private boolean sharing, started, restoring = true;
     private boolean linkingSensor;
+    private long lastSyncAt;
     private List<OrbAssignment> assignments = Collections.emptyList();
     private List<StoredReading> history = Collections.emptyList();
     private String assignmentStatus = "Esperando cuenta autorizada";
@@ -47,6 +48,12 @@ public final class MainActivity extends Activity {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             if (updateLive != null) updateLive.run();
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (workerAccount() && now - lastSyncAt >= 30000) {
+                lastSyncAt = now;
+                field.flushPending(status -> serverStatus = status);
+                if (current == Screen.SENSOR || current == Screen.HISTORY) refreshHistory();
+            }
             main.postDelayed(this, 1000);
         }
     };
@@ -63,7 +70,7 @@ public final class MainActivity extends Activity {
             | (Build.VERSION.SDK_INT >= 26 ? View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0));
         ui = new Views(this);
         auth = new AeriqAuthManager(this);
-        field = new AeriqFieldClient(auth::sessionToken);
+        field = new AeriqFieldClient(this, auth::sessionToken, () -> auth.user == null ? 0L : auth.user.id);
         location = new ForegroundCaptureLocation(this);
         ble = new AeriqBleController(this, this::receive);
         if (state != null) {
@@ -318,6 +325,7 @@ public final class MainActivity extends Activity {
         }
         if (!address.equalsIgnoreCase(ble.selectedAddress)) setSharing(false);
         ble.select(address);
+        setSharing(!assigned(address).simulated);
         go(Screen.SENSOR);
     }
 
@@ -368,6 +376,10 @@ public final class MainActivity extends Activity {
     }
 
     public String serverStatus() { return serverStatus; }
+    public void retryUploads() {
+        serverStatus = "Reintentando lecturas pendientes…";
+        field.retryPending(status -> serverStatus = status);
+    }
     public void updateLive(Runnable action) { updateLive = action; action.run(); }
 
     public void locateMap() { requestPermissions(locationPermissions(), GPS_MAP); }
@@ -421,6 +433,7 @@ public final class MainActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         started = true;
+        if (ble.selectedAddress != null && ble.hasScanPermissions() && ble.bluetoothEnabled()) ble.startScan();
         if (sharing) location.start();
         if (mapScreen != null) mapScreen.resume();
         main.post(tick);
