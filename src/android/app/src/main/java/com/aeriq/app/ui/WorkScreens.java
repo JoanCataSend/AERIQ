@@ -63,10 +63,7 @@ public final class WorkScreens {
         ui.label(assigned, "Orb asignados", 18, true, INK);
         ui.note(assigned, assignmentStatus);
         for (OrbAssignment orb : assignments) ui.note(assigned, orb.name + " · " + orb.campaign);
-        Button scan = ui.button(assigned, "Buscar o vincular Orb", () -> {
-            if (ble.scanning) activity.toggleScan();
-            else activity.go(Screen.LINK);
-        });
+        ui.button(assigned, "Buscar o asignar sensor", () -> activity.go(Screen.LINK));
         ui.outline(assigned, "Actualizar asignaciones", activity::refreshAssignments);
         sharing(body, sending, selected != null, "Enviar a la campaña");
         activity.updateLive(() -> {
@@ -74,7 +71,6 @@ public final class WorkScreens {
             reception.setText(ble.scanning && ble.lastAdvertisementAt > 0
                 ? (age <= 15 ? "Anuncio recibido hace " : "Sin anuncios desde hace ") + age + " s" : ble.status);
             healthStatus.setText(reception.getText());
-            scan.setText(ble.scanning ? "Detener búsqueda / recepción" : "Buscar o vincular Orb");
             ozone.setText(ble.lastO3 == null ? "— ppb" : ble.lastO3.reading.value + " ppb");
             server.setText(activity.serverStatus());
             temperature.setText("Temperatura BLE: " + (ble.lastTemperature == null ? "—" : ble.lastTemperature.reading.value)
@@ -100,7 +96,7 @@ public final class WorkScreens {
         LinearLayout devices = ui.column();
         ui.add(body, devices);
         section(body, "¿Aún no tienes sensor?", "El mapa público sigue siendo gratis.");
-        ui.note(body, "Vincular selecciona el emisor iBeacon asignado por tu organización.");
+        ui.note(body, "Puedes asignar un sensor libre a tu cuenta. Las nuevas mediciones se guardan en una campaña privada; los sensores ya asignados conservan su campaña.");
         final String[] previous = {null};
         activity.updateLive(() -> {
             status.setText(ble.status);
@@ -108,21 +104,58 @@ public final class WorkScreens {
             Map<String, AeriqBleController.FoundDevice> visible = new LinkedHashMap<>();
             for (AeriqBleController.FoundDevice device : ble.devices()) {
                 if (System.currentTimeMillis() - device.lastSeen > 15_000) continue;
-                for (OrbAssignment assignment : assignments) {
-                    if (assignment.address.equalsIgnoreCase(device.address)) visible.put(device.address, device);
-                }
+                visible.put(device.address, device);
             }
             StringBuilder signature = new StringBuilder();
-            for (AeriqBleController.FoundDevice device : visible.values()) signature.append(device.address).append(device.rssi);
+            signature.append(ble.selectedAddress).append(ble.scanning);
+            for (OrbAssignment assignment : assignments) signature.append(assignment.address).append(assignment.name);
+            for (AeriqBleController.FoundDevice device : visible.values())
+                signature.append(device.address).append(device.rssi >= -65 ? 2 : device.rssi >= -80 ? 1 : 0).append(device.diagnostic);
             if (signature.toString().equals(previous[0])) return;
             previous[0] = signature.toString();
             devices.removeAllViews();
-            if (visible.isEmpty()) ui.note(devices, "No se han detectado Orb asignados.");
+            if (visible.isEmpty()) ui.note(devices, ble.scanning
+                ? "Buscando tu Orb… Déjalo encendido cerca del móvil."
+                : "Activa la búsqueda para ver los sensores cercanos.");
             for (AeriqBleController.FoundDevice device : visible.values()) {
                 LinearLayout card = ui.card(devices);
-                ui.label(card, device.name, 16, true, INK);
-                ui.note(card, device.address + " · " + device.rssi + " dBm");
-                ui.button(card, "Vincular", () -> activity.selectOrb(device.address));
+                OrbAssignment match = null;
+                for (OrbAssignment assignment : assignments)
+                    if (assignment.address.equalsIgnoreCase(device.address)) match = assignment;
+                final OrbAssignment assigned = match;
+                boolean selected = device.address.equalsIgnoreCase(ble.selectedAddress);
+                LinearLayout identity = ui.row();
+                ImageView orb = ui.image(R.drawable.aeriq_orb_hero, 72, 72);
+                identity.addView(orb, new LinearLayout.LayoutParams(ui.dp(72), ui.dp(72)));
+                LinearLayout details = ui.column();
+                details.setPadding(ui.dp(14), 0, 0, 0);
+                ui.weighted(identity, details);
+                ui.label(details, assigned == null ? "Sensor Orb" : assigned.name, 20, true, INK);
+                ui.label(details, selected ? "✓ Seleccionado" : assigned != null ? "✓ Asignado a tu cuenta" : "Detectado por Bluetooth", 12, true, GREEN);
+                ui.add(card, identity);
+                ui.note(card, device.address);
+                ui.info(card, "Señal", device.rssi >= -65 ? "Buena · cerca de ti" : device.rssi >= -80 ? "Media" : "Débil · acerca el sensor");
+                if (device.diagnostic >= 0) {
+                    ui.label(card, "Necesita revisar la lectura", 13, true, RED);
+                    ui.note(card, "Puedes asignarlo igualmente. Estado 0x" + Integer.toHexString(device.diagnostic) + "; comprueba el monitor serie y el cableado.");
+                }
+                if (assigned != null) ui.note(card, "Campaña: " + assigned.campaign);
+                else ui.note(card, "Guárdalo en tu cuenta para empezar a registrar tus mediciones.");
+                Button choose = ui.button(card, selected ? "Sensor seleccionado" : assigned != null ? "Usar este sensor" : "Asignar a mi cuenta", () -> {
+                    if (assigned != null) { activity.selectOrb(device.address); return; }
+                    EditText name = new EditText(activity);
+                    name.setSingleLine(true);
+                    name.setText("Mi Orb · " + device.address.substring(12));
+                    new android.app.AlertDialog.Builder(activity).setTitle("Asigna tu sensor")
+                        .setMessage("Ponle un nombre. La asignación quedará guardada en tu cuenta y las nuevas lecturas serán privadas.")
+                        .setView(name).setNegativeButton("Cancelar", null)
+                        .setPositiveButton("Asignar sensor", (dialog, which) -> {
+                            String label = name.getText().toString().trim();
+                            if (label.isEmpty() || label.length() > 80) { activity.message("Usa un nombre de entre 1 y 80 caracteres."); return; }
+                            activity.assignSensor(device.address, label);
+                        }).show();
+                });
+                choose.setEnabled(!selected);
             }
         });
     }
@@ -208,7 +241,7 @@ public final class WorkScreens {
         ui.label(card, "La publicación se autoriza en la campaña; enviar al servidor no publica automáticamente tu ubicación.", 11, false, MUTED);
     }
 
-    public void account(LinearLayout body, AeriqAuthManager.User user, OrbAssignment orb, boolean sharing) {
+    public void account(LinearLayout body, AeriqAuthManager.User user, OrbAssignment orb, boolean sharing, List<OrbAssignment> assignments) {
         LinearLayout profile = ui.card(body);
         LinearLayout identity = ui.row();
         TextView avatar = ui.text(initial(user.name) + initial(user.last), 21, true, GREEN);
@@ -226,6 +259,15 @@ public final class WorkScreens {
         LinearLayout data = ui.card(body);
         menu(data, R.drawable.figma_nav_user, "Datos personales", Screen.EDIT_PROFILE);
         menu(data, R.drawable.figma_nav_chip, "Mi sensor", Screen.SENSOR);
+        ui.outline(data, "Buscar y asignar sensor", () -> activity.go(Screen.LINK));
+        LinearLayout sensors = ui.card(body);
+        ui.label(sensors, "Mis sensores", 19, true, INK);
+        if (assignments.isEmpty()) ui.note(sensors, "Todavía no tienes sensores asignados. Busca tu Orb para añadirlo.");
+        for (OrbAssignment assignment : assignments) {
+            ui.label(sensors, assignment.name, 15, true, GREEN);
+            ui.note(sensors, assignment.address + " · " + assignment.campaign);
+        }
+        ui.note(sensors, "La asignación pertenece a tu cuenta. Seleccionar el sensor permite recibirlo en este móvil.");
         LinearLayout security = ui.card(body);
         menu(security, R.drawable.ic_lock, "Cambiar contraseña", Screen.CHANGE_PASSWORD);
         ui.menu(security, R.drawable.ic_fingerprint, "Acceso biométrico", INK,

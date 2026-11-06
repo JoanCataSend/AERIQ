@@ -18,13 +18,15 @@ public final class AeriqBleController {
     public static final class FoundDevice {
         public final String address, name;
         public final int rssi;
+        public final int diagnostic;
         public final long lastSeen;
 
-        FoundDevice(String address, String name, int rssi, long lastSeen) {
+        FoundDevice(String address, String name, int rssi, long lastSeen, int diagnostic) {
             this.address = address;
             this.name = name;
             this.rssi = rssi;
             this.lastSeen = lastSeen;
+            this.diagnostic = diagnostic;
         }
     }
 
@@ -95,8 +97,9 @@ public final class AeriqBleController {
                 @Override public void onScanResult(int callbackType, ScanResult result) {
                     ScanRecord record = result.getScanRecord();
                     if (record == null || result.getDevice() == null) return;
-                    BeaconReading reading = IBeaconParser.parse(
-                        record.getManufacturerSpecificData(IBeaconParser.APPLE_MANUFACTURER_ID));
+                    byte[] data = record.getManufacturerSpecificData(IBeaconParser.APPLE_MANUFACTURER_ID);
+                    BeaconReading measurement = IBeaconParser.parse(data);
+                    BeaconReading reading = measurement != null ? measurement : IBeaconParser.parseStatus(data);
                     if (reading == null) return;
                     String address = result.getDevice().getAddress();
                     long received = System.currentTimeMillis();
@@ -129,9 +132,23 @@ public final class AeriqBleController {
 
     private void accept(ScanRecord record, String address, int rssi, BeaconReading reading, long received) {
         String name = record.getDeviceName();
-        devices.put(address, new FoundDevice(address, name == null ? "Sensor AERIQ / PBIO" : name, rssi, received));
+        devices.put(address, new FoundDevice(address, name == null ? "Sensor AERIQ / PBIO" : name, rssi, received,
+            reading.typeId == IBeaconParser.STATUS_ID ? reading.value : -1));
+        if (selectedAddress == null) {
+            status = reading.typeId == IBeaconParser.STATUS_ID
+                ? "Sensor detectado, con error de lectura (estado 0x" + Integer.toHexString(reading.value) + "). Selecciónalo para diagnosticar."
+                : "Sensor detectado. Selecciónalo para recibir mediciones.";
+        }
         if (!address.equalsIgnoreCase(selectedAddress)) return;
         lastAdvertisementAt = received;
+        if (reading.typeId == IBeaconParser.STATUS_ID) {
+            lastO3 = null;
+            lastTemperature = null;
+            counters.clear();
+            status = "Sensor detectado, pero sin medición válida. Estado 0x"
+                + Integer.toHexString(reading.value) + ". Revisa el monitor serie y el cableado.";
+            return; // Nunca enviar banderas de diagnóstico a la API como temperatura/O3.
+        }
         String key = address + "/" + reading.typeId;
         if (Objects.equals(counters.put(key, reading.counter), reading.counter)) return;
         LiveMeasurement live = new LiveMeasurement(address, reading, rssi, received);

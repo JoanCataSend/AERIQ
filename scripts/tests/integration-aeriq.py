@@ -229,6 +229,24 @@ class PHPMailer {
             expect(422,'public.php?action=request',{**req,'service':service,'quantity':0})
             expect(201,'public.php?action=request',{**req,'service':service,'quantity':4})
         assert len(expect(200,'portal.php?action=requests',identity='sales')['requests'])==3
+        # Autoasignación real desde Android: persistencia, idempotencia y aislamiento.
+        expect(401,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Mi Orb'})
+        expect(422,'sensor-link.php',{'address':'incorrecta','name':'Mi Orb'},token=token)
+        linked=expect(200,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Mi Orb real'},token=token)
+        own=next(row for row in linked['assignments'] if row['direccion_ble']=='AA:BB:CC:DD:EE:71')
+        assert int(own['simulado'])==0 and int(own['publicar'])==0
+        repeated=expect(200,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Otro nombre'},token=token)
+        assert next(row for row in repeated['assignments'] if row['id']==own['id'])['asignacion_id']==own['asignacion_id']
+        assert any(row['id']==own['id'] for row in expect(200,'field.php',token=token)['assignments'])
+        sql("USE aeriq_test; INSERT INTO dispositivos(organizacion_id,nombre,direccion_ble,simulado) VALUES(2,'Otra organización','AA:BB:CC:DD:EE:72',0),(1,'Ocupado','AA:BB:CC:DD:EE:73',0);")
+        sql(f"USE aeriq_test; INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) SELECT 1,id,50,{own['campana_id']} FROM dispositivos WHERE direccion_ble='AA:BB:CC:DD:EE:73'")
+        for address in ['AA:BB:CC:DD:EE:72','AA:BB:CC:DD:EE:73']:
+            expect(409,'sensor-link.php',{'address':address,'name':'No robar'},token=token)
+        assert sql("USE aeriq_test; SELECT COUNT(*) FROM dispositivos WHERE direccion_ble='incorrecta'")=='0'
+        admin_session=expect(200,'mobile-auth.php?action=login',{'email':'admin-a@example.test','password':password})
+        admin_link=expect(200,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:74','name':'Orb administrador'},token=admin_session['token'])
+        assert any(row['direccion_ble']=='AA:BB:CC:DD:EE:74' for row in admin_link['assignments'])
+        assert len(expect(200,'field.php',token=admin_session['token'])['assignments'])==1
         sql("USE aeriq_test; UPDATE usuarios SET activo=0 WHERE email='worker@example.test'")
         expect(403,'auth.php?action=change-password',{'current':password,'password':'No-Reactivation-2026!'},'worker')
         assert sql("USE aeriq_test; SELECT activo FROM usuarios WHERE email='worker@example.test'")=='0'

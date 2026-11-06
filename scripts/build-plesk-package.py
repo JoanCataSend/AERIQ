@@ -23,7 +23,7 @@ def deploy_files():
         }:
             yield path
     for name in (
-        "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "SDBaseDatos.example.php",
+        "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "SensorLink.php", "SDBaseDatos.example.php",
         "SMTPConfig.example.php", "MailConfig.example.php", ".htaccess",
     ):
         yield WEB / "server" / name

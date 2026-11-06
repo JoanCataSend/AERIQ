@@ -36,4 +36,23 @@ public final class IBeaconParserTest {
         assertNull(IBeaconParser.parse(new byte[]{2, 21}));
         assertNull(IBeaconParser.parse(packet(99, 2, 20)));
     }
+
+    @Test public void discoversStatusWithoutTreatingItAsMeasurement() {
+        byte[] data = packet(15, 255, 0x8018);
+        assertNull(IBeaconParser.parse(data));
+        BeaconReading status = IBeaconParser.parseStatus(data);
+        assertNotNull(status);
+        assertEquals(15, status.typeId);
+        assertEquals(255, status.counter);
+        assertEquals(0x8018, status.value);
+    }
+
+    @Test public void statusRequiresValidProjectAndCompleteFrame() {
+        assertNull(IBeaconParser.parseStatus(null));
+        assertNull(IBeaconParser.parseStatus(new byte[]{2, 21}));
+        assertNull(IBeaconParser.parseStatus(packet(14, 1, 10)));
+        byte[] data = packet(15, 1, 8);
+        data[2] = 'X';
+        assertNull(IBeaconParser.parseStatus(data));
+    }
 }

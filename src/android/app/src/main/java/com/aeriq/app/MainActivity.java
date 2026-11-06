@@ -36,6 +36,7 @@ public final class MainActivity extends Activity {
     private LinearLayout root, body, header, navigation;
     private ScrollView scroll;
     private boolean sharing, started, restoring = true;
+    private boolean linkingSensor;
     private List<OrbAssignment> assignments = Collections.emptyList();
     private List<StoredReading> history = Collections.emptyList();
     private String assignmentStatus = "Esperando cuenta autorizada";
@@ -163,7 +164,7 @@ public final class MainActivity extends Activity {
                 break;
             case ACCOUNT:
                 title("Mi cuenta", null);
-                work.account(body, auth.user, selected(), sharing);
+                work.account(body, auth.user, selected(), sharing, assignments);
                 break;
             default:
                 throw new IllegalStateException(current.name());
@@ -239,6 +240,7 @@ public final class MainActivity extends Activity {
     }
 
     private void clearWorker() {
+        linkingSensor = false;
         setSharing(false);
         ble.stopScan();
         ble.unlink();
@@ -247,7 +249,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean workerAccount() {
-        return auth.user != null && "trabajador".equals(auth.user.role) && !auth.user.mustChangePassword;
+        return auth.user != null && ("trabajador".equals(auth.user.role) || "admin".equals(auth.user.role)) && !auth.user.mustChangePassword;
     }
 
     private void refreshWorker() {
@@ -257,7 +259,7 @@ public final class MainActivity extends Activity {
 
     public void refreshAssignments() {
         if (!workerAccount()) {
-            assignmentStatus = "Accede con una cuenta de trabajador";
+            assignmentStatus = "Accede con una cuenta de trabajador o administrador";
             return;
         }
         assignmentStatus = "Consultando asignaciones…";
@@ -270,7 +272,7 @@ public final class MainActivity extends Activity {
                     setSharing(false);
                 }
             } else assignmentStatus = "No se pudo actualizar: " + error;
-            if (current == Screen.SENSOR || current == Screen.LINK) render();
+            if (current == Screen.SENSOR || current == Screen.LINK || current == Screen.ACCOUNT) render();
         });
     }
 
@@ -310,10 +312,33 @@ public final class MainActivity extends Activity {
     }
 
     public void selectOrb(String address) {
-        if (assigned(address) == null) return;
+        if (assigned(address) == null) {
+            message("Asigna primero el sensor a tu cuenta.");
+            return;
+        }
         if (!address.equalsIgnoreCase(ble.selectedAddress)) setSharing(false);
         ble.select(address);
         go(Screen.SENSOR);
+    }
+
+    public void assignSensor(String address, String name) {
+        if (linkingSensor) { message("Se está guardando la asignación…"); return; }
+        if (!workerAccount()) { message("Necesitas una cuenta de trabajador o administrador de tu organización."); return; }
+        linkingSensor = true;
+        message("Asignando sensor a tu cuenta…");
+        field.linkSensor(address, name, (rows, error) -> {
+            linkingSensor = false;
+            if (error != null) {
+                new android.app.AlertDialog.Builder(this).setTitle("No se pudo asignar el sensor")
+                    .setMessage(error + "\n\nSi aparece HTTP 404, falta publicar la API sensor-link.php en el servidor.")
+                    .setPositiveButton("Entendido", null).show();
+                return;
+            }
+            assignments = rows;
+            assignmentStatus = rows.size() + " sensores asignados a tu cuenta";
+            selectOrb(address);
+            message("Sensor asignado a tu cuenta");
+        });
     }
 
     public void unlink() {

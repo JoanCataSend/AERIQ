@@ -1,0 +1,264 @@
+{
+  "fileKey": "pLq0la9g1ew4pFn6OUqUBQ",
+  "sessionId": "febda353-01cb-4e3e-85eb-95f46b4be2f9",
+  "web": {
+    "pageId": "223:2",
+    "frames": [
+      {
+        "id": "226:2",
+        "name": "WEB 01 · Inicio · index.html",
+        "width": 1920,
+        "height": 2811.050048828125
+      },
+      {
+        "id": "226:120",
+        "name": "WEB 02 · Sensor Orb · sensor.html",
+        "width": 1920,
+        "height": 1800.050048828125
+      },
+      {
+        "id": "226:235",
+        "name": "WEB 03 · Mi cuenta · perfil.html",
+        "width": 1920,
+        "height": 1859.050048828125
+      },
+      {
+        "id": "226:370",
+        "name": "WEB 04 · Iniciar sesión · login.html",
+        "width": 1920,
+        "height": 1140.050048828125
+      },
+      {
+        "id": "226:450",
+        "name": "WEB 05 · Registro · registro.html",
+        "width": 1920,
+        "height": 1354.050048828125
+      },
+      {
+        "id": "226:542",
+        "name": "WEB 06 · Flota de Orb · sensores.html",
+        "width": 1920,
+        "height": 1024.050048828125
+      },
+      {
+        "id": "229:389",
+        "name": "WEB 07 · Verificar correo · verificar.html",
+        "width": 1920,
+        "height": 892.0499877929688
+      },
+      {
+        "id": "229:464",
+        "name": "WEB 08 · Recuperar contraseña · recuperar.html",
+        "width": 1920,
+        "height": 1262.050048828125
+      },
+      {
+        "id": "229:563",
+        "name": "WEB 09 · Contraseña temporal · cambiar-clave.html",
+        "width": 1920,
+        "height": 1004.0499877929688
+      },
+      {
+        "id": "229:648",
+        "name": "WEB 10 · Preparar kit · carrito.html",
+        "width": 1920,
+        "height": 887.0499877929688
+      },
+      {
+        "id": "229:732",
+        "name": "WEB 11 · Presupuesto de kit · checkout.html",
+        "width": 1920,
+        "height": 1397.050048828125
+      },
+      {
+        "id": "229:843",
+        "name": "WEB 12 · Solicitar kits · solicitar.html",
+        "width": 1920,
+        "height": 1397.050048828125
+      },
+      {
+        "id": "229:954",
+        "name": "WEB 13 · Solicitar estudio · solicitar.html?service=estudio",
+        "width": 1920,
+        "height": 1371.050048828125
+      },
+      {
+        "id": "229:1069",
+        "name": "WEB 14 · Solicitud empresa · solicitar.html?service=empresa",
+        "width": 1920,
+        "height": 1397.050048828125
+      },
+      {
+        "id": "229:1180",
+        "name": "WEB 15 · Organización / Resumen · portal.html",
+        "width": 1920,
+        "height": 1027.050048828125
+      },
+      {
+        "id": "229:1269",
+        "name": "WEB 16 · Organización / Trabajadores · portal.html",
+        "width": 1920,
+        "height": 1170.050048828125
+      },
+      {
+        "id": "229:1394",
+        "name": "WEB 17 · Organización / Campañas · portal.html",
+        "width": 1920,
+        "height": 1316.050048828125
+      },
+      {
+        "id": "229:1530",
+        "name": "WEB 18 · Organización / Dispositivos Orb · portal.html",
+        "width": 1920,
+        "height": 1026.050048828125
+      },
+      {
+        "id": "229:1627",
+        "name": "WEB 19 · Organización / Informes y CSV · portal.html",
+        "width": 1920,
+        "height": 1317.050048828125
+      },
+      {
+        "id": "229:1743",
+        "name": "WEB 20 · Organización / Solicitudes · portal.html",
+        "width": 1920,
+        "height": 862.0499877929688
+      },
+      {
+        "id": "229:1851",
+        "name": "WEB 21 · Editar Orb · sensores.html / diálogo",
+        "width": 1920,
+        "height": 973.0499877929688
+      },
+      {
+        "id": "230:1402",
+        "name": "WEB 22 · Mapa público · mapa.html",
+        "width": 1920,
+        "height": 1419.232421875
+      },
+      {
+        "id": "230:1601",
+        "name": "WEB 23 · Mapa de mi organización · mapa.html",
+        "width": 1920,
+        "height": 1419.232421875
+      }
+    ],
+    "text": 985,
+    "instances": 179,
+    "links": 285,
+    "badFonts": [],
+    "badImages": []
+  },
+  "android": {
+    "pageId": "223:3",
+    "frames": [
+      {
+        "id": "231:2",
+        "name": "APP 01 · Iniciar sesión · LOGIN",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "231:29",
+        "name": "APP 02 · Crear cuenta · REGISTER",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "231:66",
+        "name": "APP 03 · Verificar correo · VERIFY",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "231:89",
+        "name": "APP 04 · Recuperar contraseña · FORGOT",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "231:106",
+        "name": "APP 05 · Nueva contraseña · RESET",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "231:137",
+        "name": "APP 06 · Mapa público · MAP",
+        "width": 390,
+        "height": 933.3953857421875
+      },
+      {
+        "id": "231:303",
+        "name": "APP 07 · Aprende · LEARN",
+        "width": 390,
+        "height": 1171
+      },
+      {
+        "id": "231:371",
+        "name": "APP 08 · Mi sensor · SENSOR",
+        "width": 390,
+        "height": 1385
+      },
+      {
+        "id": "231:464",
+        "name": "APP 09 · Vincular sensor · LINK",
+        "width": 390,
+        "height": 976
+      },
+      {
+        "id": "231:532",
+        "name": "APP 10 · Historial · HISTORY",
+        "width": 390,
+        "height": 1002
+      },
+      {
+        "id": "232:281",
+        "name": "APP 11 · Configurar sensor · CONFIG",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "232:360",
+        "name": "APP 12 · Comparar zonas · COMPARE",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "232:438",
+        "name": "APP 13 · Soluciones AERIQ · SERVICES",
+        "width": 390,
+        "height": 852
+      },
+      {
+        "id": "232:502",
+        "name": "APP 14 · Mi cuenta · ACCOUNT",
+        "width": 390,
+        "height": 1420
+      },
+      {
+        "id": "232:650",
+        "name": "APP 15 · Datos personales · EDIT_PROFILE",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "232:676",
+        "name": "APP 16 · Cambiar contraseña · CHANGE_PASSWORD",
+        "width": 390,
+        "height": 844
+      },
+      {
+        "id": "232:704",
+        "name": "APP 17 · Activación obligatoria · CHANGE_PASSWORD mandatory",
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "text": 317,
+    "instances": 85,
+    "links": 53,
+    "badFonts": [],
+    "badImages": []
+  }
+}
