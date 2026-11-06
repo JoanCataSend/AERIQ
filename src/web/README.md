@@ -4,7 +4,7 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 
 | Página | Función actual |
 | --- | --- |
-| `index.html` | Portada original, Orb 3D, tres soluciones y acceso al mapa |
+| `index.html` | Portada original, vista explosionada del Orb con el scroll (`product-explode.js` + anime.js), Orb 3D, tres soluciones y acceso al mapa |
 | `sensor.html` | Galería de cuatro vistas y preparación de un kit |
 | `mapa.html` | Público/organización, real/simulado, periodo, búsqueda, capas y aspecto |
 | `sensores.html` | Flota real con tabla, filtros, edición y asignación |

@@ -96,7 +96,7 @@ function aeriq_device_save(array $a,array $d): array {
     if (($worker===null)!==($campaign===null)) throw new AeriqError('Asigna trabajador y campaña juntos, o deja ambos vacíos.');
     if ($worker && !aeriq_one("SELECT id FROM usuarios WHERE id=? AND organizacion_id=? AND rol='trabajador' AND (activo=1 OR debe_cambiar_clave=1)",[$worker,$org])) throw new AeriqError('Trabajador no autorizado.',403);
     if ($campaign) aeriq_own('campanas',$campaign,$org);
-    $active=aeriq_bool($d['active']??true);$simulated=aeriq_bool($d['simulated']??true);$name=aeriq_text($d['name']??'',160);
+    $active=aeriq_bool($d['active']??true);$simulated=aeriq_bool($d['simulated']??false);$name=aeriq_text($d['name']??'',160);
     $db=conexionBD();$db->begin_transaction();
     try {
         if ($id) {

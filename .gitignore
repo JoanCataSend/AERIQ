@@ -12,9 +12,12 @@
 .env.*
 !.env.example
 
-# Entorno Android, compilados y cachés.
+# Entorno Android, Gradle, compilados y cachés.
 **/local.properties
 **/.gradle/
+**/gradle/
+**/gradlew
+**/gradlew.bat
 **/.kotlin/
 **/build/
 **/.idea/
