@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelUuid;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -34,6 +35,9 @@ public final class AeriqBleController {
     public boolean scanning;
     public String selectedAddress;
     public long lastAdvertisementAt;
+    public int sensorDiagnostic = -1;
+    /** Batería del sensor en %; -1 mientras el firmware no la transmita (no se inventa). */
+    public int batteryPercent = -1;
     public LiveMeasurement lastO3, lastTemperature;
     private final Context context;
     private final Consumer<LiveMeasurement> onReading;
@@ -132,8 +136,9 @@ public final class AeriqBleController {
 
     private void accept(ScanRecord record, String address, int rssi, BeaconReading reading, long received) {
         String name = record.getDeviceName();
-        devices.put(address, new FoundDevice(address, name == null ? "Sensor AERIQ / PBIO" : name, rssi, received,
-            reading.typeId == IBeaconParser.STATUS_ID ? reading.value : -1));
+        int diagnostic = reading.typeId == IBeaconParser.STATUS_ID ? reading.value
+            : IBeaconParser.parseDiagnostic(record.getServiceData(ParcelUuid.fromString(IBeaconParser.STATUS_UUID)), reading.counter);
+        devices.put(address, new FoundDevice(address, name == null ? "Sensor AERIQ / PBIO" : name, rssi, received, diagnostic));
         if (selectedAddress == null) {
             status = reading.typeId == IBeaconParser.STATUS_ID
                 ? "Sensor detectado, con error de lectura (estado 0x" + Integer.toHexString(reading.value) + "). Selecciónalo para diagnosticar."
@@ -141,6 +146,7 @@ public final class AeriqBleController {
         }
         if (!address.equalsIgnoreCase(selectedAddress)) return;
         lastAdvertisementAt = received;
+        sensorDiagnostic = diagnostic;
         if (reading.typeId == IBeaconParser.STATUS_ID) {
             lastO3 = null;
             lastTemperature = null;
@@ -178,6 +184,7 @@ public final class AeriqBleController {
     public void unlink() {
         selectedAddress = null;
         lastAdvertisementAt = 0;
+        sensorDiagnostic = -1;
         lastO3 = null;
         lastTemperature = null;
         counters.clear();

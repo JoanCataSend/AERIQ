@@ -260,6 +260,13 @@ class PHPMailer {
         assert int(saved_real['simulado'])==0 and saved_real['latitud'] is None
         report=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}",identity='a')['readings']
         assert any(row['evento']==actual['eventId'] and int(row['simulado'])==0 for row in report)
+        thermal={**actual,'eventId':str(uuid.uuid4()),'type':12,'value':-12,'unit':'°C'}
+        expect(200,'field.php',thermal,token=token)
+        temperatures=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}&type=12",identity='a')['readings']
+        assert len(temperatures)==1 and temperatures[0]['unidad']=='°C' and float(temperatures[0]['valor'])==-12
+        both=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}&type=all",identity='a')['readings']
+        assert {row['unidad'] for row in both}=={'ppb','°C'}
+        expect(422,'portal.php?action=readings&type=99',identity='a')
         # GPS real: aparece en el mapa privado y sigue excluido del mapa público.
         gps={**actual,'eventId':str(uuid.uuid4()),'latitude':38.99665,'longitude':-0.166,'accuracy':8}
         expect(200,'field.php',gps,token=token)

@@ -211,6 +211,36 @@ public final class Views {
         parent.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
     }
 
+    /** Interruptor redondeado verde como en el diseño (52 × 30 dp). */
+    public Switch toggle(boolean checked) {
+        Switch toggle = new Switch(context);
+        int[][] states = {{android.R.attr.state_checked}, {}};
+        GradientDrawable track = new GradientDrawable();
+        track.setCornerRadius(dp(15));
+        track.setSize(dp(52), dp(30));
+        track.setColor(new ColorStateList(states, new int[]{GREEN, 0xffcfd8d4}));
+        GradientDrawable thumb = new GradientDrawable();
+        thumb.setShape(GradientDrawable.OVAL);
+        thumb.setSize(dp(30), dp(30));
+        thumb.setColor(WHITE);
+        thumb.setStroke(dp(4), 0x00000000);
+        toggle.setTrackDrawable(track);
+        toggle.setThumbDrawable(thumb);
+        toggle.setShowText(false);
+        toggle.setChecked(checked);
+        return toggle;
+    }
+
+    /** Imagen recortada con esquinas redondeadas sobre fondo gris claro. */
+    public ImageView photo(int resource, int radius) {
+        ImageView image = new ImageView(context);
+        image.setImageResource(resource);
+        image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        image.setBackground(shape(0xffeef1f0, radius, 0));
+        image.setClipToOutline(true);
+        return image;
+    }
+
     public ImageView image(int resource, int width, int height) {
         ImageView image = new ImageView(context);
         image.setImageResource(resource);

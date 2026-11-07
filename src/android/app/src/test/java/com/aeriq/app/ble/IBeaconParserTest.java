@@ -55,4 +55,13 @@ public final class IBeaconParserTest {
         data[2] = 'X';
         assertNull(IBeaconParser.parseStatus(data));
     }
+
+    @Test public void diagnosticRequiresMatchingCycleAndVersion() {
+        byte[] state = {1,7,1,2,3,4,5,6,7,8,0,3};
+        assertEquals(3, IBeaconParser.parseDiagnostic(state,7));
+        assertEquals(-1, IBeaconParser.parseDiagnostic(state,8));
+        assertEquals(-1, IBeaconParser.parseDiagnostic(null,7));
+        state[0]=2;
+        assertEquals(-1, IBeaconParser.parseDiagnostic(state,7));
+    }
 }

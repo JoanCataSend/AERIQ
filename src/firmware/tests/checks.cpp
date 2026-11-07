@@ -30,9 +30,9 @@ extern "C" int run_tests() {
   Calibracion c;
   Medida m = c.convertir(ref - .003694596f, ref, term20, false);
   CHECK(m.ozono == 100 && m.temperatura == 20 && m.estado == VALIDA);
-  // A single huge outlier is rejected by the median once the window is full.
+  // A single 1000 ppb outlier is rejected by the median once the window is full.
   for (int i = 0; i < 4; ++i) c.convertir(ref - .003694596f, ref, term20, false);
-  m = c.convertir(ref - .3694596f, ref, term20, false);
+  m = c.convertir(ref - .03694596f, ref, term20, false);
   CHECK(m.ozono == 100);
   m = c.convertir(ref, 0, term20, false);
   CHECK(!(m.estado & VALIDA) && (m.estado & REFERENCIA_INVALIDA));
@@ -44,9 +44,17 @@ extern "C" int run_tests() {
   Calibracion negativo;
   m = negativo.convertir(ref + .003694596f, ref, term20, false);
   CHECK(m.ozono == 0 && (m.estado & NEGATIVO_LIMITADO));
+  // More than 60 mV between VGAS and VREF is a wiring fault, never a reading.
+  Calibracion cableado;
+  m = cableado.convertir(ref - 1.f, ref, term20, false);
+  CHECK(!(m.estado & VALIDA) && (m.estado & SENAL_FUERA_RANGO));
+  m = cableado.convertir(1.315f, 1.641f, 1.641f, false); // lectura real con cables cruzados
+  CHECK(!(m.estado & VALIDA) && (m.estado & SENAL_FUERA_RANGO));
   Calibracion alto;
-  m = alto.convertir(ref - 1.f, ref, term20, false);
-  CHECK(m.ozono == 20000 && (m.estado & MAXIMO_LIMITADO));
+  CHECK(alto.fijarSpan(3.f));
+  // 50 mV = 1353 ppb x3 = 4060 ppb; output limit still exists for gain changes.
+  m = alto.convertir(ref - .05f, ref, term20, false);
+  CHECK(m.ozono == 4060 && m.estado == VALIDA);
   Calibracion caliente;
   // At 40 C: 0.132 ppm raw - 0.066 ppm zero, divided by span 1.06 => 62 ppb.
   m = caliente.convertir(ref - .00487686672f, ref, 58.f * 3.3f / 87.f, false);
@@ -64,5 +72,24 @@ extern "C" int run_tests() {
   arranque.convertir(ref - .003694596f, ref, term20, false);
   m = arranque.convertir(ref - .011083788f, ref, term20, false);
   CHECK(m.ozono == 125); // Mediana par 200, EMA 0.25*200 + 0.75*100.
+  Calibracion referenciaIncorrecta;
+  m = referenciaIncorrecta.convertir(1.315f, .453f, 1.641f, false);
+  CHECK(!(m.estado & VALIDA) && (m.estado & REFERENCIA_INVALIDA));
+  // Measured zero: a sensor reading -2 mV in zero air reports 0 ppb after CERO.
+  Calibracion cero;
+  float v = 0;
+  CHECK(cero.muestraCero(ref - .002f, ref, term20, v) && v < -.00199f && v > -.00201f);
+  CHECK(cero.fijarCero(v));
+  m = cero.convertir(ref - .002f, ref, term20, false);
+  CHECK(m.ozono == 0 && m.estado == VALIDA);
+  m = cero.convertir(ref - .002f - .003694596f, ref, term20, false);
+  CHECK(m.ozono == 13); // mediana par (0,100)=50 -> EMA 0.25*50 + 0.75*0 = 12.5
+  CHECK(!cero.fijarCero(.031f) && !cero.fijarCero(__builtin_nanf("")));
+  CHECK(!cero.fijarSpan(5.f) && !cero.fijarSensibilidad(0.f));
+  Calibracion sens;
+  CHECK(sens.fijarSensibilidad(-37.02f)); // half the sensitivity -> double the ppb
+  m = sens.convertir(ref - .003694596f, ref, term20, false);
+  CHECK(m.ozono == 200);
+  CHECK(!sens.muestraCero(ref, 0, term20, v));
   return 0;
 }

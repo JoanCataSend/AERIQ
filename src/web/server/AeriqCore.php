@@ -168,7 +168,13 @@ function aeriq_dashboard(array $a): array {
 }
 
 function aeriq_readings(array $a,array $filters): array {
-    $where=['c.organizacion_id=?','l.tipo=14','l.valida=1'];$params=[aeriq_org($a)];
+    $where=['c.organizacion_id=?','l.valida=1','l.tipo IN (12,14)'];$params=[aeriq_org($a)];
+    $type=$filters['type']??14;
+    if ($type!=='all') {
+        $type=aeriq_int($type);
+        if (!in_array($type,[12,14],true)) throw new AeriqError('Magnitud no admitida.');
+        $where[]='l.tipo=?';$params[]=$type;
+    }
     foreach (['campaign'=>'a.campana_id','device'=>'a.dispositivo_id'] as $key=>$col) {
         if (!empty($filters[$key])) { $where[]="$col=?";$params[]=aeriq_int($filters[$key]); }
     }
