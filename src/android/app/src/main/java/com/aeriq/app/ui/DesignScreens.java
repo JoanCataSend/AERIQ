@@ -928,14 +928,14 @@ public final class DesignScreens {
         menuRow(security, R.drawable.ic_lock, GREEN, PANEL_SOFT, "Cambiar contraseña", INK, null, chevron(),
             () -> activity.go(Screen.CHANGE_PASSWORD));
         security.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        Switch fingerprint = ui.toggle(prefs.fingerprint());
+        Switch fingerprint = ui.toggle(prefs.fingerprint(user.id));
         fingerprint.setOnCheckedChangeListener((button, checked) -> {
             if (checked && !activity.biometricAvailable()) {
                 button.setChecked(false);
                 activity.message("Este móvil no tiene huella configurada.");
                 return;
             }
-            prefs.setFingerprint(checked);
+            prefs.setFingerprint(user.id, checked);
             activity.message(checked ? "La próxima vez entrarás con tu huella." : "Acceso con huella desactivado.");
         });
         menuRow(security, R.drawable.ic_fingerprint, GREEN, PANEL_SOFT, "Acceso con huella", INK, null, fingerprint, null);

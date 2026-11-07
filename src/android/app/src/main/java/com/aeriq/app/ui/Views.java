@@ -12,7 +12,7 @@ import android.view.ViewGroup;
 import android.widget.*;
 
 public final class Views {
-    public static final int BACKGROUND = 0xfff4f7f6, WHITE = 0xffffffff, INK = 0xff17201d;
+    public static final int BACKGROUND = 0xfff4f7f6, WHITE = 0xffffffff, BLACK = 0xff000000, INK = 0xff17201d;
     public static final int GREEN = 0xff0e6b5e, DARK = 0xff1c2522, MUTED = 0xff5e6b66;
     public static final int SOFT = 0xffe4f0ed, LINE = 0xffe3eae7, RED = 0xffc8433d;
     public static final int BANNER_BG = 0xffe8f3ef;
@@ -136,21 +136,26 @@ public final class Views {
     }
 
     public LinearLayout socialButton(String label, int iconRes, Runnable click) {
+        return socialButton(label, iconRes, WHITE, INK, click);
+    }
+
+    public LinearLayout socialButton(String label, int iconRes, int background, int foreground, Runnable click) {
         LinearLayout button = row();
         button.setGravity(Gravity.CENTER);
         button.setMinimumHeight(dp(48));
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x15000000),
-            shape(WHITE, 14, LINE), null));
+            shape(background, 14, background == WHITE ? LINE : 0), null));
         button.setClickable(true);
         button.setFocusable(true);
         if (iconRes != 0) {
             ImageView icon = new ImageView(context);
             icon.setImageResource(iconRes);
+            if (foreground == WHITE) icon.setColorFilter(WHITE);
             LinearLayout.LayoutParams icParams = new LinearLayout.LayoutParams(dp(20), dp(20));
             icParams.rightMargin = dp(8);
             button.addView(icon, icParams);
         }
-        TextView text = text(label, 14, true, INK);
+        TextView text = text(label, 14, true, foreground);
         button.addView(text);
         button.setOnClickListener(view -> click.run());
         return button;

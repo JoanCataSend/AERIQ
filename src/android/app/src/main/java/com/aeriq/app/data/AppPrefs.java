@@ -24,9 +24,13 @@ public final class AppPrefs {
         prefs.edit().putString("alias_" + address.toUpperCase(Locale.ROOT), name == null ? "" : name.trim()).apply();
     }
 
-    /** Pedir la huella para abrir la sesión guardada en lugar de entrar automáticamente. */
-    public boolean fingerprint() { return prefs.getBoolean("huella", false); }
-    public void setFingerprint(boolean enabled) { prefs.edit().putBoolean("huella", enabled).apply(); }
+    /** Preferencia de acceso biométrico asociada a una cuenta concreta de AERIQ. */
+    public boolean fingerprint(long userId) {
+        return userId > 0 && prefs.getBoolean("huella_usuario_" + userId, false);
+    }
+    public void setFingerprint(long userId, boolean enabled) {
+        if (userId > 0) prefs.edit().putBoolean("huella_usuario_" + userId, enabled).apply();
+    }
 
     /** Avisos cuando el ozono de tu zona pasa a moderado o alto. */
     public boolean ozoneAlerts() { return prefs.getBoolean("avisos", true); }

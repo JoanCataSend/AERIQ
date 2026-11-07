@@ -2,7 +2,6 @@ package com.aeriq.app.ui;
 
 import android.app.AlertDialog;
 import android.os.CancellationSignal;
-import android.os.Build;
 import android.util.Log;
 import android.text.InputType;
 import android.view.Gravity;
@@ -81,9 +80,6 @@ public final class AuthScreens {
 
     // ── LOGIN ──────────────────────────────────────────────────────────────
     private void login(LinearLayout body, LinearLayout card) {
-        // Botón principal: Entrar con huella
-        ui.buttonWithIcon(card, "Entrar con huella", R.drawable.ic_fingerprint, DARK, WHITE, this::biometricLogin);
-
         // Divisor
         ui.dividerWithText(card, "o con tu correo");
 
@@ -130,6 +126,12 @@ public final class AuthScreens {
 
         card.addView(socialRow);
 
+        LinearLayout.LayoutParams biometricParams = new LinearLayout.LayoutParams(-1, -2);
+        biometricParams.topMargin = ui.dp(8);
+        LinearLayout biometricButton = ui.socialButton("Entrar con huella", R.drawable.ic_fingerprint, BLACK, WHITE,
+            activity::loginWithFingerprint);
+        card.addView(biometricButton, biometricParams);
+
         // Banner "Solo quieres ver el aire de tu ciudad"
         LinearLayout banner = ui.banner(body, Views.BANNER_BG);
         LinearLayout mapRow = ui.row();
@@ -156,53 +158,6 @@ public final class AuthScreens {
     }
 
     // ── BIOMETRÍA ──────────────────────────────────────────────────────────
-    private void biometricLogin() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            try {
-                CancellationSignal signal = new CancellationSignal();
-                android.hardware.biometrics.BiometricPrompt prompt =
-                    new android.hardware.biometrics.BiometricPrompt.Builder(activity)
-                        .setTitle("Iniciar sesión con huella")
-                        .setSubtitle("AERIQ")
-                        .setDescription("Coloca tu huella en el lector para acceder")
-                        .setNegativeButton("Cancelar", activity.getMainExecutor(), (d, w) -> {})
-                        .build();
-                prompt.authenticate(signal, activity.getMainExecutor(),
-                    new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
-                        @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { performBiometricAuth(); }
-                        @Override public void onAuthenticationError(int code, CharSequence msg) {
-                            if (code == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS
-                             || code == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE
-                             || code == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT)
-                                showBiometricFallback();
-                            else if (code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED
-                                  && code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_CANCELED)
-                                activity.message("Biometría: " + msg);
-                        }
-                        @Override public void onAuthenticationFailed() { activity.message("Huella no reconocida. Inténtalo de nuevo."); }
-                    });
-                return;
-            } catch (Exception ignored) {}
-        }
-        showBiometricFallback();
-    }
-
-    private void performBiometricAuth() {
-        activity.submit("biometric", result -> {
-            activity.message(result.success ? "Acceso con huella verificado." : result.message);
-            if (result.success) activity.go(Screen.MAP);
-        }, "email", auth.getLastEmail());
-    }
-
-    private void showBiometricFallback() {
-        new AlertDialog.Builder(activity)
-            .setTitle("Acceso con huella")
-            .setMessage("No se detectó un sensor biométrico configurado. ¿Acceder con verificación de demostración?")
-            .setPositiveButton("Acceder", (d, w) -> performBiometricAuth())
-            .setNegativeButton("Cancelar", null)
-            .show();
-    }
-
     // ── SOCIAL ─────────────────────────────────────────────────────────────
     private void socialLogin(String provider) {
         boolean isApple = "apple".equalsIgnoreCase(provider);
@@ -224,7 +179,8 @@ public final class AuthScreens {
                 .addCredentialOption(googleOption)
                 .build();
             CredentialManager manager = CredentialManager.create(activity);
-            manager.getCredentialAsync(activity, request, new CancellationSignal(), activity.getMainExecutor(),
+            manager.getCredentialAsync(activity, request, new CancellationSignal(),
+                androidx.core.content.ContextCompat.getMainExecutor(activity),
                 new CredentialManagerCallback<androidx.credentials.GetCredentialResponse, GetCredentialException>() {
                     @Override public void onResult(androidx.credentials.GetCredentialResponse response) {
                         handleGoogleCredential(response.getCredential());

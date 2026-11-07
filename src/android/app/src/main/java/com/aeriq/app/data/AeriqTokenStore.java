@@ -31,13 +31,22 @@ public final class AeriqTokenStore {
         return generator.generateKey();
     }
 
-    synchronized void write(String token) throws Exception {
+    synchronized void write(String token, long userId) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key());
         String iv = Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP);
         String data = Base64.encodeToString(cipher.doFinal(token.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP);
-        prefs.edit().putString("session", iv + ":" + data).apply();
+        prefs.edit().putString("session", iv + ":" + data)
+            .putLong("session_user_id", userId).apply();
     }
+
+    synchronized void associateOwner(long userId) {
+        if (userId > 0 && prefs.getString("session", null) != null) {
+            prefs.edit().putLong("session_user_id", userId).apply();
+        }
+    }
+
+    public synchronized long ownerUserId() { return prefs.getLong("session_user_id", 0L); }
 
     public synchronized String read() {
         String saved = prefs.getString("session", null);
@@ -63,5 +72,7 @@ public final class AeriqTokenStore {
         return prefs.getString("last_email", "");
     }
 
-    public synchronized void clear() { prefs.edit().remove("session").apply(); }
+    public synchronized void clear() {
+        prefs.edit().remove("session").remove("session_user_id").apply();
+    }
 }

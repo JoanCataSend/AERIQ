@@ -76,23 +76,7 @@ try {
         $id=(int)$u['id'];
         auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>auth_public($u)]);
     }
-    if ($action==='biometric') {
-        $rawEmail=trim((string)($d['email']??''));
-        $u=null;
-        if ($rawEmail!=='') {
-            $email=auth_email($rawEmail);
-            $u=auth_find($email);
-        }
-        if (!$u) {
-            $s=conexionBD()->prepare('SELECT * FROM usuarios WHERE (rol="trabajador" OR rol="admin") AND activo=1 LIMIT 1');
-            $s->execute();
-            $u=$s->get_result()->fetch_assoc()?:null;
-        }
-        if (!$u) auth_responder(404,['error'=>'No se encontró una cuenta activa para acceso biométrico. Inicia sesión con correo primero.']);
-        auth_login_allowed($u);
-        $id=(int)$u['id'];
-        auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>auth_public($u)]);
-    }
+    if ($action==='biometric') auth_responder(410,['error'=>'Usa el token de sesión guardado en este dispositivo tras verificar la biometría.']);
     if ($action==='google') {
         $idToken=is_string($d['idToken']??null)?trim($d['idToken']):'';
         if ($idToken==='') auth_responder(422,['error'=>'Falta el token de Google.']);

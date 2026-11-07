@@ -12,6 +12,10 @@ Abre esta carpeta en Android Studio y sincroniza Gradle. El proyecto declara SDK
 
 Para una primera instalación sin caché se necesita sincronización con Internet. BLE y GPS se validan en teléfono físico. Las pruebas instrumentadas requieren emulador o dispositivo.
 
+## Firebase Authentication
+
+`app/google-services.json` es configuración local y está excluida de Git. Descarga el archivo de la app Android `com.aeriq.app` desde Firebase Console y colócalo en `src/android/app/google-services.json` antes de sincronizar o compilar. No subas ese archivo a GitHub. La configuración privada de servidor (`FirebaseConfig.php`) también está excluida; `FirebaseConfig.example.php` contiene únicamente la configuración pública que necesita el login web.
+
 ## Rutas y componentes
 
 - `MainActivity.java`: navegación, permisos y coordinación.

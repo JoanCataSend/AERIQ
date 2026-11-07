@@ -50,6 +50,7 @@ public final class AeriqAuthManager implements AutoCloseable {
     public AeriqAuthManager(Context context) { store = new AeriqTokenStore(context.getApplicationContext()); }
 
     public String sessionToken() { return store.read(); }
+    public long savedUserId() { return store.ownerUserId(); }
     public String getLastEmail() { return store.getLastEmail(); }
     public boolean hasSavedToken() { return store.read() != null; }
 
@@ -87,7 +88,8 @@ public final class AeriqAuthManager implements AutoCloseable {
                     JSONObject userJson = response.json.optJSONObject("user");
                     if (userJson != null) returnedUser = new User(userJson);
                     String token = response.json.optString("token");
-                    if (!token.isEmpty()) store.write(token);
+                    if (!token.isEmpty()) store.write(token, returnedUser == null ? 0L : returnedUser.id);
+                    else if ("session".equals(action) && returnedUser != null) store.associateOwner(returnedUser.id);
                     result = new Result(true, response.json.optString("message", "Operación completada"));
                 } else {
                     invalidSession = authorized && (response.status == 401 || "session".equals(action));

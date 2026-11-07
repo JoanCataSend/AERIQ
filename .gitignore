@@ -10,6 +10,8 @@
 **/MailConfig.php
 **/FirebaseConfig.php
 **/.firebase-certs-*.json
+# Configuración Firebase local de Android. Descárgala desde Firebase Console.
+/src/android/app/google-services.json
 .env
 .env.*
 !.env.example

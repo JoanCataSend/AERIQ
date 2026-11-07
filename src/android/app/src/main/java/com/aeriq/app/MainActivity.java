@@ -20,7 +20,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
-public final class MainActivity extends Activity {
+public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     /**
      * Escala global de la interfaz. El diseño de Figma mide 390 dp de ancho; en Android, con la
      * densidad por defecto, todo se veía ~12 % más grande de lo deseado. Se reduce la densidad
@@ -121,7 +121,7 @@ public final class MainActivity extends Activity {
             return insets.consumeSystemWindowInsets();
         });
         ui.add(body, new ProgressBar(this));
-        if (prefs.fingerprint() && auth.sessionToken() != null) {
+        if (prefs.fingerprint(auth.savedUserId()) && auth.sessionToken() != null) {
             // Con "Acceso con huella" la sesión guardada solo se abre tras verificar la huella.
             restoring = false;
             current = Screen.LOGIN;
@@ -285,7 +285,7 @@ public final class MainActivity extends Activity {
     public void submit(String action, Consumer<AeriqAuthManager.Result> done, Object... fields) {
         auth.submit(action, result -> {
             if (result.success && auth.user != null && !auth.user.mustChangePassword
-                && Arrays.asList("login", "reset-password", "change-password", "biometric", "social-login", "google").contains(action)) {
+                && Arrays.asList("login", "reset-password", "change-password", "social-login", "google").contains(action)) {
                 refreshWorker();
             }
             if (auth.user == null && !PUBLIC.contains(current)) {
@@ -495,34 +495,29 @@ public final class MainActivity extends Activity {
     }
 
     public boolean biometricAvailable() {
-        if (Build.VERSION.SDK_INT >= 29) {
-            android.hardware.biometrics.BiometricManager manager = getSystemService(android.hardware.biometrics.BiometricManager.class);
-            return manager != null && manager.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS;
-        }
-        return Build.VERSION.SDK_INT >= 28
-            && getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_FINGERPRINT);
+        return androidx.biometric.BiometricManager.from(this).canAuthenticate(
+            androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS;
     }
 
-    /** Abre la sesión guardada en el Keystore tras verificar la huella del sistema. */
+    /** Abre únicamente la cuenta local asociada al token guardado tras validar biometría. */
     public void loginWithFingerprint() {
-        if (!prefs.fingerprint() || auth.sessionToken() == null) {
+        long expectedUserId = auth.savedUserId();
+        if (!prefs.fingerprint(expectedUserId) || auth.sessionToken() == null) {
             message("Entra con tu correo y activa «Acceso con huella» en Cuenta para usarla la próxima vez.");
             return;
         }
-        if (Build.VERSION.SDK_INT < 28 || !biometricAvailable()) {
+        if (!biometricAvailable()) {
             message("Este móvil no permite entrar con huella. Usa tu correo.");
             return;
         }
-        android.hardware.biometrics.BiometricPrompt prompt = new android.hardware.biometrics.BiometricPrompt.Builder(this)
-            .setTitle("Entrar en AERIQ")
-            .setSubtitle("Usa tu huella para abrir tu sesión")
-            .setNegativeButton("Usar correo", getMainExecutor(), (dialog, which) -> { })
-            .build();
-        prompt.authenticate(new android.os.CancellationSignal(), getMainExecutor(),
-            new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
-                @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult result) {
+        androidx.biometric.BiometricPrompt prompt = new androidx.biometric.BiometricPrompt(this,
+            androidx.core.content.ContextCompat.getMainExecutor(this),
+            new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
                     auth.restore(restored -> {
-                        if (auth.user == null) {
+                        if (auth.user == null || auth.user.id != expectedUserId) {
+                            auth.logout();
                             message(restored.message.isEmpty() ? "La sesión ha caducado. Entra con tu correo." : restored.message);
                             return;
                         }
@@ -531,10 +526,17 @@ public final class MainActivity extends Activity {
                     });
                 }
                 @Override public void onAuthenticationError(int code, CharSequence error) {
-                    if (code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED
-                        && code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_CANCELED) message(error.toString());
+                    if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
+                        && code != androidx.biometric.BiometricPrompt.ERROR_CANCELED) message(error.toString());
                 }
             });
+        androidx.biometric.BiometricPrompt.PromptInfo promptInfo = new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Entrar en AERIQ")
+            .setSubtitle("Usa tu huella para abrir tu cuenta")
+            .setNegativeButtonText("Usar correo")
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build();
+        prompt.authenticate(promptInfo);
     }
 
     public void exportPdf(List<StoredReading> rows, String title) {
