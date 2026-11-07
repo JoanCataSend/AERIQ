@@ -72,6 +72,8 @@ def main():
         "src/web/mobile-auth.php", "src/web/server/Logica.php",
         "src/web/server/AuthCore.php", "src/web/server/.htaccess", "src/web/vendor/.htaccess",
         "src/web/server/AeriqCore.php", "src/web/server/AeriqHttp.php",
+        "src/web/server/FirebaseAuth.php", "src/web/server/FirebaseConfig.example.php",
+        "src/web/google-auth.js", "src/database/anadir-firebase-google.sql",
         "src/database/schema.sql", "src/database/seed-demo.sql", "scripts/reset-database.py",
         "scripts/migrate-legacy.php", "doc/tareas-sprint.md",
     ]
@@ -99,7 +101,7 @@ def main():
             check_reference(doc, ref)
 
     pages = sorted(WEB.glob("*.html"))
-    check(len(pages) == 14, f"Se esperaban 14 páginas; encontradas {len(pages)}")
+    check(len(pages) == 12, f"Se esperaban 12 páginas; encontradas {len(pages)}")
     for page in pages:
         parser = References()
         parser.feed(page.read_text(encoding="utf-8-sig"))
@@ -121,7 +123,7 @@ def main():
 
     git = shutil.which("git")
     if git and (ROOT / ".git").exists():
-        for name in ("SDBaseDatos.php", "SMTPConfig.php", "MailConfig.php"):
+        for name in ("SDBaseDatos.php", "SMTPConfig.php", "MailConfig.php", "FirebaseConfig.php"):
             private = f"src/web/server/{name}"
             result = subprocess.run([git, "check-ignore", "--quiet", private], cwd=ROOT)
             check(result.returncode == 0, f"Configuración privada no ignorada: {name}")

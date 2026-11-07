@@ -8,13 +8,20 @@
 **/SDBaseDatos.php
 **/SMTPConfig.php
 **/MailConfig.php
+**/FirebaseConfig.php
+**/.firebase-certs-*.json
+# Configuración Firebase local de Android. Descárgala desde Firebase Console.
+/src/android/app/google-services.json
 .env
 .env.*
 !.env.example
 
-# Entorno Android, compilados y cachés.
+# Entorno Android, Gradle, compilados y cachés.
 **/local.properties
 **/.gradle/
+**/gradle/
+**/gradlew
+**/gradlew.bat
 **/.kotlin/
 **/build/
 **/.idea/

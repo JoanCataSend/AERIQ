@@ -1684,21 +1684,65 @@ form label input,form label textarea,form label select {
     flex:1
 }
 .password-wrap {
-    position:relative
+    position:relative;
+    display:block;
+    margin-top:8px;
 }
 .password-wrap input {
-    padding-right:85px!important
+    margin-top:0!important;
+    padding-right:48px!important;
 }
-.password-wrap button {
+.password-wrap input::-ms-reveal,
+.password-wrap input::-ms-clear,
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display:none;
+    width:0;
+    height:0;
+}
+.password-wrap button,
+.password-toggle {
     position:absolute;
-    right:8px;
-    top:8px;
+    right:6px;
+    top:50%;
+    transform:translateY(-50%);
     border:0;
     background:transparent;
+    color:#5E6B66;
+    width:34px;
+    height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border-radius:8px;
+    cursor:pointer;
+    line-height:0;
+    transition:background-color .15s ease, color .15s ease;
+}
+.password-wrap button:hover,
+.password-toggle:hover {
+    background:var(--soft);
     color:var(--forest);
-    font-size:12px;
-    font-weight:800;
-    padding:8px
+}
+.password-wrap button:focus-visible,
+.password-toggle:focus-visible {
+    outline:2px solid var(--forest);
+    outline-offset:1px;
+}
+.password-wrap button svg,
+.password-toggle svg {
+    display:block;
+    width:20px;
+    height:20px;
+    stroke:currentColor;
+}
+.password-wrap .eye-open,
+.password-wrap .eye-closed {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:0;
 }
 .auth-bottom {
     margin:20px auto 0!important
@@ -2801,6 +2845,7 @@ form label input,form label textarea,form label select {
 .auth-social .social-signin img{flex:none;width:22px;height:22px;object-fit:contain}
 .auth-social .social-signin:focus-visible{outline:3px solid #97d3bf;outline-offset:3px}
 .auth-social .social-signin:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(11,22,20,.12)}
+.auth-social .social-signin[disabled]{opacity:.65;cursor:wait;transform:none;box-shadow:none}
 .auth-social .social-signin-google{background:#fff;color:#1f1f1f;border:1px solid #9aa39e}
 .auth-social .social-signin-google:hover{border-color:#4f635b;background:#fbfcfb}
 .auth-social .social-signin-apple{background:#050505;color:#fff;border:1px solid #050505}
@@ -2923,3 +2968,114 @@ form label input,form label textarea,form label select {
 .workspace-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:25px;margin-top:28px;align-items:start}.workspace-content{min-width:0}.workspace-nav{display:grid;gap:5px;background:white;padding:12px;border:1px solid var(--line);border-radius:17px;position:sticky;top:20px}.workspace-nav a{padding:12px 15px;border-radius:10px;font-size:13px;font-weight:650;color:var(--muted)}.workspace-nav a.active,.workspace-nav a:hover{color:var(--forest);background:var(--soft)}.workspace-content .portal-section:first-child{margin-top:0}.workspace-overview .stat{padding:18px 14px}.workspace-overview .stat strong{font-size:26px}.portal-section form .btn{align-self:end}.contact-options{display:grid;align-content:center;gap:20px;padding-left:28px;border-left:1px solid var(--line)}.map-period-label{font-size:10px}.map-period-label select{padding:6px!important;min-height:32px!important;font-size:11px!important}.portal-section textarea{width:100%}
 .modal{max-height:calc(100dvh - 40px);overflow-y:auto}
 @media(max-width:800px){.workspace-layout{grid-template-columns:1fr;gap:12px}.workspace-nav{position:static;display:flex;overflow:auto;white-space:nowrap;padding:7px}.workspace-nav a{padding:10px 12px}.portal-page{padding-top:28px}.portal-section{padding:18px}.contact-options{border-left:0;padding-left:0}.workspace-overview .stats-grid{gap:8px}.workspace-overview .stat small{font-size:10px}}
+/* HOME · VISTA EXPLOSIONADA DEL ORB (product-explode.js)
+   Por defecto (sin JS, sin anime.js o con movimiento reducido) se ve el estado abierto y estático.
+   .is-animated lo añade product-explode.js: fija la sección y anime.js parte del estado cerrado.
+   Capas en % del escenario; las carcasas comparten caja (recorte común, ya alineadas al exportar). */
+.explode-section {
+    background:linear-gradient(180deg,#eef4f0 0%,#f6f8f7 60%,#fff 100%);
+    border-top:1px solid var(--line)
+}
+.explode-sticky {padding:84px 0 72px}
+.explode-intro {max-width:680px;text-align:center;margin-bottom:26px}
+.explode-intro .eyebrow {margin-bottom:12px}
+.explode-intro h2 {margin-bottom:10px}
+.explode-intro p:not(.eyebrow) {color:var(--muted);font-size:16px;margin:0}
+.explode-frame {display:grid;place-items:center;container-type:inline-size}
+.explode-stage {position:relative;width:min(100%,1180px);margin:0 auto}
+.explode-visual {position:relative;aspect-ratio:16/10}
+.explode-shellbox {position:absolute;left:30%;width:40%;margin:0}
+img.explode-shellbox {display:block;height:auto;max-width:none}
+.explode-lid img,.explode-part img {display:block;width:100%;height:auto;max-width:none}
+.explode-visual img {user-select:none;-webkit-user-drag:none}
+.explode-closed {top:40.05%;z-index:5;opacity:0}
+.explode-lid {top:10.05%;z-index:4}
+.explode-bottom,.explode-front,.explode-shadow {top:50.05%}
+.explode-front {
+    z-index:3;
+    opacity:0;
+    clip-path:polygon(0 22%,15% 22%,16.5% 32%,18% 39%,21% 44%,24.5% 45%,26% 43%,34% 47.5%,42% 52.5%,50% 57.5%,57% 62%,60% 65%,61% 71%,64% 76%,70% 78.5%,78% 79%,83% 77.5%,84.5% 66%,87% 63%,90.5% 60%,93% 56%,94.5% 49%,95.5% 42%,100% 40%,100% 100%,0 100%)
+}
+.explode-shadow {aspect-ratio:1324/577;pointer-events:none}
+.explode-shadow::before {content:'';position:absolute;left:10%;right:3%;bottom:-6%;height:20%;border-radius:50%;background:radial-gradient(closest-side,rgba(24,46,37,.26),rgba(24,46,37,.08) 60%,transparent)}
+.explode-lid .lid-on {
+    position:absolute;
+    inset:0;
+    -webkit-mask-image:radial-gradient(17% 17% at 55.9% 32.7%,#000 62%,transparent 100%);
+    mask-image:radial-gradient(17% 17% at 55.9% 32.7%,#000 62%,transparent 100%)
+}
+.explode-glow {position:absolute;left:38%;top:10%;width:36%;height:46%;border-radius:50%;pointer-events:none;background:radial-gradient(closest-side,rgba(236,250,255,.75),rgba(160,226,214,.32) 55%,transparent);mix-blend-mode:screen}
+.explode-part {position:absolute;z-index:2;margin:0}
+.explode-part img {filter:drop-shadow(0 12px 14px rgba(20,40,32,.16))}
+.explode-part[data-part="sensor"] {left:18.75%;top:23.09%;width:13.5%}
+.explode-part[data-part="sparkfun"] {left:68.75%;top:23.93%;width:14.5%}
+.explode-part[data-part="bateria"] {left:18.25%;top:65.45%;width:12.5%}
+.explode-part[data-part="leds"] {left:69%;top:65.85%;width:14%}
+.explode-part[data-part="rgb"] {left:50%;top:39.07%;width:8%}
+.explode-part-num {display:none;position:absolute;left:-4px;top:-4px;width:22px;height:22px;border-radius:50%;place-items:center;background:var(--forest);color:white;font-size:11px;font-weight:800;box-shadow:0 0 0 3px rgba(255,255,255,.85)}
+.explode-leader {display:none;position:absolute;left:0;top:0;height:0;z-index:6;transform-origin:0 0;pointer-events:none}
+.explode-section.has-leaders .explode-leader {display:block}
+.explode-leader-line {position:absolute;left:0;top:-.75px;width:100%;height:1.5px;background:var(--forest);opacity:.8;transform-origin:0 50%}
+.explode-leader-dot {position:absolute;left:100%;top:-4px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--forest);box-shadow:0 0 0 4px rgba(14,107,94,.16)}
+.explode-labels {position:absolute;inset:0;z-index:7;list-style:none;margin:0;padding:0;pointer-events:none}
+/* Las etiquetas se anclan al 16 % / 84 % del escenario y crecen hacia el margen lateral libre del marco. */
+.explode-label {position:absolute;width:clamp(150px,calc(16% + (100cqw - 100%) / 2 - 10px),236px)}
+.explode-label[data-side="left"] {right:84%;text-align:right}
+.explode-label[data-side="right"] {left:84%}
+.explode-label[data-part="sensor"] {top:9%}
+.explode-label[data-part="sparkfun"] {top:7%}
+.explode-label[data-part="rgb"] {top:37%}
+.explode-label[data-part="bateria"] {top:62%}
+.explode-label[data-part="leds"] {top:67%}
+.explode-label-card {display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;pointer-events:auto;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:12px;padding:10px 12px 11px;box-shadow:var(--shadow)}
+.explode-label[data-side="left"] .explode-label-card {flex-direction:row-reverse}
+.explode-num {flex:none;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--soft);color:var(--forest);font-size:10px;font-weight:800;transition:background .25s,color .25s}
+.explode-label.is-active .explode-num {background:var(--forest);color:white}
+.explode-label h3 {flex:1;min-width:0;font-size:clamp(13px,1.15cqw,15px);line-height:1.25;letter-spacing:-.02em;margin:0}
+.explode-label p {flex-basis:100%;font-size:clamp(11.5px,1.02cqw,13px);line-height:1.5;color:var(--muted);margin:5px 0 0}
+.explode-section.is-debug .explode-closed {opacity:.5!important;outline:1px dashed #d33}
+.explode-section.is-debug .explode-front {opacity:1!important;filter:sepia(1) saturate(6) hue-rotate(-40deg)}
+.explode-section.is-debug .explode-part {outline:1px dashed #36c}
+/* Modo animado: el track da el recorrido de scroll y el escenario queda fijado. */
+.explode-section.is-animated .explode-track {height:450vh}
+.explode-section.is-animated {background:#f1f6f3}
+.explode-section.is-animated .explode-sticky {background:radial-gradient(ellipse 75% 65% at 50% 58%,#fbfcfb 0%,#f2f7f4 62%,#eaf2ed 100%);position:sticky;top:0;height:100vh;height:100svh;display:flex;flex-direction:column;justify-content:center;padding:30px 0 24px;overflow:hidden}
+.explode-section.is-animated .explode-intro {flex:none;margin-bottom:12px}
+.explode-section.is-animated .explode-frame {flex:1;min-height:0;container-type:size}
+.explode-section.is-animated .explode-stage {width:min(100%,1180px,160cqh)}
+.explode-section.is-animated .explode-shellbox {will-change:transform}
+@media(max-width:780px) {
+    .explode-sticky {padding:64px 0 56px}
+    .explode-intro {margin-bottom:16px}
+    .explode-intro p:not(.eyebrow) {font-size:14px}
+    .explode-visual {aspect-ratio:4/5}
+    .explode-shellbox {left:15%;width:70%}
+    .explode-closed {top:37.8%}
+    .explode-lid {top:3.8%}
+    .explode-bottom,.explode-front,.explode-shadow {top:67.8%}
+    .explode-part[data-part="sensor"] {left:7%;top:28.78%;width:36%}
+    .explode-part[data-part="sparkfun"] {left:56%;top:30.05%;width:38%}
+    .explode-part[data-part="bateria"] {left:9.5%;top:50.62%;width:31%}
+    .explode-part[data-part="leds"] {left:57.5%;top:51.06%;width:35%}
+    .explode-part[data-part="rgb"] {left:41%;top:48.35%;width:17%}
+    .explode-part-num {display:grid}
+    .explode-section.has-leaders .explode-leader {display:none}
+    .explode-labels {position:relative;inset:auto;display:grid;gap:10px;margin-top:16px}
+    .explode-label,.explode-label[data-side] {position:relative;left:auto;right:auto;top:auto;width:auto;text-align:left}
+    .explode-label[data-side="left"] .explode-label-card {flex-direction:row}
+    .explode-label h3 {font-size:15px}
+    .explode-label p {font-size:13px}
+    .explode-section.is-animated .explode-track {height:400vh}
+    .explode-section.is-animated .explode-sticky {padding:18px 0 14px}
+    .explode-section.is-animated .explode-intro p:not(.eyebrow) {display:none}
+    .explode-section.is-animated .explode-stage {width:min(100%,calc((100cqh - 136px) * .8))}
+    .explode-section.is-animated .explode-labels {height:120px;gap:0;margin-top:16px}
+    .explode-section.is-animated .explode-label {grid-area:1/1;opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .25s,transform .25s,visibility .25s}
+    .explode-section.is-animated .explode-label.is-active {opacity:1;visibility:visible;transform:none}
+}
+@media(max-height:620px) and (min-width:781px) {
+    .explode-section.is-animated .explode-intro p:not(.eyebrow) {display:none}
+}
+@media(prefers-reduced-motion:reduce) {
+    .explode-num,.explode-label {transition:none!important}
+}

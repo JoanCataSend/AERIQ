@@ -1,0 +1,159 @@
+AERIQ - Google Authentication con Firebase para Plesk
+=====================================================
+
+Dominio real: https://ldiamur.upv.edu.es
+Ruta web:     httpdocs/src/web/
+Entrada:      https://ldiamur.upv.edu.es/src/web/login.html
+
+No se debe crear una carpeta adicional en httpdocs/. El ZIP ya contiene la
+ruta src/web/... y se extrae sobre httpdocs/.
+
+1. ANTES DE SUBIR
+-----------------
+- Haz una copia de seguridad de la base de datos y de httpdocs/src/web/.
+- Comprueba que el hosting usa PHP 8.1 o superior (el servidor comprobado usa
+  PHP 8.3.36). FirebaseAuth.php necesita OpenSSL y conexiones HTTPS salientes.
+- No borres ni sobrescribas estas configuraciones privadas del servidor:
+    src/web/server/SDBaseDatos.php
+    src/web/server/SMTPConfig.php
+    src/web/server/MailConfig.php
+    src/web/vendor/
+  El ZIP no las incluye.
+
+2. ARCHIVOS DEL ZIP Y DESTINO
+-----------------------------
+Extrae el ZIP sobre httpdocs/. Quedará:
+
+    httpdocs/INSTRUCCIONES-PLESK.txt          (puedes borrarlo después)
+    httpdocs/src/web/login.html
+    httpdocs/src/web/app.js
+    httpdocs/src/web/auth-client.js
+    httpdocs/src/web/auth.php
+    httpdocs/src/web/mobile-auth.php
+    httpdocs/src/web/styles.css
+    httpdocs/src/web/google-auth.js
+    httpdocs/src/web/server/FirebaseAuth.php
+    httpdocs/src/web/server/FirebaseConfig.example.php
+    httpdocs/src/web/server/AuthCore.php
+    httpdocs/src/web/server/AeriqCore.php
+    httpdocs/src/web/server/.htaccess
+
+El autoregistro está eliminado: no existen las acciones register/resend/verify.
+Las cuentas deben crearse antes desde el portal de administración.
+
+El ZIP no incluye FirebaseConfig.php. El código usa
+FirebaseConfig.example.php como configuración pública por defecto y ya contiene
+el proyecto airiq-e9d70. Si necesitas una configuración distinta en el servidor,
+crea src/web/server/FirebaseConfig.php a partir del ejemplo. Ese archivo está
+ignorado por Git y no debe publicarse como texto; el código lo incluye desde PHP
+y rechaza el acceso directo.
+
+3. CONFIGURACIÓN MANUAL EN FIREBASE
+-----------------------------------
+Proyecto: airiq-e9d70
+- Authentication > Sign-in method > Google: habilitado.
+- Authentication > Settings > Authorized domains: añade exactamente
+  ldiamur.upv.edu.es (sin https:// y sin ruta). Mantén localhost solo si lo usas.
+- Google OAuth consent screen: si está en Testing, añade como test users los
+  correos de los operadores; si está en Production, revisa que el cliente OAuth
+  permita el dominio.
+- Si la API key de Firebase tiene restricciones de referrer, añade
+  https://ldiamur.upv.edu.es/* (y localhost solo para pruebas).
+- No hace falta clave de servicio ni Firebase Admin. El backend verifica la
+  firma RS256 con los certificados públicos de Google.
+
+4. SQL QUE DEBES EJECUTAR
+-------------------------
+En phpMyAdmin selecciona la base de datos real de AERIQ (la misma que usa
+SDBaseDatos.php), abre la pestaña Importar y ejecuta este SQL. Es repetible:
+si firebase_uid o el índice ya existen, no cambia nada y no borra datos.
+
+-- INICIO SQL
+SET NAMES utf8mb4;
+
+SET @add_column := (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE usuarios ADD COLUMN firebase_uid VARCHAR(128) NULL AFTER password_hash',
+    'SELECT ''firebase_uid ya existe'' AS aviso'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'usuarios'
+    AND COLUMN_NAME = 'firebase_uid'
+);
+PREPARE stmt FROM @add_column;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @add_index := (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE usuarios ADD UNIQUE KEY usuario_firebase_uid (firebase_uid)',
+    'SELECT ''usuario_firebase_uid ya existe'' AS aviso'
+  )
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'usuarios'
+    AND INDEX_NAME = 'usuario_firebase_uid'
+);
+PREPARE stmt FROM @add_index;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+-- FIN SQL
+
+No ejecutes este SQL desde la web ni desde un script automático de producción.
+
+5. COMPROBAR QUE EL ENDPOINT FUNCIONA
+-------------------------------------
+Abre en el navegador:
+
+  https://ldiamur.upv.edu.es/src/web/auth.php?action=session
+  https://ldiamur.upv.edu.es/src/web/auth.php?action=firebase-config
+
+La primera debe devolver JSON con ok y csrf. La segunda debe devolver
+"configured":true y "projectId":"airiq-e9d70".
+
+Si auth.php?action=firebase-config devuelve 405 o google-auth.js devuelve 404,
+el servidor sigue ejecutando los archivos antiguos: revisa que hayas extraído
+el ZIP en httpdocs/, limpia la caché de OPcache/Plesk y haz una recarga forzada
+del navegador (Ctrl+F5) para descartar una copia antigua.
+
+6. PROBAR GOOGLE AUTHENTICATION
+-------------------------------
+1. El administrador invita a un operador con el correo exacto de su cuenta de
+   Google. No crees la cuenta desde Google: Google nunca registra usuarios.
+2. Abre https://ldiamur.upv.edu.es/src/web/login.html
+3. Pulsa "Iniciar sesión con Google" y elige la cuenta invitada.
+4. Si la invitación está vigente, entra, se guarda firebase_uid, se activa la
+   cuenta y la contraseña temporal deja de servir.
+5. Prueba también:
+   - correo no registrado: error 403 y ninguna cuenta nueva;
+   - cuenta desactivada: error 403;
+   - invitación caducada: error 403;
+   - token alterado o caducado: error 401;
+   - login con correo y contraseña: debe seguir funcionando igual.
+
+Puedes ejecutar las comprobaciones automáticas desde el repositorio:
+
+  php scripts/tests/google-auth-unit.php
+  python scripts/tests/google-auth-live.py
+
+La prueba live solo envía un token inválido; no crea usuarios ni modifica datos.
+La matriz manual completa está en doc/pruebas-google.md.
+
+7. ANDROID
+----------
+El ZIP es solo para la web de Plesk. En el repositorio, ApiRoutes.java ya apunta
+a https://ldiamur.upv.edu.es/src/web/. Para usar Google en Android hay que
+recompilar el APK e implementar el envío de un idToken real de Firebase; el
+antiguo social-login falso responde 410 y no acepta correos sin verificar.
+
+8. SEGURIDAD
+------------
+- No publiques SDBaseDatos.php, SMTPConfig.php, MailConfig.php ni vendor/.
+- No publiques FirebaseConfig.php como texto; el ejemplo público ya es suficiente.
+- No incluyas claves de servicio de Firebase en la web.
+- El servidor guarda el hash SHA-256 de cada ID token usado para impedir
+  repeticiones durante su validez. No guarda el token original.
+- Los errores de autenticación no revelan credenciales ni detalles internos.

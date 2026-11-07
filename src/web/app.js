@@ -15,9 +15,15 @@ function initNavigation(){
   if(typeof AeriqAuth==='undefined')return;
   AeriqAuth.session().then(s=>{
     const a=$('#account-link');
-    if(a){a.href=s.user?(s.user.mustChangePassword?'cambiar-clave.html':'perfil.html'):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
+    if(a){a.href=s.user?authDestination(s.user):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
   }).catch(()=>{});
 }
+function authDestination(user){
+  if(!user)return 'login.html';
+  if(user.mustChangePassword)return 'cambiar-clave.html';
+  return ['admin','analista','comercial'].includes(user.role)?'portal.html':'perfil.html';
+}
+window.authDestination=authDestination;
 function authFeedback(error){
   const msg=error instanceof Error?error.message:String(error);
   toast(msg);
@@ -28,48 +34,33 @@ function authSubmitButton(form, busy){
 }
 function initForms(){
   $$('[data-demo-form]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();if(f.reportValidity())toast(f.dataset.success||'Esta función sigue en demostración.')}));
-  $$('[data-toggle-password]').forEach(b=>b.addEventListener('click',()=>{
-    const input=document.getElementById(b.dataset.togglePassword);if(!input)return;
-    input.type=input.type==='password'?'text':'password';b.textContent=input.type==='password'?'Mostrar':'Ocultar';
-  }));
-  $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`Google/Apple requiere configurar OAuth oficial; el botón todavía no inicia sesión.`)));
+  $$('[data-toggle-password]').forEach(b=>{
+  const input=document.getElementById(b.dataset.togglePassword);if(!input)return;
+  const open=b.querySelector('.eye-open'),closed=b.querySelector('.eye-closed');
+  // Estado inicial: contraseña oculta -> icono "ojo" (como en la app).
+  if(open){open.hidden=false;open.style.display='';}
+  if(closed){closed.hidden=true;closed.style.display='none';}
+  b.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const show=input.type==='password';
+    input.type=show?'text':'password';
+    if(open){open.hidden=show;open.style.display=show?'none':'';}
+    if(closed){closed.hidden=!show;closed.style.display=show?'':'none';}
+    b.setAttribute('aria-pressed',String(show));
+    b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña');
+  });
+});
+  $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`El acceso con ${b.dataset.social||'ese proveedor'} todavía no está disponible. Usa Google o tu correo.`)));
   $('#login-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
     try{
       const email=f.elements.namedItem('email').value;
       const result=await AeriqAuth.post('login',{email,password:f.elements.namedItem('password').value});
-      location.href=result.user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(result.user.role)?'portal.html':'perfil.html');
+      location.href=authDestination(result.user);
     }catch(error){
-      if(error.needsVerification)location.href='verificar.html?email='+encodeURIComponent(f.elements.namedItem('email').value);
-      else authFeedback(error);
+      authFeedback(error);
     }finally{authSubmitButton(f,false)}
-  });
-  $('#register-form')?.addEventListener('submit',async e=>{
-    e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;
-    const password=f.elements.namedItem('password').value;
-    if(password!==f.elements.namedItem('confirm').value){toast('Las contraseñas no coinciden.');return}
-    authSubmitButton(f,true);
-    try{
-      const email=f.elements.namedItem('email').value.trim();
-      await AeriqAuth.post('register',{
-        name:f.elements.namedItem('name').value,last:f.elements.namedItem('last').value,
-        email,password
-      });
-      location.href='verificar.html?email='+encodeURIComponent(email);
-    }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
-  });
-  $('#verify-form')?.addEventListener('submit',async e=>{
-    e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
-    try{
-      await AeriqAuth.post('verify',{email:f.elements.namedItem('email').value,code:f.elements.namedItem('code').value});
-      location.href='perfil.html';
-    }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
-  });
-  const verifyEmail=$('#verify-email');
-  if(verifyEmail){verifyEmail.value=new URLSearchParams(location.search).get('email')||'';}
-  $('#resend-code')?.addEventListener('click',async()=>{
-    const email=verifyEmail?.value;if(!email){toast('Introduce un correo válido.');return}
-    try{const data=await AeriqAuth.post('resend',{email});toast(data.message||'Si la cuenta está pendiente, recibirás otro código.')}catch(error){authFeedback(error)}
   });
   $('#forgot-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);

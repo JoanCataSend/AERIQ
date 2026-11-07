@@ -5,6 +5,7 @@ Un único esquema legible, sin la combinación anterior de tablas Sprint 0 y tab
 ## Archivos
 
 - [schema.sql](schema.sql): once tablas, restricciones, índices y dos vistas de lectura. No borra ninguna base.
+- [anadir-firebase-google.sql](anadir-firebase-google.sql): migración repetible que añade `usuarios.firebase_uid` y su índice único para el acceso con Google.
 - [seed-demo.sql](seed-demo.sql): datos ficticios para una instalación nueva. No se importa automáticamente en producción.
 - [Diseño](../../doc/base-de-datos.md): relaciones y decisiones del modelo.
 

@@ -18,10 +18,18 @@ PHP 8.1+ recomendado según Composer, MySQLi con `get_result`, mbstring, MariaDB
 ```powershell
 python scripts/audit-repository.py
 node scripts/tests/aeriq-domain.test.js
-python scripts/build-plesk-package.py --output .dist/aeriq-revision/AERIQ
+python scripts/build-plesk-package.py --output .dist/aeriq-plesk
 ```
 
-Publica **solo el contenido de la carpeta web generada** en `/AERIQ/`. Los SQL, scripts CLI y respaldos se mantienen fuera de la raíz pública. El paquete no incluye credenciales ni dependencias instaladas. El generador rechaza sobrescribir una salida existente.
+Publica **solo el contenido de `src/web/`** en `httpdocs/src/web/`. En este alojamiento la web real es `https://ldiamur.upv.edu.es/src/web/login.html`, sin una carpeta adicional en la raíz. Los SQL, scripts CLI y respaldos se mantienen fuera de la raíz pública. El paquete no incluye credenciales ni dependencias instaladas. El generador rechaza sobrescribir una salida existente.
+
+Para el parche concreto de Google/Firebase:
+
+```powershell
+python scripts/build-google-plesk-zip.py
+```
+
+El resultado es `.dist/airiq-google-plesk.zip`, que se extrae sobre `httpdocs/` (contiene `src/web/...` y `INSTRUCCIONES-PLESK.txt`). No incluye `FirebaseConfig.php` ni las configuraciones privadas. La migración queda en `.dist/anadir-firebase-google.sql` para importarla desde phpMyAdmin.
 
 En `server/SDBaseDatos.php` configura el nombre de la base nueva y las credenciales del entorno. Conserva la configuración privada y `.htaccess`; no publiques la raíz del repositorio. Mantén la base anterior respaldada hasta validar datos y funcionamiento. El cambio de configuración/deployment en Plesk no se ha realizado durante esta revisión.
 
@@ -42,9 +50,20 @@ Configura `MailConfig.php` para `mail()` o `SMTPConfig.php` más `composer insta
 
 Una invitación crea la cuenta pendiente de activación. El cambio inicial o la recuperación por correo verifican el acceso y activan la cuenta. Si falla el transporte de invitación, el alta se revierte. La aceptación del transporte no garantiza llegada a bandeja: comprobarlo en el alojamiento sigue siendo necesario.
 
+## Acceso con Google (Firebase)
+
+1. En Firebase Console, proyecto `airiq-e9d70`, habilita `Authentication > Sign-in method > Google`.
+2. En `Authentication > Settings > Authorized domains`, añade `ldiamur.upv.edu.es` (sin ruta) y `localhost` para pruebas. Si la API key tiene restricciones de referrer, autoriza `https://ldiamur.upv.edu.es/*`.
+3. Ejecuta `src/database/anadir-firebase-google.sql` una vez sobre la base de AERIQ. Añade `usuarios.firebase_uid` y su índice único sin borrar datos.
+4. La configuración pública del proyecto ya está en `src/web/server/FirebaseConfig.example.php` y se usa por defecto. Si el servidor necesita otro proyecto, crea `src/web/server/FirebaseConfig.php` (ignorado por Git) a partir del ejemplo y cambia `api_key`, `app_id` y `messaging_sender_id`. El SDK web se carga desde el CDN de Firebase: no hace falta `npm install` ni compilar. No publiques claves de servicio.
+5. Invita al operador con el correo exacto de su cuenta de Google. El primer acceso con Google vincula `firebase_uid`, activa una invitación vigente y anula la contraseña temporal. Un correo que no exista en `usuarios` se rechaza: Google no crea cuentas.
+6. Comprueba `https://ldiamur.upv.edu.es/src/web/auth.php?action=firebase-config` y que `configured` sea `true`.
+
+La verificación del token se hace en PHP con los certificados públicos de Google; no se necesita clave de servicio ni Firebase Admin. El servidor debe permitir conexiones HTTPS salientes y tener OpenSSL. Si Google rota sus certificados, se refrescan automáticamente.
+
 ## App y demostración
 
-La app mantiene `com.aeriq.app` y la identidad AERIQ. `data/ApiRoutes.kt` centraliza el servidor. Compila el APK después de fijar ese origen si usas otro alojamiento.
+La app mantiene `com.aeriq.app` y la identidad AERIQ. `data/ApiRoutes.java` centraliza el servidor en `https://ldiamur.upv.edu.es/src/web/`. Compila el APK después de fijar ese origen si usas otro alojamiento.
 
 1. Administrador: crear/consultar campaña, registrar Orb y asignar trabajador.
 2. Trabajador: entrar, sustituir temporal, actualizar asignaciones y seleccionar anuncios del Orb autorizado.

@@ -23,16 +23,21 @@ def deploy_files():
         }:
             yield path
     for name in (
-        "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "SDBaseDatos.example.php",
-        "SMTPConfig.example.php", "MailConfig.example.php", ".htaccess",
+        "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "SensorLink.php", "SDBaseDatos.example.php",
+        "SMTPConfig.example.php", "MailConfig.example.php", "FirebaseAuth.php", "FirebaseConfig.example.php", ".htaccess",
     ):
         yield WEB / "server" / name
+    # La configuración web de Firebase es pública (apiKey de navegador), no un secreto.
+    # Se incluye si existe para que el paquete quede operativo; no se versiona en Git.
+    firebase_config = WEB / "server" / "FirebaseConfig.php"
+    if firebase_config.is_file():
+        yield firebase_config
     yield WEB / "vendor" / ".htaccess"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", default=".dist/plesk/AERIQ")
+    parser.add_argument("--output", default=".dist/plesk/web")
     args = parser.parse_args()
     output = (ROOT / args.output).resolve()
     dist = (ROOT / ".dist").resolve()
@@ -50,7 +55,7 @@ def main():
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
     print(f"Paquete generado: {output}")
-    print(f"Archivos: {len(files)}. Sin configuraciones privadas ni vendor instalado.")
+    print(f"Archivos: {len(files)}. Sin credenciales privadas ni vendor instalado.")
     print("Completa base de datos y correo según doc/despliegue.md.")
 
 

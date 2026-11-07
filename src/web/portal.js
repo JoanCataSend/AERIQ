@@ -30,15 +30,15 @@ function renderReport(rows,group){
   const host=document.querySelector('#report-results');host.replaceChildren();
   const sets=new Map();for(const r of rows){const key=`${Number(r.simulado)?'Simulado':'Real'} · ${r.unidad}`;if(!sets.has(key))sets.set(key,[]);sets.get(key).push(r);}
   for(const [name,set] of sets){
-    const stats=AeriqDomain.statistics(set,group);host.append(el('h3',name));host.append(el('p',`${stats.count} lecturas válidas · mínimo ${stats.min} · máximo ${stats.max} · media ${stats.mean.toFixed(2)}`));
+    const thermal=set[0].unidad==='°C';const stats=AeriqDomain.statistics(set,group);host.append(el('h3',name));host.append(el('p',`${stats.count} lecturas válidas · mínimo ${stats.min} · máximo ${stats.max} · media ${stats.mean.toFixed(2)}`));
     const canvas=el('canvas');canvas.width=900;canvas.height=220;canvas.style.width='100%';canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Evolución de valores medios; datos disponibles en la tabla siguiente');host.append(canvas);
-    const ctx=canvas.getContext('2d'),max=Math.max(1,...stats.series.map(s=>s.mean));ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();
-    stats.series.forEach((s,i)=>{const x=20+i*850/Math.max(1,stats.series.length-1),y=200-s.mean/max*180;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);ctx.fillStyle='#0e6b5e';ctx.fillRect(x-2,y-2,4,4);});ctx.stroke();
+    const ctx=canvas.getContext('2d'),min=Math.min(0,...stats.series.map(s=>s.mean)),max=Math.max(min+1,...stats.series.map(s=>s.mean));ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();
+    stats.series.forEach((s,i)=>{const x=20+i*850/Math.max(1,stats.series.length-1),y=200-(s.mean-min)/(max-min)*180;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);ctx.fillStyle='#0e6b5e';ctx.fillRect(x-2,y-2,4,4);});ctx.stroke();
     const summary=el('div');host.append(summary);table(summary,['Periodo (UTC)','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[s.date,s.min,s.max,s.mean.toFixed(2)]})));
-    host.append(el('p',`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
+    host.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
     if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso (UTC)','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[r.capturada_en,r.valor,r.unidad,r.umbral_medio,r.umbral_alto,AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto))]})));}
     const detail=el('div');detail.className='table-scroll';host.append(detail);
-    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto)),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
+    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto)),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
   }
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#report-results').replaceChildren();

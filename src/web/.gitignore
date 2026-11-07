@@ -4,3 +4,5 @@
 /vendor/*
 !/vendor/.htaccess
 /server/MailConfig.php
+/server/FirebaseConfig.php
+/server/.firebase-certs-*.json

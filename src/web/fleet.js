@@ -10,7 +10,7 @@ async function initFleet(){
   const active=create('input');active.name='active';active.type='checkbox';const simulated=create('input');simulated.name='simulated';simulated.type='checkbox';
   for(const [text,field] of [['Dirección BLE',address],['Trabajador',worker],['Campaña',campaign],['Alta administrativa activa',active],['Datos simulados',simulated]]){const label=create('label',text);label.append(field);form.insertBefore(label,form.querySelector('.button-pair'));}
   function selectOptions(select,rows,label){select.replaceChildren(new Option('Sin asignar',''));for(const r of rows)select.add(new Option(label(r),r.id));}
-  function edit(d){current=d;form.reset();name.value=d?.nombre??'';address.value=d?.direccion_ble??'';worker.value=d?.trabajador_id??'';campaign.value=d?.campana_id??'';active.checked=d?Boolean(Number(d.activo)):true;simulated.checked=d?Boolean(Number(d.simulado)):true;modal.querySelector('h2').textContent=d?'Editar Orb':'Registrar Orb';modal.showModal();}
+  function edit(d){current=d;form.reset();name.value=d?.nombre??'';address.value=d?.direccion_ble??'';worker.value=d?.trabajador_id??'';campaign.value=d?.campana_id??'';active.checked=d?Boolean(Number(d.activo)):true;simulated.checked=d?Boolean(Number(d.simulado)):false;modal.querySelector('h2').textContent=d?'Editar Orb':'Registrar Orb';modal.showModal();}
   function render(){
     body.replaceChildren();let shown=0;const term=(document.querySelector('#device-search').value||'').toLowerCase();
     for(const d of devices){
