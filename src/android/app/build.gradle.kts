@@ -37,6 +37,7 @@ android {
 dependencies {
     // Mapa nativo OpenStreetMap, sin clave de API (osmdroid 6.1.20).
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("androidx.biometric:biometric:1.1.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

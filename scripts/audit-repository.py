@@ -99,7 +99,7 @@ def main():
             check_reference(doc, ref)
 
     pages = sorted(WEB.glob("*.html"))
-    check(len(pages) == 14, f"Se esperaban 14 páginas; encontradas {len(pages)}")
+    check(len(pages) == 12, f"Se esperaban 12 páginas; encontradas {len(pages)}")
     for page in pages:
         parser = References()
         parser.feed(page.read_text(encoding="utf-8-sig"))

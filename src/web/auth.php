@@ -21,36 +21,6 @@ try {
     if (!hash_equals($_SESSION['csrf'],(string)($_SERVER['HTTP_X_CSRF_TOKEN']??''))) auth_responder(403,['error'=>'Sesión caducada. Recarga la página.']);
     $d=auth_body();
     if ($action==='profile') aeriq_ready(auth_require_user());
-    if ($action==='register') {
-        auth_rate('register','',5,3600);
-        $email=auth_email($d['email']??'');$name=auth_string($d['name']??'',90);$last=auth_string($d['last']??'',120);$pass=auth_password($d['password']??'');
-        auth_mail_config_ok();
-        $u=auth_find($email);
-        if (!$u) {
-            $hash=password_hash($pass,PASSWORD_DEFAULT);$db=conexionBD();
-            $s=$db->prepare('INSERT INTO usuarios(nombre,apellidos,email,password_hash) VALUES (?,?,?,?)');
-            $s->bind_param('ssss',$name,$last,$email,$hash);$s->execute();$id=(int)$db->insert_id;
-            auth_generate_code($id,'registro',$email,false);
-        } elseif (!$u['verificado_en']) {
-            // No cambia la contraseña ni los datos al repetir el registro.
-            auth_generate_code((int)$u['id'],'registro',$email);
-        }
-        auth_responder(202,['ok'=>true,'message'=>'Si el correo admite registro, recibirás un código de verificación.']);
-    }
-    if ($action==='resend') {
-        $email=auth_email($d['email']??'');auth_rate('resend',$email,4,3600);
-        $u=auth_find($email);
-        if ($u && !$u['verificado_en']) auth_generate_code((int)$u['id'],'registro',$email);
-        auth_responder(200,['ok'=>true,'message'=>'Si la cuenta está pendiente, recibirás otro código.']);
-    }
-    if ($action==='verify') {
-        $email=auth_email($d['email']??'');$code=trim((string)($d['code']??''));auth_rate('verify',$email,12);
-        $u=auth_find($email);
-        if (!$u || $u['verificado_en']) auth_responder(422,['error'=>'No hay una verificación pendiente para este correo']);
-        auth_verify_code((int)$u['id'],'registro',$code);
-        $s=conexionBD()->prepare('UPDATE usuarios SET verificado_en=NOW() WHERE id=?');$id=(int)$u['id'];$s->bind_param('i',$id);$s->execute();
-        auth_login_session($id);auth_responder(200,['ok'=>true,'user'=>auth_public($u)]);
-    }
     if ($action==='login') {
         $email=auth_email($d['email']??'');auth_rate('login',$email,12);
         $password=(string)($d['password']??'');$u=auth_find($email);

@@ -53,36 +53,8 @@ function initForms(){
       const result=await AeriqAuth.post('login',{email,password:f.elements.namedItem('password').value});
       location.href=result.user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(result.user.role)?'portal.html':'perfil.html');
     }catch(error){
-      if(error.needsVerification)location.href='verificar.html?email='+encodeURIComponent(f.elements.namedItem('email').value);
-      else authFeedback(error);
+      authFeedback(error);
     }finally{authSubmitButton(f,false)}
-  });
-  $('#register-form')?.addEventListener('submit',async e=>{
-    e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;
-    const password=f.elements.namedItem('password').value;
-    if(password!==f.elements.namedItem('confirm').value){toast('Las contraseñas no coinciden.');return}
-    authSubmitButton(f,true);
-    try{
-      const email=f.elements.namedItem('email').value.trim();
-      await AeriqAuth.post('register',{
-        name:f.elements.namedItem('name').value,last:f.elements.namedItem('last').value,
-        email,password
-      });
-      location.href='verificar.html?email='+encodeURIComponent(email);
-    }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
-  });
-  $('#verify-form')?.addEventListener('submit',async e=>{
-    e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
-    try{
-      await AeriqAuth.post('verify',{email:f.elements.namedItem('email').value,code:f.elements.namedItem('code').value});
-      location.href='perfil.html';
-    }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
-  });
-  const verifyEmail=$('#verify-email');
-  if(verifyEmail){verifyEmail.value=new URLSearchParams(location.search).get('email')||'';}
-  $('#resend-code')?.addEventListener('click',async()=>{
-    const email=verifyEmail?.value;if(!email){toast('Introduce un correo válido.');return}
-    try{const data=await AeriqAuth.post('resend',{email});toast(data.message||'Si la cuenta está pendiente, recibirás otro código.')}catch(error){authFeedback(error)}
   });
   $('#forgot-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);

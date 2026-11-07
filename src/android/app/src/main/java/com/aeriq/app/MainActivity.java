@@ -1,12 +1,17 @@
 package com.aeriq.app;
 
 import android.Manifest;
-import android.app.Activity;
+import androidx.fragment.app.FragmentActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.*;
-import android.view.*;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+
+import android.view.Gravity;
+import android.view.View;
 import android.widget.*;
 import com.aeriq.app.ble.*;
 import com.aeriq.app.data.*;
@@ -15,14 +20,14 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
-public final class MainActivity extends Activity {
+public final class MainActivity extends FragmentActivity {
     public enum Screen {
-        LOGIN, REGISTER, VERIFY, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
+        LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
         CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD
     }
 
     private static final EnumSet<Screen> PUBLIC = EnumSet.of(
-        Screen.LOGIN, Screen.REGISTER, Screen.VERIFY, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN);
+        Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN);
     private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService maps = Executors.newSingleThreadExecutor();
@@ -235,7 +240,7 @@ public final class MainActivity extends Activity {
     public void submit(String action, Consumer<AeriqAuthManager.Result> done, Object... fields) {
         auth.submit(action, result -> {
             if (result.success && auth.user != null && !auth.user.mustChangePassword
-                && Arrays.asList("login", "verify", "reset-password", "change-password").contains(action)) {
+                && Arrays.asList("login", "reset-password", "change-password", "biometric", "social-login", "register").contains(action)) {
                 refreshWorker();
             }
             if (auth.user == null && !PUBLIC.contains(current)) {
@@ -257,6 +262,35 @@ public final class MainActivity extends Activity {
         clearWorker();
         go(Screen.LOGIN);
         message("Has cerrado sesión.");
+    }
+
+    public void authenticateWithBiometric(java.util.function.Consumer<Boolean> done) {
+        BiometricManager manager = BiometricManager.from(this);
+        if (manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                != BiometricManager.BIOMETRIC_SUCCESS) {
+            message("Huella no disponible o no registrada en este móvil.");
+            done.accept(false);
+            return;
+        }
+        BiometricPrompt prompt = new BiometricPrompt(this, ContextCompat.getMainExecutor(this),
+            new BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                    done.accept(true);
+                }
+                @Override public void onAuthenticationError(int errorCode, CharSequence errString) {
+                    message(errString.toString());
+                    done.accept(false);
+                }
+                @Override public void onAuthenticationFailed() {
+                    message("Huella no reconocida. Inténtalo de nuevo.");
+                }
+            });
+        BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Acceso con huella")
+            .setSubtitle("Usa tu huella para entrar en AERIQ")
+            .setNegativeButtonText("Cancelar")
+            .build();
+        prompt.authenticate(info);
     }
 
     private void clearWorker() {
@@ -493,7 +527,7 @@ public final class MainActivity extends Activity {
 
     private void navigateBack() {
         switch (current) {
-            case VERIFY: case REGISTER: case FORGOT: go(Screen.LOGIN); break;
+            case FORGOT: go(Screen.LOGIN); break;
             case RESET: go(Screen.FORGOT); break;
             case CONFIG: case HISTORY: case LINK: go(Screen.SENSOR); break;
             case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: go(Screen.ACCOUNT); break;

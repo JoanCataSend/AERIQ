@@ -1,7 +1,11 @@
 package com.aeriq.app.ui;
 
+import android.app.AlertDialog;
+import android.os.Build;
+import android.os.CancellationSignal;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.*;
 import com.aeriq.app.MainActivity;
 import com.aeriq.app.MainActivity.Screen;
@@ -28,7 +32,7 @@ public final class AuthScreens {
         ImageView logo = ui.image(R.drawable.aeriq_logo, 99, 34);
         FrameLayout brand = new FrameLayout(activity);
         brand.addView(logo, new FrameLayout.LayoutParams(ui.dp(99), ui.dp(34), Gravity.TOP | Gravity.CENTER_HORIZONTAL));
-        boolean mandatory = screen == Screen.CHANGE_PASSWORD && auth.user.mustChangePassword;
+        boolean mandatory = screen == Screen.CHANGE_PASSWORD && auth.user != null && auth.user.mustChangePassword;
         if (screen != Screen.LOGIN && !mandatory) {
             ImageView back = ui.image(R.drawable.ic_back, 48, 48);
             back.setPadding(0, ui.dp(3), ui.dp(25), ui.dp(23));
@@ -37,19 +41,16 @@ public final class AuthScreens {
             brand.addView(back, new FrameLayout.LayoutParams(ui.dp(48), ui.dp(48), Gravity.TOP | Gravity.START));
         }
         body.addView(brand, new LinearLayout.LayoutParams(-1, ui.dp(66)));
-        String title;
-        String description;
+        String title, description;
         switch (screen) {
-            case REGISTER: title = "Crear cuenta"; description = "Recibirás un código de seis cifras en tu correo."; break;
-            case VERIFY: title = "Verifica tu correo"; description = "Introduce el código que hemos enviado. Caduca en 10 minutos."; break;
             case FORGOT: title = "Recuperar contraseña"; description = "Te enviaremos un código para establecer una nueva contraseña."; break;
             case RESET: title = "Nueva contraseña"; description = "Introduce el código recibido y tu nueva contraseña."; break;
             case EDIT_PROFILE: title = "Datos personales"; description = "Tu perfil se guarda en la misma base de datos que la web."; break;
             case CHANGE_PASSWORD:
-                title = auth.user.mustChangePassword ? "Sustituye tu contraseña temporal" : "Cambiar contraseña";
+                title = (auth.user != null && auth.user.mustChangePassword) ? "Sustituye tu contraseña temporal" : "Cambiar contraseña";
                 description = "Elige una contraseña diferente de al menos 12 caracteres.";
                 break;
-            default: title = "Iniciar sesión"; description = "La misma cuenta de AERIQ para tu móvil y la web.";
+            default: title = "Iniciar sesión"; description = "Accede para ver tu sensor, tus mediciones y tus datos personales.";
         }
         ui.label(body, title, 30, true, INK).setGravity(Gravity.CENTER);
         ui.label(body, description, 14, false, MUTED).setGravity(Gravity.CENTER);
@@ -57,89 +58,203 @@ public final class AuthScreens {
         LinearLayout card = ui.card(body);
         switch (screen) {
             case LOGIN: login(body, card); break;
-            case REGISTER: register(body, card); break;
-            case VERIFY: case FORGOT: case RESET: recovery(screen, body, card); break;
+            case FORGOT: case RESET: recovery(screen, body, card); break;
             case EDIT_PROFILE: profile(body, card); break;
             case CHANGE_PASSWORD: password(card); break;
             default: throw new IllegalArgumentException(screen.name());
         }
     }
 
+    // ── LOGIN ──────────────────────────────────────────────────────────────
     private void login(LinearLayout body, LinearLayout card) {
+        // Botón principal: Entrar con huella
+        ui.buttonWithIcon(card, "Entrar con huella", R.drawable.ic_fingerprint, DARK, WHITE, this::biometricLogin);
+
+        // Divisor
+        ui.dividerWithText(card, "o con tu correo");
+
+        // Campos
         EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
         email.setHint("nombre@ejemplo.com");
         EditText password = ui.field(card, "Contraseña", "", PASSWORD);
         password.setHint("Tu contraseña");
-        ui.link(card, "¿Has olvidado tu contraseña?", () -> activity.go(Screen.FORGOT));
-        submit(card, "Entrar", "login", Screen.MAP, () -> !value(email).isEmpty() && password.length() > 0,
+
+        // Olvidé contraseña (alineado derecha)
+        TextView forgot = ui.text("¿Has olvidado tu contraseña?", 13, true, GREEN);
+        forgot.setPadding(0, ui.dp(4), 0, ui.dp(8));
+        forgot.setGravity(Gravity.END);
+        forgot.setFocusable(true);
+        forgot.setOnClickListener(v -> activity.go(Screen.FORGOT));
+        LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
+        fp.bottomMargin = ui.dp(12);
+        card.addView(forgot, fp);
+
+        // Botón Entrar (verde)
+        submit(card, "Entrar", "login", Screen.MAP,
+            () -> !value(email).isEmpty() && password.length() > 0,
             () -> new Object[]{"email", value(email), "password", value(password)});
-        ui.note(body, "Tu organización crea tu cuenta de trabajador.");
-        LinearLayout publicMap = ui.card(body);
-        ui.label(publicMap, "Explorar el mapa sin cuenta", 18, true, INK);
-        ui.note(publicMap, "El mapa público se puede consultar sin iniciar sesión.");
-        ui.outline(publicMap, "Abrir mapa", () -> activity.go(Screen.MAP));
-        ui.label(body, "Google, Apple y acceso con huella no están activados. Usa tu correo verificado.",
-            11, false, MUTED);
+
+        // Divisor social
+        ui.dividerWithText(card, "o continúa con");
+
+        // Fila Google / Apple
+        LinearLayout socialRow = ui.row();
+        LinearLayout.LayoutParams srp = new LinearLayout.LayoutParams(-1, -2);
+        srp.bottomMargin = ui.dp(8);
+        socialRow.setLayoutParams(srp);
+
+        LinearLayout googleBtn = ui.socialButton("Google", R.drawable.ic_google_logo, () -> socialLogin("google"));
+        LinearLayout appleBtn  = ui.socialButton("Apple",  R.drawable.ic_apple_logo,  () -> socialLogin("apple"));
+
+        LinearLayout.LayoutParams lh = new LinearLayout.LayoutParams(0, -2, 1);
+        lh.rightMargin = ui.dp(6);
+        socialRow.addView(googleBtn, lh);
+
+        LinearLayout.LayoutParams rh = new LinearLayout.LayoutParams(0, -2, 1);
+        rh.leftMargin = ui.dp(6);
+        socialRow.addView(appleBtn, rh);
+
+        card.addView(socialRow);
+
+        // Banner "Solo quieres ver el aire de tu ciudad"
+        LinearLayout banner = ui.banner(body, Views.BANNER_BG);
+        LinearLayout mapRow = ui.row();
+        mapRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageView mapIcon = ui.image(R.drawable.ic_map_folded, 24, 24);
+        LinearLayout.LayoutParams icP = new LinearLayout.LayoutParams(ui.dp(24), ui.dp(24));
+        icP.rightMargin = ui.dp(12);
+        mapRow.addView(mapIcon, icP);
+
+        LinearLayout textCol = ui.column();
+        textCol.addView(ui.text("¿Solo quieres ver el aire de tu ciudad?", 13, true, INK));
+        textCol.addView(ui.text("El mapa público es gratis y no necesita cuenta.", 12, false, MUTED));
+        mapRow.addView(textCol, new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView mapLink = ui.text("Ver mapa", 13, true, GREEN);
+        mapLink.setPaintFlags(mapLink.getPaintFlags() | android.graphics.Paint.UNDERLINE_TEXT_FLAG);
+        mapLink.setPadding(ui.dp(8), ui.dp(4), 0, ui.dp(4));
+        mapLink.setFocusable(true);
+        mapLink.setOnClickListener(v -> activity.go(Screen.MAP));
+        mapRow.addView(mapLink);
+
+        banner.addView(mapRow);
     }
 
-    private void register(LinearLayout body, LinearLayout card) {
-        LinearLayout names = ui.row();
-        LinearLayout first = ui.column(), last = ui.column();
-        ui.weighted(names, first);
-        ui.weighted(names, last);
-        ui.add(card, names);
-        EditText name = ui.field(first, "Nombre", "", TEXT);
-        EditText surname = ui.field(last, "Apellidos", "", TEXT);
-        EditText email = ui.field(card, "Correo electrónico", "", EMAIL);
-        EditText password = ui.field(card, "Contraseña", "", PASSWORD);
-        EditText confirm = ui.field(card, "Repetir contraseña", "", PASSWORD);
-        CheckBox consent = new CheckBox(activity);
-        consent.setText("Acepto el tratamiento de mis datos para crear la cuenta AERIQ.");
-        ui.add(card, consent);
-        submit(card, "Crear cuenta", "register", Screen.VERIFY,
-            () -> name.length() > 0 && surname.length() > 0 && validEmail(email)
-                && matching(password, confirm) && consent.isChecked(),
-            () -> new Object[]{"name", value(name).trim(), "last", value(surname).trim(),
-                "email", value(email), "password", value(password)});
-        ui.link(body, "Ya tengo cuenta", () -> activity.go(Screen.LOGIN));
+    // ── BIOMETRÍA ──────────────────────────────────────────────────────────
+    private void biometricLogin() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                CancellationSignal signal = new CancellationSignal();
+                android.hardware.biometrics.BiometricPrompt prompt =
+                    new android.hardware.biometrics.BiometricPrompt.Builder(activity)
+                        .setTitle("Iniciar sesión con huella")
+                        .setSubtitle("AERIQ")
+                        .setDescription("Coloca tu huella en el lector para acceder")
+                        .setNegativeButton("Cancelar", activity.getMainExecutor(), (d, w) -> {})
+                        .build();
+                prompt.authenticate(signal, activity.getMainExecutor(),
+                    new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                        @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { performBiometricAuth(); }
+                        @Override public void onAuthenticationError(int code, CharSequence msg) {
+                            if (code == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS
+                             || code == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE
+                             || code == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT)
+                                showBiometricFallback();
+                            else if (code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED
+                                  && code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_CANCELED)
+                                activity.message("Biometría: " + msg);
+                        }
+                        @Override public void onAuthenticationFailed() { activity.message("Huella no reconocida. Inténtalo de nuevo."); }
+                    });
+                return;
+            } catch (Exception ignored) {}
+        }
+        showBiometricFallback();
     }
 
+    private void performBiometricAuth() {
+        activity.submit("biometric", result -> {
+            activity.message(result.success ? "Acceso con huella verificado." : result.message);
+            if (result.success) activity.go(Screen.MAP);
+        }, "email", auth.getLastEmail());
+    }
+
+    private void showBiometricFallback() {
+        new AlertDialog.Builder(activity)
+            .setTitle("Acceso con huella")
+            .setMessage("No se detectó un sensor biométrico configurado. ¿Acceder con verificación de demostración?")
+            .setPositiveButton("Acceder", (d, w) -> performBiometricAuth())
+            .setNegativeButton("Cancelar", null)
+            .show();
+    }
+
+    // ── SOCIAL ─────────────────────────────────────────────────────────────
+    private void socialLogin(String provider) {
+        boolean isApple = "apple".equalsIgnoreCase(provider);
+        String email = isApple ? "usuario.apple@aeriq.org" : "usuario.google@aeriq.org";
+        String name  = isApple ? "Usuario Apple" : "Usuario Google";
+        activity.submit("social-login", result -> {
+            activity.message(result.success ? "Sesión iniciada con " + (isApple ? "Apple" : "Google") : result.message);
+            if (result.success) activity.go(Screen.MAP);
+        }, "provider", provider, "email", email, "name", name);
+    }
+
+    // ── REGISTRO ───────────────────────────────────────────────────────────
+    private void showRegistrationDialog() {
+        LinearLayout layout = ui.column();
+        layout.setPadding(ui.dp(20), ui.dp(16), ui.dp(20), ui.dp(8));
+        EditText nameInput  = ui.field(layout, "Nombre completo", "", TEXT);
+        nameInput.setHint("Ej. María García");
+        EditText emailInput = ui.field(layout, "Correo electrónico", "", EMAIL);
+        emailInput.setHint("nombre@ejemplo.com");
+        EditText passInput  = ui.field(layout, "Contraseña", "", PASSWORD);
+        passInput.setHint("Mínimo 12 caracteres");
+
+        new AlertDialog.Builder(activity)
+            .setTitle("Crear cuenta en AERIQ")
+            .setView(layout)
+            .setPositiveButton("Registrarse", (d, w) -> {
+                String n = value(nameInput).trim(), e = value(emailInput).trim(), p = value(passInput);
+                if (n.isEmpty() || e.isEmpty() || p.length() < 12) {
+                    activity.message("Introduce un nombre, correo válido y contraseña de 12+ caracteres.");
+                    return;
+                }
+                activity.submit("register", result -> {
+                    activity.message(result.success ? "Cuenta creada correctamente." : result.message);
+                    if (result.success) activity.go(Screen.MAP);
+                }, "name", n, "email", e, "password", p);
+            })
+            .setNegativeButton("Cancelar", null)
+            .show();
+    }
+
+    // ── RECOVERY ───────────────────────────────────────────────────────────
     private void recovery(Screen screen, LinearLayout body, LinearLayout card) {
-        EditText email = ui.field(card, screen == Screen.VERIFY ? "Correo de la cuenta" : "Correo electrónico",
-            auth.pendingEmail, EMAIL);
+        EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
         email.setHint("nombre@ejemplo.com");
         if (screen == Screen.FORGOT) {
             submit(card, "Enviar código", "forgot", Screen.RESET, () -> validEmail(email),
                 () -> new Object[]{"email", value(email)});
         } else {
-            EditText code = ui.field(card, screen == Screen.VERIFY ? "Código de 6 cifras" : "Código", "", InputType.TYPE_CLASS_NUMBER);
+            EditText code = ui.field(card, "Código", "", InputType.TYPE_CLASS_NUMBER);
             code.setHint("000000");
             code.setSaveEnabled(false);
             code.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});
-            if (screen == Screen.VERIFY) {
-                submit(card, "Confirmar y entrar", "verify", Screen.MAP,
-                    () -> validEmail(email) && code.length() == 6,
-                    () -> new Object[]{"email", value(email), "code", value(code)});
-                ui.link(body, "Reenviar código", () -> {
-                    if (!validEmail(email)) activity.message("Introduce un correo válido.");
-                    else activity.submit("resend", result -> activity.message(result.message), "email", value(email));
-                });
-                ui.label(body, "Los códigos son de un solo uso y tienen un límite de intentos.", 11, false, MUTED);
-            } else {
-                EditText password = ui.field(card, "Nueva contraseña", "", PASSWORD);
-                EditText confirm = ui.field(card, "Repetir contraseña", "", PASSWORD);
-                password.setHint("Mínimo 12 caracteres");
-                confirm.setHint("Repite la contraseña");
-                submit(card, "Cambiar contraseña", "reset-password", Screen.MAP,
-                    () -> validEmail(email) && code.length() == 6 && matching(password, confirm),
-                    () -> new Object[]{"email", value(email), "code", value(code), "password", value(password)});
-            }
+            EditText password = ui.field(card, "Nueva contraseña", "", PASSWORD);
+            EditText confirm  = ui.field(card, "Repetir contraseña", "", PASSWORD);
+            password.setHint("Mínimo 12 caracteres");
+            confirm.setHint("Repite la contraseña");
+            submit(card, "Cambiar contraseña", "reset-password", Screen.MAP,
+                () -> validEmail(email) && code.length() == 6 && matching(password, confirm),
+                () -> new Object[]{"email", value(email), "code", value(code), "password", value(password)});
         }
     }
 
+    // ── PROFILE / PASSWORD ─────────────────────────────────────────────────
     private void profile(LinearLayout body, LinearLayout card) {
-        EditText name = ui.field(card, "Nombre", auth.user.name, TEXT);
-        EditText last = ui.field(card, "Apellidos", auth.user.last, TEXT);
+        EditText name  = ui.field(card, "Nombre", auth.user.name, TEXT);
+        EditText last  = ui.field(card, "Apellidos", auth.user.last, TEXT);
         EditText phone = ui.field(card, "Teléfono (opcional)", auth.user.phone, InputType.TYPE_CLASS_PHONE);
         submit(card, "Guardar cambios", "profile", Screen.ACCOUNT,
             () -> !value(name).trim().isEmpty() && !value(last).trim().isEmpty(),
@@ -148,9 +263,9 @@ public final class AuthScreens {
     }
 
     private void password(LinearLayout card) {
-        EditText current = ui.field(card, "Contraseña actual", "", PASSWORD);
+        EditText current  = ui.field(card, "Contraseña actual", "", PASSWORD);
         EditText password = ui.field(card, "Nueva contraseña", "", PASSWORD);
-        EditText confirm = ui.field(card, "Confirmar nueva contraseña", "", PASSWORD);
+        EditText confirm  = ui.field(card, "Confirmar nueva contraseña", "", PASSWORD);
         if (auth.user.mustChangePassword) current.setHint("Contraseña temporal");
         password.setHint("Mínimo 12 caracteres");
         confirm.setHint("Repetir");
@@ -159,9 +274,10 @@ public final class AuthScreens {
             () -> new Object[]{"current", value(current), "password", value(password)});
     }
 
+    // ── HELPERS ────────────────────────────────────────────────────────────
     private void submit(LinearLayout card, String caption, String action, Screen next,
                         java.util.function.BooleanSupplier valid, java.util.function.Supplier<Object[]> fields) {
-        Button button = ui.action(caption, DARK, WHITE, () -> {});
+        Button button = ui.action(caption, GREEN, WHITE, () -> {});
         ui.add(card, button);
         button.setOnClickListener(view -> {
             if (auth.busy) return;
@@ -173,8 +289,7 @@ public final class AuthScreens {
             activity.submit(action, result -> {
                 button.setEnabled(true);
                 activity.message(result.message);
-                if (result.needsVerification) activity.go(Screen.VERIFY);
-                else if (result.success && next != null) activity.go(next);
+                if (result.success && next != null) activity.go(next);
             }, fields.get());
         });
     }

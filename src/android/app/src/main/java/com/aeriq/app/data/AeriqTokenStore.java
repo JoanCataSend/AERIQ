@@ -10,7 +10,7 @@ import java.security.KeyStore;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 
-final class AeriqTokenStore {
+public final class AeriqTokenStore {
     private static final String ALIAS = "aeriq_mobile_token_aes_gcm_v1";
     private final SharedPreferences prefs;
 
@@ -39,7 +39,7 @@ final class AeriqTokenStore {
         prefs.edit().putString("session", iv + ":" + data).apply();
     }
 
-    synchronized String read() {
+    public synchronized String read() {
         String saved = prefs.getString("session", null);
         if (saved == null) return null;
         try {
@@ -53,5 +53,15 @@ final class AeriqTokenStore {
         }
     }
 
-    synchronized void clear() { prefs.edit().remove("session").apply(); }
+    public synchronized void saveLastEmail(String email) {
+        if (email != null && !email.trim().isEmpty()) {
+            prefs.edit().putString("last_email", email.trim()).apply();
+        }
+    }
+
+    public synchronized String getLastEmail() {
+        return prefs.getString("last_email", "");
+    }
+
+    public synchronized void clear() { prefs.edit().remove("session").apply(); }
 }

@@ -10,7 +10,7 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 | `sensores.html` | Flota real con tabla, filtros, edición y asignación |
 | `portal.html` | Secciones de organización: equipo, campañas, Orb, informes; comercial ve solicitudes |
 | `perfil.html` | Perfil/contraseña, organización y herramientas |
-| `login.html`, `registro.html` | Acceso existente y cuenta visitante sin permisos organizativos |
+| `login.html` | Acceso existente de usuarios autorizados |
 | `verificar.html`, `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
 | `solicitar.html` | Kits para administración/empresa y estudios |
 | `carrito.html`, `checkout.html` | Rutas conservadas como preparación y envío de presupuesto, sin tienda ciudadana |

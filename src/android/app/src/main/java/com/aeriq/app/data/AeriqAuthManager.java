@@ -33,7 +33,7 @@ public final class AeriqAuthManager implements AutoCloseable {
         public final boolean success, needsVerification;
         public final String message;
 
-        Result(boolean success, String message, boolean needsVerification) {
+        public Result(boolean success, String message, boolean needsVerification) {
             this.success = success;
             this.message = message;
             this.needsVerification = needsVerification;
@@ -51,6 +51,8 @@ public final class AeriqAuthManager implements AutoCloseable {
     public AeriqAuthManager(Context context) { store = new AeriqTokenStore(context.getApplicationContext()); }
 
     public String sessionToken() { return store.read(); }
+    public String getLastEmail() { return store.getLastEmail(); }
+    public boolean hasSavedToken() { return store.read() != null; }
 
     public void restore(Consumer<Result> done) {
         String token = store.read();
@@ -64,7 +66,7 @@ public final class AeriqAuthManager implements AutoCloseable {
     public void submit(String action, Consumer<Result> done, Object... fields) {
         boolean authorized = "profile".equals(action) || "change-password".equals(action);
         for (int i = 0; i < fields.length; i += 2) {
-            if ("email".equals(fields[i])) {
+            if ("email".equals(fields[i]) && fields[i + 1] != null) {
                 pendingEmail = fields[i + 1].toString().trim().toLowerCase(Locale.ROOT);
                 fields[i + 1] = pendingEmail;
             }
@@ -103,7 +105,10 @@ public final class AeriqAuthManager implements AutoCloseable {
                 if (closed) return;
                 busy = false;
                 if (clearUser) user = null;
-                if (received != null) user = received;
+                if (received != null) {
+                    user = received;
+                    store.saveLastEmail(received.email);
+                }
                 done.accept(outcome);
             });
         });
