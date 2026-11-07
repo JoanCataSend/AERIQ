@@ -28,10 +28,23 @@ function authSubmitButton(form, busy){
 }
 function initForms(){
   $$('[data-demo-form]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();if(f.reportValidity())toast(f.dataset.success||'Esta función sigue en demostración.')}));
-  $$('[data-toggle-password]').forEach(b=>b.addEventListener('click',()=>{
-    const input=document.getElementById(b.dataset.togglePassword);if(!input)return;
-    input.type=input.type==='password'?'text':'password';b.textContent=input.type==='password'?'Mostrar':'Ocultar';
-  }));
+  $$('[data-toggle-password]').forEach(b=>{
+  const input=document.getElementById(b.dataset.togglePassword);if(!input)return;
+  const open=b.querySelector('.eye-open'),closed=b.querySelector('.eye-closed');
+  // Estado inicial: contraseña oculta -> icono "ojo" (como en la app).
+  if(open){open.hidden=false;open.style.display='';}
+  if(closed){closed.hidden=true;closed.style.display='none';}
+  b.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const show=input.type==='password';
+    input.type=show?'text':'password';
+    if(open){open.hidden=show;open.style.display=show?'none':'';}
+    if(closed){closed.hidden=!show;closed.style.display=show?'':'none';}
+    b.setAttribute('aria-pressed',String(show));
+    b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña');
+  });
+});
   $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`Google/Apple requiere configurar OAuth oficial; el botón todavía no inicia sesión.`)));
   $('#login-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);

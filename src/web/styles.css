@@ -1684,21 +1684,65 @@ form label input,form label textarea,form label select {
     flex:1
 }
 .password-wrap {
-    position:relative
+    position:relative;
+    display:block;
+    margin-top:8px;
 }
 .password-wrap input {
-    padding-right:85px!important
+    margin-top:0!important;
+    padding-right:48px!important;
 }
-.password-wrap button {
+.password-wrap input::-ms-reveal,
+.password-wrap input::-ms-clear,
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display:none;
+    width:0;
+    height:0;
+}
+.password-wrap button,
+.password-toggle {
     position:absolute;
-    right:8px;
-    top:8px;
+    right:6px;
+    top:50%;
+    transform:translateY(-50%);
     border:0;
     background:transparent;
+    color:#5E6B66;
+    width:34px;
+    height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border-radius:8px;
+    cursor:pointer;
+    line-height:0;
+    transition:background-color .15s ease, color .15s ease;
+}
+.password-wrap button:hover,
+.password-toggle:hover {
+    background:var(--soft);
     color:var(--forest);
-    font-size:12px;
-    font-weight:800;
-    padding:8px
+}
+.password-wrap button:focus-visible,
+.password-toggle:focus-visible {
+    outline:2px solid var(--forest);
+    outline-offset:1px;
+}
+.password-wrap button svg,
+.password-toggle svg {
+    display:block;
+    width:20px;
+    height:20px;
+    stroke:currentColor;
+}
+.password-wrap .eye-open,
+.password-wrap .eye-closed {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:0;
 }
 .auth-bottom {
     margin:20px auto 0!important
