@@ -7,14 +7,17 @@ namespace aeriq {
 class Medidor {
   const uint8_t pines[3] = {5, 28, 29}; // P0.05 VGAS, P0.28 VREF, P0.29 VTEMP
   float voltios[3] = {};
+  float ultimoCiclo[3] = {};
   uint8_t canal = 0, muestras = 0;
   uint32_t suma = 0, ultimoMs = 0, cambioUs = 0;
-  bool activo = false, descartar = true, saturado = false;
+  bool activo = false, descartar = true, saturado = false, ultimoSaturado = false;
   Calibracion calibracion;
  public:
   float voltaje(uint8_t canalAdc) const {
-    return canalAdc < 3 ? voltios[canalAdc] : 0.f;
+    return canalAdc < 3 ? ultimoCiclo[canalAdc] : 0.f;
   }
+  bool saturadoUltimoCiclo() const { return ultimoSaturado; }
+  Calibracion &calibrado() { return calibracion; }
   void begin() {
     for (uint8_t pin : pines) pinMode(pin, INPUT);
     analogReference(AR_DEFAULT); // 0.6 V interna x ganancia inversa 6 = 3.6 V
@@ -48,6 +51,8 @@ class Medidor {
       return false;
     }
     activo = false;
+    for (uint8_t i = 0; i < 3; ++i) ultimoCiclo[i] = voltios[i];
+    ultimoSaturado = saturado;
     resultado = calibracion.convertir(voltios[0], voltios[1], voltios[2], saturado);
     return true;
   }

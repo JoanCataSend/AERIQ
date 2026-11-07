@@ -2,9 +2,9 @@
 
 ## Pantallas conservadas y adaptadas
 
-- Mapa de ozono: búsqueda, capas, oscuro/claro, ubicación opcional, leyenda, marcadores y comparación. Consulta la API pública autorizada, no una lista de puntos incrustada.
-- Mi sensor: tarjeta Orb, O₃ actual, gráfica, resumen de campaña, recepción BLE y envío separados, asignaciones y control de captura.
-- Vincular: mantiene la imagen Orb y las tarjetas originales; solo selecciona emisores asignados.
+- Mapa de ozono: mapa real OpenStreetMap a pantalla grande con buscador mundial (Photon/OSM y, si falla, Geocoder de Android; sugerencias mientras escribes), controles flotantes de ubicación, capas y actualizar, leyenda en la parte inferior del mapa, aviso solo si la zona elegida tiene ozono moderado o alto, y ficha de zona (valor, calidad, hora, Ver historial, Comparar). Solo mediciones reales: se quitó el selector Reales/Simulados.
+- Mi sensor: tarjeta del sensor PBIO con foto, estado de recepción con antigüedad (s, min, h, días), Bluetooth azul/gris y batería (“—” mientras el firmware no la transmita), O₃ ahora con calidad y gráfica de área del día, Tu día (distancia por GPS, O₃ medio, barra de calidad por tramos), accesos a Estado del sensor (diagnóstico, servidor, reintentos) y Configurar sensor, e interruptor Compartiendo con la red.
+- Vincular: imagen del sensor PBIO, interruptores Bluetooth (búsqueda) y Ubicación (permiso), lista de sensores cercanos con señal; el más fuerte o el vinculado se destaca con el botón Vincular. Al abrir la pantalla empieza a buscar.
 - Historial: Día/Semana/Mes/Año, gráficas por procedencia, mínimo/máximo y exportación CSV mediante selector de archivo Android. Datos guardados de las asignaciones del trabajador, no gráficos ficticios.
 - Configurar: datos administrados del Orb, privacidad, envío y deselección.
 - Aprende y Cuenta: contenido e identidad originales; cuenta/organización, contraseña, historial, ayuda y soluciones. No hay suscripciones personales.

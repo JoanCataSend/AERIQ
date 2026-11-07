@@ -6,6 +6,12 @@ public final class IBeaconParser {
     public static final int APPLE_MANUFACTURER_ID = 0x004c, O3_ID = 14, TEMPERATURE_ID = 12;
     public static final String PROJECT_ID = "EPSG-GTI-PROY-3A";
     public static final int STATUS_ID = 15;
+    public static final String STATUS_UUID = "e3b44c20-3f02-4d76-9cb2-bdcb3105a001";
+
+    public static int parseDiagnostic(byte[] data, int counter) {
+        if (data == null || data.length != 12 || data[0] != 1 || (data[1] & 255) != counter) return -1;
+        return (data[10] & 255) << 8 | (data[11] & 255);
+    }
 
     private IBeaconParser() {}
 

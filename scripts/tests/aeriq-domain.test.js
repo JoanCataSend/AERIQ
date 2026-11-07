@@ -16,6 +16,8 @@ assert.equal(domain.interpolate([38.99666,-.16599],points,51),null);
 const v=domain.interpolate([38.99666,-.16599],points,30);assert(v>=50&&v<=90);
 const rows=[{...base,valor:50,capturada_en:'2026-11-02 12:00:00.000'}, {...base,valor:100,capturada_en:'2026-11-03 12:00:00.000'}];
 const stats=domain.statistics(rows);assert.equal(stats.min,50);assert.equal(stats.max,100);assert.equal(stats.mean,75);assert.equal(stats.exceedances.length,1);assert.equal(stats.series.length,2);
+const thermal=domain.statistics(rows.map((row,i)=>({...row,unidad:'°C',valor:i?100:-12})));
+assert.equal(thermal.min,-12);assert.equal(thermal.mean,44);assert.equal(thermal.exceedances.length,0);
 assert.equal(domain.statistics(rows,'week').series.length,1);
 const csv=domain.csv([{...rows[0],dispositivo:'=HYPERLINK("bad")',zona:'Zona; "norte"'}]);
 assert(csv.includes('"\'=HYPERLINK(""bad"")"'));assert(csv.includes('"Zona; ""norte"""'));

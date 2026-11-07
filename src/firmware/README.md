@@ -29,6 +29,7 @@ Flujo: sensor → BLE → Android → API → BBDD → web. Sólo se modifica el
 | `Medidor.h` | Adquisición incremental de tres canales ADC |
 | `Calibracion.h` | Conversión física, filtros y diagnóstico |
 | `Protocolo.h` | Serialización explícita y temporizadores |
+| `Consola.h` | Comandos serie de calibración y guardado en flash |
 | `tests/` | Casos de conversión, filtrado, bytes y rollover |
 
 ## Pines y fórmulas reales
@@ -57,13 +58,35 @@ salida = limitar(EMA(mediana5(ppb), alpha=0.25), 0, 20000)
 
 Sensibilidad individual −74.04 nA/ppm del Data Matrix
 `032824010609 110406 O3 2404 -74.04`. Comprobarla antes de usar otro sensor.
-`Voffset=0` procede de la referencia; no es una calibración de cero medida.
+`Voffset=0` por defecto; se sustituye por el cero medido con `CERO` (ver Calibración).
 Los coeficientes térmicos son los típicos usados en esa rama, no un nuevo ajuste
 experimental. No se inventa un tiempo de estabilización: verificarlo en banco.
 
 Se redondean O3 y temperatura con `lroundf`. La mediana arranca con las muestras
 disponibles (media de las dos centrales si son pares); la EMA se inicializa con
 la primera mediana. Se limita la salida, no la memoria interna de la EMA.
+
+## Calibración (monitor serie, 115200, "Nueva línea")
+
+Data Matrix de la pegatina: `032824010609 110406 O3 2404 -74.04` =
+número de serie · pieza SPEC 110-406 · gas · fecha 2024-04 ·
+sensibilidad −74.04 nA/ppm. Placa ULPSM: ganancia 499 kV/A, bias −25 mV
+(lo aplica la propia placa; no se configura). Pendiente: −36.95 mV/ppm =
+−0.037 mV/ppb, así que **1 mV de error de cero son 27 ppb**: el cero es lo que hay que calibrar.
+
+1. Antes: con aire normal, `DIF` (VGAS−VREF) debe estar entre ≈ −10 y +5 mV y
+   `VREF` cerca de V+/2 (1.5–1.65 V). Si no, es cableado/buffer, no calibración
+   (estado `0x0080` o `0x0008`, y `PISTA=` en la línea serie).
+2. Dejar la placa encendida sin parar **24 h** la primera vez (SPEC: 1–24+ h tras almacenaje; 60 min mínimo).
+3. Meter el sensor en una bolsa o bote cerrado con **carbón activo** (el de acuario sirve:
+   elimina O₃ y NO₂) 30–60 min, sin tocarlo.
+4. Escribir `CERO`. Mide ~10 min y guarda en flash el cero (rechaza más de ±30 mV
+   o ruido >2 mV). `CAL` muestra los ajustes; `CERO=<mV>` lo fija a mano; `BORRAR` restaura.
+5. Opcional, span: colocar el sensor junto a una estación oficial varios días y
+   `SPAN=<media oficial ppb / media AERIQ ppb>` (estaciones en µg/m³: ppb = µg/m³ / 2.00 a 20 °C).
+   `SENS=<nA/ppm>` sólo si se cambia de sensor.
+
+El sensor también responde al NO₂ casi 1:1 (ficha ULPSM-O3): cerca del tráfico lee de más.
 
 ## Temporización y errores
 
@@ -78,7 +101,8 @@ Ciclo válido: adquisición (~300 ms o más), O3 1200 ms, pausa 300 ms, temperat
 secuencia. Primera secuencia 1; después de 255 vuelve a 0 y al reiniciar empieza
 de nuevo. No sirve como identificador global ni fecha.
 
-Vplus ≤ 0.1 V, cálculo no finito o cualquier muestra ADC 0/4095 invalidan el ciclo
+Vplus inferido fuera de 2.6..3.4 V (margen de 0.1 V sobre 2.7..3.3 V nominal),
+cálculo no finito o cualquier muestra ADC 0/4095 invalidan el ciclo
 y reinician el filtro. Se transmite sólo estado durante 1200 ms y se reposa
 1500 ms. No se publican ceros ficticios como lecturas válidas. Fuera de −20..50 °C
 se marca diagnóstico y se usan coeficientes del extremo, conservando T real.
@@ -156,7 +180,8 @@ Ejemplo ID `0123456789ABCDEF`, ciclo 7, válido:
 | 4 | `0010` | Alguna muestra ADC saturada |
 | 5 | `0020` | Temperatura fuera del intervalo de compensación |
 | 6 | `0040` | Cálculo no finito |
-| 7–15 | | Reservados, emisor los deja a cero |
+| 7 | `0080` | VGAS−VREF−cero > ±60 mV: cableado/montaje, no se publica |
+| 8–15 | | Reservados, emisor los deja a cero |
 
 Es una máscara combinable. Sin bit 0 no guardar lecturas del ciclo. No se
 transmite batería: faltan circuito/divisor y calibración. Tampoco se suponen GPIO
@@ -183,7 +208,8 @@ verifican eléctricamente el ADC ni el funcionamiento de la radio.
 2. Seleccionar el puerto USB de la placa en Arduino IDE y abrir el monitor a
    **115200 baudios**. El puerto puede cambiar tras la carga/reinicio.
 3. Cada 2 segundos aparece una línea `AERIQ id=... ciclo=...`, con las tensiones
-   VGAS/VREF/VTEMP en mV, O3 en ppb, temperatura, máscara de estado y estado BLE.
+   VGAS/VREF/VTEMP en mV del último ciclo completo, O3 en ppb, temperatura,
+   O3raw/O3filtro antes del recorte, máscara de estado y estado BLE.
    `SIN_MEDIDA` indica que aún no hay un ciclo completo. `INVALIDA` indica que
    O3/T no deben interpretarse como mediciones; consultar la máscara anterior.
 4. El contador avanza aproximadamente cada 4.5 segundos con medidas válidas.

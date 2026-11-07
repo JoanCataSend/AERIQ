@@ -109,8 +109,11 @@ public final class MainActivity extends Activity {
             message("Inicia sesión para acceder a tus datos y al sensor.");
         }
         if (current != destination || body.getChildCount() == 0 || mapScreen == null) {
+            boolean enteringLink = destination == Screen.LINK && current != Screen.LINK;
             current = destination;
             render();
+            // Al abrir "Vincular sensor" se empieza a buscar directamente, como en el diseño.
+            if (enteringLink && !ble.scanning) toggleScan();
         }
     }
 
@@ -137,7 +140,7 @@ public final class MainActivity extends Activity {
         WorkScreens work = new WorkScreens(this, ui);
         switch (current) {
             case MAP:
-                title("Mapa de ozono", null);
+                title("Mapa de ozono", null, R.drawable.ic_bell, () -> message("No tienes avisos nuevos."));
                 mapScreen = new PublicMapScreen(this, ui, body, maps);
                 if (started) mapScreen.resume();
                 break;
@@ -146,7 +149,7 @@ public final class MainActivity extends Activity {
                 work.learn(body);
                 break;
             case SENSOR:
-                title("Mi sensor", null);
+                title("Mi sensor", null, R.drawable.ic_settings, () -> go(Screen.CONFIG));
                 work.sensor(body, ble, assignments, assignmentStatus, serverStatus, sharing, history);
                 break;
             case LINK:
@@ -178,7 +181,9 @@ public final class MainActivity extends Activity {
         }
     }
 
-    public void title(String title, Screen back) {
+    public void title(String title, Screen back) { title(title, back, 0, null); }
+
+    public void title(String title, Screen back, int rightIcon, Runnable rightAction) {
         ImageView left = ui.image(back == null ? R.drawable.aeriq_mark : R.drawable.ic_back, 28, 28);
         left.setPadding(0, ui.dp(18), ui.dp(20), ui.dp(18));
         if (back != null) {
@@ -189,8 +194,16 @@ public final class MainActivity extends Activity {
         TextView label = ui.text(title, 17, true, Views.INK);
         label.setGravity(Gravity.CENTER);
         ui.weighted(header, label);
-        View right = new View(this);
-        header.addView(right, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
+        if (rightIcon != 0) {
+            ImageView right = ui.image(rightIcon, 28, 28);
+            right.setPadding(ui.dp(10), ui.dp(10), 0, ui.dp(10));
+            right.setColorFilter(Views.INK);
+            right.setOnClickListener(view -> rightAction.run());
+            header.addView(right, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
+        } else {
+            View right = new View(this);
+            header.addView(right, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
+        }
     }
 
     private void showNavigation() {
@@ -383,6 +396,23 @@ public final class MainActivity extends Activity {
     public void updateLive(Runnable action) { updateLive = action; action.run(); }
 
     public void locateMap() { requestPermissions(locationPermissions(), GPS_MAP); }
+
+    public boolean locationAllowed() { return location.allowed(); }
+
+    /** Interruptor "Ubicación" de Vincular: pide el permiso o abre los ajustes para retirarlo. */
+    public void toggleLocationPermission() {
+        if (!location.allowed()) {
+            requestPermissions(locationPermissions(), GPS_CAPTURE);
+            return;
+        }
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", getPackageName(), null)));
+            message("Desactiva la ubicación en Permisos.");
+        } catch (android.content.ActivityNotFoundException error) {
+            message("Puedes retirar el permiso desde los ajustes de Android.");
+        }
+    }
 
     private String[] locationPermissions() {
         return new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
