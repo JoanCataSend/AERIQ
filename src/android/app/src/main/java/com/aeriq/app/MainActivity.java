@@ -1,14 +1,14 @@
 package com.aeriq.app;
 
 import android.Manifest;
-import androidx.fragment.app.FragmentActivity;
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.*;
-import androidx.biometric.BiometricManager;
-import androidx.biometric.BiometricPrompt;
-import androidx.core.content.ContextCompat;
+
+
+
 
 import android.view.Gravity;
 import android.view.View;
@@ -20,7 +20,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
-public final class MainActivity extends FragmentActivity {
+public final class MainActivity extends Activity {
     public enum Screen {
         LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
         CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD
@@ -262,35 +262,6 @@ public final class MainActivity extends FragmentActivity {
         clearWorker();
         go(Screen.LOGIN);
         message("Has cerrado sesión.");
-    }
-
-    public void authenticateWithBiometric(java.util.function.Consumer<Boolean> done) {
-        BiometricManager manager = BiometricManager.from(this);
-        if (manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                != BiometricManager.BIOMETRIC_SUCCESS) {
-            message("Huella no disponible o no registrada en este móvil.");
-            done.accept(false);
-            return;
-        }
-        BiometricPrompt prompt = new BiometricPrompt(this, ContextCompat.getMainExecutor(this),
-            new BiometricPrompt.AuthenticationCallback() {
-                @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                    done.accept(true);
-                }
-                @Override public void onAuthenticationError(int errorCode, CharSequence errString) {
-                    message(errString.toString());
-                    done.accept(false);
-                }
-                @Override public void onAuthenticationFailed() {
-                    message("Huella no reconocida. Inténtalo de nuevo.");
-                }
-            });
-        BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Acceso con huella")
-            .setSubtitle("Usa tu huella para entrar en AERIQ")
-            .setNegativeButtonText("Cancelar")
-            .build();
-        prompt.authenticate(info);
     }
 
     private void clearWorker() {
