@@ -16,6 +16,7 @@ if (!$isHttps && !in_array($_SERVER['REMOTE_ADDR']??'', ['127.0.0.1','::1'], tru
     http_response_code(403);echo json_encode(['error'=>'Se requiere HTTPS']);exit;
 }
 require_once __DIR__.'/server/AuthCore.php';
+require_once __DIR__.'/server/FirebaseAuth.php';
 
 function mobile_token(): ?string {
     $raw=(string)($_SERVER['HTTP_X_AERIQ_TOKEN']??'');
@@ -58,6 +59,9 @@ try {
     $action=(string)($_GET['action']??'session');
     if ($method==='GET' && $action==='session') {
         $u=mobile_require();auth_responder(200,['ok'=>true,'user'=>auth_public($u)]);
+    }
+    if ($method==='GET' && $action==='firebase-config') {
+        auth_responder(200,['ok'=>true,'configured'=>firebase_web_configured(),'config'=>firebase_public_config()]);
     }
     if ($method!=='POST') auth_responder(405,['error'=>'MÃ©todo no permitido']);
     $d=mobile_body();
@@ -119,29 +123,18 @@ try {
         $id=(int)$u['id'];
         auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>auth_public($u)]);
     }
+    if ($action==='google') {
+        $idToken=is_string($d['idToken']??null)?trim($d['idToken']):'';
+        if ($idToken==='') auth_responder(422,['error'=>'Falta el token de Google.']);
+        $claims=firebase_verify_id_token($idToken);
+        $result=firebase_link_account($claims);
+        $id=(int)$result['user']['id'];
+        auth_responder(200,['ok'=>true,'linked'=>(bool)$result['linked'],'token'=>mobile_issue($id),'user'=>mobile_user($id)]);
+    }
     if ($action==='social-login') {
-        $provider=strtolower(trim((string)($d['provider']??'google')));
-        $rawEmail=strtolower(trim((string)($d['email']??'')));
-        if ($rawEmail==='' || !filter_var($rawEmail,FILTER_VALIDATE_EMAIL)) {
-            $rawEmail=$provider==='apple'?'usuario.apple@aeriq.org':'usuario.google@aeriq.org';
-        }
-        $name=trim((string)($d['name']??''));
-        if ($name==='') $name=$provider==='apple'?'Usuario Apple':'Usuario Google';
-        $u=auth_find($rawEmail);
-        if (!$u) {
-            $db=conexionBD();
-            $dummyPass=password_hash(bin2hex(random_bytes(16)),PASSWORD_DEFAULT);
-            $apellidos=ucfirst($provider);
-            $s=$db->prepare('INSERT INTO usuarios (organizacion_id,rol,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave,verificado_en) VALUES (1,"trabajador",?,?,?,?,1,0,NOW())');
-            $s->bind_param('ssss',$name,$apellidos,$rawEmail,$dummyPass);
-            $s->execute();
-            $id=(int)$db->insert_id;
-            $u=auth_find($rawEmail);
-        } else {
-            $id=(int)$u['id'];
-        }
-        auth_login_allowed($u);
-        auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>auth_public($u)]);
+        // El antiguo acceso social aceptaba cualquier correo sin comprobarlo.
+        // Se rechaza hasta que Android envíe un idToken real de Firebase.
+        auth_responder(410,['error'=>'El acceso social móvil requiere un token de Firebase. Actualiza la app.']);
     }
     if ($action==='forgot') {
         $email=auth_email($d['email']??'');auth_rate('mobile-forgot',$email,4,3600);

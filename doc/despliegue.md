@@ -42,6 +42,16 @@ Configura `MailConfig.php` para `mail()` o `SMTPConfig.php` más `composer insta
 
 Una invitación crea la cuenta pendiente de activación. El cambio inicial o la recuperación por correo verifican el acceso y activan la cuenta. Si falla el transporte de invitación, el alta se revierte. La aceptación del transporte no garantiza llegada a bandeja: comprobarlo en el alojamiento sigue siendo necesario.
 
+## Acceso con Google (Firebase)
+
+1. En Firebase Console, proyecto `airiq-e9d70`, habilita `Authentication > Sign-in method > Google`.
+2. En `Authentication > Settings > Authorized domains`, añade el dominio real de Plesk (por ejemplo `jcatsen.upv.edu.es`) y `localhost` para pruebas.
+3. Ejecuta `src/database/anadir-firebase-google.sql` una vez sobre la base de AERIQ. Añade `usuarios.firebase_uid` y su índice único sin borrar datos.
+4. La configuración pública del proyecto ya está en `src/web/server/FirebaseConfig.example.php` y se usa por defecto. Si el servidor necesita otro proyecto, copia ese archivo como `FirebaseConfig.php` (ignorado por Git) y cambia `apiKey`, `appId` y `messagingSenderId`. El SDK web se carga desde el CDN de Firebase: no hace falta `npm install` ni compilar. El generador de paquete incluye ambos archivos si existen.
+5. Invita al operador con el correo exacto de su cuenta de Google. El primer acceso con Google vincula `firebase_uid`, activa una invitación vigente y anula la contraseña temporal. Un correo que no exista en `usuarios` se rechaza: Google no crea cuentas.
+
+La verificación del token se hace en PHP con los certificados públicos de Google; no se necesita clave de servicio ni Firebase Admin. El servidor debe permitir conexiones HTTPS salientes y tener OpenSSL. Si Google rota sus certificados, se refrescan automáticamente.
+
 ## App y demostración
 
 La app mantiene `com.aeriq.app` y la identidad AERIQ. `data/ApiRoutes.kt` centraliza el servidor. Compila el APK después de fijar ese origen si usas otro alojamiento.

@@ -8,6 +8,8 @@
 **/SDBaseDatos.php
 **/SMTPConfig.php
 **/MailConfig.php
+**/FirebaseConfig.php
+**/.firebase-certs-*.json
 .env
 .env.*
 !.env.example

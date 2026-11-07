@@ -4,11 +4,13 @@ Las rutas se publican en `/AERIQ/`. El esquema completo está en [schema.sql](..
 
 ## Cuentas
 
-Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `register,verify,resend,login,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`. El registro público solo crea un visitante sin permisos organizativos.
+Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `register,verify,resend,login,google,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`. El registro público solo crea un visitante sin permisos organizativos. `auth.php?action=firebase-config` devuelve la configuración pública de Firebase y si el botón de Google está listo.
 
-Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login/verificación/recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`.
+Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login/verificación/recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`. `google` recibe `idToken` de Firebase. `social-login` ya no acepta correos sin comprobar: responde `410` hasta que Android envíe un token real.
 
-`user` añade función, organización y `mustChangePassword`. Una cuenta invitada está inactiva y solo puede sustituir su contraseña antes de la caducidad. La contraseña temporal vence a las 24 h por defecto; `AERIQ_INVITATION_HOURS` permite 1–168 h. Recuperar por correo permite activar un acceso caducado. No se permite operar antes de activar la cuenta.
+La acción `google` verifica la firma RS256 del ID token con los certificados públicos de Google, comprueba emisor, proyecto, caducidad y proveedor `google.com`, y busca `usuarios.firebase_uid`. En el primer acceso exige que el correo verificado coincida con una cuenta creada por el administrador; nunca registra correos nuevos. Si la invitación sigue vigente, la activa y anula la contraseña temporal. Si la cuenta está desactivada o invitación caducada, rechaza el acceso.
+
+`user` añade función, organización y `mustChangePassword`. Una cuenta invitada está inactiva y solo puede sustituir su contraseña antes de la caducidad. La contraseña temporal vence a las 24 h por defecto; `AERIQ_INVITATION_HOURS` permite 1–168 h. Recuperar por correo permite activar un acceso caducado. No se permite operar antes de activar la cuenta. La misma invitación se puede aceptar con Google usando exactamente el correo registrado por el administrador.
 
 ## Organización: `portal.php?action=…`
 

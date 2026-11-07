@@ -13,14 +13,26 @@ session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>true,'httponly'=>
 session_start();
 $_SESSION['csrf'] ??= bin2hex(random_bytes(24));
 require_once __DIR__.'/server/AuthCore.php';
+require_once __DIR__.'/server/FirebaseAuth.php';
 try {
     $action=(string)($_GET['action']??'session');
     $method=$_SERVER['REQUEST_METHOD']??'GET';
     if ($method==='GET' && $action==='session') auth_responder(200,['ok'=>true,'csrf'=>$_SESSION['csrf'],'user'=>($u=auth_current())?auth_public($u):null]);
+    if ($method==='GET' && $action==='firebase-config') auth_responder(200,['ok'=>true,'configured'=>firebase_web_configured(),'config'=>firebase_public_config()]);
     if ($method!=='POST') auth_responder(405,['error'=>'Método no permitido']);
     if (!hash_equals($_SESSION['csrf'],(string)($_SERVER['HTTP_X_CSRF_TOKEN']??''))) auth_responder(403,['error'=>'Sesión caducada. Recarga la página.']);
     $d=auth_body();
     if ($action==='profile') aeriq_ready(auth_require_user());
+    if ($action==='google') {
+        $idToken=is_string($d['idToken']??null)?trim($d['idToken']):'';
+        if ($idToken==='') auth_responder(422,['error'=>'Falta el token de Google.']);
+        auth_rate('google',(string)($_SERVER['REMOTE_ADDR']??'unknown'),20);
+        $claims=firebase_verify_id_token($idToken);
+        $result=firebase_link_account($claims);
+        $u=$result['user'];
+        auth_login_session((int)$u['id']);
+        auth_responder(200,['ok'=>true,'linked'=>(bool)$result['linked'],'user'=>auth_public($u)]);
+    }
     if ($action==='login') {
         $email=auth_email($d['email']??'');auth_rate('login',$email,12);
         $password=(string)($d['password']??'');$u=auth_find($email);

@@ -15,9 +15,15 @@ function initNavigation(){
   if(typeof AeriqAuth==='undefined')return;
   AeriqAuth.session().then(s=>{
     const a=$('#account-link');
-    if(a){a.href=s.user?(s.user.mustChangePassword?'cambiar-clave.html':'perfil.html'):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
+    if(a){a.href=s.user?authDestination(s.user):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
   }).catch(()=>{});
 }
+function authDestination(user){
+  if(!user)return 'login.html';
+  if(user.mustChangePassword)return 'cambiar-clave.html';
+  return ['admin','analista','comercial'].includes(user.role)?'portal.html':'perfil.html';
+}
+window.authDestination=authDestination;
 function authFeedback(error){
   const msg=error instanceof Error?error.message:String(error);
   toast(msg);
@@ -45,13 +51,13 @@ function initForms(){
     b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña');
   });
 });
-  $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`Google/Apple requiere configurar OAuth oficial; el botón todavía no inicia sesión.`)));
+  $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`El acceso con ${b.dataset.social||'ese proveedor'} todavía no está disponible. Usa Google o tu correo.`)));
   $('#login-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
     try{
       const email=f.elements.namedItem('email').value;
       const result=await AeriqAuth.post('login',{email,password:f.elements.namedItem('password').value});
-      location.href=result.user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(result.user.role)?'portal.html':'perfil.html');
+      location.href=authDestination(result.user);
     }catch(error){
       authFeedback(error);
     }finally{authSubmitButton(f,false)}

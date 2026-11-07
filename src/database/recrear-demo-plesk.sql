@@ -51,12 +51,14 @@ CREATE TABLE usuarios (
  nombre VARCHAR(90) NOT NULL, apellidos VARCHAR(120) NOT NULL,
  email VARCHAR(254) NOT NULL UNIQUE, telefono VARCHAR(40) NOT NULL DEFAULT '',
  password_hash VARCHAR(255) NOT NULL,
+ firebase_uid VARCHAR(128) NULL,
  activo BOOLEAN NOT NULL DEFAULT TRUE,
  debe_cambiar_clave BOOLEAN NOT NULL DEFAULT FALSE,
  invitacion_expira_en DATETIME NULL,
  verificado_en DATETIME NULL,
  creada_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  UNIQUE KEY usuario_organizacion (id,organizacion_id),
+ UNIQUE KEY usuario_firebase_uid (firebase_uid),
  FOREIGN KEY (organizacion_id) REFERENCES organizaciones(id),
  CHECK (rol IN ('visitante','comercial') OR organizacion_id IS NOT NULL)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

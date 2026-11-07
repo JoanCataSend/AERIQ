@@ -2845,6 +2845,7 @@ input[type="password"]::-ms-clear {
 .auth-social .social-signin img{flex:none;width:22px;height:22px;object-fit:contain}
 .auth-social .social-signin:focus-visible{outline:3px solid #97d3bf;outline-offset:3px}
 .auth-social .social-signin:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(11,22,20,.12)}
+.auth-social .social-signin[disabled]{opacity:.65;cursor:wait;transform:none;box-shadow:none}
 .auth-social .social-signin-google{background:#fff;color:#1f1f1f;border:1px solid #9aa39e}
 .auth-social .social-signin-google:hover{border-color:#4f635b;background:#fbfcfb}
 .auth-social .social-signin-apple{background:#050505;color:#fff;border:1px solid #050505}

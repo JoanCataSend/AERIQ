@@ -194,12 +194,9 @@ public final class AuthScreens {
     // ── SOCIAL ─────────────────────────────────────────────────────────────
     private void socialLogin(String provider) {
         boolean isApple = "apple".equalsIgnoreCase(provider);
-        String email = isApple ? "usuario.apple@aeriq.org" : "usuario.google@aeriq.org";
-        String name  = isApple ? "Usuario Apple" : "Usuario Google";
-        activity.submit("social-login", result -> {
-            activity.message(result.success ? "Sesión iniciada con " + (isApple ? "Apple" : "Google") : result.message);
-            if (result.success) activity.go(Screen.MAP);
-        }, "provider", provider, "email", email, "name", name);
+        // No se inventan correos ni cuentas: el acceso social exige Firebase nativo.
+        activity.message("El acceso con " + (isApple ? "Apple" : "Google")
+            + " todavía no está disponible en Android. Usa tu correo y contraseña o entra desde la web.");
     }
 
     // ── REGISTRO ───────────────────────────────────────────────────────────
