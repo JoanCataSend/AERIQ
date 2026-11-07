@@ -142,4 +142,150 @@ public final class SensorWidgets {
             }
         }
     }
+
+    /** Barras por tramo (hora, día o mes) coloreadas por calidad; los tramos futuros son puntos grises. */
+    public static final class HistoryBars extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private Double[] values = new Double[0];
+        private boolean[] future = new boolean[0];
+        private String[] labels = new String[0];
+        private double medium = 60, high = 100;
+        private final float density;
+
+        public HistoryBars(Context context) {
+            super(context);
+            density = context.getResources().getDisplayMetrics().density;
+            text.setColor(Views.MUTED);
+            text.setTextSize(12 * density);
+            setContentDescription("Gráfica de barras de ozono");
+        }
+
+        public void set(Double[] values, boolean[] future, String[] labels, double medium, double high) {
+            this.values = values;
+            this.future = future;
+            this.labels = labels;
+            this.medium = medium;
+            this.high = high;
+            invalidate();
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float width = getWidth(), labelArea = 26 * density, chart = getHeight() - labelArea;
+            paint.setColor(0xffe9eeec);
+            paint.setStrokeWidth(density);
+            for (int i = 0; i < 4; i++) {
+                float y = chart * i / 4f + density;
+                canvas.drawLine(0, y, width, y, paint);
+            }
+            double max = 1;
+            for (Double value : values) if (value != null) max = Math.max(max, value);
+            max *= 1.1;
+            int count = Math.max(1, values.length);
+            float cell = width / count, bar = Math.max(2 * density, Math.min(cell * .62f, 14 * density));
+            for (int i = 0; i < values.length; i++) {
+                float center = cell * i + cell / 2;
+                if (values[i] == null) {
+                    if (future.length > i && future[i]) {
+                        paint.setColor(0xffe3e9e6);
+                        float r = Math.min(bar / 2, 4 * density);
+                        canvas.drawRoundRect(center - bar / 2, chart - 2 * r, center + bar / 2, chart, r, r, paint);
+                    }
+                    continue;
+                }
+                float top = (float) (chart - values[i] / max * (chart - 4 * density));
+                paint.setColor(Quality.color(Quality.level(values[i], medium, high)));
+                float r = Math.min(bar / 2, 3 * density);
+                canvas.drawRoundRect(center - bar / 2, top, center + bar / 2, chart, r, r, paint);
+            }
+            if (labels.length == 0) return;
+            float baseline = chart + 20 * density;
+            for (int i = 0; i < labels.length; i++) {
+                float x = labels.length == 1 ? width / 2 : i * width / (labels.length - 1);
+                float w = text.measureText(labels[i]);
+                float left = Math.max(0, Math.min(width - w, x - w / 2));
+                canvas.drawText(labels[i], left, baseline, text);
+            }
+        }
+    }
+
+    /** Dos series suavizadas para comparar zonas. */
+    public static final class CompareChart extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final List<Double[]> series = new ArrayList<>();
+        private final List<Integer> colors = new ArrayList<>();
+        private String[] labels = new String[0];
+        private final float density;
+
+        public CompareChart(Context context) {
+            super(context);
+            density = context.getResources().getDisplayMetrics().density;
+            text.setColor(Views.MUTED);
+            text.setTextSize(12 * density);
+            setContentDescription("Comparación de zonas");
+        }
+
+        public void set(List<Double[]> values, List<Integer> lineColors, String[] labels) {
+            series.clear();
+            series.addAll(values);
+            colors.clear();
+            colors.addAll(lineColors);
+            this.labels = labels;
+            invalidate();
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float width = getWidth(), labelArea = 28 * density, chart = getHeight() - labelArea;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(density);
+            paint.setColor(0xffe9eeec);
+            for (int i = 0; i < 3; i++) {
+                float y = chart * i / 2f;
+                canvas.drawLine(0, Math.max(density, Math.min(chart - density, y)), width, Math.max(density, Math.min(chart - density, y)), paint);
+            }
+            double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
+            for (Double[] line : series) for (Double v : line) if (v != null) { min = Math.min(min, v); max = Math.max(max, v); }
+            if (min == Double.MAX_VALUE) { min = 0; max = 1; }
+            double pad = Math.max(1, (max - min) * .35);
+            min -= pad; max += pad;
+            paint.setStrokeWidth(2.5f * density);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+            for (int s = 0; s < series.size(); s++) {
+                Double[] line = series.get(s);
+                List<float[]> points = new ArrayList<>();
+                for (int i = 0; i < line.length; i++) {
+                    if (line[i] == null) continue;
+                    float x = line.length == 1 ? width / 2 : i * width / (line.length - 1);
+                    float y = (float) (chart - (line[i] - min) / (max - min) * chart);
+                    points.add(new float[]{x, y});
+                }
+                if (points.isEmpty()) continue;
+                Path path = new Path();
+                path.moveTo(points.get(0)[0], points.get(0)[1]);
+                for (int i = 1; i < points.size(); i++) {
+                    float[] p0 = points.get(Math.max(0, i - 2)), p1 = points.get(i - 1), p2 = points.get(i),
+                        p3 = points.get(Math.min(points.size() - 1, i + 1));
+                    path.cubicTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6,
+                        p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+                }
+                paint.setColor(colors.get(s));
+                canvas.drawPath(path, paint);
+                if (points.size() == 1) {
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(points.get(0)[0], points.get(0)[1], 4 * density, paint);
+                    paint.setStyle(Paint.Style.STROKE);
+                }
+            }
+            float baseline = chart + 22 * density;
+            for (int i = 0; i < labels.length; i++) {
+                float x = labels.length == 1 ? width / 2 : i * width / (labels.length - 1);
+                float w = text.measureText(labels[i]);
+                canvas.drawText(labels[i], Math.max(0, Math.min(width - w, x - w / 2)), baseline, text);
+            }
+        }
+    }
 }

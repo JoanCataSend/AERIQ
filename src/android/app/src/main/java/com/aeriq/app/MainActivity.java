@@ -16,24 +16,47 @@ import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 public final class MainActivity extends Activity {
+    /**
+     * Escala global de la interfaz. El diseño de Figma mide 390 dp de ancho; en Android, con la
+     * densidad por defecto, todo se veía ~12 % más grande de lo deseado. Se reduce la densidad
+     * de la actividad (dp y sp a la vez), así toda la app encoge igual sin cambiar su estructura.
+     * Para ajustarlo basta con cambiar este número (1.0 = tamaño original).
+     */
+    public static final float UI_SCALE = 0.88f;
+
+    @Override protected void attachBaseContext(android.content.Context base) {
+        android.content.res.Configuration config = new android.content.res.Configuration(base.getResources().getConfiguration());
+        int density = config.densityDpi;
+        if (density > 0) {
+            config.densityDpi = Math.round(density * UI_SCALE);
+            if (config.screenWidthDp > 0) config.screenWidthDp = Math.round(config.screenWidthDp / UI_SCALE);
+            if (config.screenHeightDp > 0) config.screenHeightDp = Math.round(config.screenHeightDp / UI_SCALE);
+            if (config.smallestScreenWidthDp > 0) config.smallestScreenWidthDp = Math.round(config.smallestScreenWidthDp / UI_SCALE);
+            base = base.createConfigurationContext(config);
+        }
+        super.attachBaseContext(base);
+    }
+
     public enum Screen {
         LOGIN, REGISTER, VERIFY, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
-        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD
+        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PREMIUM
     }
 
     private static final EnumSet<Screen> PUBLIC = EnumSet.of(
         Screen.LOGIN, Screen.REGISTER, Screen.VERIFY, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN);
-    private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5;
+    private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5, EXPORT_PDF = 6;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService maps = Executors.newSingleThreadExecutor();
     private Screen current = Screen.LOGIN;
     private Views ui;
     private AeriqAuthManager auth;
+    private AppPrefs prefs;
     private AeriqFieldClient field;
     private AeriqBleController ble;
     private ForegroundCaptureLocation location;
     private PublicMapScreen mapScreen;
     private LinearLayout root, body, header, navigation;
+    private FrameLayout stage; // contenedor a pantalla completa (mapa)
     private ScrollView scroll;
     private boolean sharing, started, restoring = true;
     private boolean linkingSensor;
@@ -44,6 +67,7 @@ public final class MainActivity extends Activity {
     private String historyStatus = "Consulta el historial de tu campaña";
     private String serverStatus = "Envío desactivado";
     private List<StoredReading> exportRows;
+    private String exportTitle = "";
     private Runnable updateLive;
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -70,6 +94,7 @@ public final class MainActivity extends Activity {
             | (Build.VERSION.SDK_INT >= 26 ? View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0));
         ui = new Views(this);
         auth = new AeriqAuthManager(this);
+        prefs = new AppPrefs(this);
         field = new AeriqFieldClient(this, auth::sessionToken, () -> auth.user == null ? 0L : auth.user.id);
         location = new ForegroundCaptureLocation(this);
         ble = new AeriqBleController(this, this::receive);
@@ -82,12 +107,22 @@ public final class MainActivity extends Activity {
         navigation = findViewById(R.id.navigation);
         scroll = findViewById(R.id.scroll);
         body = findViewById(R.id.content);
+        stage = new FrameLayout(this);
+        stage.setVisibility(View.GONE);
+        root.addView(stage, root.indexOfChild(scroll) + 1, new LinearLayout.LayoutParams(-1, 0, 1));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
                 insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets.consumeSystemWindowInsets();
         });
         ui.add(body, new ProgressBar(this));
+        if (prefs.fingerprint() && auth.sessionToken() != null) {
+            // Con "Acceso con huella" la sesión guardada solo se abre tras verificar la huella.
+            restoring = false;
+            current = Screen.LOGIN;
+            render();
+            return;
+        }
         auth.restore(result -> {
             restoring = false;
             if (!result.message.isEmpty() && !result.success) message(result.message);
@@ -103,6 +138,7 @@ public final class MainActivity extends Activity {
     }
 
     public void go(Screen destination) {
+        if (destination == Screen.REGISTER) destination = Screen.LOGIN; // las cuentas las crea la organización
         if (auth.user != null && auth.user.mustChangePassword) destination = Screen.CHANGE_PASSWORD;
         else if (auth.user == null && !PUBLIC.contains(destination)) {
             destination = Screen.LOGIN;
@@ -127,6 +163,9 @@ public final class MainActivity extends Activity {
         header.removeAllViews();
         navigation.removeAllViews();
         body.removeAllViews();
+        stage.removeAllViews();
+        stage.setVisibility(View.GONE);
+        scroll.setVisibility(View.VISIBLE);
         scroll.scrollTo(0, 0);
         boolean form = current.ordinal() <= Screen.RESET.ordinal()
             || current == Screen.EDIT_PROFILE || current == Screen.CHANGE_PASSWORD;
@@ -138,15 +177,18 @@ public final class MainActivity extends Activity {
         }
         showNavigation();
         WorkScreens work = new WorkScreens(this, ui);
+        DesignScreens design = new DesignScreens(this, ui);
         switch (current) {
             case MAP:
                 title("Mapa de ozono", null, R.drawable.ic_bell, () -> message("No tienes avisos nuevos."));
-                mapScreen = new PublicMapScreen(this, ui, body, maps);
+                scroll.setVisibility(View.GONE);
+                stage.setVisibility(View.VISIBLE);
+                mapScreen = new PublicMapScreen(this, ui, stage, maps);
                 if (started) mapScreen.resume();
                 break;
             case LEARN:
                 title("Aprende", null);
-                work.learn(body);
+                design.learn(body);
                 break;
             case SENSOR:
                 title("Mi sensor", null, R.drawable.ic_settings, () -> go(Screen.CONFIG));
@@ -157,24 +199,28 @@ public final class MainActivity extends Activity {
                 work.link(body, ble, assignments);
                 break;
             case HISTORY:
-                title("Historial", Screen.SENSOR);
-                work.history(body, history, historyStatus);
+                title("Historial", Screen.SENSOR, R.drawable.ic_settings, () -> go(Screen.CONFIG));
+                design.history(body, history, historyStatus, selected());
                 break;
             case CONFIG:
                 title("Configurar sensor", Screen.SENSOR);
-                work.settings(body, selected(), sharing);
+                design.settings(body, ble, selected(), sharing, prefs);
                 break;
             case COMPARE:
                 title("Comparar zonas", Screen.MAP);
-                work.compare(body, maps);
+                design.compare(body, maps);
                 break;
             case SERVICES:
                 title("Soluciones AERIQ", Screen.ACCOUNT);
                 work.services(body);
                 break;
             case ACCOUNT:
-                title("Mi cuenta", null);
-                work.account(body, auth.user, selected(), sharing, assignments);
+                title("Cuenta", null);
+                design.account(body, auth.user, selected(), sharing, prefs);
+                break;
+            case PREMIUM:
+                title("Premium", Screen.ACCOUNT);
+                design.premium(body);
                 break;
             default:
                 throw new IllegalStateException(current.name());
@@ -213,7 +259,7 @@ public final class MainActivity extends Activity {
         Screen active = current;
         if (EnumSet.of(Screen.LINK, Screen.CONFIG, Screen.HISTORY).contains(current)) active = Screen.SENSOR;
         if (current == Screen.COMPARE) active = Screen.MAP;
-        if (current == Screen.SERVICES) active = Screen.ACCOUNT;
+        if (current == Screen.SERVICES || current == Screen.PREMIUM) active = Screen.ACCOUNT;
         for (int index = 0; index < routes.length; index++) {
             Screen route = routes[index];
             boolean selected = active == route;
@@ -319,7 +365,8 @@ public final class MainActivity extends Activity {
         OrbAssignment assignment = assigned(reading.address);
         if (!started || !sharing || assignment == null) return;
         serverStatus = "Enviando " + reading.reading.label() + "…";
-        field.upload(reading, assignment, location.current(), status -> serverStatus = status);
+        // Sin "Guardar mi recorrido" la lectura se envía sin posición GPS.
+        field.upload(reading, assignment, prefs.saveRoute() ? location.current() : null, status -> serverStatus = status);
     }
 
     public void setSharing(boolean enabled) {
@@ -427,6 +474,141 @@ public final class MainActivity extends Activity {
         else if (request == GPS_MAP && mapScreen != null) mapScreen.locate();
     }
 
+    /** Nombre del sensor en este móvil: el que puso el usuario o el de la asignación. */
+    public String sensorName(OrbAssignment sensor) {
+        if (sensor == null) return "";
+        String alias = prefs.alias(sensor.address);
+        return alias != null ? alias : sensor.name;
+    }
+
+    public AppPrefs prefs() { return prefs; }
+
+    public void reconnectSensor() {
+        ble.stopScan();
+        toggleScan();
+        message("Buscando de nuevo tu sensor…");
+    }
+
+    public boolean biometricAvailable() {
+        if (Build.VERSION.SDK_INT >= 29) {
+            android.hardware.biometrics.BiometricManager manager = getSystemService(android.hardware.biometrics.BiometricManager.class);
+            return manager != null && manager.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS;
+        }
+        return Build.VERSION.SDK_INT >= 28
+            && getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_FINGERPRINT);
+    }
+
+    /** Abre la sesión guardada en el Keystore tras verificar la huella del sistema. */
+    public void loginWithFingerprint() {
+        if (!prefs.fingerprint() || auth.sessionToken() == null) {
+            message("Entra con tu correo y activa «Acceso con huella» en Cuenta para usarla la próxima vez.");
+            return;
+        }
+        if (Build.VERSION.SDK_INT < 28 || !biometricAvailable()) {
+            message("Este móvil no permite entrar con huella. Usa tu correo.");
+            return;
+        }
+        android.hardware.biometrics.BiometricPrompt prompt = new android.hardware.biometrics.BiometricPrompt.Builder(this)
+            .setTitle("Entrar en AERIQ")
+            .setSubtitle("Usa tu huella para abrir tu sesión")
+            .setNegativeButton("Usar correo", getMainExecutor(), (dialog, which) -> { })
+            .build();
+        prompt.authenticate(new android.os.CancellationSignal(), getMainExecutor(),
+            new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult result) {
+                    auth.restore(restored -> {
+                        if (auth.user == null) {
+                            message(restored.message.isEmpty() ? "La sesión ha caducado. Entra con tu correo." : restored.message);
+                            return;
+                        }
+                        go(Screen.MAP);
+                        refreshWorker();
+                    });
+                }
+                @Override public void onAuthenticationError(int code, CharSequence error) {
+                    if (code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED
+                        && code != android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_CANCELED) message(error.toString());
+                }
+            });
+    }
+
+    public void exportPdf(List<StoredReading> rows, String title) {
+        exportRows = new ArrayList<>(rows);
+        exportTitle = title;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/pdf")
+            .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, "AERIQ-historial.pdf");
+        startActivityForResult(intent, EXPORT_PDF);
+    }
+
+    private void writePdf(Uri uri, List<StoredReading> rows, String title) {
+        maps.execute(() -> {
+            android.graphics.pdf.PdfDocument document = new android.graphics.pdf.PdfDocument();
+            try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
+                if (output == null) throw new java.io.IOException("Destino no disponible");
+                android.graphics.Paint bold = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+                bold.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                android.graphics.Paint normal = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+                normal.setTextSize(9);
+                normal.setColor(0xff17201d);
+                java.text.SimpleDateFormat local = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+                double total = 0, min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
+                for (StoredReading reading : rows) {
+                    total += reading.value; min = Math.min(min, reading.value); max = Math.max(max, reading.value);
+                }
+                int pageNumber = 1, index = 0;
+                while (index < rows.size() || pageNumber == 1) {
+                    android.graphics.pdf.PdfDocument.Page page = document.startPage(
+                        new android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, pageNumber).create());
+                    android.graphics.Canvas canvas = page.getCanvas();
+                    float y = 50;
+                    if (pageNumber == 1) {
+                        bold.setTextSize(18); bold.setColor(0xff0e6b5e);
+                        canvas.drawText("AERIQ · Historial de ozono", 40, y, bold); y += 20;
+                        normal.setTextSize(10);
+                        canvas.drawText(title + " · " + rows.size() + " mediciones · generado " + local.format(new Date()), 40, y, normal); y += 16;
+                        if (!rows.isEmpty()) {
+                            String unit = rows.get(0).unit;
+                            canvas.drawText(String.format(Locale.getDefault(), "Media %.1f %s · Mínimo %.1f · Máximo %.1f",
+                                total / rows.size(), unit, min, max), 40, y, normal);
+                        }
+                        y += 26;
+                    }
+                    bold.setTextSize(9); bold.setColor(0xff17201d);
+                    canvas.drawText("Fecha (hora local)", 40, y, bold);
+                    canvas.drawText("Valor", 160, y, bold);
+                    canvas.drawText("Sensor", 220, y, bold);
+                    canvas.drawText("Zona", 390, y, bold);
+                    y += 14;
+                    normal.setTextSize(9);
+                    while (index < rows.size() && y < 805) {
+                        StoredReading reading = rows.get(index++);
+                        long time = com.aeriq.app.ui.Quality.utc(reading.date);
+                        canvas.drawText(time > 0 ? local.format(new Date(time)) : reading.date, 40, y, normal);
+                        canvas.drawText(com.aeriq.app.ui.Quality.number(reading.value) + " " + reading.unit, 160, y, normal);
+                        canvas.drawText(clip(reading.device, 30), 220, y, normal);
+                        canvas.drawText(clip(reading.zone, 32), 390, y, normal);
+                        y += 13;
+                    }
+                    normal.setTextSize(8);
+                    canvas.drawText("Página " + pageNumber + " · Mediciones complementarias, no sustituyen a las estaciones oficiales.", 40, 825, normal);
+                    document.finishPage(page);
+                    pageNumber++;
+                    if (rows.isEmpty()) break;
+                }
+                document.writeTo(output);
+                runOnUiThread(() -> message("PDF guardado."));
+            } catch (Exception error) {
+                runOnUiThread(() -> message("No se pudo exportar: " + error.getMessage()));
+            } finally {
+                document.close();
+            }
+        });
+    }
+
+    private static String clip(String value, int length) {
+        return value == null ? "" : value.length() <= length ? value : value.substring(0, length - 1) + "…";
+    }
+
     public void export(List<StoredReading> rows) {
         exportRows = new ArrayList<>(rows);
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/csv")
@@ -437,6 +619,12 @@ public final class MainActivity extends Activity {
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if (request == ENABLE_BLUETOOTH && ble.bluetoothEnabled()) ble.startScan();
+        if (request == EXPORT_PDF && result == RESULT_OK && data != null && exportRows != null) {
+            List<StoredReading> rows = exportRows;
+            exportRows = null;
+            writePdf(data.getData(), rows, exportTitle);
+            return;
+        }
         if (request == EXPORT && result == RESULT_OK && data != null && exportRows != null) {
             Uri uri = data.getData();
             String csv = MeasurementCsv.format(exportRows);
@@ -496,7 +684,7 @@ public final class MainActivity extends Activity {
             case VERIFY: case REGISTER: case FORGOT: go(Screen.LOGIN); break;
             case RESET: go(Screen.FORGOT); break;
             case CONFIG: case HISTORY: case LINK: go(Screen.SENSOR); break;
-            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: go(Screen.ACCOUNT); break;
+            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: case PREMIUM: go(Screen.ACCOUNT); break;
             case MAP: case LOGIN: finish(); break;
             default: go(Screen.MAP);
         }
