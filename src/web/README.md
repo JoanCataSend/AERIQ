@@ -11,7 +11,7 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 | `portal.html` | Secciones de organización: equipo, campañas, Orb, informes; comercial ve solicitudes |
 | `perfil.html` | Perfil/contraseña, organización y herramientas |
 | `login.html` | Acceso existente de usuarios autorizados |
-| `verificar.html`, `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
+| `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
 | `solicitar.html` | Kits para administración/empresa y estudios |
 | `carrito.html`, `checkout.html` | Rutas conservadas como preparación y envío de presupuesto, sin tienda ciudadana |
 
