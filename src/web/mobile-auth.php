@@ -66,43 +66,13 @@ try {
     if ($method!=='POST') auth_responder(405,['error'=>'MÃ©todo no permitido']);
     $d=mobile_body();
     if ($action==='profile') aeriq_ready(mobile_require());
-    if ($action==='register') {
-        auth_rate('mobile-register','',5,3600);
-        $email=auth_email($d['email']??'');$name=auth_string($d['name']??'',90);
-        $last=auth_string($d['last']??'',120);$pass=auth_password($d['password']??'');
-        auth_mail_config_ok();$u=auth_find($email);
-        if (!$u) {
-            $hash=password_hash($pass,PASSWORD_DEFAULT);$db=conexionBD();
-            $s=$db->prepare('INSERT INTO usuarios(nombre,apellidos,email,password_hash) VALUES(?,?,?,?)');
-            $s->bind_param('ssss',$name,$last,$email,$hash);$s->execute();
-            auth_generate_code((int)$db->insert_id,'registro',$email,false);
-        } elseif (!$u['verificado_en']) {
-            auth_generate_code((int)$u['id'],'registro',$email);
-        }
-        auth_responder(202,['ok'=>true,'message'=>'Si este correo admite registro, recibirÃ¡s un cÃ³digo.']);
-    }
-    if ($action==='resend') {
-        $email=auth_email($d['email']??'');auth_rate('mobile-resend',$email,4,3600);
-        $u=auth_find($email);
-        if ($u && !$u['verificado_en']) auth_generate_code((int)$u['id'],'registro',$email);
-        auth_responder(200,['ok'=>true,'message'=>'Si la cuenta sigue pendiente, recibirÃ¡s un cÃ³digo.']);
-    }
-    if ($action==='verify') {
-        $email=auth_email($d['email']??'');$code=trim((string)($d['code']??''));
-        auth_rate('mobile-verify',$email,12);
-        $u=auth_find($email);
-        if (!$u || $u['verificado_en']) auth_responder(422,['error'=>'No hay una cuenta pendiente de verificaciÃ³n.']);
-        auth_verify_code((int)$u['id'],'registro',$code);
-        $id=(int)$u['id'];$s=conexionBD()->prepare('UPDATE usuarios SET verificado_en=NOW() WHERE id=?');
-        $s->bind_param('i',$id);$s->execute();
-        auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>mobile_user($id)]);
-    }
+    // No hay autoregistro: las cuentas las crea un administrador desde la web.
     if ($action==='login') {
         $email=auth_email($d['email']??'');auth_rate('mobile-login',$email,12);
         $u=auth_find($email);$password=(string)($d['password']??'');
         if (!$u || !password_verify($password,$u['password_hash'])) auth_responder(401,['error'=>'Correo o contraseÃ±a incorrectos']);
         auth_login_allowed($u);
-        if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'Verifica tu correo antes de entrar.','needsVerification'=>true]);
+        if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'La cuenta no está activada. Contacta con un administrador.']);
         $id=(int)$u['id'];
         auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>auth_public($u)]);
     }
@@ -126,10 +96,17 @@ try {
     if ($action==='google') {
         $idToken=is_string($d['idToken']??null)?trim($d['idToken']):'';
         if ($idToken==='') auth_responder(422,['error'=>'Falta el token de Google.']);
+        auth_rate('mobile-google',(string)($_SERVER['REMOTE_ADDR']??'unknown'),20);
         $claims=firebase_verify_id_token($idToken);
-        $result=firebase_link_account($claims);
-        $id=(int)$result['user']['id'];
-        auth_responder(200,['ok'=>true,'linked'=>(bool)$result['linked'],'token'=>mobile_issue($id),'user'=>mobile_user($id)]);
+        $replayKey=firebase_replay_claim($idToken,(int)($claims['exp']??time()+3600));
+        try {
+            $result=firebase_link_account($claims);
+            $id=(int)$result['user']['id'];
+            auth_responder(200,['ok'=>true,'linked'=>(bool)$result['linked'],'token'=>mobile_issue($id),'user'=>mobile_user($id)]);
+        } catch (Throwable $e) {
+            firebase_replay_release($replayKey);
+            throw $e;
+        }
     }
     if ($action==='social-login') {
         // El antiguo acceso social aceptaba cualquier correo sin comprobarlo.

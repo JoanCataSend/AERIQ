@@ -44,12 +44,12 @@ public final class MainActivity extends Activity {
 
     public enum Screen {
         LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
-        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD
+        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PREMIUM
     }
 
     private static final EnumSet<Screen> PUBLIC = EnumSet.of(
         Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN);
-    private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5;
+    private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5, EXPORT_PDF = 6;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService maps = Executors.newSingleThreadExecutor();
     private Screen current = Screen.LOGIN;
@@ -143,7 +143,6 @@ public final class MainActivity extends Activity {
     }
 
     public void go(Screen destination) {
-        if (destination == Screen.REGISTER) destination = Screen.LOGIN; // las cuentas las crea la organización
         if (auth.user != null && auth.user.mustChangePassword) destination = Screen.CHANGE_PASSWORD;
         else if (auth.user == null && !PUBLIC.contains(destination)) {
             destination = Screen.LOGIN;
@@ -286,7 +285,7 @@ public final class MainActivity extends Activity {
     public void submit(String action, Consumer<AeriqAuthManager.Result> done, Object... fields) {
         auth.submit(action, result -> {
             if (result.success && auth.user != null && !auth.user.mustChangePassword
-                && Arrays.asList("login", "reset-password", "change-password", "biometric", "social-login", "register").contains(action)) {
+                && Arrays.asList("login", "reset-password", "change-password", "biometric", "social-login").contains(action)) {
                 refreshWorker();
             }
             if (auth.user == null && !PUBLIC.contains(current)) {

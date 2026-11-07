@@ -38,7 +38,7 @@ function googleErrorMessage(error) {
     return 'Has cerrado la ventana de Google antes de completar el acceso.';
   }
   if (code === 'auth/account-exists-with-different-credential') {
-    return 'Ese correo ya usa otro método de acceso. Entra con tu contraseña.';
+    return 'Ese correo ya usa otro método de acceso en Firebase. Contacta con tu organización.';
   }
   if (code === 'auth/network-request-failed') {
     return 'No se ha podido conectar con Google. Revisa tu conexión.';
@@ -83,7 +83,7 @@ async function loadFirebaseSdk() {
 async function signInWithGoogle() {
   const config = await loadFirebaseConfig();
   if (!config.configured) {
-    throw new Error('Google no está configurado en el servidor. Revisa server/FirebaseConfig.php.');
+    throw new Error('Google no está configurado en el servidor. Revisa server/FirebaseConfig.php o FirebaseConfig.example.php.');
   }
 
   const { appModule, authModule } = await loadFirebaseSdk();
@@ -96,7 +96,9 @@ async function signInWithGoogle() {
   const provider = new authModule.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   const credential = await authModule.signInWithPopup(auth, provider);
-  const idToken = await credential.user.getIdToken();
+  // Forzar un token nuevo evita que el servidor rechace por reutilización un
+  // token cacheado de un intento anterior.
+  const idToken = await credential.user.getIdToken(true);
   if (!window.AeriqAuth || typeof window.AeriqAuth.post !== 'function') {
     throw new Error('El cliente de sesión no se ha cargado. Recarga la página.');
   }

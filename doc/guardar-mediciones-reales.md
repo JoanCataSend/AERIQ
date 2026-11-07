@@ -60,10 +60,10 @@ y la API dejan los sensores nuevos en modo real por defecto.
 ## Archivos de entrega
 
 - Instalar el APK nuevo actualizando la app existente (misma firma).
-- Extraer `actualizar-plesk.zip` en la carpeta `/AERIQ/` del alojamiento,
+- Extraer `actualizar-plesk.zip` en `httpdocs/src/web/` del alojamiento,
   conservando la estructura `server/`. No contiene credenciales ni SQL público.
 - Importar los SQL aparte desde phpMyAdmin. **No subirlos a la carpeta pública.**
-- La URL confirmada y comprobada es `https://jcatsen.upv.edu.es/AERIQ/`.
+- La URL confirmada es `https://ldiamur.upv.edu.es/src/web/`.
   `field.php` devuelve JSON 401 sin token: confirma que existe, no es un error
   de configuración cuando se abre a mano sin iniciar sesión.
 

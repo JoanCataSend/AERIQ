@@ -30,13 +30,12 @@ public final class AeriqAuthManager implements AutoCloseable {
     }
 
     public static final class Result {
-        public final boolean success, needsVerification;
+        public final boolean success;
         public final String message;
 
-        public Result(boolean success, String message, boolean needsVerification) {
+        public Result(boolean success, String message) {
             this.success = success;
             this.message = message;
-            this.needsVerification = needsVerification;
         }
     }
 
@@ -57,7 +56,7 @@ public final class AeriqAuthManager implements AutoCloseable {
     public void restore(Consumer<Result> done) {
         String token = store.read();
         if (token == null) {
-            done.accept(new Result(false, "", false));
+            done.accept(new Result(false, ""));
             return;
         }
         execute("session", null, true, done);
@@ -89,14 +88,14 @@ public final class AeriqAuthManager implements AutoCloseable {
                     if (userJson != null) returnedUser = new User(userJson);
                     String token = response.json.optString("token");
                     if (!token.isEmpty()) store.write(token);
-                    result = new Result(true, response.json.optString("message", "Operación completada"), false);
+                    result = new Result(true, response.json.optString("message", "Operación completada"));
                 } else {
                     invalidSession = authorized && (response.status == 401 || "session".equals(action));
                     if (invalidSession) store.clear();
-                    result = new Result(false, response.message(), response.json.optBoolean("needsVerification"));
+                    result = new Result(false, response.message());
                 }
             } catch (Exception error) {
-                result = new Result(false, "No se pudo conectar con AERIQ: " + error.getMessage(), false);
+                result = new Result(false, "No se pudo conectar con AERIQ: " + error.getMessage());
             }
             User received = returnedUser;
             boolean clearUser = invalidSession;

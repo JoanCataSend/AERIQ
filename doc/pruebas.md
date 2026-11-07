@@ -13,7 +13,7 @@ node scripts/tests/ui-contract.test.js
 python scripts/tests/integration-aeriq.py --php C:/xampp/php/php.exe --mysql-bin C:/xampp/mysql/bin
 ```
 
-La prueba DOM utiliza jsdom instalado solo en `.local-backups/test-tools/`; no añade dependencias de ejecución a la web. Lee [scripts](../scripts/README.md) para prepararla.
+La prueba DOM utiliza jsdom instalado solo en `.local-backups/test-tools/`; no añade dependencias de ejecución a la web. Lee [scripts](../scripts/README.md) para prepararla. Google Authentication tiene pruebas propias en [pruebas-google.md](pruebas-google.md).
 
 ## Integración aislada
 

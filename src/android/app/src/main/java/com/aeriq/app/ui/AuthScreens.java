@@ -29,7 +29,6 @@ public final class AuthScreens {
     }
 
     public void show(Screen screen, LinearLayout body) {
-        if (screen == Screen.LOGIN || screen == Screen.REGISTER) { loginScreen(body); return; }
         ImageView logo = ui.image(R.drawable.aeriq_logo, 99, 34);
         FrameLayout brand = new FrameLayout(activity);
         brand.addView(logo, new FrameLayout.LayoutParams(ui.dp(99), ui.dp(34), Gravity.TOP | Gravity.CENTER_HORIZONTAL));
@@ -44,7 +43,6 @@ public final class AuthScreens {
         body.addView(brand, new LinearLayout.LayoutParams(-1, ui.dp(66)));
         String title, description;
         switch (screen) {
-            case VERIFY: title = "Verifica tu correo"; description = "Introduce el código que hemos enviado. Caduca en 10 minutos."; break;
             case FORGOT: title = "Recuperar contraseña"; description = "Te enviaremos un código para establecer una nueva contraseña."; break;
             case RESET: title = "Nueva contraseña"; description = "Introduce el código recibido y tu nueva contraseña."; break;
             case EDIT_PROFILE: title = "Datos personales"; description = "Tu perfil se guarda en la misma base de datos que la web."; break;
@@ -199,34 +197,6 @@ public final class AuthScreens {
             + " todavía no está disponible en Android. Usa tu correo y contraseña o entra desde la web.");
     }
 
-    // ── REGISTRO ───────────────────────────────────────────────────────────
-    private void showRegistrationDialog() {
-        LinearLayout layout = ui.column();
-        layout.setPadding(ui.dp(20), ui.dp(16), ui.dp(20), ui.dp(8));
-        EditText nameInput  = ui.field(layout, "Nombre completo", "", TEXT);
-        nameInput.setHint("Ej. María García");
-        EditText emailInput = ui.field(layout, "Correo electrónico", "", EMAIL);
-        emailInput.setHint("nombre@ejemplo.com");
-        EditText passInput  = ui.field(layout, "Contraseña", "", PASSWORD);
-        passInput.setHint("Mínimo 12 caracteres");
-
-        new AlertDialog.Builder(activity)
-            .setTitle("Crear cuenta en AERIQ")
-            .setView(layout)
-            .setPositiveButton("Registrarse", (d, w) -> {
-                String n = value(nameInput).trim(), e = value(emailInput).trim(), p = value(passInput);
-                if (n.isEmpty() || e.isEmpty() || p.length() < 12) {
-                    activity.message("Introduce un nombre, correo válido y contraseña de 12+ caracteres.");
-                    return;
-                }
-                activity.submit("register", result -> {
-                    activity.message(result.success ? "Cuenta creada correctamente." : result.message);
-                    if (result.success) activity.go(Screen.MAP);
-                }, "name", n, "email", e, "password", p);
-            })
-            .setNegativeButton("Cancelar", null)
-            .show();
-    }
 
     // ── RECOVERY ───────────────────────────────────────────────────────────
     private void recovery(Screen screen, LinearLayout body, LinearLayout card) {

@@ -3,6 +3,7 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
 if ((!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on') && (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') !== 'https') && ($_SERVER['REMOTE_ADDR']??'')!=='127.0.0.1') {
     http_response_code(403);echo json_encode(['error'=>'Se requiere HTTPS']);exit;
 }
@@ -28,17 +29,23 @@ try {
         if ($idToken==='') auth_responder(422,['error'=>'Falta el token de Google.']);
         auth_rate('google',(string)($_SERVER['REMOTE_ADDR']??'unknown'),20);
         $claims=firebase_verify_id_token($idToken);
-        $result=firebase_link_account($claims);
-        $u=$result['user'];
-        auth_login_session((int)$u['id']);
-        auth_responder(200,['ok'=>true,'linked'=>(bool)$result['linked'],'user'=>auth_public($u)]);
+        $replayKey=firebase_replay_claim($idToken,(int)($claims['exp']??time()+3600));
+        try {
+            $result=firebase_link_account($claims);
+            $u=$result['user'];
+            auth_login_session((int)$u['id']);
+            auth_responder(200,['ok'=>true,'linked'=>(bool)$result['linked'],'user'=>auth_public($u)]);
+        } catch (Throwable $e) {
+            firebase_replay_release($replayKey);
+            throw $e;
+        }
     }
     if ($action==='login') {
         $email=auth_email($d['email']??'');auth_rate('login',$email,12);
         $password=(string)($d['password']??'');$u=auth_find($email);
         if (!$u || !password_verify($password,$u['password_hash'])) auth_responder(401,['error'=>'Correo o contraseña incorrectos']);
         auth_login_allowed($u);
-        if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'Confirma tu correo antes de iniciar sesión','needsVerification'=>true]);
+        if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'La cuenta no está activada. Contacta con un administrador.']);
         auth_login_session((int)$u['id']);auth_responder(200,['ok'=>true,'user'=>auth_public($u)]);
     }
     if ($action==='logout') {
@@ -68,7 +75,7 @@ try {
         $email=auth_email($d['email']??'');auth_rate('forgot',$email,4,3600);
         auth_mail_config_ok();$u=auth_find($email);
         if ($u && ($u['verificado_en'] || $u['debe_cambiar_clave']) && ($u['activo'] || $u['debe_cambiar_clave'])) auth_generate_code((int)$u['id'],'recuperar',$email);
-        auth_responder(200,['ok'=>true,'message'=>'Si existe una cuenta verificada, recibirás un código para restablecerla.']);
+        auth_responder(200,['ok'=>true,'message'=>'Si la cuenta puede recuperarse, recibirás un código para restablecerla.']);
     }
     if ($action==='reset-password') {
         $email=auth_email($d['email']??'');auth_rate('reset',$email,12);$code=trim((string)($d['code']??''));$pass=auth_password($d['password']??'');
@@ -87,7 +94,7 @@ try {
     auth_responder($e->status,['error'=>$e->getMessage()]);
 } catch (mysqli_sql_exception $e) {
     error_log('AERIQ base de datos: '.$e->getMessage());
-    auth_responder($e->getCode()===1062?409:500,['error'=>$e->getCode()===1062?'La cuenta ya existe o hay un conflicto en el registro':'Error de base de datos. Comprueba la migración y la configuración.']);
+    auth_responder($e->getCode()===1062?409:500,['error'=>$e->getCode()===1062?'La cuenta ya existe o hay un conflicto de datos':'Error de base de datos. Comprueba la migración y la configuración.']);
 } catch (Throwable $e) {
     error_log('AERIQ auth error: '.$e->getMessage());
     auth_responder(500,['error'=>'Error interno de autenticación']);

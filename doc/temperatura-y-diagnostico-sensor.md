@@ -46,7 +46,7 @@ eléctrica; los números solos no distinguen soldadura, cable, carga ADC o módu
 ## Instalar
 
 1. Actualizar APK.
-2. Subir a `/AERIQ/` el ZIP de web manteniendo carpetas.
+2. Subir a `httpdocs/src/web/` el ZIP de web manteniendo carpetas.
 3. Abrir `src/firmware/NodoO3/NodoO3.ino` y volver a cargar el firmware.
 4. Ver monitor a 115200 y elegir Temperatura en historial/informes.
 

@@ -1,12 +1,12 @@
 # Contratos API AERIQ
 
-Las rutas se publican en `/AERIQ/`. El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
+Las rutas se publican en `https://ldiamur.upv.edu.es/src/web/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/src/web/`). El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
 
 ## Cuentas
 
-Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `register,verify,resend,login,google,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`. El registro público solo crea un visitante sin permisos organizativos. `auth.php?action=firebase-config` devuelve la configuración pública de Firebase y si el botón de Google está listo.
+Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `login,google,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`. No hay autoregistro: las cuentas las crea un administrador desde el portal de la organización. `auth.php?action=firebase-config` devuelve la configuración pública de Firebase y si el botón de Google está listo.
 
-Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login/verificación/recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`. `google` recibe `idToken` de Firebase. `social-login` ya no acepta correos sin comprobar: responde `410` hasta que Android envíe un token real.
+Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login y recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`. `google` recibe `idToken` de Firebase. `social-login` ya no acepta correos sin comprobar: responde `410` hasta que Android envíe un token real. No existe `register` móvil: las cuentas las crea la organización.
 
 La acción `google` verifica la firma RS256 del ID token con los certificados públicos de Google, comprueba emisor, proyecto, caducidad y proveedor `google.com`, y busca `usuarios.firebase_uid`. En el primer acceso exige que el correo verificado coincida con una cuenta creada por el administrador; nunca registra correos nuevos. Si la invitación sigue vigente, la activa y anula la contraseña temporal. Si la cuenta está desactivada o invitación caducada, rechaza el acceso.
 

@@ -15,7 +15,7 @@
 return [
     'host' => 'localhost',
     'port' => 3306,
-    'database' => 'jcatsen_pbio',
-    'user' => 'jcatsen_pbio_user',
+    'database' => 'aeriq_demo',
+    'user' => 'aeriq_user',
     'password' => 'CAMBIAR_EN_EL_SERVIDOR'
 ];

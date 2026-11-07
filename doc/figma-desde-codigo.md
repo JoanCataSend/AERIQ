@@ -49,8 +49,8 @@ Se revisaron capturas de portada, producto, cuenta, informes, solicitudes, mapa 
 | Frame | Enlace |
 |---|---|
 | APP 01 · Iniciar sesión · LOGIN | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-2) |
-| APP 02 · Crear cuenta · REGISTER | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-29) |
-| APP 03 · Verificar correo · VERIFY | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-66) |
+| APP 02 · Crear cuenta · REGISTER (no implementado: sin autoregistro) | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-29) |
+| APP 03 · Verificar correo · VERIFY (no implementado: sin autoregistro) | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-66) |
 | APP 04 · Recuperar contraseña · FORGOT | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-89) |
 | APP 05 · Nueva contraseña · RESET | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-106) |
 | APP 06 · Mapa público · MAP | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=231-137) |

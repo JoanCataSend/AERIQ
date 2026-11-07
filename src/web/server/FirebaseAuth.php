@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+// Las librerías solo se cargan desde auth.php/mobile-auth.php. Si alguien pide
+// este archivo directamente, no debe ejecutarse ni revelar rutas internas.
+if (isset($_SERVER['SCRIPT_FILENAME']) && realpath((string)$_SERVER['SCRIPT_FILENAME']) === __FILE__) {
+    http_response_code(404);
+    exit;
+}
+
 /**
  * Firebase Authentication (proveedor Google) y vinculación con usuarios AERIQ.
  *
@@ -150,9 +157,6 @@ function firebase_certificates(bool $refresh = false): array {
  * Comprueba firma RS256, emisor, proyecto, caducidad y que el proveedor sea Google.
  */
 function firebase_verify_id_token(string $token): array {
-    if (!function_exists('openssl_verify')) {
-        throw new AeriqError('PHP necesita la extensión OpenSSL para verificar el acceso con Google.', 503);
-    }
     if ($token === '' || strlen($token) > 12000) {
         throw new AeriqError('No se ha recibido un token de Google válido.', 401);
     }
@@ -174,12 +178,24 @@ function firebase_verify_id_token(string $token): array {
     if (!isset($certs[$kid])) $certs = firebase_certificates(true);
     if (!isset($certs[$kid])) throw new AeriqError('Google ha renovado sus certificados. Vuelve a intentarlo.', 401);
 
+    if (!function_exists('openssl_verify')) {
+        throw new AeriqError('PHP necesita la extensión OpenSSL para verificar el acceso con Google.', 503);
+    }
     $signature = firebase_b64url($parts[2]);
     $valid = openssl_verify($parts[0] . '.' . $parts[1], $signature, (string)$certs[$kid], OPENSSL_ALGO_SHA256);
     if ($valid !== 1) throw new AeriqError('La firma del token de Google no es válida.', 401);
 
+    return firebase_validate_payload($payload);
+}
+
+/**
+ * Valida las claims de un token ya firmado. Se separa de la verificación de
+ * firma para poder probar caducidad, emisor, audiencia y proveedor sin red.
+ */
+function firebase_validate_payload(array $payload, int $now = 0): array {
     $project = firebase_project_id();
-    $now = time();
+    if ($now <= 0) $now = time();
+
     if (($payload['aud'] ?? '') !== $project) {
         throw new AeriqError('El token pertenece a otro proyecto de Firebase.', 401);
     }
@@ -203,12 +219,17 @@ function firebase_verify_id_token(string $token): array {
     if (($payload['email_verified'] ?? false) !== true || !is_string($payload['email'] ?? null)) {
         throw new AeriqError('Google no ha verificado ese correo electrónico.', 401);
     }
+    $email = strtolower(trim((string)$payload['email']));
+    if (strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new AeriqError('Google no ha devuelto un correo electrónico válido.', 401);
+    }
 
     return [
         'uid'     => $uid,
-        'email'   => $payload['email'],
+        'email'   => $email,
         'name'    => is_string($payload['name'] ?? null) ? $payload['name'] : '',
         'picture' => is_string($payload['picture'] ?? null) ? $payload['picture'] : '',
+        'exp'     => (int)$payload['exp'],
     ];
 }
 
@@ -230,12 +251,14 @@ function firebase_link_account(array $claims): array {
         if ($user) {
             // Cuenta ya vinculada: el UID manda aunque Google cambie el correo mostrado.
             if ((int)$user['debe_cambiar_clave'] === 1) {
-                if (!empty($user['invitacion_expira_en']) && strtotime((string)$user['invitacion_expira_en']) <= time()) {
+                if (empty($user['invitacion_expira_en']) || strtotime((string)$user['invitacion_expira_en']) <= time()) {
                     throw new AeriqError('La invitación ha caducado. Contacta con tu organización.', 403);
                 }
                 // Google sustituye la contraseña temporal; la credencial enviada por correo deja de servir.
                 $randomHash = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
                 aeriq_sql('UPDATE usuarios SET password_hash=?,debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=?', [$randomHash, (int)$user['id']]);
+                // La contraseña temporal deja de servir también en móvil.
+                aeriq_sql('DELETE FROM sesiones_moviles WHERE usuario_id=?', [(int)$user['id']]);
             } elseif (!(int)$user['activo']) {
                 throw new AeriqError('Cuenta desactivada. Contacta con tu organización.', 403);
             }
@@ -251,7 +274,7 @@ function firebase_link_account(array $claims): array {
             if (!(int)$user['activo'] && !(int)$user['debe_cambiar_clave']) {
                 throw new AeriqError('Cuenta desactivada. Contacta con tu organización.', 403);
             }
-            if ((int)$user['debe_cambiar_clave'] === 1 && !empty($user['invitacion_expira_en']) && strtotime((string)$user['invitacion_expira_en']) <= time()) {
+            if ((int)$user['debe_cambiar_clave'] === 1 && (empty($user['invitacion_expira_en']) || strtotime((string)$user['invitacion_expira_en']) <= time())) {
                 throw new AeriqError('La invitación ha caducado. Contacta con tu organización.', 403);
             }
             $linkedNow = true;
@@ -263,6 +286,7 @@ function firebase_link_account(array $claims): array {
                 : (string)$user['password_hash'];
             $stmt = aeriq_sql('UPDATE usuarios SET firebase_uid=?,password_hash=?,debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=? AND firebase_uid IS NULL', [$uid, $passwordHash, (int)$user['id']]);
             if ($stmt->affected_rows !== 1) throw new AeriqError('No se ha podido vincular la cuenta de Google. Inténtalo de nuevo.', 409);
+            if ($pending) aeriq_sql('DELETE FROM sesiones_moviles WHERE usuario_id=?', [(int)$user['id']]);
         }
 
         $fresh = aeriq_one('SELECT * FROM usuarios WHERE id=? LIMIT 1', [(int)$user['id']]);
@@ -278,4 +302,29 @@ function firebase_link_account(array $claims): array {
         $db->rollback();
         throw $e;
     }
+}
+
+/**
+ * Marca un ID token como consumido para impedir que una petición capturada se
+ * pueda reutilizar durante la hora de validez del token. La clave es un hash
+ * SHA-256; el token original nunca se guarda en la base de datos.
+ */
+function firebase_replay_claim(string $token, int $expires): string {
+    $key = hash('sha256', 'google-id-token|' . $token);
+    $expiresAt = gmdate('Y-m-d H:i:s', max(time() + 60, $expires));
+    try {
+        aeriq_sql('INSERT INTO limites_acceso(clave_hash,ventana_en,intentos) VALUES(?,?,1)', [$key, $expiresAt]);
+    } catch (mysqli_sql_exception $e) {
+        if ((int)$e->getCode() === 1062) {
+            throw new AeriqError('Ese acceso de Google ya se ha utilizado. Vuelve a iniciar sesión.', 409);
+        }
+        throw $e;
+    }
+    return $key;
+}
+
+/** Libera la marca si el acceso no llegó a completarse para que el usuario pueda reintentar. */
+function firebase_replay_release(string $key): void {
+    if ($key === '') return;
+    aeriq_sql('DELETE FROM limites_acceso WHERE clave_hash=?', [$key]);
 }

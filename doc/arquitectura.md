@@ -16,7 +16,7 @@ Las cuentas web (`auth.php`, cookie/CSRF) y móviles (`mobile-auth.php`, token c
 
 ## Código y responsabilidades
 
-- `src/android/`: pantallas Compose originales adaptadas, BLE, captura autorizada, historial, exportación y ubicación en primer plano. `ApiRoutes.kt` centraliza el origen del servidor.
+- `src/android/`: pantallas Compose originales adaptadas, BLE, captura autorizada, historial, exportación y ubicación en primer plano. `ApiRoutes.java` centraliza el origen del servidor en `https://ldiamur.upv.edu.es/src/web/`.
 - `src/web/`: HTML y CSS compartidos; conserva galería, visor 3D, mockups y navegación originales. Los scripts especializados conectan flota, informes, mapas y solicitudes.
 - `aeriq-client.js`: clientes nuevos; `auth-client.js`: sesión existente; `aeriq-domain.js`: cálculos de informes, CSV e IDW sin DOM.
 - `server/AuthCore.php`: identidad y correo reutilizados. `AeriqCore.php`: dominio y permisos. `AeriqHttp.php`: adaptación HTTP y errores.

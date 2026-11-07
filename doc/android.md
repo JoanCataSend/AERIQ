@@ -14,7 +14,7 @@
 
 ## Red
 
-`data/ApiRoutes.kt` centraliza `/AERIQ/`. `AeriqAuthManager` reutiliza login, verificación, recuperación y token cifrado. La contraseña temporal bloquea la app hasta activar/cambiarla; una invitación caducada requiere recuperar acceso.
+`data/ApiRoutes.java` centraliza `https://ldiamur.upv.edu.es/src/web/`. `AeriqAuthManager` reutiliza login, recuperación y token cifrado. La contraseña temporal bloquea la app hasta activar/cambiarla; una invitación caducada requiere recuperar acceso. Las cuentas solo las crea un administrador.
 
 `AeriqFieldClient` obtiene asignaciones e historial privados. Los POST incluyen evento estable, dispositivo, asignación, campaña, unidad, fecha UTC y GPS opcional. Reintenta una vez un fallo de transporte usando el mismo evento. La cola es de 30 lecturas, no persistente tras cerrar la app; no se promete conservación offline. Una actualización fallida de asignaciones no borra de pantalla el Orb previamente conocido y no se confunde con pérdida de Bluetooth; el servidor sigue validando cada envío.
 

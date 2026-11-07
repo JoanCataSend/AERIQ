@@ -1,4 +1,9 @@
 <?php
+// Este archivo se incluye desde FirebaseAuth.php; nunca debe servirse directo.
+if (isset($_SERVER['SCRIPT_FILENAME']) && realpath((string)$_SERVER['SCRIPT_FILENAME']) === __FILE__) {
+    http_response_code(404);
+    exit;
+}
 // Configuración pública por defecto del proyecto airiq-e9d70.
 // La apiKey web de Firebase es un identificador público, no una clave secreta.
 // Si el servidor necesita otro proyecto, copia este archivo como FirebaseConfig.php

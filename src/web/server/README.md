@@ -3,7 +3,7 @@
 | Archivo | Responsabilidad |
 | --- | --- |
 | `Logica.php` | Conexión privada MySQLi en UTF-8/UTC |
-| `AuthCore.php` | Registro, contraseña, códigos y correo reutilizados |
+| `AuthCore.php` | Contraseña, códigos de recuperación y correo reutilizados |
 | `AeriqCore.php` | Organizaciones, campañas, asignaciones, mediciones, informes y solicitudes |
 | `AeriqHttp.php` | Cookie/CSRF, token móvil y errores HTTP |
 | `FirebaseAuth.php` | Verifica el ID token de Google y vincula `usuarios.firebase_uid` sin crear cuentas |

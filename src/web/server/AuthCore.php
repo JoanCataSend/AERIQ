@@ -133,7 +133,7 @@ function auth_send_mail(string $recipient,string $code,string $purpose): void {
     if (!filter_var($recipient,FILTER_VALIDATE_EMAIL) || !preg_match('/^[0-9]{6}$/',$code)) {
         auth_responder(422,['error'=>'Datos de correo no válidos.']);
     }
-    $subject=$purpose==='registro'?'AERIQ · Verifica tu cuenta':'AERIQ · Recupera tu contraseña';
+    $subject='AERIQ · Recupera tu contraseña';
     $plain="Tu código AERIQ es: {$code}\n\nCaduca en 10 minutos. Si no lo has solicitado, ignora este mensaje.\nNunca compartas este código.";
     if ($cfg['transport']==='smtp') {
         $smtp=$cfg['smtp'];
@@ -159,7 +159,7 @@ function auth_send_mail(string $recipient,string $code,string $purpose): void {
     $html='<!doctype html><html lang="es"><body style="margin:0;background:#f6f8f6;padding:30px 14px;font-family:Arial,sans-serif;color:#17201d">'
       .'<main style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4ebe7;border-radius:18px;padding:30px">'
       .'<p style="font-size:15px;font-weight:bold;letter-spacing:.16em;color:#0e6b5e">AERIQ</p>'
-      .'<h1 style="font-size:24px;line-height:1.25">'.($purpose==='registro'?'Verifica tu cuenta':'Recupera tu contraseña').'</h1>'
+      .'<h1 style="font-size:24px;line-height:1.25">Recupera tu contraseña</h1>'
       .'<p>Introduce este código en la web de AERIQ:</p>'
       .'<p style="font-size:36px;font-weight:bold;letter-spacing:.22em;text-align:center;background:#eef6f2;color:#0e6b5e;padding:20px;border-radius:12px">'.$code.'</p>'
       .'<p>El código caduca en <b>10 minutos</b>. Si no lo has solicitado, ignora este mensaje.</p>'
@@ -179,7 +179,7 @@ function auth_send_mail(string $recipient,string $code,string $purpose): void {
     $encodedSubject='=?UTF-8?B?'.base64_encode($subject).'?=';
     $ok=@mail($recipient,$encodedSubject,implode("\r\n",$parts),implode("\r\n",$headers));
     if (!$ok) {
-        error_log('AERIQ: PHP mail() ha rechazado el mensaje de verificación o recuperación.');
+        error_log('AERIQ: PHP mail() ha rechazado el mensaje de recuperación.');
         auth_responder(503,['error'=>'El alojamiento no ha aceptado el correo. Comprueba que PHP mail() esté habilitado en Plesk.']);
     }
 }

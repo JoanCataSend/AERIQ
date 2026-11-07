@@ -37,7 +37,7 @@ def deploy_files():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", default=".dist/plesk/AERIQ")
+    parser.add_argument("--output", default=".dist/plesk/web")
     args = parser.parse_args()
     output = (ROOT / args.output).resolve()
     dist = (ROOT / ".dist").resolve()
