@@ -61,17 +61,16 @@ public final class PublicMapScreen {
     private Marker locationMarker;
     private Runnable pendingSearch;
 
-    public PublicMapScreen(MainActivity activity, Views ui, LinearLayout body, ExecutorService worker) {
+    public PublicMapScreen(MainActivity activity, Views ui, FrameLayout stage, ExecutorService worker) {
         this.activity = activity;
         this.ui = ui;
         this.worker = worker;
         location = new ForegroundCaptureLocation(activity);
         Configuration.getInstance().setUserAgentValue("AERIQ-Android/1.0 (" + activity.getPackageName() + ")");
 
-        // ---------- Mapa real a pantalla grande con controles flotantes ----------
-        FrameLayout frame = new FrameLayout(activity);
-        frame.setBackground(ui.shape(SOFT, 24, 0));
-        frame.setClipToOutline(true);
+        // ---------- Mapa real a pantalla completa con controles flotantes ----------
+        FrameLayout frame = stage;
+        frame.setBackgroundColor(SOFT);
         map = new MapView(activity);
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setMultiTouchControls(true);
@@ -137,7 +136,6 @@ public final class PublicMapScreen {
         }));
         controls.addView(control(R.drawable.ic_layers, "Capas del mapa", this::showLayers));
         controls.addView(control(R.drawable.ic_refresh, "Actualizar mediciones", this::load));
-        frame.addView(controls, frameParams(-2, -2, Gravity.BOTTOM | Gravity.END, 0, 0, 12, 66));
 
         // Leyenda en la parte de abajo del mapa
         TextView legend = ui.text("", 14, false, INK);
@@ -146,11 +144,17 @@ public final class PublicMapScreen {
         legend.setBackground(ui.shape(WHITE, 22, 0));
         legend.setElevation(ui.dp(3));
         legend.setPadding(ui.dp(16), ui.dp(10), ui.dp(16), ui.dp(10));
-        frame.addView(legend, frameParams(-2, -2, Gravity.BOTTOM | Gravity.START, 12, 0, 12, 12));
 
-        LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(-1, ui.dp(500));
-        mapParams.bottomMargin = ui.dp(14);
-        body.addView(frame, mapParams);
+        // Fila flotante encima del panel: leyenda a la izquierda y botones a la derecha.
+        // Va dentro del mismo grupo que el panel para subir y bajar con él.
+        LinearLayout floating = ui.row();
+        floating.setGravity(Gravity.BOTTOM);
+        floating.setPadding(ui.dp(12), 0, ui.dp(12), ui.dp(12));
+        LinearLayout legendBox = ui.row();
+        legendBox.setGravity(Gravity.BOTTOM);
+        legendBox.addView(legend);
+        floating.addView(legendBox, new LinearLayout.LayoutParams(0, -2, 1));
+        floating.addView(controls);
 
         // ---------- Capas ----------
         layers = ui.column();
@@ -168,15 +172,23 @@ public final class PublicMapScreen {
         markers.setOnCheckedChangeListener((button, checked) -> draw());
 
         // ---------- Ficha de la zona ----------
+        // Panel inferior arrastrable: plegado solo enseña la rayita y la zona; desplegado, todo.
         LinearLayout sheet = ui.column();
-        sheet.setBackground(ui.shape(WHITE, 26, LINE));
+        GradientDrawable sheetBackground = new GradientDrawable();
+        sheetBackground.setColor(WHITE);
+        float corner = ui.dp(26);
+        sheetBackground.setCornerRadii(new float[]{corner, corner, corner, corner, 0, 0, 0, 0});
+        sheet.setBackground(sheetBackground);
+        sheet.setElevation(ui.dp(10));
         sheet.setPadding(ui.dp(18), ui.dp(10), ui.dp(18), ui.dp(18));
+        grip = ui.column();
         View handle = new View(activity);
-        handle.setBackground(ui.shape(LINE, 3, 0));
+        handle.setBackground(ui.shape(0xffd5dcd9, 3, 0));
         LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(ui.dp(44), ui.dp(5));
         handleParams.gravity = Gravity.CENTER_HORIZONTAL;
-        handleParams.bottomMargin = ui.dp(16);
-        sheet.addView(handle, handleParams);
+        handleParams.bottomMargin = ui.dp(14);
+        grip.addView(handle, handleParams);
+        grip.setContentDescription("Arrastra hacia arriba para ver la zona");
 
         LinearLayout top = ui.row();
         zoneDot = new View(activity);
@@ -199,10 +211,12 @@ public final class PublicMapScreen {
         valueBox.addView(zoneValue);
         valueBox.addView(zoneUnit);
         top.addView(valueBox);
-        sheet.addView(top, new LinearLayout.LayoutParams(-1, -2));
+        top.setPadding(0, 0, 0, ui.dp(8));
+        grip.addView(top, new LinearLayout.LayoutParams(-1, -2));
+        sheet.addView(grip, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout meta = ui.row();
-        meta.setPadding(0, ui.dp(16), 0, ui.dp(16));
+        meta.setPadding(0, ui.dp(8), 0, ui.dp(16));
         zoneChip = ui.text("Calidad: —", 14, true, MUTED);
         zoneChip.setPadding(ui.dp(14), ui.dp(7), ui.dp(14), ui.dp(7));
         zoneChip.setBackground(ui.shape(0xffeff3f1, 18, 0));
@@ -246,7 +260,18 @@ public final class PublicMapScreen {
             + "Mapa © OpenStreetMap contributors.", 12, false, MUTED);
         disclaimer.setPadding(0, ui.dp(14), 0, 0);
         sheet.addView(disclaimer);
-        ui.add(body, sheet);
+
+        bottom = ui.column();
+        bottom.addView(floating, new LinearLayout.LayoutParams(-1, -2));
+        bottom.addView(sheet, new LinearLayout.LayoutParams(-1, -2));
+        frame.addView(bottom, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+        sheet.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
+            int offset = Math.max(0, sheet.getHeight() - grip.getBottom());
+            if (offset == hiddenOffset) return;
+            hiddenOffset = offset;
+            bottom.setTranslationY(expanded ? 0 : hiddenOffset);
+        });
+        grip.setOnTouchListener(this::dragSheet);
 
         // ---------- Búsqueda ----------
         query.addTextChangedListener(new TextWatcher() {
@@ -273,6 +298,49 @@ public final class PublicMapScreen {
     }
 
     private LinearLayout layers;
+    private LinearLayout grip, bottom;
+    private int hiddenOffset;
+    private boolean expanded, dragging;
+    private float downY, startTranslation;
+    private long downTime;
+
+    /** Arrastre del panel: sigue al dedo y al soltar se queda abierto o cerrado. Un toque lo alterna. */
+    private boolean dragSheet(View view, android.view.MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                downY = event.getRawY();
+                downTime = event.getEventTime();
+                startTranslation = bottom.getTranslationY();
+                dragging = false;
+                bottom.animate().cancel();
+                hideSuggestions();
+                return true;
+            case android.view.MotionEvent.ACTION_MOVE: {
+                float delta = event.getRawY() - downY;
+                if (!dragging && Math.abs(delta) > ui.dp(6)) dragging = true;
+                if (dragging) bottom.setTranslationY(Math.max(0, Math.min(hiddenOffset, startTranslation + delta)));
+                return true;
+            }
+            case android.view.MotionEvent.ACTION_UP:
+            case android.view.MotionEvent.ACTION_CANCEL: {
+                if (!dragging) { setExpanded(!expanded); return true; }
+                float delta = event.getRawY() - downY;
+                long time = Math.max(1, event.getEventTime() - downTime);
+                float speed = delta / time; // px/ms; negativo = hacia arriba
+                boolean open = speed < -0.5f || (speed <= 0.5f && bottom.getTranslationY() < hiddenOffset / 2f);
+                setExpanded(open);
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+    private void setExpanded(boolean open) {
+        expanded = open;
+        bottom.animate().translationY(open ? 0 : hiddenOffset).setDuration(220)
+            .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+    }
 
     private FrameLayout.LayoutParams frameParams(int width, int height, int gravity, int left, int top, int right, int bottom) {
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height, gravity);
@@ -368,6 +436,7 @@ public final class PublicMapScreen {
             marker.setIcon(icon);
             marker.setOnMarkerClickListener((selected, view) -> {
                 showZone(reading.zone, null);
+                setExpanded(true);
                 return true;
             });
             map.getOverlays().add(marker);

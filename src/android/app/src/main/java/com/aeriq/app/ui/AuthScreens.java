@@ -29,6 +29,7 @@ public final class AuthScreens {
     }
 
     public void show(Screen screen, LinearLayout body) {
+        if (screen == Screen.LOGIN || screen == Screen.REGISTER) { loginScreen(body); return; }
         ImageView logo = ui.image(R.drawable.aeriq_logo, 99, 34);
         FrameLayout brand = new FrameLayout(activity);
         brand.addView(logo, new FrameLayout.LayoutParams(ui.dp(99), ui.dp(34), Gravity.TOP | Gravity.CENTER_HORIZONTAL));
@@ -43,6 +44,7 @@ public final class AuthScreens {
         body.addView(brand, new LinearLayout.LayoutParams(-1, ui.dp(66)));
         String title, description;
         switch (screen) {
+            case VERIFY: title = "Verifica tu correo"; description = "Introduce el código que hemos enviado. Caduca en 10 minutos."; break;
             case FORGOT: title = "Recuperar contraseña"; description = "Te enviaremos un código para establecer una nueva contraseña."; break;
             case RESET: title = "Nueva contraseña"; description = "Introduce el código recibido y tu nueva contraseña."; break;
             case EDIT_PROFILE: title = "Datos personales"; description = "Tu perfil se guarda en la misma base de datos que la web."; break;
