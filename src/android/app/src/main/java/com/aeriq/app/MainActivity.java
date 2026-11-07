@@ -285,7 +285,7 @@ public final class MainActivity extends Activity {
     public void submit(String action, Consumer<AeriqAuthManager.Result> done, Object... fields) {
         auth.submit(action, result -> {
             if (result.success && auth.user != null && !auth.user.mustChangePassword
-                && Arrays.asList("login", "reset-password", "change-password", "biometric", "social-login").contains(action)) {
+                && Arrays.asList("login", "reset-password", "change-password", "biometric", "social-login", "google").contains(action)) {
                 refreshWorker();
             }
             if (auth.user == null && !PUBLIC.contains(current)) {
@@ -304,6 +304,7 @@ public final class MainActivity extends Activity {
             return;
         }
         auth.logout();
+        com.google.firebase.auth.FirebaseAuth.getInstance().signOut();
         clearWorker();
         go(Screen.LOGIN);
         message("Has cerrado sesión.");

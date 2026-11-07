@@ -1,12 +1,25 @@
 package com.aeriq.app.ui;
 
 import android.app.AlertDialog;
-import android.os.Build;
 import android.os.CancellationSignal;
+import android.os.Build;
+import android.util.Log;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+import androidx.credentials.Credential;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.CustomCredential;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.exceptions.GetCredentialException;
+import androidx.credentials.exceptions.GetCredentialCancellationException;
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.GoogleAuthProvider;
 import com.aeriq.app.MainActivity;
 import com.aeriq.app.MainActivity.Screen;
 import com.aeriq.app.R;
@@ -15,6 +28,7 @@ import com.aeriq.app.data.AeriqAuthManager;
 import static com.aeriq.app.ui.Views.*;
 
 public final class AuthScreens {
+    private static final String AUTH_TAG = "AERIQ_AUTH";
     private static final int TEXT = InputType.TYPE_CLASS_TEXT;
     private static final int EMAIL = TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS;
     private static final int PASSWORD = TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD;
@@ -192,9 +206,90 @@ public final class AuthScreens {
     // ── SOCIAL ─────────────────────────────────────────────────────────────
     private void socialLogin(String provider) {
         boolean isApple = "apple".equalsIgnoreCase(provider);
-        // No se inventan correos ni cuentas: el acceso social exige Firebase nativo.
-        activity.message("El acceso con " + (isApple ? "Apple" : "Google")
-            + " todavía no está disponible en Android. Usa tu correo y contraseña o entra desde la web.");
+        if (isApple) {
+            activity.message("El acceso con Apple todavía no está disponible.");
+            return;
+        }
+        signInWithGoogle();
+    }
+
+    private void signInWithGoogle() {
+        try {
+            GetGoogleIdOption googleOption = new GetGoogleIdOption.Builder()
+                .setServerClientId(activity.getString(R.string.default_web_client_id))
+                .setFilterByAuthorizedAccounts(false)
+                .setAutoSelectEnabled(false)
+                .build();
+            GetCredentialRequest request = new GetCredentialRequest.Builder()
+                .addCredentialOption(googleOption)
+                .build();
+            CredentialManager manager = CredentialManager.create(activity);
+            manager.getCredentialAsync(activity, request, new CancellationSignal(), activity.getMainExecutor(),
+                new CredentialManagerCallback<androidx.credentials.GetCredentialResponse, GetCredentialException>() {
+                    @Override public void onResult(androidx.credentials.GetCredentialResponse response) {
+                        handleGoogleCredential(response.getCredential());
+                    }
+                    @Override public void onError(GetCredentialException error) {
+                        if (!(error instanceof GetCredentialCancellationException)) {
+                            showGoogleError("No se pudo elegir la cuenta de Google", error);
+                        }
+                    }
+                });
+        } catch (Exception error) {
+            showGoogleError("No se pudo iniciar Google", error);
+        }
+    }
+
+    private void handleGoogleCredential(Credential credential) {
+        if (!(credential instanceof CustomCredential)
+                || !GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(credential.getType())) {
+            showGoogleError("Google no devolvió una credencial válida. Tipo recibido: " + credential.getType(), null);
+            return;
+        }
+        try {
+            GoogleIdTokenCredential google = GoogleIdTokenCredential.createFrom(credential.getData());
+            AuthCredential firebaseCredential = GoogleAuthProvider.getCredential(google.getIdToken(), null);
+            FirebaseAuth.getInstance().signInWithCredential(firebaseCredential)
+                .addOnCompleteListener(activity, task -> {
+                    if (!task.isSuccessful() || FirebaseAuth.getInstance().getCurrentUser() == null) {
+                        showGoogleError("Firebase no pudo validar la cuenta de Google. Comprueba que Google esté habilitado.", task.getException());
+                        return;
+                    }
+                    FirebaseAuth.getInstance().getCurrentUser().getIdToken(true)
+                        .addOnCompleteListener(activity, tokenTask -> {
+                            if (!tokenTask.isSuccessful() || tokenTask.getResult() == null
+                                    || tokenTask.getResult().getToken() == null) {
+                                showGoogleError("No se pudo obtener el token de acceso de Firebase", tokenTask.getException());
+                                return;
+                            }
+                            activity.submit("google", result -> {
+                                if (result.success) {
+                                    activity.message(result.message);
+                                    activity.go(Screen.MAP);
+                                } else {
+                                    FirebaseAuth.getInstance().signOut();
+                                    showGoogleError(result.message, null);
+                                }
+                            }, "idToken", tokenTask.getResult().getToken());
+                        });
+                });
+        } catch (Exception error) {
+            showGoogleError("No se pudo procesar la cuenta de Google", error);
+        }
+    }
+
+    private void showGoogleError(String message, Throwable error) {
+        String detail = error == null ? "" : "\n\n" + error.getClass().getSimpleName()
+            + (error.getMessage() == null ? "" : ": " + error.getMessage());
+        if (error == null) Log.e(AUTH_TAG, message);
+        else Log.e(AUTH_TAG, message, error);
+        if (!activity.isFinishing()) {
+            new AlertDialog.Builder(activity)
+                .setTitle("Error al entrar con Google")
+                .setMessage(message + detail)
+                .setPositiveButton("Cerrar", null)
+                .show();
+        }
     }
 
 

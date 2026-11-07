@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "191907520858",
+    "project_id": "airiq-e9d70",
+    "storage_bucket": "airiq-e9d70.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:191907520858:android:487207150b65890fa35363",
+        "android_client_info": {
+          "package_name": "com.aeriq.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "191907520858-kv7oc6anonad66sh56k2dj6gmlej2278.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQZ_e5gl8X6d8aWIi_wT2to-HLCmD0SyA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "191907520858-kv7oc6anonad66sh56k2dj6gmlej2278.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
