@@ -127,6 +127,13 @@ public final class AeriqAuthManager implements AutoCloseable {
         });
     }
 
+    /** Clears a locally unusable session without sending a remote logout request. */
+    public void clearLocalSession() {
+        store.clear();
+        user = null;
+        pendingEmail = store.getLastEmail();
+    }
+
     @Override public void close() {
         closed = true;
         worker.shutdown();

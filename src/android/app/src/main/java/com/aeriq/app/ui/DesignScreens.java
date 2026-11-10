@@ -928,15 +928,27 @@ public final class DesignScreens {
         menuRow(security, R.drawable.ic_lock, GREEN, PANEL_SOFT, "Cambiar contraseña", INK, null, chevron(),
             () -> activity.go(Screen.CHANGE_PASSWORD));
         security.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        Switch fingerprint = ui.toggle(prefs.fingerprint(user.id));
+        boolean biometricIsEnabled = activity.biometricEnabled(user.id);
+        Switch fingerprint = ui.toggle(biometricIsEnabled);
+        boolean[] updatingFingerprintSwitch = {false};
         fingerprint.setOnCheckedChangeListener((button, checked) -> {
-            if (checked && !activity.biometricAvailable()) {
-                button.setChecked(false);
-                activity.message("Este móvil no tiene huella configurada.");
+            if (updatingFingerprintSwitch[0]) return;
+            if (!checked) {
+                activity.disableBiometricAccess(user.id);
+                activity.message("Acceso biométrico desactivado para esta cuenta.");
                 return;
             }
-            prefs.setFingerprint(user.id, checked);
-            activity.message(checked ? "La próxima vez entrarás con tu huella." : "Acceso con huella desactivado.");
+            button.setEnabled(false);
+            activity.enableBiometricAccess(user.id, enabled -> {
+                button.setEnabled(true);
+                if (!enabled) {
+                    updatingFingerprintSwitch[0] = true;
+                    button.setChecked(false);
+                    updatingFingerprintSwitch[0] = false;
+                } else {
+                    activity.message("Acceso biométrico vinculado a esta cuenta.");
+                }
+            });
         });
         menuRow(security, R.drawable.ic_fingerprint, GREEN, PANEL_SOFT, "Acceso con huella", INK, null, fingerprint, null);
         security.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));

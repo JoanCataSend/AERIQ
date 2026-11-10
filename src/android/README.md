@@ -29,3 +29,5 @@ Para una primera instalación sin caché se necesita sincronización con Interne
 - `design_assets/`: SVG originales de referencia; `res/` conserva logotipos, iconos y fotografías.
 
 La invitación crea una cuenta pendiente. El primer acceso debe cambiar la contraseña temporal. La recepción BLE y el envío tienen estados separados; GPS opcional solo en primer plano. No se estima ni inventa batería. Consulta el [diseño Android](../../doc/android.md) y la [guía de despliegue](../../doc/despliegue.md).
+
+El acceso biométrico se vincula por cuenta y por dispositivo. Al activarlo se confirma la contraseña y se cifra con una clave de Android Keystore que exige biometría fuerte. La huella inicia una sesión nueva; **Cerrar sesión** revoca el token del servidor y conserva únicamente esa credencial cifrada. Si cambia la contraseña, hay que activar de nuevo la huella.

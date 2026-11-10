@@ -16,6 +16,7 @@ import android.widget.*;
 import com.aeriq.app.ble.*;
 import com.aeriq.app.data.*;
 import com.aeriq.app.ui.*;
+import javax.crypto.Cipher;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -56,6 +57,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private Views ui;
     private AeriqAuthManager auth;
     private AppPrefs prefs;
+    private BiometricAccessStore biometricAccess;
     private AeriqFieldClient field;
     private AeriqBleController ble;
     private ForegroundCaptureLocation location;
@@ -100,6 +102,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         ui = new Views(this);
         auth = new AeriqAuthManager(this);
         prefs = new AppPrefs(this);
+        biometricAccess = new BiometricAccessStore(this);
         field = new AeriqFieldClient(this, auth::sessionToken, () -> auth.user == null ? 0L : auth.user.id);
         location = new ForegroundCaptureLocation(this);
         ble = new AeriqBleController(this, this::receive);
@@ -121,7 +124,28 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             return insets.consumeSystemWindowInsets();
         });
         ui.add(body, new ProgressBar(this));
-        if (prefs.fingerprint(auth.savedUserId()) && auth.sessionToken() != null) {
+        long biometricUserId = auth.savedUserId();
+        boolean legacyBiometric = prefs.consumeLegacyFingerprint(biometricUserId);
+        if (legacyBiometric && !biometricAccess.hasEnrollment(biometricUserId) && auth.sessionToken() != null) {
+            auth.clearLocalSession();
+            restoring = false;
+            current = Screen.LOGIN;
+            render();
+            message("Por seguridad, vuelve a entrar con tu correo y activa de nuevo el acceso biométrico.");
+            return;
+        }
+        if (biometricAccess.hasEnrollment(biometricUserId) && auth.sessionToken() != null) {
+            try {
+                biometricAccess.beginUnlock(biometricUserId);
+            } catch (Exception invalidKey) {
+                biometricAccess.disable(biometricUserId);
+                auth.clearLocalSession();
+                restoring = false;
+                current = Screen.LOGIN;
+                render();
+                message("La biometría registrada cambió o ya no está disponible. Entra con tu correo y actívala de nuevo.");
+                return;
+            }
             // Con "Acceso con huella" la sesión guardada solo se abre tras verificar la huella.
             restoring = false;
             current = Screen.LOGIN;
@@ -284,6 +308,13 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     public void submit(String action, Consumer<AeriqAuthManager.Result> done, Object... fields) {
         auth.submit(action, result -> {
+            boolean biometricNeedsReenrollment = result.success && auth.user != null
+                && Arrays.asList("login", "google", "social-login").contains(action)
+                && prefs.consumeLegacyFingerprint(auth.user.id)
+                && !biometricAccess.hasEnrollment(auth.user.id);
+            boolean biometricPasswordChanged = result.success && "change-password".equals(action)
+                && auth.user != null && biometricAccess.hasEnrollment(auth.user.id);
+            if (biometricPasswordChanged) biometricAccess.disable(auth.user.id);
             if (result.success && auth.user != null && !auth.user.mustChangePassword
                 && Arrays.asList("login", "reset-password", "change-password", "social-login", "google").contains(action)) {
                 refreshWorker();
@@ -295,6 +326,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 return;
             }
             done.accept(result);
+            if (biometricNeedsReenrollment) {
+                message("Por seguridad, activa de nuevo el acceso biométrico desde Cuenta.");
+            }
+            if (biometricPasswordChanged) {
+                message("La contraseña cambió. Vuelve a activar el acceso con huella desde Cuenta.");
+            }
         }, fields);
     }
 
@@ -500,43 +537,180 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS;
     }
 
-    /** Abre únicamente la cuenta local asociada al token guardado tras validar biometría. */
-    public void loginWithFingerprint() {
-        long expectedUserId = auth.savedUserId();
-        if (!prefs.fingerprint(expectedUserId) || auth.sessionToken() == null) {
-            message("Entra con tu correo y activa «Acceso con huella» en Cuenta para usarla la próxima vez.");
+    public boolean biometricEnabled(long userId) {
+        if (!biometricAccess.hasEnrollment(userId)) return false;
+        try {
+            biometricAccess.beginUnlock(userId);
+            return true;
+        } catch (Exception invalidKey) {
+            biometricAccess.disable(userId);
+            return false;
+        }
+    }
+
+    /** Activates a cryptographic biometric key scoped to the signed-in AERIQ user. */
+    public void enableBiometricAccess(long userId, Consumer<Boolean> done) {
+        if (auth.user == null || auth.user.id != userId || auth.sessionToken() == null) {
+            message("Inicia sesión en esta cuenta antes de activar la biometría.");
+            done.accept(false);
             return;
         }
         if (!biometricAvailable()) {
-            message("Este móvil no permite entrar con huella. Usa tu correo.");
+            message("Configura una huella o biometría fuerte en el móvil antes de activarla.");
+            done.accept(false);
+            return;
+        }
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setSingleLine(true);
+        passwordInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+            | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setHint("Contraseña de AERIQ");
+        passwordInput.setPadding(ui.dp(16), ui.dp(12), ui.dp(16), ui.dp(12));
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Confirma tu contraseña")
+            .setMessage("Se guardará cifrada en este móvil para iniciar sesión después de validar tu huella.")
+            .setView(passwordInput)
+            .setNegativeButton("Cancelar", (dialog, which) -> done.accept(false))
+            .setPositiveButton("Continuar", (dialog, which) -> {
+                String password = passwordInput.getText().toString();
+                if (password.isEmpty()) {
+                    message("Escribe tu contraseña para activar el acceso biométrico.");
+                    done.accept(false);
+                    return;
+                }
+                enrollBiometricCredential(userId, password, done);
+            })
+            .show();
+    }
+
+    private void enrollBiometricCredential(long userId, String password, Consumer<Boolean> done) {
+        final Cipher cipher;
+        try {
+            cipher = biometricAccess.beginEnrollment(userId);
+        } catch (Exception error) {
+            biometricAccess.disable(userId);
+            message("No se pudo preparar la clave biométrica en este móvil.");
+            done.accept(false);
             return;
         }
         androidx.biometric.BiometricPrompt prompt = new androidx.biometric.BiometricPrompt(this,
             androidx.core.content.ContextCompat.getMainExecutor(this),
             new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
                 @Override public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
-                    auth.restore(restored -> {
-                        if (auth.user == null || auth.user.id != expectedUserId) {
-                            auth.logout();
-                            message(restored.message.isEmpty() ? "La sesión ha caducado. Entra con tu correo." : restored.message);
-                            return;
-                        }
-                        go(Screen.MAP);
-                        refreshWorker();
-                    });
+                    try {
+                        androidx.biometric.BiometricPrompt.CryptoObject crypto = result.getCryptoObject();
+                        biometricAccess.finishEnrollment(userId, crypto == null ? null : crypto.getCipher(),
+                            auth.user.email, password);
+                        done.accept(true);
+                    } catch (Exception error) {
+                        biometricAccess.disable(userId);
+                        message("No se pudo vincular la biometría a esta cuenta.");
+                        done.accept(false);
+                    }
+                }
+
+                @Override public void onAuthenticationError(int code, CharSequence error) {
+                    biometricAccess.disable(userId);
+                    if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
+                        && code != androidx.biometric.BiometricPrompt.ERROR_CANCELED
+                        && code != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                        message(error.toString());
+                    }
+                    done.accept(false);
+                }
+            });
+        androidx.biometric.BiometricPrompt.PromptInfo promptInfo = new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Activar acceso biométrico")
+            .setSubtitle("Vincula una clave segura a " + auth.user.email)
+            .setNegativeButtonText("Cancelar")
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build();
+        prompt.authenticate(promptInfo, new androidx.biometric.BiometricPrompt.CryptoObject(cipher));
+    }
+
+    public void disableBiometricAccess(long userId) {
+        biometricAccess.disable(userId);
+    }
+
+    /** Inicia una sesión nueva con credenciales descifradas solo tras validar biometría. */
+    public void loginWithFingerprint() {
+        long expectedUserId = biometricAccess.enrolledUserId();
+        if (!biometricAccess.hasEnrollment(expectedUserId)) {
+            message("Entra con la cuenta que quieras vincular y activa «Acceso con huella» en Cuenta.");
+            return;
+        }
+        if (!biometricAvailable()) {
+            message("Este móvil no permite entrar con huella. Usa tu correo.");
+            return;
+        }
+        final Cipher cipher;
+        try {
+            cipher = biometricAccess.beginUnlock(expectedUserId);
+        } catch (Exception invalidKey) {
+            biometricAccess.disable(expectedUserId);
+            render();
+            message("La huella de esta cuenta ya no está vinculada. Entra con tu correo y actívala de nuevo.");
+            return;
+        }
+        androidx.biometric.BiometricPrompt prompt = new androidx.biometric.BiometricPrompt(this,
+            androidx.core.content.ContextCompat.getMainExecutor(this),
+            new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
+                    completeBiometricLogin(expectedUserId, result.getCryptoObject());
                 }
                 @Override public void onAuthenticationError(int code, CharSequence error) {
                     if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
-                        && code != androidx.biometric.BiometricPrompt.ERROR_CANCELED) message(error.toString());
+                        && code != androidx.biometric.BiometricPrompt.ERROR_CANCELED
+                        && code != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) message(error.toString());
                 }
             });
         androidx.biometric.BiometricPrompt.PromptInfo promptInfo = new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
             .setTitle("Entrar en AERIQ")
-            .setSubtitle("Usa tu huella para abrir tu cuenta")
+            .setSubtitle("Usa tu huella para entrar en " + biometricAccess.enrolledEmail())
             .setNegativeButtonText("Usar correo")
             .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build();
-        prompt.authenticate(promptInfo);
+        prompt.authenticate(promptInfo, new androidx.biometric.BiometricPrompt.CryptoObject(cipher));
+    }
+
+    private void completeBiometricLogin(long expectedUserId, androidx.biometric.BiometricPrompt.CryptoObject crypto) {
+        final BiometricAccessStore.Credential credential;
+        try {
+            credential = crypto == null ? null : biometricAccess.finishUnlock(expectedUserId, crypto.getCipher());
+        } catch (Exception error) {
+            biometricAccess.disable(expectedUserId);
+            message("No se pudieron recuperar las credenciales. Entra con tu correo y vuelve a activar la huella.");
+            return;
+        }
+        if (credential == null) {
+            biometricAccess.disable(expectedUserId);
+            message("No se pudieron recuperar las credenciales. Entra con tu correo y vuelve a activar la huella.");
+            return;
+        }
+        auth.submit("login", loggedIn -> {
+            if (!loggedIn.success) {
+                String detail = loggedIn.message == null ? "" : loggedIn.message;
+                String normalized = detail.toLowerCase(Locale.ROOT);
+                if (normalized.contains("contraseña incorrectos") || normalized.contains("no está activada")) {
+                    biometricAccess.disable(expectedUserId);
+                    message("La contraseña guardada ya no es válida. Entra con correo y vuelve a activar la huella.");
+                } else {
+                    message(detail.isEmpty()
+                        ? "No se pudo iniciar sesión con la huella. Entra con tu correo y contraseña."
+                        : detail);
+                }
+                return;
+            }
+            if (auth.user == null || auth.user.id != expectedUserId) {
+                biometricAccess.disable(expectedUserId);
+                auth.clearLocalSession();
+                message("La cuenta vinculada no coincide. Entra con tu correo y contraseña.");
+                return;
+            }
+            go(Screen.MAP);
+            refreshWorker();
+        }, "email", credential.email, "password", credential.password);
     }
 
     public void exportPdf(List<StoredReading> rows, String title) {

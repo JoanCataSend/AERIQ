@@ -24,12 +24,13 @@ public final class AppPrefs {
         prefs.edit().putString("alias_" + address.toUpperCase(Locale.ROOT), name == null ? "" : name.trim()).apply();
     }
 
-    /** Preferencia de acceso biométrico asociada a una cuenta concreta de AERIQ. */
-    public boolean fingerprint(long userId) {
-        return userId > 0 && prefs.getBoolean("huella_usuario_" + userId, false);
-    }
-    public void setFingerprint(long userId, boolean enabled) {
-        if (userId > 0) prefs.edit().putBoolean("huella_usuario_" + userId, enabled).apply();
+    /** Consumes the old boolean-only biometric flag; it is replaced by a Keystore enrollment. */
+    public boolean consumeLegacyFingerprint(long userId) {
+        if (userId <= 0) return false;
+        String key = "huella_usuario_" + userId;
+        boolean enabled = prefs.getBoolean(key, false);
+        if (prefs.contains(key)) prefs.edit().remove(key).apply();
+        return enabled;
     }
 
     /** Avisos cuando el ozono de tu zona pasa a moderado o alto. */
