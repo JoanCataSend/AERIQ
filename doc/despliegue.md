@@ -6,6 +6,7 @@ No mezcles el esquema nuevo con la ampliación anterior. Configura una base AERI
 
 1. **Demostración nueva:** importar `src/database/schema.sql` y después `seed-demo.sql`, o utilizar el script de recreación con `--demo`.
 2. **Conservar datos:** importar solo `schema.sql` en una base distinta y vacía y ejecutar `migrate-legacy.php` desde la base anterior. El origen no se modifica.
+3. **Reinstalar en Plesk:** usar [los SQL de reinicio](../src/database/reinicio/LEEME.md) para recrear `jcatsen_pbio` y dar de alta el primer administrador.
 
 El [README de base de datos](../src/database/README.md) contiene comandos, cuentas de demostración y límites de la importación. La antigua `001_airq.sql` se conserva solo en el histórico. No debe aplicarse a esta versión.
 
@@ -35,7 +36,7 @@ En `server/SDBaseDatos.php` configura el nombre de la base nueva y las credencia
 
 ## Primer administrador
 
-Con los datos demo ya existen las seis cuentas documentadas. Para una base real vacía, registra y verifica una cuenta y utiliza CLI:
+La reinstalación de `jcatsen_pbio` incluye [02-admin.sql](../src/database/reinicio/02-admin.sql) con la cuenta inicial. Los datos demo ya incluyen las seis cuentas documentadas. Para promover una cuenta visitante existente y verificada, está disponible el comando CLI:
 
 ```text
 php scripts/bootstrap-organization.php admin CORREO_VERIFICADO "NOMBRE ORGANIZACIÓN"

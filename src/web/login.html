@@ -1,4 +1,54 @@
-<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0e6b5e"><meta name="description" content="AERIQ — monitorización ambiental participativa de ozono."><title>Iniciar sesión | AERIQ</title><link rel="icon" href="assets/aeriq_mark.png"><link rel="stylesheet" href="styles.css"></head><body data-page="login"><header class="site-header"><div class="header-inner"><a href="index.html" class="brand" aria-label="AERIQ inicio"><img src="assets/aeriq_logo.png" alt="AERIQ"></a><button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú">☰</button><nav class="main-nav" aria-label="Principal"><a class="" href="mapa.html">Mapa</a><a class="" href="sensor.html">Sensor</a><a href="index.html#planes">Soluciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav><div class="header-actions"><a class="cart-link" href="portal.html" aria-label="Panel de organización" title="Mi organización"><img src="assets/figma_nav_chip.png" width="22" height="22" alt=""></a><a href="login.html" class="link-login" id="account-link">Entrar</a><a href="mapa.html" class="btn btn-dark btn-sm">Ver mapa ↗</a></div></div></header><main class="auth-page"><section class="auth-card"><p class="eyebrow center">MI CUENTA</p><h1>Iniciar sesión</h1><p class="center">Accede a tu espacio personal para consultar tus datos y gestionar tu sensor AERIQ.</p><div class="auth-social" aria-label="Acceso con proveedores externos">
-<button class="social-signin social-signin-google" type="button" id="google-signin" aria-label="Continuar con Google"><img src="assets/google-g.svg" width="22" height="22" alt="" aria-hidden="true"><span>Continuar con Google</span></button>
-<button class="social-signin social-signin-apple" type="button" data-social="Apple" aria-label="Continuar con Apple"><img src="assets/apple-mark-white.svg" width="20" height="22" alt="" aria-hidden="true"><span>Continuar con Apple</span></button>
-</div><div class="or">o con correo electrónico</div><form id="login-form"><label>Correo electrónico<input name="email" type="email" required placeholder="nombre@ejemplo.com"></label><label>Contraseña<div class="password-wrap"><input id="login-password" name="password" type="password" required placeholder="Tu contraseña"><button type="button" class="password-toggle" data-toggle-password="login-password" aria-label="Mostrar contraseña" aria-pressed="false"><span class="eye-open" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#5E6B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="eye-closed" hidden aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#5E6B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span></button></div></label><a href="recuperar.html" class="forgot" id="forgot-password">¿Has olvidado tu contraseña?</a><button type="submit" class="btn btn-primary btn-block">Iniciar sesión ↗</button></form></section></main><footer class="footer"><div class="container"><div class="footer-top"><a href="index.html" class="footer-brand"><img src="assets/aeriq_logo.png" alt="AERIQ"><span>Medir para comprender.</span></a><nav><a href="sensor.html">Sensor</a><a href="index.html#planes">Soluciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav></div><div class="footer-bottom"><span>© 2026 AERIQ · Desarrollado por Código Norte</span><span>Las imágenes, tarifas y mediciones son ilustrativas.</span></div></div></footer><div class="toast" role="status" aria-live="polite" id="toast"></div><script src="auth-client.js" defer></script><script src="app.js" defer></script><script type="module" src="google-auth.js"></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Acceso a AERIQ para personas de organizaciones.">
+<title>Iniciar sesión · AERIQ</title>
+<link rel="icon" href="assets/aeriq_mark.png">
+<link rel="stylesheet" href="aeriq.css">
+</head>
+<body data-page="login">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a>
+    <nav class="main-nav" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
+    <div class="header-actions">
+      <a href="login.html" class="link-login" id="account-link">Entrar</a>
+      <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
+    </div>
+    <button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+  </div>
+</header>
+<main class="auth-page">
+  <section class="auth-card">
+    <h1>Iniciar sesión</h1>
+    <p>Acceso para personas de organizaciones que usan AERIQ. Las cuentas las crea el administrador de tu organización.</p>
+    <div class="auth-social" aria-label="Acceso con proveedores externos">
+      <button class="social-signin social-signin-google" type="button" id="google-signin"><img src="assets/google-g.svg" width="20" height="20" alt="" aria-hidden="true"><span>Continuar con Google</span></button>
+      <button class="social-signin social-signin-apple" type="button" data-social="Apple"><img src="assets/apple-mark-white.svg" width="18" height="20" alt="" aria-hidden="true"><span>Continuar con Apple</span></button>
+    </div>
+    <div class="or">o con tu correo</div>
+    <form id="login-form">
+      <label>Correo electrónico<input name="email" type="email" required autocomplete="email" placeholder="nombre@organizacion.es"></label>
+      <label>Contraseña<div class="password-wrap"><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="Tu contraseña"><button type="button" class="password-toggle" data-toggle-password="login-password" aria-label="Mostrar contraseña" aria-pressed="false"><span class="eye-open" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="eye-closed" hidden aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span></button></div></label>
+      <a href="recuperar.html" class="forgot" id="forgot-password">¿Has olvidado tu contraseña?</a>
+      <button type="submit" class="btn btn-primary btn-block">Iniciar sesión</button>
+    </form>
+    <p class="auth-aside">¿Solo quieres ver el ozono? El <a href="mapa.html">mapa público</a> no necesita cuenta.</p>
+  </section>
+</main>
+
+<div class="toast" role="status" aria-live="polite" id="toast"></div>
+<script src="auth-client.js" defer></script>
+<script src="app.js" defer></script>
+<script type="module" src="google-auth.js"></script>
+</body>
+</html>

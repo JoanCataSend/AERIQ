@@ -13,10 +13,10 @@ INSERT INTO campanas(organizacion_id,nombre,zona,inicio,fin,publicar)
 SELECT @demo_org,'Demo publica - playa de Gandia','Playa de Gandia - ubicaciones ilustrativas',DATE_SUB(UTC_DATE(),INTERVAL 7 DAY),DATE_ADD(UTC_DATE(),INTERVAL 30 DAY),1
 WHERE @demo_org IS NOT NULL AND NOT EXISTS(SELECT 1 FROM campanas WHERE organizacion_id=@demo_org AND nombre='Demo publica - playa de Gandia');
 SET @demo_campaign = (SELECT MIN(id) FROM campanas WHERE organizacion_id=@demo_org AND nombre='Demo publica - playa de Gandia');
-INSERT INTO dispositivos(organizacion_id,nombre,identificador_legacy,simulado)
-SELECT @demo_org,'Orb demo playa','aeriq-demo-playa-publica',1
-WHERE @demo_org IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dispositivos WHERE organizacion_id=@demo_org AND identificador_legacy='aeriq-demo-playa-publica');
-SET @demo_device = (SELECT MIN(id) FROM dispositivos WHERE organizacion_id=@demo_org AND identificador_legacy='aeriq-demo-playa-publica');
+INSERT INTO dispositivos(organizacion_id,nombre,simulado)
+SELECT @demo_org,'Orb demo playa',1
+WHERE @demo_org IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dispositivos WHERE organizacion_id=@demo_org AND nombre='Orb demo playa' AND simulado=1 AND direccion_ble IS NULL);
+SET @demo_device = (SELECT MIN(id) FROM dispositivos WHERE organizacion_id=@demo_org AND nombre='Orb demo playa' AND simulado=1 AND direccion_ble IS NULL);
 INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id,iniciada_en)
 SELECT @demo_org,@demo_device,@demo_user,@demo_campaign,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 7 DAY)
 WHERE @demo_device IS NOT NULL AND @demo_campaign IS NOT NULL AND NOT EXISTS(SELECT 1 FROM asignaciones WHERE dispositivo_id=@demo_device AND finalizada_en IS NULL);

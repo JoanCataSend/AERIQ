@@ -1,1 +1,39 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cambiar contraseña temporal | AERIQ</title><link rel="stylesheet" href="styles.css"></head><body><main class="auth-page"><section class="auth-card"><p class="eyebrow">ACCESO AUTORIZADO</p><h1>Elige tu contraseña</h1><p>Para acceder a tu organización debes sustituir la contraseña temporal.</p><form id="first-password"><label>Contraseña actual<input name="current" type="password" autocomplete="current-password" required></label><label>Nueva contraseña<input name="password" type="password" autocomplete="new-password" minlength="12" required></label><label>Repetir nueva contraseña<input name="confirm" type="password" autocomplete="new-password" minlength="12" required></label><button class="btn btn-primary" type="submit">Guardar y continuar</button></form><button class="text-link" id="first-logout">Cerrar sesión</button><p id="password-feedback" role="status" aria-live="polite"></p></section></main><script src="auth-client.js" defer></script><script src="clave.js" defer></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Sustituye la contraseña temporal de tu cuenta de AERIQ.">
+<title>Elige tu contraseña · AERIQ</title>
+<link rel="icon" href="assets/aeriq_mark.png">
+<link rel="stylesheet" href="aeriq.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+<header class="site-header"><div class="container header-inner"><a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a></div></header>
+<main class="auth-page">
+  <section class="auth-card">
+    <h1>Elige tu contraseña</h1>
+    <p>Para entrar en tu organización tienes que sustituir la contraseña temporal que recibiste.</p>
+    <form id="first-password">
+      <label>Contraseña temporal<input name="current" type="password" autocomplete="current-password" required></label>
+      <label>Contraseña nueva<input name="password" type="password" autocomplete="new-password" minlength="12" required placeholder="Mínimo 12 caracteres"></label>
+      <label>Repite la contraseña nueva<input name="confirm" type="password" autocomplete="new-password" minlength="12" required></label>
+      <button class="btn btn-primary btn-block" type="submit">Guardar y continuar</button>
+    </form>
+    <p class="auth-bottom"><button class="text-link" type="button" id="first-logout">Cerrar sesión</button></p>
+    <p id="password-feedback" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+
+<script src="auth-client.js" defer></script>
+<script src="clave.js" defer></script>
+</body>
+</html>

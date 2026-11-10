@@ -8,8 +8,12 @@ function initAeriqMap(){
   let rows=[],selected=null,requestId=0,controllerTimer,source='all',hasFit=false;
   const colors={bajo:'#219c72',moderado:'#eea22d',alto:'#e35b5d'};
   const level=r=>AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
+  // Solo formato de presentación: la fecha sigue en UTC y las coordenadas no se alteran salvo el redondeo visible.
+  const months=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const utcLabel=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(v||''));return m?`${Number(m[3])} ${months[Number(m[2])-1]} ${m[1]}, ${m[4]}:${m[5]} UTC`:`${v} UTC`;};
+  const coord=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):String(v);
   function choose(r,pan=true){selected=r;const info=q('#map-info');info.hidden=false;info.replaceChildren();
-    for(const [tag,text] of [['strong',r.zona],['p',`${r.valor} ${r.unidad} · ${level(r)}`],['p',`${r.capturada_en} UTC`],['p',`${r.latitud}, ${r.longitud}`],['p',r.simulado?'Datos simulados':'Medición real · no sustituye a estaciones oficiales']]){const n=document.createElement(tag);n.textContent=text;info.append(n);}
+    for(const [tag,text] of [['strong',r.zona],['p',`${r.valor} ${r.unidad} · ${level(r)}`],['p',utcLabel(r.capturada_en)],['p',`${coord(r.latitud)}, ${coord(r.longitud)}`],['p',r.simulado?'Datos simulados':'Medición real · no sustituye a estaciones oficiales']]){const n=document.createElement(tag);n.textContent=text;info.append(n);}
     if(pan)map.panTo([r.latitud,r.longitud]);q('#selected-id').textContent=r.id;
   }
   function drawZones(){

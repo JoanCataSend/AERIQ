@@ -4,6 +4,7 @@ Un único esquema legible, sin la combinación anterior de tablas Sprint 0 y tab
 
 ## Archivos
 
+- [Reinstalación limpia en Plesk](reinicio/LEEME.md) con inventario, borrado y creación del esquema, y alta del primer administrador.
 - [schema.sql](schema.sql): once tablas, restricciones, índices y dos vistas de lectura. No borra ninguna base.
 - [anadir-firebase-google.sql](anadir-firebase-google.sql): migración repetible que añade `usuarios.firebase_uid` y su índice único para el acceso con Google.
 - [seed-demo.sql](seed-demo.sql): datos ficticios para una instalación nueva. No se importa automáticamente en producción.
@@ -24,7 +25,7 @@ SELECT * FROM vista_flota;
 
 ### Recrear una base existente desde phpMyAdmin (Plesk)
 
-Exporta primero una copia SQL. Selecciona exclusivamente la base de AERIQ e importa [recrear-demo-plesk.sql](recrear-demo-plesk.sql). Este archivo elimina todas sus tablas y vistas, incluidas las antiguas, y carga el esquema y los ejemplos en una sola operación. No importes después `schema.sql` ni `seed-demo.sql`: ya están incluidos. Conserva el nombre de la base, los usuarios y los permisos. No elimina rutinas ni eventos programados ajenos al proyecto. El borrado no se puede deshacer con ROLLBACK.
+Para una base real, sigue [Reinstalar AERIQ](reinicio/LEEME.md). [recrear-demo-plesk.sql](recrear-demo-plesk.sql) es una instantánea anterior con cuentas y mediciones ficticias para demostración.
 
 Crea una base vacía e importa primero `schema.sql`. Añade `seed-demo.sql` únicamente si quieres la demostración. Configura la conexión privada en `src/web/server/SDBaseDatos.php`. No se mantiene un segundo esquema heredado para ejecutar la aplicación.
 

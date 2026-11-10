@@ -100,6 +100,36 @@ def main():
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='99'
             assert sql("USE jcatsen_pbio; SELECT SUM(valor<60),SUM(valor>=60 AND valor<100),SUM(valor>=100) FROM mediciones WHERE evento LIKE 'ae200000-%'")=='18\t18\t18'
             assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae200000-%' AND c.publicar=1 AND m.simulado=1")=='54'
+        reset_dir=ROOT/'src/database/reinicio'
+        format_sql=(reset_dir/'00-formatear.sql').read_text(encoding='utf-8')
+        install_sql=(reset_dir/'01-instalar.sql').read_text(encoding='utf-8')
+        unqualified_install=re.sub(r'`jcatsen_pbio`\.`(\w+)`',r'\1',install_sql)
+        assert (ROOT/'src/database/schema.sql').read_text(encoding='utf-8') in unqualified_install
+        # Simula el cambio de base activa de phpMyAdmin al consultar metadatos.
+        format_sql=format_sql.replace("-- Este marcador vacío", "USE information_schema;\n-- Este marcador vacío")
+        install_sql=install_sql.replace("-- AERIQ · Esquema único", "USE information_schema;\n-- AERIQ · Esquema único")
+        admin_seed=(reset_dir/'02-admin.sql').read_text(encoding='utf-8')
+        sql('USE jcatsen_pbio; CREATE TABLE tokens_consumidos(id INT PRIMARY KEY); CREATE VIEW vista_anterior AS SELECT id FROM tokens_consumidos;')
+        sql('ALTER TABLE jcatsen_pbio.usuarios AUTO_INCREMENT=2000000000')
+        previous_admin=1999999999
+        for _ in range(2):
+            sql('USE aeriq_test;'+format_sql)
+            assert sql("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio'")=='_reinicio_aeriq'
+            sql(install_sql)
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='11'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='2'
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='0'
+            assert sql('SELECT id FROM jcatsen_pbio.magnitudes ORDER BY id')=='12\n14'
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='0'
+            if previous_admin == 1999999999:
+                sql("INSERT INTO jcatsen_pbio.organizaciones(nombre) VALUES ('AERIQ Gandia')")
+            # phpMyAdmin puede ejecutar consultas intermedias entre sentencias del importador.
+            sql(admin_seed.replace("INSERT INTO `jcatsen_pbio`.`usuarios`", "SELECT 1;\nINSERT INTO `jcatsen_pbio`.`usuarios`"))
+            sql(admin_seed)
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.organizaciones')=='1'
+            admin_id,role=sql('SELECT id,rol FROM jcatsen_pbio.usuarios').split('\t')
+            assert role=='admin' and int(admin_id)>previous_admin
+            previous_admin=int(admin_id)
         sql("CREATE DATABASE aeriq_old_test; USE aeriq_old_test; CREATE TABLE AeriqUsuario(id BIGINT PRIMARY KEY,nombre VARCHAR(90),apellidos VARCHAR(120),email VARCHAR(254),telefono VARCHAR(40),password_hash VARCHAR(255),verificado_en DATETIME); CREATE TABLE Dispositivo(dispositivoId VARCHAR(16),nombre VARCHAR(100)); CREATE TABLE TipoMedida(tipoMedidaId INT,nombre VARCHAR(30),unidad VARCHAR(16)); CREATE TABLE Medida(id INT,dispositivoId VARCHAR(16),tipoMedidaId INT,valor INT,fechaHora DATETIME); INSERT INTO Dispositivo VALUES('EPSG-GTI-PROY-3A','Orb de Sprint 0'); INSERT INTO TipoMedida VALUES(14,'Ozono','ppb'),(12,'Temperatura','°C'); INSERT INTO Medida VALUES(1,'EPSG-GTI-PROY-3A',14,123,UTC_TIMESTAMP()),(2,'EPSG-GTI-PROY-3A',12,-12,UTC_TIMESTAMP());")
         sql('CREATE DATABASE aeriq_import_test; USE aeriq_import_test;'+(ROOT/'src/database/schema.sql').read_text())
         configs=[]
@@ -295,7 +325,13 @@ class PHPMailer {
         assert reset['user']['mustChangePassword'] is False
         expect(401,'mobile-auth.php?action=session',token=token)
         expect(422,'mobile-auth.php?action=reset-password',{'email':'worker@example.test','code':code,'password':'Recovered-Only-2026!'})
-        print('AERIQ integración OK: esquema único, roles/organizaciones, invitación y rollback de correo, contraseña inicial, asignaciones, deduplicación, publicación, baja y solicitudes.')
+        config=web/'server/SDBaseDatos.php'
+        config.write_text(config.read_text(encoding='utf-8').replace("'database'=>'aeriq_test'", "'database'=>'jcatsen_pbio'"),encoding='utf-8')
+        initial_login={'email':'gandia@gmail.com','password':'1234'}
+        expect(200,'auth.php?action=session',identity='initial-admin')
+        assert expect(200,'auth.php?action=login',initial_login,'initial-admin')['user']['role']=='admin'
+        assert expect(200,'mobile-auth.php?action=login',initial_login)['user']['role']=='admin'
+        print('AERIQ integración OK: reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
         print('Entorno aislado conservado en',folder)
     finally:
         for process in [php,db]:

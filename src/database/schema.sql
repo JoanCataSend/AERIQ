@@ -44,7 +44,6 @@ CREATE TABLE campanas (
 CREATE TABLE dispositivos (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, organizacion_id BIGINT UNSIGNED NOT NULL,
  nombre VARCHAR(160) NOT NULL, direccion_ble VARCHAR(17) NULL UNIQUE,
- identificador_legacy VARCHAR(80) NULL,
  activo BOOLEAN NOT NULL DEFAULT TRUE, simulado BOOLEAN NOT NULL DEFAULT FALSE,
  UNIQUE KEY dispositivo_organizacion (id,organizacion_id),
  FOREIGN KEY (organizacion_id) REFERENCES organizaciones(id)
@@ -80,16 +79,15 @@ CREATE TABLE mediciones (
  capturada_en DATETIME(3) NOT NULL,
  recibida_en DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
  latitud DOUBLE NULL, longitud DOUBLE NULL, precision_m DOUBLE NULL,
- contador INT NULL, rssi INT NULL,
+ contador TINYINT UNSIGNED NULL, rssi TINYINT NULL,
  simulado BOOLEAN NOT NULL, valida BOOLEAN NOT NULL DEFAULT TRUE,
- origen_importacion VARCHAR(190) NULL UNIQUE,
  UNIQUE KEY evento_unico (evento),
  FOREIGN KEY (asignacion_id) REFERENCES asignaciones(id),
  FOREIGN KEY (tipo) REFERENCES magnitudes(id),
  CHECK ((latitud IS NULL AND longitud IS NULL AND precision_m IS NULL) OR
    (latitud IS NOT NULL AND longitud IS NOT NULL AND precision_m IS NOT NULL AND
     latitud BETWEEN -90 AND 90 AND longitud BETWEEN -180 AND 180 AND precision_m BETWEEN 0 AND 10000)),
- CHECK (contador BETWEEN 0 AND 255), CHECK (rssi BETWEEN -127 AND 20),
+ CHECK (rssi BETWEEN -127 AND 20),
  INDEX (capturada_en), INDEX (asignacion_id,tipo,capturada_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

@@ -54,7 +54,7 @@ try {
         foreach ($data['AirqLectura'] as $r) {
             if (!in_array((int)$r['tipo'],[12,14],true) || $r['unidad']!==((int)$r['tipo']===14?'ppb':'°C')) throw new RuntimeException('Unidad no compatible: importación revertida; no se convierten unidades automáticamente.');
             $a=$assignment((int)$r['dispositivo_id'],(int)$r['usuario_id'],(int)$r['campana_id'],$r['capturada_en']);
-            command($target,'INSERT INTO mediciones(evento,asignacion_id,tipo,valor,capturada_en,recibida_en,latitud,longitud,precision_m,contador,rssi,simulado,valida,origen_importacion) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[$r['evento'],$a,(int)$r['tipo'],(float)$r['valor'],$r['capturada_en'],$r['recibida_en'],$r['latitud'],$r['longitud'],$r['precision_m'],$r['contador'],$r['rssi'],(int)$r['simulado'],(int)$r['valida'],'AirqLectura/'.$r['id']]);$total++;
+            command($target,'INSERT INTO mediciones(evento,asignacion_id,tipo,valor,capturada_en,recibida_en,latitud,longitud,precision_m,contador,rssi,simulado,valida) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',[$r['evento'],$a,(int)$r['tipo'],(float)$r['valor'],$r['capturada_en'],$r['recibida_en'],$r['latitud'],$r['longitud'],$r['precision_m'],$r['contador'],$r['rssi'],(int)$r['simulado'],(int)$r['valida']]);$total++;
         }
         foreach ($data['AirqDispositivo'] as $d) {
             if (!$d['trabajador_id'] || !$d['campana_id'] || !(int)$d['activo'])continue;
@@ -73,12 +73,12 @@ try {
             foreach ($data['Medida'] as $i=>$r) {
                 $id=$r['dispositivoId'];
                 if (!isset($mapped[$id])) {
-                    command($target,'INSERT INTO dispositivos(organizacion_id,nombre,identificador_legacy,activo,simulado) VALUES(?,?,?,0,1)',[$org,$legacy[$id]??'Orb importado',$id]);$orb=(int)$target->insert_id;
+                    command($target,'INSERT INTO dispositivos(organizacion_id,nombre,activo,simulado) VALUES(?,?,0,1)',[$org,$legacy[$id]??('Orb importado '.$id)]);$orb=(int)$target->insert_id;
                     command($target,'INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id,iniciada_en,finalizada_en) VALUES(?,?,?,?,?,?)',[$org,$orb,$operator,$campaign,$start.' 00:00:00',$end.' 23:59:59']);$mapped[$id]=(int)$target->insert_id;
                 }
                 $type=(int)$r['tipoMedidaId'];if(!in_array($type,[12,14],true))throw new RuntimeException('Magnitud antigua desconocida: importación revertida.');
                 $key='Medida/'.($r['id']??$r['medidaId']??$i);
-                command($target,'INSERT INTO mediciones(evento,asignacion_id,tipo,valor,capturada_en,simulado,origen_importacion) VALUES(?,?,?,?,?,1,?)',[event_id($key),$mapped[$id],$type,(float)$r['valor'],$r['fechaHora'],$key]);$total++;
+                command($target,'INSERT INTO mediciones(evento,asignacion_id,tipo,valor,capturada_en,simulado) VALUES(?,?,?,?,?,1)',[event_id($key),$mapped[$id],$type,(float)$r['valor'],$r['fechaHora']]);$total++;
             }
         }
         $target->commit();echo "Importación completada: $total mediciones conservadas; origen sin cambios. Las sesiones y códigos temporales no se migran.\n";

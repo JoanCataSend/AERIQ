@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T12:00:00Z",
+  "title": "Design System: AERIQ",
+  "extensions": {
+    "scope": {
+      "inWorld": ["src/web/aeriq.css", "src/web/index.html", "src/web/mapa.html", "src/web/sensor.html", "src/web/login.html", "src/web/recuperar.html", "src/web/cambiar-clave.html", "src/web/solicitar.html", "src/web/carrito.html", "src/web/checkout.html", "src/web/perfil.html", "src/web/portal.html", "src/web/sensores.html"],
+      "appCounterpart": "Figma «Proyecto» (pLq0la9g1ew4pFn6OUqUBQ), página «AERIQ · Rediseño app (propuesta)»: 15 pantallas Android con variables locales «AERIQ 2026 · color» y componentes «App · Barra inferior», «App · Botón», «App · Campo», «App · Fila de lista», «App · Botón atrás»; misma tipografía."
+    },
+    "colorMeta": {
+      "brand": { "role": "primary", "displayName": "Verde Código Norte", "canonical": "#0e6b5e", "tonalRamp": ["#062e28", "#0b4a41", "#0a594e", "#0e6b5e", "#3f8b7f", "#7fb3aa", "#bfd9d4", "#e6f0ed"] },
+      "brand-hover": { "role": "primary", "displayName": "Verde Código Norte (hover)", "canonical": "#0a594e" },
+      "brand-on-dark": { "role": "primary", "displayName": "Verde menta sobre negro", "canonical": "#62d2b3", "tonalRamp": ["#1d4a3f", "#2e6e5e", "#41937d", "#62d2b3", "#82dcc3", "#a3e6d3", "#c7f0e4", "#e8faf4"] },
+      "brand-tint": { "role": "primary", "displayName": "Verde niebla", "canonical": "#e6f0ed" },
+      "brand-ink": { "role": "primary", "displayName": "Verde bosque", "canonical": "#0b4a41" },
+      "low": { "role": "data", "displayName": "Nivel bajo", "canonical": "#219c72" },
+      "mid": { "role": "data", "displayName": "Nivel medio", "canonical": "#eea22d" },
+      "high": { "role": "data", "displayName": "Nivel alto", "canonical": "#e35b5d" },
+      "bg": { "role": "neutral", "displayName": "Blanco", "canonical": "#ffffff" },
+      "surface": { "role": "neutral", "displayName": "Blanco de control", "canonical": "#ffffff" },
+      "alt": { "role": "neutral", "displayName": "Gris escaparate", "canonical": "#f5f6f5", "tonalRamp": ["#1a1c1b", "#4b504e", "#686d6b", "#a3a8a5", "#cfd4d1", "#e3e6e4", "#eef0ef", "#f5f6f5"] },
+      "plate": { "role": "neutral", "displayName": "Gris bandeja", "canonical": "#eef0ef" },
+      "ink": { "role": "neutral", "displayName": "Tinta", "canonical": "#1a1c1b" },
+      "ink-2": { "role": "neutral", "displayName": "Tinta media", "canonical": "#4b504e" },
+      "ink-3": { "role": "neutral", "displayName": "Tinta suave", "canonical": "#686d6b" },
+      "line": { "role": "neutral", "displayName": "Línea", "canonical": "#e3e6e4" },
+      "line-strong": { "role": "neutral", "displayName": "Línea marcada", "canonical": "#cfd4d1" },
+      "dark": { "role": "neutral", "displayName": "Negro puro", "canonical": "#000000" },
+      "dark-2": { "role": "neutral", "displayName": "Negro carbón", "canonical": "#141615" },
+      "on-dark": { "role": "neutral", "displayName": "Texto sobre negro", "canonical": "#f5f6f5" },
+      "on-dark-2": { "role": "neutral", "displayName": "Texto secundario sobre negro", "canonical": "#a3a8a5" },
+      "map-canvas": { "role": "neutral", "displayName": "Lienzo del mapa", "canonical": "#e9edea" },
+      "map-dark": { "role": "neutral", "displayName": "Lienzo del mapa (oscuro)", "canonical": "#1b2629" }
+    },
+    "typographyMeta": {
+      "hero": { "displayName": "Hero", "purpose": "Titular de primera vista de la portada, centrado, máximo 14ch. La ficha del Orb llega a 128 px." },
+      "display": { "displayName": "Display", "purpose": "Titulares de sección grandes y centrados; titulares de páginas interiores y de acceso." },
+      "headline": { "displayName": "Headline", "purpose": "Cabeceras de sección alineadas a la izquierda." },
+      "title": { "displayName": "Title", "purpose": "Tarjetas del bento, paneles, pasos y reglas." },
+      "lead": { "displayName": "Lead", "purpose": "Entradillas grises bajo titulares, 40–46ch." },
+      "body": { "displayName": "Body", "purpose": "Texto corrido; 16–16,5 px dentro de tarjetas." },
+      "label": { "displayName": "Label", "purpose": "Etiquetas de campo, navegación y metadatos. Sin mayúsculas forzadas." },
+      "stat": { "displayName": "Stat", "purpose": "Cifras grandes del bento y de las estadísticas del portal, tabulares." }
+    },
+    "shadows": [
+      { "name": "shadow-1", "value": "0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.05)", "purpose": "Apoyo leve: segmento seleccionado, opción activa del estilo de mapa, chips de la maqueta." },
+      { "name": "shadow-2", "value": "0 2px 6px rgba(0,0,0,.06),0 24px 48px rgba(0,0,0,.12)", "purpose": "Flotante: controles sobre el mapa, aviso, diálogo, menú móvil." },
+      { "name": "focus-halo", "value": "0 0 0 3px rgba(14,107,94,.14)", "purpose": "Halo de foco de campos y buscadores junto al borde verde de marca." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(.16,1,.3,1)", "purpose": "Desplazamiento del icono de botones y chevrons, aviso." },
+      { "name": "state", "value": "0.2s", "purpose": "Cambios de color, borde y fondo en hover." },
+      { "name": "press", "value": "scale(.98)", "purpose": "Botón pulsado." },
+      { "name": "explode", "value": "scroll-driven (product-explode.js)", "purpose": "Despiece del Orb, única animación autorada; respeta prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "wide", "value": "1050px" },
+      { "name": "nav", "value": "860px" },
+      { "name": "explode", "value": "780px" },
+      { "name": "form", "value": "640px" },
+      { "name": "phone", "value": "560px" }
+    ],
+    "header": {
+      "height": "56px",
+      "background": "rgba(255,255,255,.82)",
+      "backdropFilter": "saturate(180%) blur(18px)",
+      "borderBottom": "1px solid rgba(0,0,0,.08)"
+    },
+    "knownGaps": [
+      "Radios de control sin unificar: campos de formulario 12 px / 48 px frente a controles del mapa 10 px / 42 px.",
+      "Tokens declarados sin uso: --r-sm, --r; --r-lg solo en .tile y .modal (.panel, .stat y .offer repiten 24/28 px en literal).",
+      ".btn-outline duplica a .btn-secondary y .text-link duplica a .link; .btn-on-brand y .btn-ghost-on-brand sin uso en las páginas.",
+      "Valores sueltos: rojo de acción peligrosa #a3372f, etiqueta de simulado #f3eadb/#7a5a1e, placeholder #707572, hover de tabla #fafbfa, regla .spec-list sin uso.",
+      "Estilos en línea puntuales (márgenes y rellenos) en sensor.html, perfil.html, carrito.html, index.html y mapa.html."
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal: cápsula verde de marca de 48 px.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Ver el mapa</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:999px;border:1px solid transparent;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;font-weight:550;font-size:15.5px;line-height:1;cursor:pointer;transition:background-color .2s,border-color .2s,color .2s,transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:2px solid #0e6b5e;outline-offset:3px}.ds-btn-primary{background:#0e6b5e;color:#fff}.ds-btn-primary:hover{background:#0a594e}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acción secundaria en formularios y paneles: cápsula blanca con borde.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border-radius:999px;border:1px solid #cfd4d1;background:#fff;color:#1a1c1b;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;font-weight:550;font-size:15.5px;line-height:1;cursor:pointer;transition:border-color .2s,transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn-secondary:hover{border-color:#686d6b}.ds-btn-secondary:active{transform:scale(.98)}.ds-btn-secondary:focus-visible{outline:2px solid #0e6b5e;outline-offset:3px}"
+    },
+    {
+      "name": "Enlace con chevron",
+      "kind": "custom",
+      "refersTo": "chevron-link",
+      "description": "Segunda acción junto al botón primario; verde menta en tramos negros.",
+      "html": "<a class=\"ds-chev\" href=\"#\">Conocer el Orb<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 4 4 4-4 4\"/></svg></a>",
+      "css": ".ds-chev{display:inline-flex;align-items:center;gap:2px;color:#0e6b5e;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;font-weight:550;font-size:17px;text-decoration:none}.ds-chev svg{width:16px;height:16px;margin-top:1px;transition:transform .25s cubic-bezier(.16,1,.3,1)}.ds-chev:hover{text-decoration:underline;text-underline-offset:4px}.ds-chev:hover svg{transform:translateX(2px)}.ds-chev:focus-visible{outline:2px solid #0e6b5e;outline-offset:3px;border-radius:4px}"
+    },
+    {
+      "name": "Campo de formulario",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo con etiqueta encima; foco con borde verde y halo.",
+      "html": "<label class=\"ds-label\">Correo electrónico<input class=\"ds-input\" type=\"email\" placeholder=\"nombre@organizacion.es\"></label>",
+      "css": ".ds-label{display:grid;gap:6px;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;font-size:14px;font-weight:550;color:#4b504e}.ds-input{width:100%;min-height:48px;padding:11px 14px;border:1px solid #cfd4d1;border-radius:12px;background:#fff;font:inherit;font-size:15.5px;font-weight:400;color:#1a1c1b;transition:border-color .2s,box-shadow .2s}.ds-input:hover{border-color:#686d6b}.ds-input:focus{outline:0;border-color:#0e6b5e;box-shadow:0 0 0 3px rgba(14,107,94,.14)}.ds-input::placeholder{color:#707572}"
+    },
+    {
+      "name": "Tarjeta (bento)",
+      "kind": "card",
+      "refersTo": "tile",
+      "description": "Superficie gris escaparate de radio 28 px, sin borde ni sombra.",
+      "html": "<article class=\"ds-tile\"><h3>Cabe en un llavero</h3><p>El Orb viaja con quien mide.</p></article>",
+      "css": ".ds-tile{border-radius:28px;background:#f5f6f5;padding:clamp(28px,3vw,40px);font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;color:#1a1c1b}.ds-tile h3{margin:0;font-size:clamp(21px,1.9vw,26px);line-height:1.15;letter-spacing:-.02em;font-weight:650}.ds-tile p{margin:8px 0 0;color:#686d6b;font-size:16px;line-height:1.55}"
+    },
+    {
+      "name": "Tarjeta oscura con cifra",
+      "kind": "card",
+      "refersTo": "tile-dark",
+      "description": "Tarjeta negro carbón del bento con cifra grande en verde menta.",
+      "html": "<article class=\"ds-tile-dark\"><p class=\"ds-stat\">20–50<small>m</small></p><h3>Interpolación acotada</h3></article>",
+      "css": ".ds-tile-dark{display:flex;flex-direction:column;justify-content:flex-end;min-height:272px;border-radius:28px;background:#141615;color:#f5f6f5;padding:clamp(28px,3vw,40px);font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif}.ds-stat{margin:0 0 auto;font-size:clamp(52px,5.6vw,76px);line-height:1;font-weight:750;letter-spacing:-.04em;color:#62d2b3;font-variant-numeric:tabular-nums}.ds-stat small{font-size:.32em;margin-left:6px;letter-spacing:0;font-weight:600}.ds-tile-dark h3{margin:0;font-size:clamp(21px,1.9vw,26px);letter-spacing:-.02em;font-weight:650}"
+    },
+    {
+      "name": "Cabecera",
+      "kind": "nav",
+      "refersTo": "header",
+      "description": "Cabecera fija translúcida de 56 px con navegación centrada.",
+      "html": "<header class=\"ds-header\"><strong class=\"ds-logo\">AERIQ</strong><nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\">Mapa</a><a href=\"#\">Orb</a><a href=\"#\">Organizaciones</a></nav><a class=\"ds-cta\" href=\"#\">Solicitar</a></header>",
+      "css": ".ds-header{height:56px;display:flex;align-items:center;gap:24px;padding:0 24px;background:rgba(255,255,255,.82);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid rgba(0,0,0,.08);font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif}.ds-logo{font-weight:750;letter-spacing:-.02em}.ds-nav{display:flex;gap:2px;margin-inline:auto}.ds-nav a{padding:6px 12px;border-radius:999px;text-decoration:none;color:#4b504e;font-size:14px;font-weight:500;transition:color .2s}.ds-nav a:hover{color:#1a1c1b}.ds-nav a[aria-current=page]{color:#1a1c1b;font-weight:650}.ds-cta{display:inline-flex;align-items:center;min-height:32px;padding:0 14px;border-radius:999px;background:#0e6b5e;color:#fff;font-size:13.5px;font-weight:550;text-decoration:none}.ds-cta:hover{background:#0a594e}"
+    },
+    {
+      "name": "Control segmentado",
+      "kind": "chip",
+      "refersTo": "segmented",
+      "description": "Selector de dos o tres opciones sobre bandeja gris; la activa en blanco con apoyo leve.",
+      "html": "<div class=\"ds-seg\"><button class=\"is-on\">Reales</button><button>Simuladas</button></div>",
+      "css": ".ds-seg{display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:12px;background:#e9ecea;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif}.ds-seg button{min-height:36px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:14px;font-weight:550;color:#4b504e;cursor:pointer;transition:background-color .2s,color .2s,box-shadow .2s}.ds-seg button:hover{color:#1a1c1b}.ds-seg button.is-on{background:#fff;color:#1a1c1b;box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.05)}.ds-seg button:focus-visible{outline:2px solid #0e6b5e;outline-offset:2px}"
+    },
+    {
+      "name": "Leyenda de nivel",
+      "kind": "custom",
+      "refersTo": "map-float",
+      "description": "Control flotante del mapa con franja de escala; cada color lleva su etiqueta.",
+      "html": "<div class=\"ds-legend\"><strong>Ozono (ppb)</strong><div class=\"ds-strip\"><span></span><span></span><span></span></div><div class=\"ds-labels\"><span>Bajo</span><span>Medio</span><span>Alto</span></div></div>",
+      "css": ".ds-legend{width:250px;padding:14px 16px;background:rgba(255,255,255,.97);border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.06),0 24px 48px rgba(0,0,0,.12);font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;color:#1a1c1b}.ds-legend strong{display:block;font-size:13.5px;font-weight:600}.ds-strip{display:grid;grid-template-columns:1fr 1fr 1fr;height:8px;margin-top:10px;border-radius:10px;overflow:hidden}.ds-strip span:nth-child(1){background:#219c72}.ds-strip span:nth-child(2){background:#eea22d}.ds-strip span:nth-child(3){background:#e35b5d}.ds-labels{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:8px;font-size:12.5px;font-weight:600}.ds-labels span:nth-child(2){text-align:center}.ds-labels span:nth-child(3){text-align:right}"
+    }
+  ],
+  "narrative": {
+    "northStar": "El escaparate silencioso",
+    "overview": "AERIQ se presenta como un producto físico en un escaparate limpio: el Orb y el mapa son los protagonistas y todo lo demás retrocede. Titulares enormes y centrados en Hanken Grotesk con interletraje negativo, mucho aire vertical entre secciones, fondo blanco con tramos de gris muy claro y algún tramo de negro puro que cambia el ritmo. La dirección la fijó el usuario: presentación de producto minimalista al estilo de la web de Apple, sin copiar su marca.\n\nLa densidad sube en las páginas de operación (mapa, cuenta, organización, flota, formularios) pero el mundo es el mismo: misma tipografía, mismo verde como único acento, mismas superficies grises sin borde, misma cabecera fina translúcida. Una sola hoja de estilos (`src/web/aeriq.css`) sirve a todas las páginas.\n\nRechazos confirmados: etiquetas pequeñas sobre los títulos, iconos de glifo decorativos y filas de insignias. La versión anterior «simplona» (estándar limpio con paneles bordeados) quedó sustituida.\n\nLa contraparte de la app Android vive en el archivo de Figma «Proyecto» (pLq0la9g1ew4pFn6OUqUBQ), página «AERIQ · Rediseño app (propuesta)»: 15 pantallas construidas con las variables locales «AERIQ 2026 · color» y los componentes «App · Barra inferior», «App · Botón», «App · Campo», «App · Fila de lista» y «App · Botón atrás», con la misma tipografía.",
+    "keyCharacteristics": [
+      "Producto y mapa como protagonistas; el texto los acompaña, no compite.",
+      "Titulares centrados de 700–750 con interletraje de −0,035 a −0,04 em.",
+      "Superficies grises claras de radio grande y sin borde; negro puro como contraste puntual.",
+      "Un único acento (verde de marca) reservado a acciones.",
+      "Colores de nivel solo para datos, siempre con texto al lado."
+    ],
+    "rules": [
+      { "name": "La regla de la voz única", "body": "El verde de marca es el único color de interfaz con tono. Aparece en acciones (botón primario, enlace con chevron, enlace de texto, foco) y en nada más.", "section": "colors" },
+      { "name": "La regla del dato con nombre", "body": "Verde, naranja y rojo de nivel solo representan mediciones, y siempre van acompañados de su etiqueta en texto («Bajo», «Medio», «Alto»), porque el color solo no basta para personas con daltonismo.", "section": "colors" },
+      { "name": "La regla del titular sin etiqueta", "body": "Ningún titular lleva encima una etiqueta pequeña, versalita o en mayúsculas. El titular se sostiene solo.", "section": "typography" },
+      { "name": "La regla del interletraje negativo", "body": "A partir de 21 px, el interletraje es negativo y crece con el tamaño (de −0,015 a −0,04 em). El cuerpo se queda en −0,003 em.", "section": "typography" },
+      { "name": "La regla de la tarjeta sin sombra", "body": "Tarjetas, paneles y estadísticas no llevan sombra ni borde; se separan del blanco solo por el gris escaparate.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar el verde de marca solo para acciones: botón primario, enlace con chevron, enlace de texto y foco; verde menta dentro de los tramos negros.",
+      "Do agrupar con superficies gris escaparate sin borde ni sombra, radio 24 px (paneles) o 28 px (tarjetas).",
+      "Do centrar los titulares de presentación con peso 700–750 e interletraje de −0,035 a −0,04 em, con una entradilla gris de 18–22 px debajo.",
+      "Do emparejar el botón primario con un enlace con chevron como segunda acción.",
+      "Do acompañar cada color de nivel con su etiqueta en texto.",
+      "Do recortar los recursos originales solo con CSS y tapar la interfaz antigua de las maquetas con capas HTML.",
+      "Do usar cifras tabulares en mediciones, estadísticas y tablas."
+    ],
+    "donts": [
+      "Don't poner etiquetas pequeñas o en mayúsculas encima de los titulares.",
+      "Don't usar iconos de glifo decorativos ni filas de insignias; los iconos son SVG funcionales (chevron, búsqueda, menú, zoom).",
+      "Don't usar los colores de nivel en botones, fondos o decoración.",
+      "Don't añadir un segundo color de acento ni volver a los paneles bordeados del sistema anterior.",
+      "Don't editar, sustituir ni regenerar las imágenes, maquetas o el modelo 3D originales.",
+      "Don't añadir animaciones autoradas fuera del despiece del Orb.",
+      "Don't copiar la marca de Apple (logotipos, nombres de producto, iconografía); la referencia es el nivel de acabado y la composición."
+    ]
+  }
+}
