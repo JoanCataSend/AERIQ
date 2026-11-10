@@ -53,7 +53,7 @@ public final class AuthScreens {
             back.setOnClickListener(view -> activity.onBackPressed());
             brand.addView(back, new FrameLayout.LayoutParams(ui.dp(48), ui.dp(48), Gravity.TOP | Gravity.START));
         }
-        body.addView(brand, new LinearLayout.LayoutParams(-1, ui.dp(66)));
+        body.addView(brand, new LinearLayout.LayoutParams(-1, ui.dp(screen == Screen.LOGIN ? 60 : 66)));
         String title, description;
         switch (screen) {
             case FORGOT: title = "Recuperar contraseña"; description = "Te enviaremos un código para establecer una nueva contraseña."; break;
@@ -63,15 +63,29 @@ public final class AuthScreens {
                 title = (auth.user != null && auth.user.mustChangePassword) ? "Sustituye tu contraseña temporal" : "Cambiar contraseña";
                 description = "Elige una contraseña diferente de al menos 12 caracteres.";
                 break;
-            default: title = "Iniciar sesión"; description = "Accede para ver tu sensor, tus mediciones y tus datos personales.";
+            default: title = "Iniciar sesión"; description = "Accede para ver tu sensor, tus mediciones y tus datos\npersonales.";
         }
-        ui.label(body, title, 30, true, INK).setGravity(Gravity.CENTER);
-        ui.label(body, description, 14, false, MUTED).setGravity(Gravity.CENTER);
+        TextView heading = ui.label(body, title, 30, true, INK);
+        heading.setGravity(Gravity.CENTER);
+        if (screen == Screen.LOGIN) {
+            LinearLayout.LayoutParams headingParams = (LinearLayout.LayoutParams) heading.getLayoutParams();
+            headingParams.bottomMargin = ui.dp(20);
+        }
+        TextView intro = ui.label(body, description, 14, false, MUTED);
+        intro.setGravity(Gravity.CENTER);
+        if (screen == Screen.LOGIN) {
+            intro.setLineSpacing(ui.dp(3), 1f);
+            LinearLayout.LayoutParams introParams = (LinearLayout.LayoutParams) intro.getLayoutParams();
+            introParams.bottomMargin = ui.dp(32);
+        }
         if (mandatory) ui.link(body, "Cerrar sesión", activity::logout);
         LinearLayout card = ui.card(body);
         if (screen == Screen.LOGIN) {
-            card.setBackground(ui.shape(WHITE, 22, 0));
+            card.setBackground(ui.shape(WHITE, 20, 0));
             card.setElevation(ui.dp(5));
+            card.setPadding(ui.dp(20), ui.dp(50), ui.dp(20), ui.dp(16));
+            LinearLayout.LayoutParams cardParams = (LinearLayout.LayoutParams) card.getLayoutParams();
+            cardParams.bottomMargin = ui.dp(34);
         }
         switch (screen) {
             case LOGIN: login(body, card); break;
@@ -87,23 +101,29 @@ public final class AuthScreens {
         // Campos
         EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
         email.setHint("nombre@ejemplo.com");
+        LinearLayout emailRow = (LinearLayout) email.getParent();
+        LinearLayout.LayoutParams emailParams = (LinearLayout.LayoutParams) emailRow.getLayoutParams();
+        emailParams.bottomMargin = ui.dp(28);
         EditText password = ui.field(card, "Contraseña", "", PASSWORD);
         password.setHint("Tu contraseña");
 
         // Olvidé contraseña (alineado derecha)
         TextView forgot = ui.text("¿Has olvidado tu contraseña?", 13, true, GREEN);
-        forgot.setPadding(0, ui.dp(4), 0, ui.dp(8));
+        forgot.setPaintFlags(forgot.getPaintFlags() | android.graphics.Paint.UNDERLINE_TEXT_FLAG);
+        forgot.setPadding(0, ui.dp(2), 0, 0);
         forgot.setGravity(Gravity.END);
         forgot.setFocusable(true);
         forgot.setOnClickListener(v -> activity.go(Screen.FORGOT));
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
-        fp.bottomMargin = ui.dp(12);
+        fp.bottomMargin = ui.dp(60);
         card.addView(forgot, fp);
 
         // Botón Entrar (verde)
-        submit(card, "Entrar", "login", Screen.MAP,
+        Button entrar = submit(card, "Entrar", "login", Screen.MAP,
             () -> !value(email).isEmpty() && password.length() > 0,
             () -> new Object[]{"email", value(email), "password", value(password)});
+        entrar.setTextSize(16);
+        ui.pill(entrar, GREEN);
 
         // Divisor social
         ui.dividerWithText(card, "o continúa con");
@@ -114,23 +134,26 @@ public final class AuthScreens {
         srp.bottomMargin = ui.dp(8);
         socialRow.setLayoutParams(srp);
 
-        LinearLayout googleBtn = ui.socialButton("Google", R.drawable.ic_google_logo, () -> socialLogin("google"));
-        LinearLayout appleBtn  = ui.socialButton("Apple",  R.drawable.ic_apple_logo,  () -> socialLogin("apple"));
+        LinearLayout googleBtn = ui.socialButton("Google", R.drawable.ic_google_logo, WHITE, INK, 12, () -> socialLogin("google"));
+        LinearLayout appleBtn  = ui.socialButton("Apple",  R.drawable.ic_apple_logo,  WHITE, INK, 12, () -> socialLogin("apple"));
 
         LinearLayout.LayoutParams lh = new LinearLayout.LayoutParams(0, -2, 1);
-        lh.rightMargin = ui.dp(6);
+        lh.rightMargin = ui.dp(7);
         socialRow.addView(googleBtn, lh);
 
         LinearLayout.LayoutParams rh = new LinearLayout.LayoutParams(0, -2, 1);
-        rh.leftMargin = ui.dp(6);
+        rh.leftMargin = ui.dp(7);
         socialRow.addView(appleBtn, rh);
 
         card.addView(socialRow);
 
         LinearLayout.LayoutParams biometricParams = new LinearLayout.LayoutParams(-1, -2);
-        biometricParams.topMargin = ui.dp(8);
-        LinearLayout biometricButton = ui.socialButton("Entrar con huella", R.drawable.ic_fingerprint, DARK, WHITE,
+        biometricParams.topMargin = ui.dp(10);
+        LinearLayout biometricButton = ui.socialButton("Entrar con huella", R.drawable.ic_fingerprint, DARK, WHITE, 26,
             activity::loginWithFingerprint);
+        if (biometricButton.getChildCount() > 1 && biometricButton.getChildAt(1) instanceof TextView) {
+            ((TextView) biometricButton.getChildAt(1)).setTextSize(15);
+        }
         card.addView(biometricButton, biometricParams);
 
         // Banner "Solo quieres ver el aire de tu ciudad"
@@ -144,8 +167,8 @@ public final class AuthScreens {
         mapRow.addView(mapIcon, icP);
 
         LinearLayout textCol = ui.column();
-        textCol.addView(ui.text("¿Solo quieres ver el aire de tu ciudad?", 13, true, INK));
-        textCol.addView(ui.text("El mapa público es gratis y no necesita cuenta.", 12, false, MUTED));
+        textCol.addView(ui.text("¿Solo quieres ver el aire de tu\nciudad?", 13, true, INK));
+        textCol.addView(ui.text("El mapa público es gratis y no\nnecesita cuenta.", 12, false, MUTED));
         mapRow.addView(textCol, new LinearLayout.LayoutParams(0, -2, 1));
 
         TextView mapLink = ui.text("Ver mapa", 13, true, GREEN);
@@ -296,7 +319,7 @@ public final class AuthScreens {
     }
 
     // ── HELPERS ────────────────────────────────────────────────────────────
-    private void submit(LinearLayout card, String caption, String action, Screen next,
+    private Button submit(LinearLayout card, String caption, String action, Screen next,
                         java.util.function.BooleanSupplier valid, java.util.function.Supplier<Object[]> fields) {
         Button button = ui.action(caption, GREEN, WHITE, () -> {});
         ui.add(card, button);
@@ -313,6 +336,7 @@ public final class AuthScreens {
                 if (result.success && next != null) activity.go(next);
             }, fields.get());
         });
+        return button;
     }
 
     private static String value(EditText input) { return input.getText().toString(); }

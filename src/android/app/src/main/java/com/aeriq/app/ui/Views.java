@@ -85,6 +85,10 @@ public final class Views {
     }
 
     public Button action(String label, int background, int foreground, Runnable click) {
+        return action(label, background, foreground, 14, click);
+    }
+
+    public Button action(String label, int background, int foreground, int radius, Runnable click) {
         Button button = new Button(context);
         button.setText(label);
         button.setAllCaps(false);
@@ -95,9 +99,15 @@ public final class Views {
         button.setStateListAnimator(null);
         button.setElevation(0);
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x220e6b5e),
-            shape(background, 14, background == WHITE ? LINE : 0), null));
+            shape(background, radius, background == WHITE ? LINE : 0), null));
         button.setOnClickListener(view -> click.run());
         return button;
+    }
+
+    /** Convierte un botón en cápsula, como el botón principal del diseño. */
+    public void pill(Button button, int background) {
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x220e6b5e),
+            shape(background, 26, 0), null));
     }
 
     public Button button(LinearLayout parent, String label, Runnable click) {
@@ -136,15 +146,19 @@ public final class Views {
     }
 
     public LinearLayout socialButton(String label, int iconRes, Runnable click) {
-        return socialButton(label, iconRes, WHITE, INK, click);
+        return socialButton(label, iconRes, WHITE, INK, 14, click);
     }
 
     public LinearLayout socialButton(String label, int iconRes, int background, int foreground, Runnable click) {
+        return socialButton(label, iconRes, background, foreground, 14, click);
+    }
+
+    public LinearLayout socialButton(String label, int iconRes, int background, int foreground, int radius, Runnable click) {
         LinearLayout button = row();
         button.setGravity(Gravity.CENTER);
         button.setMinimumHeight(dp(48));
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x15000000),
-            shape(background, 14, background == WHITE ? LINE : 0), null));
+            shape(background, radius, background == WHITE ? LINE : 0), null));
         button.setClickable(true);
         button.setFocusable(true);
         if (iconRes != 0) {
@@ -165,7 +179,7 @@ public final class Views {
         LinearLayout row = row();
         row.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.topMargin = dp(14);
+        params.topMargin = dp(2);
         params.bottomMargin = dp(14);
         row.setLayoutParams(params);
 
@@ -199,10 +213,10 @@ public final class Views {
 
     public EditText field(LinearLayout parent, String label, String value, int type) {
         TextView caption = text(label, 13, true, INK);
-        caption.setPadding(0, 0, 0, dp(5));
+        caption.setPadding(0, 0, 0, dp(10));
         parent.addView(caption);
         LinearLayout row = row();
-        row.setBackground(shape(0xffeff3f1, 14, LINE));
+        row.setBackground(shape(0xfff1f4f3, 12, 0));
         EditText input = new EditText(context);
         input.setId(View.generateViewId());
         input.setSingleLine(true);
@@ -213,9 +227,9 @@ public final class Views {
         input.setHintTextColor(MUTED);
         input.setText(value);
         input.setHint(label);
-        input.setPadding(dp(14), dp(12), dp(14), dp(12));
+        input.setPadding(dp(14), dp(11), dp(14), dp(11));
         input.setBackground(null);
-        input.setMinimumHeight(dp(52));
+        input.setMinimumHeight(dp(44));
         caption.setLabelFor(input.getId());
         weighted(row, input);
         if ((type & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_PASSWORD) {
@@ -237,7 +251,9 @@ public final class Views {
             });
             row.addView(toggle, toggleParams);
         }
-        add(parent, row);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+        rowParams.bottomMargin = dp(16);
+        parent.addView(row, rowParams);
         return input;
     }
 
