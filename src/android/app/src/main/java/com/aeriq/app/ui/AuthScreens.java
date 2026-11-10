@@ -69,6 +69,10 @@ public final class AuthScreens {
         ui.label(body, description, 14, false, MUTED).setGravity(Gravity.CENTER);
         if (mandatory) ui.link(body, "Cerrar sesión", activity::logout);
         LinearLayout card = ui.card(body);
+        if (screen == Screen.LOGIN) {
+            card.setBackground(ui.shape(WHITE, 22, 0));
+            card.setElevation(ui.dp(5));
+        }
         switch (screen) {
             case LOGIN: login(body, card); break;
             case FORGOT: case RESET: recovery(screen, body, card); break;
@@ -80,9 +84,6 @@ public final class AuthScreens {
 
     // ── LOGIN ──────────────────────────────────────────────────────────────
     private void login(LinearLayout body, LinearLayout card) {
-        // Divisor
-        ui.dividerWithText(card, "o con tu correo");
-
         // Campos
         EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
         email.setHint("nombre@ejemplo.com");
@@ -128,7 +129,7 @@ public final class AuthScreens {
 
         LinearLayout.LayoutParams biometricParams = new LinearLayout.LayoutParams(-1, -2);
         biometricParams.topMargin = ui.dp(8);
-        LinearLayout biometricButton = ui.socialButton("Entrar con huella", R.drawable.ic_fingerprint, BLACK, WHITE,
+        LinearLayout biometricButton = ui.socialButton("Entrar con huella", R.drawable.ic_fingerprint, DARK, WHITE,
             activity::loginWithFingerprint);
         card.addView(biometricButton, biometricParams);
 
