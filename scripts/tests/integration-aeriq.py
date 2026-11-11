@@ -61,11 +61,8 @@ def main():
         sql("USE aeriq_v1_test; INSERT INTO organizaciones(id,nombre) VALUES(9,'Empresa Verde · demostración'); UPDATE usuarios SET firebase_uid='uid-demo' WHERE id=1; UPDATE campanas SET umbral_medio=55 WHERE id=2; UPDATE solicitudes SET estado='en revision' WHERE id=2;")
         for _ in range(2):
             sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v2-catalogos.sql').read_text(encoding='utf-8'))
-<<<<<<< HEAD
-            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v3-bateria.sql').read_text(encoding='utf-8'))
-=======
             sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v3-solicitudes.sql').read_text(encoding='utf-8'))
->>>>>>> origin/rediseno-web
+            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v4-bateria.sql').read_text(encoding='utf-8'))
             assert sql('USE aeriq_v1_test; SELECT COUNT(*) FROM mediciones')=='9'
             assert sql("USE aeriq_v1_test; SELECT r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id ORDER BY u.id")=='admin\ntrabajador\nanalista\ncomercial\nadmin\ntrabajador'
             assert sql("USE aeriq_v1_test; SELECT nombre FROM organizaciones WHERE id=9")=='Empresa Verde · demostración (#9)'
@@ -144,11 +141,7 @@ def main():
             sql('USE aeriq_test;'+format_sql)
             assert sql("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio'")=='_reinicio_aeriq'
             sql(install_sql)
-<<<<<<< HEAD
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='23'
-=======
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='25'
->>>>>>> origin/rediseno-web
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='26'
             assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='4'
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='0'
             assert sql('SELECT id FROM jcatsen_pbio.magnitudes ORDER BY id')=='12\n14'
@@ -428,7 +421,7 @@ class PHPMailer {
         assert expect(200,'mobile-auth.php?action=login',{'email':'operador.simulacion@aeriq.example','password':'1234'})['user']['role']=='trabajador'
         expect(200,'auth.php?action=session',identity='sim-sales')
         assert expect(200,'auth.php?action=login',{'email':'comercial.simulacion@codigonorte.example','password':'1234'},'sim-sales')['user']['role']=='comercial'
-        print('AERIQ integración OK: migración v1->v2->v3, reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
+        print('AERIQ integración OK: migración v1->v2->v3->v4, reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
         print('Entorno aislado conservado en',folder)
     finally:
         for process in [php,db]:

@@ -1,7 +1,8 @@
--- AERIQ · Migración v2 -> v3: nivel de batería de cada Orb.
+-- AERIQ · Migración v3 -> v4: nivel de batería de cada Orb.
 -- Añade la tabla lecturas_bateria y la batería a vista_flota. No borra ni cambia datos.
 -- Repetible. Importar con la base de AERIQ seleccionada en phpMyAdmin, después de
--- migracion-v2-catalogos.sql (o sobre una instalación hecha con schema.sql actual).
+-- migracion-v3-solicitudes.sql (o sobre una instalación hecha con schema.sql actual).
+-- No depende de las tablas de solicitudes: también funciona directamente sobre una base v2.
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
 

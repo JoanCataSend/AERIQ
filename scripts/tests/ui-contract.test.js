@@ -7,13 +7,9 @@ const wait=()=>new Promise(r=>setTimeout(r,35));
 const user={id:1,name:'Ana',last:'Administradora',role:'admin',roleName:'Administrador',permissions:['informes.ver','mapa.organizacion','mediciones.registrar','organizacion.gestionar'],organization:'Organización de prueba',email:'admin@example.test',mustChangePassword:false};
 const worker={id:2,nombre:'Pau',apellidos:'Operador',email:'worker@example.test',rol:'trabajador',rol_nombre:'Trabajador',puede_medir:1,activo:0,cambiar_clave:1};
 const campaign={id:1,nombre:'Campaña de prueba',zona:'Campus',inicio:'2026-11-01',fin:'2026-12-01',activa:1,publicar:1,radio_m:30,umbral_medio:60,umbral_alto:100};
-<<<<<<< HEAD
 const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',bateria_pct:57,bateria_en:'2026-11-03 08:00:00.000',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-03 08:00:00'};
-=======
-const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-03 08:00:00'};
 // Catálogos del formulario comercial: incluye un servicio nuevo con datos de estudio para comprobar que manda la base de datos.
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros.',mide_superficie:true},{codigo:'auditoria',nombre:'Servicio nuevo de prueba',descripcion:'',mide_superficie:true}],orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad'}],objectives:[{codigo:'espacios_publicos',nombre:'Calidad del aire en espacios públicos'},{codigo:'otro',nombre:'Otro'}],provinces:['Madrid','Valencia'],durations:['1 semana','2 semanas','A definir con Código Norte']};
->>>>>>> origin/rediseno-web
 const measurement={id:1,campaignId:1,valor:68,unidad:'ppb',capturada_en:'2026-11-03 08:00:00.000',latitud:38.99665,longitud:-.166,simulado:true,zona:'Campus',radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:'Orb original',campana:'Campaña de prueba'};
 async function page(name,search=''){
   const errors=[],calls=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});

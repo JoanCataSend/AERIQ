@@ -1,10 +1,6 @@
 # Modelo de datos
 
-<<<<<<< HEAD
-AERIQ usa 23 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql) y después [migracion-v3-bateria.sql](../src/database/migracion-v3-bateria.sql); las dos conservan todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
-=======
-AERIQ usa 25 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql) (v1 → v2) y después [migracion-v3-solicitudes.sql](../src/database/migracion-v3-solicitudes.sql) (v2 → v3). Las dos conservan todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
->>>>>>> origin/rediseno-web
+AERIQ usa 26 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql) (v1 → v2) y después [migracion-v3-solicitudes.sql](../src/database/migracion-v3-solicitudes.sql) (v2 → v3) y [migracion-v4-bateria.sql](../src/database/migracion-v4-bateria.sql) (v3 → v4, batería de los Orb). Las tres conservan todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
 
 La versión 2 del esquema sustituye los `ENUM` y los textos repetidos por **tablas de catálogo**. Un catálogo es una tabla pequeña con un `id`, un `codigo` estable que usa el programa y un `nombre` legible. Para añadir un rol, un permiso, un servicio o un estado basta con insertar una fila; no hace falta modificar la tabla ni el código.
 
@@ -176,9 +172,10 @@ La base de datos garantiza las relaciones, los rangos y las combinaciones dentro
 2. Detén la captura Android.
 3. Selecciona la base. Si todavía está en v1, importa [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql), que al final muestra un resumen por rol y los totales de cada tabla.
 4. Importa [migracion-v3-solicitudes.sql](../src/database/migracion-v3-solicitudes.sql). Al final muestra cuántas solicitudes hay por servicio y tipo de organización.
-5. Sube la web nueva: los PHP de esta versión leen el esquema v3.
+5. Importa [migracion-v4-bateria.sql](../src/database/migracion-v4-bateria.sql). Añade `lecturas_bateria` y la batería en `vista_flota`.
+6. Sube la web nueva: los PHP de esta versión leen el esquema v4.
 
-Las migraciones son repetibles: si se importan dos veces, la segunda no cambia nada. La prueba de integración aplica v2 y v3 dos veces sobre el esquema v1 con datos. Después comprueba que el resultado tiene exactamente las mismas columnas, claves foráneas y comprobaciones que `schema.sql`.
+Las migraciones son repetibles: si se importan dos veces, la segunda no cambia nada. La prueba de integración aplica v2, v3 y v4 dos veces sobre el esquema v1 con datos. Después comprueba que el resultado tiene exactamente las mismas columnas, claves foráneas y comprobaciones que `schema.sql`.
 
 ## Acceso y privacidad
 
