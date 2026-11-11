@@ -122,12 +122,42 @@ CREATE TABLE servicios (
  nombre VARCHAR(80) NOT NULL,
  descripcion VARCHAR(255) NOT NULL DEFAULT '',
  mide_superficie BOOLEAN NOT NULL DEFAULT FALSE,
+ orden TINYINT UNSIGNED NOT NULL DEFAULT 0,
  activo BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT INTO servicios (id,codigo,nombre,descripcion,mide_superficie) VALUES
- (1,'administracion','Kits para administraciones públicas','Kits Orb para campañas municipales.',0),
- (2,'empresa','Kits para empresas privadas','Kits Orb para instalaciones y recintos privados.',0),
- (3,'estudio','Estudio ambiental de Código Norte','Estudio completo con informe, según la superficie.',1);
+-- Qué le interesa al cliente. El número de Orb lo recomienda Código Norte.
+INSERT INTO servicios (id,codigo,nombre,descripcion,mide_superficie,orden) VALUES
+ (1,'kits','Comprar Orb para mi organización','Sensores propios con app y panel. Te recomendamos cuántos necesitas.',0,1),
+ (2,'estudio','Contratar un estudio de ozono','Medimos nosotros la zona durante un tiempo, sin comprar sensores, y entregamos un informe.',1,2),
+ (3,'asesoramiento','No lo tengo claro, aconsejadme','Cuéntanos tu caso y te proponemos la opción que mejor encaja.',0,3);
+
+-- Quién hace la solicitud, independiente de lo que pide.
+CREATE TABLE tipos_organizacion (
+ id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(30) NOT NULL UNIQUE,
+ nombre VARCHAR(80) NOT NULL,
+ orden TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ activo BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO tipos_organizacion (id,codigo,nombre,orden) VALUES
+ (1,'administracion','Administración pública',1),
+ (2,'empresa','Empresa',2),
+ (3,'otra','Otra entidad (centro educativo, asociación…)',3);
+
+-- Para qué quiere medir el ozono. Ayuda a recomendar la solución.
+CREATE TABLE objetivos_medicion (
+ id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(30) NOT NULL UNIQUE,
+ nombre VARCHAR(80) NOT NULL,
+ orden TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ activo BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO objetivos_medicion (id,codigo,nombre,orden) VALUES
+ (1,'espacios_publicos','Calidad del aire en espacios públicos',1),
+ (2,'salud_laboral','Salud y seguridad laboral',2),
+ (3,'normativa','Informe técnico o normativa',3),
+ (4,'investigacion','Investigación o divulgación',4),
+ (5,'otro','Otro',5);
 
 CREATE TABLE estados_solicitud (
  id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -267,21 +297,38 @@ CREATE TABLE mediciones (
 
 -- ============================================================ Solicitudes comerciales
 
--- Un kit pide cantidad; un estudio pide superficie (servicios.mide_superficie).
+-- Qué pide (servicio), quién lo pide (tipo de organización) y dónde.
+-- No se pide cantidad de Orb: la recomienda Código Norte. Superficie, duración e
+-- inicio solo aplican a estudios (servicios.mide_superficie); la superficie es
+-- opcional porque el cliente no suele saberla. tipo_organizacion_id NULL = solicitud
+-- anterior a v3 en la que no se preguntaba.
 CREATE TABLE solicitudes (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  servicio_id TINYINT UNSIGNED NOT NULL,
+ tipo_organizacion_id TINYINT UNSIGNED NULL,
  estado_id TINYINT UNSIGNED NOT NULL DEFAULT 1,
  entidad VARCHAR(180) NOT NULL, contacto VARCHAR(160) NOT NULL,
  email VARCHAR(254) NOT NULL, telefono VARCHAR(40) NOT NULL DEFAULT '',
- cantidad INT NULL, zona VARCHAR(200) NOT NULL, superficie DOUBLE NULL,
- duracion VARCHAR(100) NOT NULL DEFAULT '', necesidades TEXT NOT NULL,
+ municipio VARCHAR(120) NOT NULL DEFAULT '', provincia VARCHAR(60) NOT NULL DEFAULT '',
+ zona VARCHAR(200) NOT NULL, superficie DOUBLE NULL,
+ duracion VARCHAR(100) NOT NULL DEFAULT '', inicio_deseado DATE NULL,
+ necesidades TEXT NOT NULL,
  consentimiento_en DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
  recibida_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+ FOREIGN KEY (tipo_organizacion_id) REFERENCES tipos_organizacion(id),
  FOREIGN KEY (estado_id) REFERENCES estados_solicitud(id),
- CHECK ((cantidad > 0 AND superficie IS NULL) OR (cantidad IS NULL AND superficie > 0)),
+ CHECK (superficie IS NULL OR superficie > 0),
  INDEX (estado_id,recibida_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Objetivos marcados en cada solicitud (uno o varios).
+CREATE TABLE solicitud_objetivos (
+ solicitud_id BIGINT UNSIGNED NOT NULL,
+ objetivo_id TINYINT UNSIGNED NOT NULL,
+ PRIMARY KEY (solicitud_id,objetivo_id),
+ FOREIGN KEY (solicitud_id) REFERENCES solicitudes(id) ON DELETE CASCADE,
+ FOREIGN KEY (objetivo_id) REFERENCES objetivos_medicion(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Quién cambió cada solicitud de estado y cuándo. usuario_id NULL = formulario público.
@@ -352,10 +399,13 @@ CREATE VIEW vista_usuarios AS
  LEFT JOIN organizaciones o ON o.id=u.organizacion_id;
 
 CREATE VIEW vista_solicitudes AS
- SELECT s.id,s.recibida_en,sv.nombre AS servicio,e.nombre AS estado,
- s.entidad,s.contacto,s.email,s.zona,s.cantidad,s.superficie,
+ SELECT s.id,s.recibida_en,sv.nombre AS servicio,t.nombre AS tipo_organizacion,e.nombre AS estado,
+ s.entidad,s.contacto,s.email,s.telefono,s.municipio,s.provincia,s.zona,s.superficie,s.duracion,s.inicio_deseado,
+ (SELECT GROUP_CONCAT(o.nombre ORDER BY o.orden SEPARATOR ', ') FROM solicitud_objetivos so
+  JOIN objetivos_medicion o ON o.id=so.objetivo_id WHERE so.solicitud_id=s.id) AS objetivos,
  (SELECT MAX(h.cambiado_en) FROM solicitudes_historial h WHERE h.solicitud_id=s.id) AS ultimo_cambio
  FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id
+ LEFT JOIN tipos_organizacion t ON t.id=s.tipo_organizacion_id
  JOIN estados_solicitud e ON e.id=s.estado_id;
 
 -- Datos de ejemplo.
@@ -400,11 +450,13 @@ INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,latit
  ('00000000-0000-4000-8000-000000000007',1,12,22,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.996671,-0.165989,5,7,-60,1),
  ('00000000-0000-4000-8000-000000000008',2,14,49,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 HOUR),38.998000,-0.162500,8,1,-65,1),
  ('00000000-0000-4000-8000-000000000009',2,14,57,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.998060,-0.162500,8,2,-63,1);
--- Servicios: 1 administración, 2 empresa, 3 estudio. Estados: 1 pendiente, 2 en revisión, 3 respondida.
-INSERT INTO solicitudes(id,servicio_id,estado_id,entidad,contacto,email,cantidad,zona,superficie,duracion,necesidades,recibida_en) VALUES
- (1,1,1,'Ayuntamiento de ejemplo','Responsable municipal','municipio@example.test',5,'Parques del municipio',NULL,'','Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
- (2,2,2,'Empresa de ejemplo','Responsable ambiental','empresa@example.test',3,'Recinto industrial',NULL,'','Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),
- (3,3,3,'Centro educativo de ejemplo','Coordinación del centro','centro@example.test',NULL,'Entorno del centro',2500,'Dos semanas','Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY));
+-- Servicios: 1 kits, 2 estudio, 3 asesoramiento. Tipos: 1 administración, 2 empresa, 3 otra.
+-- Estados: 1 pendiente, 2 en revisión, 3 respondida. Objetivos: ver objetivos_medicion.
+INSERT INTO solicitudes(id,servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,telefono,municipio,provincia,zona,superficie,duracion,inicio_deseado,necesidades,recibida_en) VALUES
+ (1,1,1,1,'Ayuntamiento de ejemplo','Responsable municipal','municipio@example.test','600000001','Gandia','Valencia','Parques del municipio',NULL,'',NULL,'Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
+ (2,1,2,2,'Empresa de ejemplo','Responsable ambiental','empresa@example.test','','Oliva','Valencia','Recinto industrial',NULL,'',NULL,'Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),
+ (3,2,3,3,'Centro educativo de ejemplo','Coordinación del centro','centro@example.test','','Tavernes de la Valldigna','Valencia','Entorno del centro',2500,'2 semanas',NULL,'Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY));
+INSERT INTO solicitud_objetivos(solicitud_id,objetivo_id) VALUES (1,1),(2,2),(3,1),(3,4);
 INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id,cambiado_en) VALUES
  (1,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
  (2,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),

@@ -29,9 +29,9 @@ Se revisaron capturas de portada, producto, cuenta, informes, solicitudes, mapa 
 | WEB 07 · Verificar correo · verificar.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-389) |
 | WEB 08 · Recuperar contraseña · recuperar.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-464) |
 | WEB 09 · Contraseña temporal · cambiar-clave.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-563) |
-| WEB 10 · Preparar kit · carrito.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-648) |
-| WEB 11 · Presupuesto de kit · checkout.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-732) |
-| WEB 12 · Solicitar kits · solicitar.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-843) |
+| WEB 10 · Preparar kit · carrito.html (página eliminada) | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-648) |
+| WEB 11 · Presupuesto de kit · checkout.html (página eliminada) | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-732) |
+| WEB 12 · Solicitar kits · solicitar.html (formulario anterior) | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-843) |
 | WEB 13 · Solicitar estudio · solicitar.html?service=estudio | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-954) |
 | WEB 14 · Solicitud empresa · solicitar.html?service=empresa | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-1069) |
 | WEB 15 · Organización / Resumen · portal.html | [Abrir](https://www.figma.com/design/pLq0la9g1ew4pFn6OUqUBQ/Proyecto?node-id=229-1180) |

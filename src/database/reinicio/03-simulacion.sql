@@ -145,29 +145,36 @@ INSERT INTO `jcatsen_pbio`.`mediciones` (evento,asignacion_id,magnitud_id,valor,
 ON DUPLICATE KEY UPDATE capturada_en=VALUES(capturada_en);
 
 -- ------------------------------------------------------------ Solicitudes comerciales
--- Servicios: administracion / empresa (cantidad de Orb), estudio (superficie en m²).
-INSERT INTO `jcatsen_pbio`.`solicitudes` (servicio_id,estado_id,entidad,contacto,email,cantidad,zona,superficie,duracion,necesidades,recibida_en)
- SELECT s.id,e.id,'Ayuntamiento de ejemplo (simulación)','Responsable municipal','municipio.simulacion@example.test',5,'Parques del municipio',NULL,'','Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)
- FROM `jcatsen_pbio`.`servicios` s JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.codigo='pendiente'
- WHERE s.codigo='administracion' AND NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes` WHERE email='municipio.simulacion@example.test' AND entidad='Ayuntamiento de ejemplo (simulación)');
+-- Servicios: kits, estudio (superficie opcional, duración) y asesoramiento. Cada solicitud
+-- lleva su tipo de organización y al menos un objetivo de medición.
+INSERT INTO `jcatsen_pbio`.`solicitudes` (servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,municipio,provincia,zona,superficie,duracion,necesidades,recibida_en)
+ SELECT s.id,t.id,e.id,'Ayuntamiento de ejemplo (simulación)','Responsable municipal','municipio.simulacion@example.test','Gandia','Valencia','Parques del municipio',NULL,'','Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)
+ FROM `jcatsen_pbio`.`servicios` s JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.codigo='pendiente' JOIN `jcatsen_pbio`.`tipos_organizacion` t ON t.codigo='administracion'
+ WHERE s.codigo='kits' AND NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes` WHERE email='municipio.simulacion@example.test' AND entidad='Ayuntamiento de ejemplo (simulación)');
 SET @s := (SELECT MIN(id) FROM `jcatsen_pbio`.`solicitudes` WHERE email='municipio.simulacion@example.test' AND entidad='Ayuntamiento de ejemplo (simulación)');
+INSERT IGNORE INTO `jcatsen_pbio`.`solicitud_objetivos` (solicitud_id,objetivo_id)
+ SELECT @s,o.id FROM `jcatsen_pbio`.`objetivos_medicion` o WHERE o.codigo IN ('espacios_publicos');
 INSERT INTO `jcatsen_pbio`.`solicitudes_historial` (solicitud_id,estado_id,usuario_id,cambiado_en)
  SELECT * FROM (SELECT @s,e.id,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 72 HOUR) FROM `jcatsen_pbio`.`estados_solicitud` e WHERE e.codigo='pendiente') h
  WHERE NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes_historial` WHERE solicitud_id=@s);
-INSERT INTO `jcatsen_pbio`.`solicitudes` (servicio_id,estado_id,entidad,contacto,email,cantidad,zona,superficie,duracion,necesidades,recibida_en)
- SELECT s.id,e.id,'Empresa de ejemplo (simulación)','Responsable ambiental','empresa.simulacion@example.test',3,'Recinto industrial',NULL,'','Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)
- FROM `jcatsen_pbio`.`servicios` s JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.codigo='en_revision'
- WHERE s.codigo='empresa' AND NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes` WHERE email='empresa.simulacion@example.test' AND entidad='Empresa de ejemplo (simulación)');
+INSERT INTO `jcatsen_pbio`.`solicitudes` (servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,municipio,provincia,zona,superficie,duracion,necesidades,recibida_en)
+ SELECT s.id,t.id,e.id,'Empresa de ejemplo (simulación)','Responsable ambiental','empresa.simulacion@example.test','Oliva','Valencia','Recinto industrial',NULL,'','Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)
+ FROM `jcatsen_pbio`.`servicios` s JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.codigo='en_revision' JOIN `jcatsen_pbio`.`tipos_organizacion` t ON t.codigo='empresa'
+ WHERE s.codigo='kits' AND NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes` WHERE email='empresa.simulacion@example.test' AND entidad='Empresa de ejemplo (simulación)');
 SET @s := (SELECT MIN(id) FROM `jcatsen_pbio`.`solicitudes` WHERE email='empresa.simulacion@example.test' AND entidad='Empresa de ejemplo (simulación)');
+INSERT IGNORE INTO `jcatsen_pbio`.`solicitud_objetivos` (solicitud_id,objetivo_id)
+ SELECT @s,o.id FROM `jcatsen_pbio`.`objetivos_medicion` o WHERE o.codigo IN ('salud_laboral');
 INSERT INTO `jcatsen_pbio`.`solicitudes_historial` (solicitud_id,estado_id,usuario_id,cambiado_en)
  SELECT * FROM (SELECT @s,e.id,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 48 HOUR) FROM `jcatsen_pbio`.`estados_solicitud` e WHERE e.codigo='pendiente'
   UNION ALL SELECT @s,e.id,@joan,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 42 HOUR) FROM `jcatsen_pbio`.`estados_solicitud` e WHERE e.codigo='en_revision') h
  WHERE NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes_historial` WHERE solicitud_id=@s);
-INSERT INTO `jcatsen_pbio`.`solicitudes` (servicio_id,estado_id,entidad,contacto,email,cantidad,zona,superficie,duracion,necesidades,recibida_en)
- SELECT s.id,e.id,'Centro educativo de ejemplo (simulación)','Coordinación del centro','centro.simulacion@example.test',NULL,'Entorno del centro',2500,'Dos semanas','Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY)
- FROM `jcatsen_pbio`.`servicios` s JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.codigo='respondida'
+INSERT INTO `jcatsen_pbio`.`solicitudes` (servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,municipio,provincia,zona,superficie,duracion,necesidades,recibida_en)
+ SELECT s.id,t.id,e.id,'Centro educativo de ejemplo (simulación)','Coordinación del centro','centro.simulacion@example.test','Tavernes de la Valldigna','Valencia','Entorno del centro',2500,'2 semanas','Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY)
+ FROM `jcatsen_pbio`.`servicios` s JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.codigo='respondida' JOIN `jcatsen_pbio`.`tipos_organizacion` t ON t.codigo='otra'
  WHERE s.codigo='estudio' AND NOT EXISTS (SELECT 1 FROM `jcatsen_pbio`.`solicitudes` WHERE email='centro.simulacion@example.test' AND entidad='Centro educativo de ejemplo (simulación)');
 SET @s := (SELECT MIN(id) FROM `jcatsen_pbio`.`solicitudes` WHERE email='centro.simulacion@example.test' AND entidad='Centro educativo de ejemplo (simulación)');
+INSERT IGNORE INTO `jcatsen_pbio`.`solicitud_objetivos` (solicitud_id,objetivo_id)
+ SELECT @s,o.id FROM `jcatsen_pbio`.`objetivos_medicion` o WHERE o.codigo IN ('espacios_publicos','investigacion');
 INSERT INTO `jcatsen_pbio`.`solicitudes_historial` (solicitud_id,estado_id,usuario_id,cambiado_en)
  SELECT * FROM (SELECT @s,e.id,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 24 HOUR) FROM `jcatsen_pbio`.`estados_solicitud` e WHERE e.codigo='pendiente'
   UNION ALL SELECT @s,e.id,@joan,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 18 HOUR) FROM `jcatsen_pbio`.`estados_solicitud` e WHERE e.codigo='en_revision'
@@ -178,4 +185,4 @@ COMMIT;
 -- Resumen: lo que hay ahora en la base.
 SELECT campana, origen, COUNT(*) AS lecturas, MAX(fecha_utc) AS ultima_utc FROM `jcatsen_pbio`.`vista_mediciones` GROUP BY campana, origen ORDER BY campana;
 SELECT nombre, email, organizacion, rol, estado FROM `jcatsen_pbio`.`vista_usuarios` ORDER BY organizacion, rol;
-SELECT id, servicio, estado, entidad FROM `jcatsen_pbio`.`vista_solicitudes` ORDER BY id;
+SELECT id, servicio, tipo_organizacion, estado, entidad, objetivos FROM `jcatsen_pbio`.`vista_solicitudes` ORDER BY id;

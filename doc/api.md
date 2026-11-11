@@ -45,9 +45,20 @@ El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta
 
 GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 2.000 lecturas recientes del filtro, sin identidad del trabajador.
 
-GET `?action=services` devuelve `services`: código, nombre, descripción y `mide_superficie` de cada servicio activo.
+GET `?action=services` devuelve los catálogos del formulario comercial:
+- `services`: código, nombre, descripción y `mide_superficie` de cada servicio activo (`kits`, `estudio`, `asesoramiento`), ordenados por `servicios.orden`.
+- `orgTypes` y `objectives`: código y nombre de los tipos de organización y de los objetivos de medición activos.
+- `provinces`: provincias de España (por ahora solo se atiende España).
+- `durations`: duraciones que se ofrecen para un estudio.
 
-POST `?action=request`: `service` (código de un servicio activo: administracion/empresa/estudio), `entity,contact,email,phone,zone,needs,consent`. Los servicios con `mide_superficie` (estudio) requieren `surface,duration`; los demás (kits) `quantity`. La solicitud nace en el primer estado del catálogo y se registra en `solicitudes_historial`. Devuelve número y confirmación de registro. El fallo del aviso a `AERIQ_COMMERCIAL_EMAIL` no revierte la solicitud guardada.
+POST `?action=request` (máximo 8 por hora y dirección):
+- Obligatorios: `interest` (código de servicio), `orgType`, `entity`, `contact`, `email`, `municipality`, `province` (de `provinces`), `zone`, `objectives` (lista no vacía de códigos), `needs` (máximo 6.000 caracteres) y `consent: true`.
+- `phone` es opcional. Si se envía, son 9 cifras que empiezan por 6, 7, 8 o 9, sin prefijo ni espacios.
+- Solo en servicios con `mide_superficie` (estudio): `duration` (de `durations`) es obligatoria; `surface` (m², mayor que 0) y `startMonth` (`AAAA-MM`, no anterior al mes actual) son opcionales. En el resto de servicios estos campos se ignoran.
+- No se pide cantidad de Orb: la recomienda Código Norte.
+- `website` es un campo trampa. Si llega con texto, se responde 201 sin guardar nada.
+
+Un error de validación devuelve 422 con `error` y `field` (el campo que hay que revisar). La solicitud nace en el primer estado del catálogo, guarda sus objetivos en `solicitud_objetivos` y se registra en `solicitudes_historial`. Devuelve número y confirmación de registro. El fallo del aviso a `AERIQ_COMMERCIAL_EMAIL` no revierte la solicitud guardada.
 
 ## Adaptador de consultas anteriores
 

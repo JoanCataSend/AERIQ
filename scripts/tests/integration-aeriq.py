@@ -56,11 +56,12 @@ def main():
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM usuarios')=='6'
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones WHERE simulado=0')=='0'
-        # Migración v1 -> v2: conserva los datos, es repetible y deja la misma estructura que schema.sql.
+        # Migración v1 -> v2 -> v3: conserva los datos, es repetible y deja la misma estructura que schema.sql.
         sql('CREATE DATABASE aeriq_v1_test CHARACTER SET utf8mb4; USE aeriq_v1_test;'+(ROOT/'scripts/tests/fixtures/esquema-v1-con-demo.sql').read_text(encoding='utf-8'))
         sql("USE aeriq_v1_test; INSERT INTO organizaciones(id,nombre) VALUES(9,'Empresa Verde · demostración'); UPDATE usuarios SET firebase_uid='uid-demo' WHERE id=1; UPDATE campanas SET umbral_medio=55 WHERE id=2; UPDATE solicitudes SET estado='en revision' WHERE id=2;")
         for _ in range(2):
             sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v2-catalogos.sql').read_text(encoding='utf-8'))
+            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v3-solicitudes.sql').read_text(encoding='utf-8'))
             assert sql('USE aeriq_v1_test; SELECT COUNT(*) FROM mediciones')=='9'
             assert sql("USE aeriq_v1_test; SELECT r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id ORDER BY u.id")=='admin\ntrabajador\nanalista\ncomercial\nadmin\ntrabajador'
             assert sql("USE aeriq_v1_test; SELECT nombre FROM organizaciones WHERE id=9")=='Empresa Verde · demostración (#9)'
@@ -69,6 +70,10 @@ def main():
             assert sql("USE aeriq_v1_test; SELECT e.codigo FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=2")=='en_revision'
             assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM solicitudes_historial")=='3'
             assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM vista_mediciones")=='9'
+            # Las solicitudes de los antiguos servicios administracion/empresa pasan a 'kits' con su tipo de organización.
+            assert sql("USE aeriq_v1_test; SELECT s.id,v.codigo,COALESCE(t.codigo,'-'),COALESCE(s.superficie,'-') FROM solicitudes s JOIN servicios v ON v.id=s.servicio_id LEFT JOIN tipos_organizacion t ON t.id=s.tipo_organizacion_id ORDER BY s.id")=='1\tkits\tadministracion\t-\n2\tkits\tempresa\t-\n3\testudio\t-\t2500'
+            assert sql("USE aeriq_v1_test; SELECT codigo FROM servicios ORDER BY orden")=='kits\nestudio\nasesoramiento'
+            assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM vista_solicitudes")=='3'
         structure="SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,COALESCE(COLUMN_DEFAULT,'-') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='{}' ORDER BY 1,2"
         foreign="SELECT TABLE_NAME,REFERENCED_TABLE_NAME,GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='{}' AND REFERENCED_TABLE_NAME IS NOT NULL GROUP BY CONSTRAINT_NAME,TABLE_NAME,REFERENCED_TABLE_NAME ORDER BY 1,2,3"
         checks="SELECT TABLE_NAME,CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='{}' ORDER BY 1,2"
@@ -135,7 +140,7 @@ def main():
             sql('USE aeriq_test;'+format_sql)
             assert sql("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio'")=='_reinicio_aeriq'
             sql(install_sql)
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='22'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='25'
             assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='4'
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='0'
             assert sql('SELECT id FROM jcatsen_pbio.magnitudes ORDER BY id')=='12\n14'
@@ -225,8 +230,10 @@ class PHPMailer {
         assert [r['codigo'] for r in board['roles']]==['trabajador','analista'] and board['thresholds']=={'umbral_medio':60.0,'umbral_alto':100.0}
         expect(422,'portal.php?action=worker',{'name':'No','last':'Comercial','email':'no2@example.test','role':'comercial'},'a')
         expect(422,'portal.php?action=worker',{'name':'No','last':'Visitante','email':'no3@example.test','role':'visitante'},'a')
-        services=expect(200,'public.php?action=services')['services']
-        assert [s['codigo'] for s in services]==['administracion','empresa','estudio'] and services[2]['mide_superficie'] is True
+        catalogs=expect(200,'public.php?action=services');services=catalogs['services']
+        assert [s['codigo'] for s in services]==['kits','estudio','asesoramiento'] and [s['mide_superficie'] for s in services]==[False,True,False]
+        assert [o['codigo'] for o in catalogs['orgTypes']]==['administracion','empresa','otra']
+        assert len(catalogs['objectives'])==5 and len(catalogs['provinces'])==52 and 'A definir con Código Norte' in catalogs['durations']
         worker=expect(201,'portal.php?action=worker',{'name':'Worker','last':'One','email':'worker@example.test','role':'trabajador'},'a')
         mail=json.loads((web/'vendor/mail.jsonl').read_text(encoding='utf-8').splitlines()[-1]);temporary=re.search(r'Contraseña temporal: (\w+)',mail['body']).group(1)
         expect(200,'auth.php?action=session',identity='worker')
@@ -303,22 +310,33 @@ class PHPMailer {
         expect(200,'portal.php?action=device',{**device,'id':did,'active':False},'a')
         expect(403,'field.php',{**reading,'eventId':str(uuid.uuid4())},token=token)
         expect(403,'portal.php?action=requests',identity='a')
-        req={'service':'estudio','entity':'City','contact':'Contact','email':'client@example.test','phone':'','zone':'UPV','surface':100,'duration':'2 weeks','needs':'Daily report','consent':True}
-        expect(422,'public.php?action=request',{**req,'consent':False})
-        registered=expect(201,'public.php?action=request',req)
+        req={'interest':'estudio','orgType':'administracion','entity':'City','contact':'Contact','email':'client@example.test','phone':'','municipality':'Gandia','province':'Valencia','zone':'UPV','objectives':['espacios_publicos','investigacion'],'surface':100,'duration':'2 semanas','startMonth':'','needs':'Daily report','consent':True}
+        # public.php admite 8 solicitudes por hora y dirección: se reinicia el contador para probar cada caso.
+        reset_rate=lambda:sql("USE aeriq_test; DELETE FROM limites_acceso")
+        reset_rate();expect(422,'public.php?action=request',{**req,'consent':False})
+        for field,bad in [('phone','abc'),('phone','512345678'),('phone','61234567'),('orgType','ninguno'),('objectives',[]),('objectives',['inventado']),('province','Lisboa'),('duration','2 weeks'),('surface',-5),('startMonth','2020-01'),('interest','administracion')]:
+            reset_rate();assert expect(422,'public.php?action=request',{**req,field:bad}).get('field')==field,(field,bad)
+        reset_rate();registered=expect(201,'public.php?action=request',{**req,'phone':'612345678'})
         assert registered['id']>0 # SMTP failure does not lose the persisted request.
         listing=expect(200,'portal.php?action=requests',identity='sales');requests=listing['requests'];assert len(requests)==1
         assert [s['codigo'] for s in listing['states']]==['pendiente','en_revision','respondida','cerrada']
         assert requests[0]['servicio']=='estudio' and requests[0]['estado']=='pendiente' and [h['estado'] for h in requests[0]['historial']]==['pendiente']
+        assert requests[0]['tipo_organizacion']=='administracion' and requests[0]['telefono']=='612345678' and requests[0]['provincia']=='Valencia'
+        assert requests[0]['objetivos']==['Calidad del aire en espacios públicos','Investigación o divulgación'] and 'cantidad' not in requests[0]
         expect(422,'portal.php?action=request-status',{'id':registered['id'],'status':'en revision'},'sales')
         expect(200,'portal.php?action=request-status',{'id':registered['id'],'status':'respondida'},'sales')
         answered=expect(200,'portal.php?action=requests',identity='sales')['requests'][0]
         assert answered['estado']=='respondida' and answered['estado_nombre']=='Respondida'
         assert [h['estado'] for h in answered['historial']]==['pendiente','respondida'] and answered['historial'][1]['usuario']=='Comercial CN'
-        for service in ['administracion','empresa']:
-            expect(422,'public.php?action=request',{**req,'service':service,'quantity':0})
-            expect(201,'public.php?action=request',{**req,'service':service,'quantity':4})
-        assert len(expect(200,'portal.php?action=requests',identity='sales')['requests'])==3
+        # Estudio sin superficie (la estima Código Norte), kits y asesoramiento sin datos de estudio.
+        expect(201,'public.php?action=request',{**req,'surface':'','startMonth':time.strftime('%Y-%m',time.gmtime())})
+        for interest in ['kits','asesoramiento']:
+            expect(201,'public.php?action=request',{**req,'interest':interest,'orgType':'empresa','surface':-1,'duration':'x'})
+        assert sql("USE aeriq_test; SELECT v.codigo,COALESCE(s.superficie,'-'),COALESCE(NULLIF(s.duracion,''),'-') FROM solicitudes s JOIN servicios v ON v.id=s.servicio_id ORDER BY s.id")=='estudio\t100\t2 semanas\nestudio\t-\t2 semanas\nkits\t-\t-\nasesoramiento\t-\t-'
+        assert sql('USE aeriq_test; SELECT COUNT(*) FROM solicitud_objetivos')=='8'
+        # Campo trampa: un bot recibe la misma respuesta, pero no se guarda nada.
+        expect(201,'public.php?action=request',{**req,'website':'http://spam.example'})
+        assert len(expect(200,'portal.php?action=requests',identity='sales')['requests'])==4
         # Autoasignación real desde Android: persistencia, idempotencia y aislamiento.
         expect(401,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Mi Orb'})
         expect(422,'sensor-link.php',{'address':'incorrecta','name':'Mi Orb'},token=token)
@@ -389,7 +407,7 @@ class PHPMailer {
         assert expect(200,'mobile-auth.php?action=login',{'email':'operador.simulacion@aeriq.example','password':'1234'})['user']['role']=='trabajador'
         expect(200,'auth.php?action=session',identity='sim-sales')
         assert expect(200,'auth.php?action=login',{'email':'comercial.simulacion@codigonorte.example','password':'1234'},'sim-sales')['user']['role']=='comercial'
-        print('AERIQ integración OK: migración v1->v2, reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
+        print('AERIQ integración OK: migración v1->v2->v3, reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
         print('Entorno aislado conservado en',folder)
     finally:
         for process in [php,db]:

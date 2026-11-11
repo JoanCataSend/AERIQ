@@ -1,6 +1,6 @@
 # Modelo de datos
 
-AERIQ usa 22 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql), que conserva todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
+AERIQ usa 25 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql) (v1 → v2) y después [migracion-v3-solicitudes.sql](../src/database/migracion-v3-solicitudes.sql) (v2 → v3). Las dos conservan todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
 
 La versión 2 del esquema sustituye los `ENUM` y los textos repetidos por **tablas de catálogo**. Un catálogo es una tabla pequeña con un `id`, un `codigo` estable que usa el programa y un `nombre` legible. Para añadir un rol, un permiso, un servicio o un estado basta con insertar una fila; no hace falta modificar la tabla ni el código.
 
@@ -32,6 +32,9 @@ erDiagram
   asignaciones ||--o{ mediciones : ""
   magnitudes ||--o{ mediciones : "magnitud_id"
   servicios ||--o{ solicitudes : "servicio_id"
+  tipos_organizacion |o--o{ solicitudes : "tipo_organizacion_id"
+  solicitudes ||--o{ solicitud_objetivos : ""
+  objetivos_medicion ||--o{ solicitud_objetivos : ""
   estados_solicitud ||--o{ solicitudes : "estado_id"
   solicitudes ||--o{ solicitudes_historial : ""
   estados_solicitud ||--o{ solicitudes_historial : ""
@@ -52,7 +55,9 @@ erDiagram
 | | `magnitudes` | 14 = ozono (ppb) y 12 = temperatura (°C), con su rango válido y sus umbrales de referencia |
 | | `modelos_dispositivo` | Modelos de Orb fabricados (hoy solo `orb-v1`) |
 | | `modelo_magnitudes` | Qué magnitudes mide cada modelo |
-| | `servicios` | Servicios que se pueden solicitar y si se presupuestan por superficie |
+| | `servicios` | Qué se puede solicitar (kits, estudio, asesoramiento), su orden y si piden datos de estudio |
+| | `tipos_organizacion` | Quién solicita: administración pública, empresa u otra entidad |
+| | `objetivos_medicion` | Para qué quiere medir el cliente (espacios públicos, salud laboral…) |
 | | `estados_solicitud` | Estados de una solicitud comercial, su orden y si cierran el proceso |
 | Cuentas | `organizaciones` | Entidades cliente y Código Norte. El nombre es único |
 | | `usuarios` | Identidad, organización, `rol_id`, contraseña (hash), activación e invitación |
@@ -64,6 +69,7 @@ erDiagram
 | | `asignaciones` | Historial Orb–trabajador–campaña, con una sola asignación abierta por Orb |
 | Mediciones | `mediciones` | Evento único, asignación, magnitud, valor, fechas UTC, GPS opcional y validez |
 | Solicitudes | `solicitudes` | Peticiones de presupuesto de la web |
+| | `solicitud_objetivos` | Objetivos marcados en cada solicitud (uno o varios) |
 | | `solicitudes_historial` | Cada cambio de estado: qué estado, quién y cuándo |
 | Seguridad | `codigos_email` | Hash de los códigos de recuperación de un solo uso |
 | | `sesiones_moviles` | Hash del token de la app y su caducidad |
@@ -129,9 +135,13 @@ El administrador lo verá en el formulario de alta y la app Android le dejará m
 
 ### Solicitudes comerciales
 
-**¿Qué pasa si Código Norte ofrece un servicio nuevo?** Con `servicio ENUM(...)` había que cambiar la tabla, el PHP y el formulario. Ahora es una fila en `servicios`. El formulario público los carga de `public.php?action=services` y `mide_superficie` decide si se pide superficie (estudio) o cantidad de Orb (kits).
+**¿Qué pasa si Código Norte ofrece un servicio nuevo?** Con `servicio ENUM(...)` había que cambiar la tabla, el PHP y el formulario. Ahora es una fila en `servicios`. El formulario público los carga de `public.php?action=services` y `mide_superficie` decide si se piden los datos de estudio (duración, superficie opcional e inicio orientativo).
 
 **¿Y un estado nuevo, como «presupuesto enviado»?** Una fila en `estados_solicitud` con su `orden`. El panel comercial los carga de la base. El código del estado ya no lleva espacios (`en_revision`) y el nombre visible sí («En revisión»).
+
+**¿Por qué no se pide la cantidad de Orb?** (v3) Es Código Norte quien recomienda cuántos hacen falta según la zona y los objetivos. Por eso `solicitudes.cantidad` desapareció. Antes, los servicios `administracion` y `empresa` mezclaban qué se pide con quién lo pide. Ahora hay un único servicio `kits` y el tipo de cliente está en `tipos_organizacion`, así que un ayuntamiento también puede pedir un estudio o asesoramiento. Las solicitudes migradas conservan su tipo. Las de estudio anteriores a v3 quedan con `tipo_organizacion_id` NULL porque entonces no se preguntaba.
+
+**¿Por qué la superficie es opcional?** El cliente casi nunca la sabe. Si no la indica, Código Norte la estima a partir de la zona. La base solo comprueba que, si hay superficie, sea mayor que 0.
 
 **¿Quién cambió la solicitud y cuándo?** Antes solo se sabía el estado actual. `solicitudes_historial` guarda cada cambio con el estado, la persona y la fecha. La recepción desde la web se registra sin persona (formulario público). Al migrar solo se conoce la recepción: los cambios anteriores no tenían fecha ni autor y no se inventan.
 
@@ -148,7 +158,7 @@ La base de datos garantiza las relaciones, los rangos y las combinaciones dentro
 
 - Una cuenta con un rol de `requiere_organizacion = 1` debe tener organización.
 - Solo se conceden roles con `asignable = 1`.
-- Un servicio con `mide_superficie = 1` exige superficie; los demás, cantidad. La base comprueba que la solicitud lleva exactamente uno de los dos.
+- Un servicio con `mide_superficie = 1` exige duración. La superficie y el inicio orientativo son opcionales; en los demás servicios no se guardan. Toda solicitud nueva lleva tipo de organización y al menos un objetivo de medición.
 - La magnitud de una lectura debe estar entre las que mide el modelo del Orb.
 - El rol, los permisos y la organización se leen siempre en el servidor, nunca del JSON del cliente.
 
@@ -156,10 +166,11 @@ La base de datos garantiza las relaciones, los rangos y las combinaciones dentro
 
 1. Exporta una copia de `jcatsen_pbio` desde phpMyAdmin.
 2. Detén la captura Android.
-3. Selecciona la base e importa [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql). Al final muestra un resumen por rol y los totales de cada tabla.
-4. Sube la web nueva: los PHP de esta versión leen el esquema v2.
+3. Selecciona la base. Si todavía está en v1, importa [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql), que al final muestra un resumen por rol y los totales de cada tabla.
+4. Importa [migracion-v3-solicitudes.sql](../src/database/migracion-v3-solicitudes.sql). Al final muestra cuántas solicitudes hay por servicio y tipo de organización.
+5. Sube la web nueva: los PHP de esta versión leen el esquema v3.
 
-La migración es repetible: si se importa dos veces, la segunda no cambia nada. La prueba de integración la aplica dos veces sobre el esquema anterior con datos y comprueba que el resultado tiene exactamente las mismas columnas, claves foráneas y comprobaciones que `schema.sql`.
+Las migraciones son repetibles: si se importan dos veces, la segunda no cambia nada. La prueba de integración aplica v2 y v3 dos veces sobre el esquema v1 con datos. Después comprueba que el resultado tiene exactamente las mismas columnas, claves foráneas y comprobaciones que `schema.sql`.
 
 ## Acceso y privacidad
 

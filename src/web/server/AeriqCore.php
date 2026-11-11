@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /** Dominio AERIQ. Tablas nuevas aisladas de las tablas heredadas de Sprint 0. */
 final class AeriqError extends RuntimeException {
-    public function __construct(string $message, public int $status = 422) { parent::__construct($message); }
+    /** $field: nombre del campo del formulario que provoca el error, para marcarlo en la web. */
+    public function __construct(string $message, public int $status = 422, public ?string $field = null) { parent::__construct($message); }
 }
 function aeriq_sql(string $sql, array $params = []): mysqli_stmt {
     $s = conexionBD()->prepare($sql);
@@ -244,51 +245,103 @@ function aeriq_map_data(?array $access,array $query): array {
     foreach ($rows as &$r) {foreach (['valor','latitud','longitud','umbral_medio','umbral_alto'] as $k)$r[$k]=(float)$r[$k];$r['simulado']=(bool)$r['simulado'];$r['radio_m']=(int)$r['radio_m'];}
     unset($r);return ['measurements'=>$rows,'truncated'=>$truncated,'mode'=>$mode,'hours'=>$hours];
 }
+/** Provincias de España: por ahora el formulario comercial solo atiende España. */
+const AERIQ_PROVINCIAS=['A Coruña','Álava','Albacete','Alicante','Almería','Asturias','Ávila','Badajoz','Barcelona','Bizkaia','Burgos','Cáceres','Cádiz','Cantabria','Castellón','Ceuta','Ciudad Real','Córdoba','Cuenca','Gipuzkoa','Girona','Granada','Guadalajara','Huelva','Huesca','Illes Balears','Jaén','La Rioja','Las Palmas','León','Lleida','Lugo','Madrid','Málaga','Melilla','Murcia','Navarra','Ourense','Palencia','Pontevedra','Salamanca','Santa Cruz de Tenerife','Segovia','Sevilla','Soria','Tarragona','Teruel','Toledo','Valencia','Valladolid','Zamora','Zaragoza'];
+/** Duraciones que se ofrecen para un estudio; se guardan tal cual en solicitudes.duracion. */
+const AERIQ_DURACIONES=['1 semana','2 semanas','1 mes','3 meses','Más de 3 meses','A definir con Código Norte'];
+
+/** Texto de un campo del formulario público; el error indica qué campo revisar. Longitud en caracteres, como maxlength. */
+function aeriq_field_text(array $d,string $key,int $max,string $message,bool $optional=false): string {
+    $v=$d[$key]??'';
+    if (!is_string($v)) throw new AeriqError($message,422,$key);
+    $v=trim($v);$length=function_exists('mb_strlen')?mb_strlen($v,'UTF-8'):strlen($v);
+    if ((!$optional && $v==='') || $length>$max) throw new AeriqError($message,422,$key);
+    return $v;
+}
+/** Solicitud comercial del formulario público (solicitar.html). No pide cantidad: la recomienda Código Norte. */
 function aeriq_request(array $d): array {
-    if (($d['consent']??false)!==true) throw new AeriqError('Debes autorizar el tratamiento de los datos para gestionar la solicitud.');
-    $service=aeriq_one('SELECT id,codigo,mide_superficie FROM servicios WHERE codigo=? AND activo=1',[is_string($d['service']??null)?$d['service']:'']);
-    if (!$service) throw new AeriqError('Servicio no válido.');
-    $study=(bool)(int)$service['mide_superficie'];
-    $entity=aeriq_text($d['entity']??'',180);$contact=aeriq_text($d['contact']??'',160);$email=auth_email($d['email']??'');
-    $phone=aeriq_text($d['phone']??'',40,true);$zone=aeriq_text($d['zone']??'');$needs=aeriq_text($d['needs']??'',6000);
-    $count=$study?null:aeriq_int($d['quantity']??null,1,100000);
-    $surface=$study?aeriq_number($d['surface']??null,0.01,1e12):null;
-    $duration=aeriq_text($d['duration']??'',100,!$study);
+    // Campo trampa: una persona no lo ve; si llega relleno es un bot. Se responde igual para no darle pistas.
+    if (is_string($d['website']??null) && trim($d['website'])!=='') return ['ok'=>true,'id'=>0,'message'=>'Solicitud registrada.'];
+    $service=aeriq_one('SELECT id,codigo,nombre,mide_superficie FROM servicios WHERE codigo=? AND activo=1',[is_string($d['interest']??null)?$d['interest']:'']);
+    if (!$service) throw new AeriqError('Elige qué te interesa.',422,'interest');
+    $org=aeriq_one('SELECT id FROM tipos_organizacion WHERE codigo=? AND activo=1',[is_string($d['orgType']??null)?$d['orgType']:'']);
+    if (!$org) throw new AeriqError('Elige el tipo de organización.',422,'orgType');
+    $entity=aeriq_field_text($d,'entity',180,'Escribe el nombre de la organización.');
+    $contact=aeriq_field_text($d,'contact',160,'Escribe el nombre de la persona de contacto.');
+    $email=strtolower(aeriq_field_text($d,'email',254,'Escribe un correo electrónico válido.'));
+    if (!filter_var($email,FILTER_VALIDATE_EMAIL)) throw new AeriqError('Escribe un correo electrónico válido.',422,'email');
+    $phone=aeriq_field_text($d,'phone',9,'El teléfono debe tener 9 cifras y empezar por 6, 7, 8 o 9.',true);
+    if ($phone!=='' && !preg_match('/^[6789][0-9]{8}$/',$phone)) throw new AeriqError('El teléfono debe tener 9 cifras y empezar por 6, 7, 8 o 9.',422,'phone');
+    $municipality=aeriq_field_text($d,'municipality',120,'Escribe el municipio.');
+    $province=is_string($d['province']??null)?$d['province']:'';
+    if (!in_array($province,AERIQ_PROVINCIAS,true)) throw new AeriqError('Elige una provincia.',422,'province');
+    $zone=aeriq_field_text($d,'zone',200,'Describe la zona o las instalaciones que quieres medir.');
+    $codes=$d['objectives']??null;
+    if (!is_array($codes) || count($codes)>20) throw new AeriqError('Marca al menos un objetivo de la medición.',422,'objectives');
+    $codes=array_values(array_unique(array_filter($codes,'is_string')));
+    $objectives=$codes?aeriq_rows('SELECT id FROM objetivos_medicion WHERE activo=1 AND codigo IN ('.implode(',',array_fill(0,count($codes),'?')).')',$codes):[];
+    if (!$codes || count($objectives)!==count($codes)) throw new AeriqError('Marca al menos un objetivo de la medición.',422,'objectives');
+    $needs=aeriq_field_text($d,'needs',6000,'Cuéntanos qué necesitas (máximo 6000 caracteres).');
+    if (($d['consent']??false)!==true) throw new AeriqError('Debes autorizar el tratamiento de los datos para gestionar la solicitud.',422,'consent');
+    // Superficie, duración e inicio solo se piden en los servicios que se presupuestan por zona (estudios).
+    $surface=null;$duration='';$start=null;
+    if ((int)$service['mide_superficie']) {
+        $raw=$d['surface']??null;
+        if ($raw!==null && $raw!=='') {
+            if (!is_numeric($raw) || !is_finite((float)$raw) || (float)$raw<=0 || (float)$raw>1e12) throw new AeriqError('La superficie debe ser un número mayor que 0. Si no la sabes, déjala vacía.',422,'surface');
+            $surface=(float)$raw;
+        }
+        $duration=is_string($d['duration']??null)?$d['duration']:'';
+        if (!in_array($duration,AERIQ_DURACIONES,true)) throw new AeriqError('Elige la duración del estudio.',422,'duration');
+        $month=$d['startMonth']??null;
+        if ($month!==null && $month!=='') {
+            $m=is_string($month)?DateTimeImmutable::createFromFormat('!Y-m',$month,new DateTimeZone('UTC')):false;
+            if (!$m || $m->format('Y-m')!==$month || $month<gmdate('Y-m')) throw new AeriqError('Elige un mes de inicio a partir del actual.',422,'startMonth');
+            $start=$m->format('Y-m-d');
+        }
+    }
     $db=conexionBD();$db->begin_transaction();
     try {
         // Toda solicitud nace en el primer estado del catálogo y queda registrada en el historial.
-        aeriq_sql('INSERT INTO solicitudes(servicio_id,estado_id,entidad,contacto,email,telefono,cantidad,zona,superficie,duracion,necesidades) VALUES(?,(SELECT id FROM estados_solicitud ORDER BY orden LIMIT 1),?,?,?,?,?,?,?,?,?)',[(int)$service['id'],$entity,$contact,$email,$phone,$count,$zone,$surface,$duration,$needs]);$id=(int)$db->insert_id;
+        aeriq_sql('INSERT INTO solicitudes(servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,telefono,municipio,provincia,zona,superficie,duracion,inicio_deseado,necesidades) VALUES(?,?,(SELECT id FROM estados_solicitud ORDER BY orden LIMIT 1),?,?,?,?,?,?,?,?,?,?,?)',[(int)$service['id'],(int)$org['id'],$entity,$contact,$email,$phone,$municipality,$province,$zone,$surface,$duration,$start,$needs]);$id=(int)$db->insert_id;
+        foreach ($objectives as $o) aeriq_sql('INSERT INTO solicitud_objetivos(solicitud_id,objetivo_id) VALUES(?,?)',[$id,(int)$o['id']]);
         aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) SELECT id,estado_id,NULL FROM solicitudes WHERE id=?',[$id]);
         $db->commit();
     } catch (Throwable $e) {$db->rollback();throw $e;}
-    $service=$service['codigo'];
+    $service=$service['nombre'];
     // El registro es la fuente de verdad: un fallo del aviso no invalida la solicitud.
     $notify=getenv('AERIQ_COMMERCIAL_EMAIL');
     if ($notify && filter_var($notify,FILTER_VALIDATE_EMAIL)) {
         try { aeriq_mail($notify,'AERIQ · Nueva solicitud #'.$id,"Consulta el panel comercial. Servicio: $service. Solicitud: $id."); }
         catch (Throwable $e) { error_log('AERIQ: solicitud registrada; aviso comercial no entregado.'); }
     }
-    return ['ok'=>true,'id'=>$id,'message'=>'Solicitud registrada. Código Norte revisará tus necesidades antes de preparar el presupuesto definitivo.'];
+    return ['ok'=>true,'id'=>$id,'message'=>'Solicitud registrada. Código Norte la revisará y te propondrá la solución que mejor encaje.'];
 }
 
-/** Servicios que se pueden solicitar desde el formulario público. */
-function aeriq_services(): array {
-    $rows=aeriq_rows('SELECT codigo,nombre,descripcion,mide_superficie FROM servicios WHERE activo=1 ORDER BY id');
-    foreach ($rows as &$r) $r['mide_superficie']=(bool)(int)$r['mide_superficie'];
-    unset($r);return $rows;
+/** Catálogos del formulario público: servicios, tipos de organización, objetivos, provincias y duraciones. */
+function aeriq_request_catalogs(): array {
+    $services=aeriq_rows('SELECT codigo,nombre,descripcion,mide_superficie FROM servicios WHERE activo=1 ORDER BY orden,id');
+    foreach ($services as &$r) $r['mide_superficie']=(bool)(int)$r['mide_superficie'];
+    unset($r);
+    return ['services'=>$services,
+        'orgTypes'=>aeriq_rows('SELECT codigo,nombre FROM tipos_organizacion WHERE activo=1 ORDER BY orden,id'),
+        'objectives'=>aeriq_rows('SELECT codigo,nombre FROM objetivos_medicion WHERE activo=1 ORDER BY orden,id'),
+        'provinces'=>AERIQ_PROVINCIAS,'durations'=>AERIQ_DURACIONES];
 }
 /** Panel comercial: solicitudes con nombres legibles, su historial y los estados posibles. */
 function aeriq_requests(): array {
-    $rows=aeriq_rows('SELECT s.*,sv.codigo AS servicio,sv.nombre AS servicio_nombre,e.codigo AS estado,e.nombre AS estado_nombre FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id JOIN estados_solicitud e ON e.id=s.estado_id ORDER BY s.recibida_en DESC,s.id DESC LIMIT 1000');
-    $history=[];
+    $rows=aeriq_rows('SELECT s.*,sv.codigo AS servicio,sv.nombre AS servicio_nombre,t.codigo AS tipo_organizacion,t.nombre AS tipo_organizacion_nombre,e.codigo AS estado,e.nombre AS estado_nombre FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id LEFT JOIN tipos_organizacion t ON t.id=s.tipo_organizacion_id JOIN estados_solicitud e ON e.id=s.estado_id ORDER BY s.recibida_en DESC,s.id DESC LIMIT 1000');
+    $history=[];$objectives=[];
     if ($rows) {
         $ids=array_map(fn($r)=>(int)$r['id'],$rows);
         $sql='SELECT h.solicitud_id,e.codigo AS estado,e.nombre AS estado_nombre,h.cambiado_en,CONCAT(u.nombre,\' \',u.apellidos) AS usuario FROM solicitudes_historial h JOIN estados_solicitud e ON e.id=h.estado_id LEFT JOIN usuarios u ON u.id=h.usuario_id WHERE h.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY h.cambiado_en,h.id';
         foreach (aeriq_rows($sql,$ids) as $h) {
             $history[(int)$h['solicitud_id']][]=['estado'=>$h['estado'],'estado_nombre'=>$h['estado_nombre'],'cambiado_en'=>$h['cambiado_en'],'usuario'=>$h['usuario']];
         }
+        $sql='SELECT so.solicitud_id,o.nombre FROM solicitud_objetivos so JOIN objetivos_medicion o ON o.id=so.objetivo_id WHERE so.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY o.orden,o.id';
+        foreach (aeriq_rows($sql,$ids) as $o) $objectives[(int)$o['solicitud_id']][]=$o['nombre'];
     }
-    foreach ($rows as &$r) { unset($r['servicio_id'],$r['estado_id']); $r['historial']=$history[(int)$r['id']]??[]; }
+    foreach ($rows as &$r) { unset($r['servicio_id'],$r['tipo_organizacion_id'],$r['estado_id']); $r['objetivos']=$objectives[(int)$r['id']]??[]; $r['historial']=$history[(int)$r['id']]??[]; }
     unset($r);
     return ['requests'=>$rows,'states'=>aeriq_rows('SELECT codigo,nombre,final FROM estados_solicitud ORDER BY orden')];
 }

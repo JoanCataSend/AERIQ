@@ -101,10 +101,12 @@ CREATE TABLE IF NOT EXISTS servicios (
  mide_superficie BOOLEAN NOT NULL DEFAULT FALSE,
  activo BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT IGNORE INTO servicios (id,codigo,nombre,descripcion,mide_superficie) VALUES
- (1,'administracion','Kits para administraciones públicas','Kits Orb para campañas municipales.',0),
- (2,'empresa','Kits para empresas privadas','Kits Orb para instalaciones y recintos privados.',0),
- (3,'estudio','Estudio ambiental de Código Norte','Estudio completo con informe, según la superficie.',1);
+-- En una base ya migrada a v3 (existe tipos_organizacion) no se recuperan los servicios antiguos.
+INSERT IGNORE INTO servicios (id,codigo,nombre,descripcion,mide_superficie)
+ SELECT * FROM (SELECT 1,'administracion','Kits para administraciones públicas','Kits Orb para campañas municipales.',0
+ UNION ALL SELECT 2,'empresa','Kits para empresas privadas','Kits Orb para instalaciones y recintos privados.',0
+ UNION ALL SELECT 3,'estudio','Estudio ambiental de Código Norte','Estudio completo con informe, según la superficie.',1) v
+ WHERE (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=@db AND TABLE_NAME='tipos_organizacion')=0;
 
 CREATE TABLE IF NOT EXISTS estados_solicitud (
  id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -239,7 +241,9 @@ ALTER TABLE solicitudes ADD INDEX IF NOT EXISTS estado_id (estado_id,recibida_en
 SET @s := IF((SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='solicitudes' AND CONSTRAINT_NAME='solicitudes_servicio')=0,
  'ALTER TABLE solicitudes ADD CONSTRAINT solicitudes_servicio FOREIGN KEY (servicio_id) REFERENCES servicios(id), ADD CONSTRAINT solicitudes_estado FOREIGN KEY (estado_id) REFERENCES estados_solicitud(id)','DO 0');
 PREPARE aeriq_m FROM @s; EXECUTE aeriq_m; DEALLOCATE PREPARE aeriq_m;
-SET @s := IF((SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='solicitudes' AND CONSTRAINT_NAME='solicitud_cantidad_superficie')=0,
+-- Si la base ya está en v3 (sin columna cantidad), no se vuelve a crear esta restricción.
+SET @s := IF((SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='solicitudes' AND CONSTRAINT_NAME='solicitud_cantidad_superficie')=0
+ AND (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='solicitudes' AND COLUMN_NAME='cantidad')>0,
  'ALTER TABLE solicitudes ADD CONSTRAINT solicitud_cantidad_superficie CHECK ((cantidad > 0 AND superficie IS NULL) OR (cantidad IS NULL AND superficie > 0))','DO 0');
 PREPARE aeriq_m FROM @s; EXECUTE aeriq_m; DEALLOCATE PREPARE aeriq_m;
 
@@ -293,12 +297,15 @@ CREATE OR REPLACE VIEW vista_usuarios AS
  FROM usuarios u JOIN roles r ON r.id=u.rol_id
  LEFT JOIN organizaciones o ON o.id=u.organizacion_id;
 
-CREATE OR REPLACE VIEW vista_solicitudes AS
+-- Vista v2. En una base ya migrada a v3 (sin cantidad) la vista la crea migracion-v3-solicitudes.sql.
+SET @s := IF((SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='solicitudes' AND COLUMN_NAME='cantidad')>0,
+ 'CREATE OR REPLACE VIEW vista_solicitudes AS
  SELECT s.id,s.recibida_en,sv.nombre AS servicio,e.nombre AS estado,
  s.entidad,s.contacto,s.email,s.zona,s.cantidad,s.superficie,
  (SELECT MAX(h.cambiado_en) FROM solicitudes_historial h WHERE h.solicitud_id=s.id) AS ultimo_cambio
  FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id
- JOIN estados_solicitud e ON e.id=s.estado_id;
+ JOIN estados_solicitud e ON e.id=s.estado_id','DO 0');
+PREPARE aeriq_m FROM @s; EXECUTE aeriq_m; DEALLOCATE PREPARE aeriq_m;
 
 SET SESSION group_concat_max_len = @aeriq_old_concat;
 

@@ -16,7 +16,8 @@ const Aeriq = (() => {
     try { data = await response.json(); } catch { throw new Error('El servidor no devolvió JSON.'); }
     if (!response.ok) {
       if (response.status === 428) location.href = 'cambiar-clave.html';
-      throw new Error(data.error || `HTTP ${response.status}`);
+      // `field` indica qué campo del formulario hay que revisar (errores 422 de public.php).
+      throw Object.assign(new Error(data.error || `HTTP ${response.status}`), {status:response.status, field:data.field});
     }
     return data;
   }

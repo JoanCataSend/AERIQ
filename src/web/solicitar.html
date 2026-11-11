@@ -4,17 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="Pide a Código Norte un presupuesto de kits Orb o un estudio ambiental.">
-<title>Solicitar kits o un estudio · AERIQ</title>
+<meta name="description" content="Cuéntale a Código Norte qué necesitas: kits Orb para tu organización o un estudio temporal de ozono.">
+<title>Solicitar información · AERIQ</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
-  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
 </svg>
 <header class="site-header">
   <div class="container header-inner">
@@ -28,37 +26,116 @@
   </div>
 </header>
 <main class="page">
-  <div class="container">
-    <div class="page-head"><h1>Cuéntanos qué necesitas</h1><p>Pide un presupuesto sin compromiso. Enviar este formulario no es una compra.</p></div>
-    <div class="split">
-      <section class="panel" aria-label="Formulario de solicitud">
-        <form id="service-form">
+  <div class="container request-page">
+    <div class="page-head is-centered"><h1>Cuéntanos qué necesitas</h1><p>Te proponemos la solución que mejor encaja, sin compromiso. Enviar este formulario no es una compra.</p></div>
+    <div class="request-layout">
+      <section class="panel" aria-label="Formulario de solicitud" id="request-panel">
+        <form id="service-form" novalidate>
+          <div class="form-summary" id="form-summary" role="alert" hidden></div>
+
+          <h2 class="form-section-title">¿Qué necesitas?</h2>
+          <fieldset class="choice-group" id="interest-group" aria-describedby="interest-error">
+            <legend>Me interesa</legend>
+            <div class="choice-cards" id="interest-options" data-loading>
+              <p class="field-help">Cargando opciones…</p>
+            </div>
+            <small class="field-error" id="interest-error"></small>
+          </fieldset>
+          <label class="field">Tipo de organización
+            <select name="orgType" id="org-type" required aria-describedby="orgType-error"><option value="">Selecciona una opción</option></select>
+            <small class="field-error" id="orgType-error"></small>
+          </label>
+
+          <h2 class="form-section-title">Tus datos</h2>
           <div class="form-grid">
-            <label>Servicio<select name="service" id="service-kind"><option value="administracion">Kits para administraciones públicas</option><option value="empresa">Kits para empresas privadas</option><option value="estudio">Estudio ambiental de Código Norte</option></select></label>
-            <label>Administración, empresa o entidad<input name="entity" required maxlength="180" autocomplete="organization"></label>
-            <label>Persona de contacto<input name="contact" required maxlength="160" autocomplete="name"></label>
-            <label>Correo electrónico<input name="email" type="email" required maxlength="254" autocomplete="email"></label>
-            <label>Teléfono<input name="phone" type="tel" maxlength="40" autocomplete="tel"></label>
-            <label data-kit>Cantidad aproximada de Orb<input name="quantity" type="number" min="1" max="100000" value="1" required></label>
-            <label>Instalaciones o zona que quieres estudiar<input name="zone" required maxlength="200"></label>
-            <label data-study hidden>Superficie aproximada (m²)<input name="surface" type="number" min="0.01" step="any"></label>
-            <label data-study hidden>Duración del estudio<input name="duration" maxlength="100" placeholder="Por ejemplo, dos semanas"></label>
+            <label class="field">Nombre de la organización
+              <input name="entity" required maxlength="180" autocomplete="organization" placeholder="Ayuntamiento de Gandia" aria-describedby="entity-error">
+              <small class="field-error" id="entity-error"></small>
+            </label>
+            <label class="field">Persona de contacto
+              <input name="contact" required maxlength="160" autocomplete="name" aria-describedby="contact-error">
+              <small class="field-error" id="contact-error"></small>
+            </label>
+            <label class="field">Correo electrónico
+              <input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="nombre@organizacion.es" aria-describedby="email-error email-hint">
+              <small class="field-error" id="email-error"></small>
+              <small class="field-help" id="email-hint" hidden></small>
+            </label>
+            <label class="field"><span class="field-label">Teléfono <span class="optional">(opcional)</span></span>
+              <input name="phone" type="tel" inputmode="numeric" maxlength="9" autocomplete="tel-national" placeholder="600123456" aria-describedby="phone-error phone-help">
+              <small class="field-error" id="phone-error"></small>
+              <small class="field-help" id="phone-help">9 cifras, sin prefijo.</small>
+            </label>
           </div>
-          <label>Para qué lo necesitas: qué quieres medir y qué informes esperas<textarea name="needs" required maxlength="6000" rows="5"></textarea></label>
-          <label class="agree"><input name="consent" type="checkbox" required> Autorizo a Código Norte a usar estos datos para gestionar y responder esta solicitud.</label>
-          <button type="submit" class="btn btn-primary">Enviar solicitud</button>
-          <p id="service-feedback" role="status" aria-live="polite"></p>
+
+          <h2 class="form-section-title">Dónde y para qué</h2>
+          <div class="form-grid">
+            <label class="field">Municipio
+              <input name="municipality" required maxlength="120" autocomplete="address-level2" aria-describedby="municipality-error">
+              <small class="field-error" id="municipality-error"></small>
+            </label>
+            <label class="field">Provincia
+              <select name="province" id="province" required autocomplete="address-level1" aria-describedby="province-error"><option value="">Selecciona una provincia</option></select>
+              <small class="field-error" id="province-error"></small>
+            </label>
+          </div>
+          <label class="field">Zona o instalaciones que quieres medir
+            <input name="zone" required maxlength="200" placeholder="Parque central y calles del casco antiguo" aria-describedby="zone-error">
+            <small class="field-error" id="zone-error"></small>
+          </label>
+          <fieldset class="choice-group" id="objectives-group" aria-describedby="objectives-error">
+            <legend>Objetivo de la medición <span class="optional">(marca uno o varios)</span></legend>
+            <div class="check-list" id="objective-options"></div>
+            <small class="field-error" id="objectives-error"></small>
+          </fieldset>
+
+          <div class="study-fields" data-study hidden>
+            <p class="field-help study-intro">Sobre el estudio</p>
+            <div class="form-grid">
+              <label class="field"><span class="field-label">Superficie aproximada (m²) <span class="optional">(opcional)</span></span>
+                <input name="surface" type="number" min="1" step="any" inputmode="decimal" aria-describedby="surface-error surface-help" disabled>
+                <small class="field-error" id="surface-error"></small>
+                <small class="field-help" id="surface-help">Si no la sabes, déjala vacía: la estimamos nosotros.</small>
+              </label>
+              <label class="field">Duración del estudio
+                <select name="duration" id="duration" required aria-describedby="duration-error" disabled><option value="">Selecciona una duración</option></select>
+                <small class="field-error" id="duration-error"></small>
+              </label>
+              <label class="field"><span class="field-label">Inicio orientativo <span class="optional">(opcional)</span></span>
+                <input name="startMonth" type="month" aria-describedby="startMonth-error" disabled>
+                <small class="field-error" id="startMonth-error"></small>
+              </label>
+            </div>
+          </div>
+
+          <label class="field">Cuéntanos más
+            <textarea name="needs" required maxlength="6000" rows="5" placeholder="Qué te preocupa, qué te gustaría saber y qué tipo de informe esperas." aria-describedby="needs-error needs-count"></textarea>
+            <span class="field-foot"><small class="field-error" id="needs-error"></small><small class="char-count" id="needs-count" aria-live="polite">0 / 6000</small></span>
+          </label>
+          <div class="hp" aria-hidden="true"><label>Sitio web<input name="website" tabindex="-1" autocomplete="off"></label></div>
+          <label class="agree field-check"><input name="consent" type="checkbox" required aria-describedby="consent-error"> Autorizo a Código Norte a usar estos datos para gestionar y responder esta solicitud.</label>
+          <small class="field-error" id="consent-error"></small>
+          <button type="submit" class="btn btn-primary" id="submit-request">Enviar solicitud</button>
+          <p id="service-feedback" class="form-feedback" role="status" aria-live="polite"></p>
         </form>
+        <div class="request-success" id="request-success" hidden tabindex="-1">
+          <span class="success-icon" aria-hidden="true"><svg><use href="#i-check"/></svg></span>
+          <h2 id="success-title">Solicitud recibida</h2>
+          <p id="success-text"></p>
+          <dl class="success-summary" id="success-summary"></dl>
+          <div class="button-row"><a class="btn btn-primary" href="mapa.html">Ver el mapa</a><button type="button" class="btn btn-secondary" id="new-request">Enviar otra solicitud</button></div>
+        </div>
       </section>
       <aside class="panel">
         <h2>Qué pasa después</h2>
-        <p>Tu solicitud queda registrada y verás un número de referencia en pantalla.</p>
-        <hr>
-        <p>El equipo de Código Norte revisa la cantidad, la zona y lo que necesitas antes de preparar el presupuesto.</p>
-        
+        <ol class="next-steps">
+          <li><strong>Revisamos tu solicitud.</strong> Verás un número de referencia en cuanto la envíes.</li>
+          <li><strong>Te proponemos una solución.</strong> Cuántos Orb necesitas o cómo plantear el estudio, según la zona y tus objetivos.</li>
+          <li><strong>Presupuesto sin compromiso.</strong> Nada se compra ni se cobra hasta que lo aceptes.</li>
+        </ol>
       </aside>
     </div>
-    <p class="note">Las mediciones del Orb requieren validación y no sustituyen a los sistemas oficiales de vigilancia ambiental.</p>
+    <p class="note is-centered">Las mediciones del Orb requieren validación y no sustituyen a los sistemas oficiales de vigilancia ambiental.</p>
   </div>
 </main>
 <footer class="footer">
