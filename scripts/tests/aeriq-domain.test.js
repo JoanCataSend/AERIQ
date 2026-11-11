@@ -23,4 +23,6 @@ const csv=domain.csv([{...rows[0],dispositivo:'=HYPERLINK("bad")',zona:'Zona; "n
 assert(csv.includes('"\'=HYPERLINK(""bad"")"'));assert(csv.includes('"Zona; ""norte"""'));
 assert(domain.csv([{longitud:'-0.166'}]).includes('"-0.166"'));
 assert.equal(domain.level(100,60,100),'alto');assert.equal(domain.level(60,60,100),'moderado');
-console.log('AERIQ: interpolación sin cobertura/muestras mixtas, estadísticas, series y CSV correctos.');
+assert.equal(domain.battery(null),'Sin datos');assert.equal(domain.battery(61),'61 % · alta');assert.equal(domain.battery(60),'60 % · media');
+assert.equal(domain.battery(20),'20 % · media');assert.equal(domain.battery(19,'2026-11-11 10:05:00.000'),'19 % · baja · 2026-11-11 10:05 UTC');assert.equal(domain.battery(0),'0 % · baja');
+console.log('AERIQ: interpolación sin cobertura/muestras mixtas, estadísticas, series, CSV y batería correctos.');

@@ -38,7 +38,7 @@ httpdocs/
 
 ## Base de demostración
 
-El esquema nuevo no necesita las tablas antiguas de Plesk. Tiene 22 tablas con nombres claros (los roles, permisos, servicios y estados son catálogos, no `ENUM`) y cuatro vistas: `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`. El diseño y sus decisiones están en [Modelo de datos](doc/base-de-datos.md). El [README de datos](src/database/README.md) explica las relaciones y las seis cuentas de ejemplo.
+El esquema nuevo no necesita las tablas antiguas de Plesk. Tiene 23 tablas con nombres claros (los roles, permisos, servicios y estados son catálogos, no `ENUM`) y cuatro vistas: `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`. El diseño y sus decisiones están en [Modelo de datos](doc/base-de-datos.md). El [README de datos](src/database/README.md) explica las relaciones y las seis cuentas de ejemplo.
 
 Antes de borrar nada puedes consultar el plan, sin conectar a la base:
 

@@ -3,11 +3,15 @@
 #include "Medidor.h"
 #include "Protocolo.h"
 #include "Consola.h"
+#include "Bateria.h"
+#include "Leds.h"
 
 // Placa: Adafruit nRF52 BSP, SparkFun Pro nRF52840 Mini.
 aeriq::Medidor medidor;
 aeriq::Consola consola;
 aeriq::Medida medida;
+aeriq::Bateria bateria;
+aeriq::Leds leds;
 uint64_t dispositivo;
 uint8_t secuencia = 0;
 uint32_t inicioEstado = 0;
@@ -15,19 +19,23 @@ enum class Fase { LEER, OZONO, PAUSA, TEMPERATURA, REPOSO, ERROR };
 Fase fase = Fase::LEER;
 bool radioError = false;
 bool medidaDisponible = false;
+bool bateriaEnAnuncio = false; // Anuncio de bateria activo durante el reposo.
 
 void diagnosticar() {
   static uint32_t ultimo = 0;
   const uint32_t ahora = millis();
   if (!Serial || !aeriq::transcurrido(ahora, ultimo, 2000)) return;
-  char linea[250];
+  char linea[300], textoBateria[32];
+  if (bateria.conocida()) snprintf(textoBateria, sizeof(textoBateria), "BAT=%d%%(%umV)",
+    static_cast<int>(bateria.porcentaje()), static_cast<unsigned>(bateria.milivoltios()));
+  else snprintf(textoBateria, sizeof(textoBateria), "BAT=SIN_MEDIDOR");
   const float vg = medidor.voltaje(0), vr = medidor.voltaje(1), vt = medidor.voltaje(2);
   // Pista de cableado: si VREF no esta cerca de V+/2 pero otro canal si, los cables estan cruzados.
   const bool refMal = medidaDisponible && (vr < 1.3f || vr > 1.7f);
   const char *pista = !refMal ? "" : (vt > 1.3f && vt < 1.7f) ? " PISTA=cables_cruzados?"
     : (vg > 1.3f && vg < 1.7f && (vr < .2f || vr > 3.f)) ? " PISTA=VREF_suelto?" : " PISTA=VREF_mal";
   const int longitud = snprintf(linea, sizeof(linea),
-    "AERIQ id=%08lX%08lX ciclo=%u %s VGAS=%ldmV VREF=%ldmV VTEMP=%ldmV DIF=%lduV O3=%uppb T=%dC O3raw=%ldppb O3filtro=%ldppb estado=0x%04X BLE=%s%s%s\r\n",
+    "AERIQ id=%08lX%08lX ciclo=%u %s VGAS=%ldmV VREF=%ldmV VTEMP=%ldmV DIF=%lduV O3=%uppb T=%dC O3raw=%ldppb O3filtro=%ldppb estado=0x%04X %s BLE=%s%s%s\r\n",
     static_cast<unsigned long>(dispositivo >> 32),
     static_cast<unsigned long>(dispositivo), static_cast<unsigned>(secuencia),
     !medidaDisponible ? "SIN_MEDIDA" : ((medida.estado & aeriq::VALIDA) ? "VALIDA" : "INVALIDA"),
@@ -35,7 +43,7 @@ void diagnosticar() {
     lroundf((vg - vr) * 1.e6f),
     static_cast<unsigned>(medida.ozono),
     static_cast<int>(medida.temperatura), lroundf(medida.ozonoInstantaneo),
-    lroundf(medida.ozonoFiltrado), static_cast<unsigned>(medida.estado),
+    lroundf(medida.ozonoFiltrado), static_cast<unsigned>(medida.estado), textoBateria,
     radioError ? "ERROR" : "OK", consola.midiendoCero() ? " MIDIENDO_CERO" : "", pista);
   // No esperar a que el host USB abra el puerto ni a que se vacie el buffer.
   if (longitud > 0 && longitud < static_cast<int>(sizeof(linea)) &&
@@ -61,6 +69,9 @@ bool publicar(uint8_t tipo, uint16_t valor) {
 
 void setup() {
   Serial.begin(115200);
+  // LED y medidor de bateria funcionan aunque falle la radio.
+  leds.begin(millis());
+  bateria.begin();
   // DEVICEID es el identificador de fabrica, no una direccion BLE ni una clave.
   dispositivo = (static_cast<uint64_t>(NRF_FICR->DEVICEID[1]) << 32)
     | NRF_FICR->DEVICEID[0];
@@ -77,8 +88,10 @@ void setup() {
 void loop() {
   consola.atender(medidor.calibrado());
   diagnosticar();
-  if (radioError) return;
   const uint32_t ahora = millis();
+  bateria.actualizar(ahora);
+  leds.actualizar(ahora, bateria.porcentaje());
+  if (radioError) return;
   switch (fase) {
     case Fase::LEER:
       if (medidor.actualizar(medida)) {
@@ -109,9 +122,19 @@ void loop() {
     case Fase::ERROR:
       if (aeriq::transcurrido(ahora, inicioEstado, 1200)) {
         Bluefruit.Advertising.stop(); fase = Fase::REPOSO; inicioEstado = ahora;
+        // El reposo se aprovecha para anunciar la bateria; el ciclo dura lo mismo.
+        // Sin medidor no se anuncia nada: la bateria no se inventa.
+        if (bateria.conocida()) {
+          radioError = !publicar(aeriq::TIPO_BATERIA, static_cast<uint16_t>(bateria.porcentaje()));
+          bateriaEnAnuncio = !radioError;
+        }
       }
       break;
     case Fase::REPOSO:
+      // La publicidad se detiene antes de la siguiente adquisicion del ADC.
+      if (bateriaEnAnuncio && aeriq::transcurrido(ahora, inicioEstado, 1200)) {
+        Bluefruit.Advertising.stop(); bateriaEnAnuncio = false;
+      }
       if (aeriq::transcurrido(ahora, inicioEstado, 1500)) {
         medidor.iniciar(); fase = Fase::LEER;
       }

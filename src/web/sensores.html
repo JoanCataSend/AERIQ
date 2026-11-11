@@ -46,7 +46,7 @@
         <label class="search-control"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar dispositivo</span><input type="search" id="device-search" placeholder="Buscar por nombre o ID"></label>
         <div class="segmented" role="group" aria-label="Filtrar por actividad"><button class="selected" type="button" data-device-filter="all">Todos</button><button type="button" data-device-filter="active">Recibiendo</button><button type="button" data-device-filter="inactive">Sin datos</button></div>
       </div>
-      <div class="table-scroll"><table class="devices-table"><thead><tr><th>Dispositivo</th><th>Actividad</th><th>Trabajador</th><th>Campaña</th><th>Última medición</th><th>Origen</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="7">Consultando los Orb de tu organización…</td></tr></tbody></table></div>
+      <div class="table-scroll"><table class="devices-table"><thead><tr><th>Dispositivo</th><th>Actividad</th><th>Trabajador</th><th>Campaña</th><th>Última medición</th><th>Origen</th><th>Batería</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="8">Consultando los Orb de tu organización…</td></tr></tbody></table></div>
       <div class="table-bottom">Consultando dispositivos…</div>
     </section>
     <p class="note">Cada Orb indica si sus datos son reales o simulados. Darlo de baja conserva sus mediciones.</p>
@@ -66,6 +66,7 @@
 <script src="pbio-client.js" defer></script>
 <script src="auth-client.js" defer></script>
 <script src="aeriq-client.js" defer></script>
+<script src="aeriq-domain.js" defer></script>
 <script src="fleet.js" defer></script>
 <script src="app.js" defer></script>
 <script src="precarga-3d.js" defer></script>

@@ -30,7 +30,31 @@ Flujo: sensor → BLE → Android → API → BBDD → web. Sólo se modifica el
 | `Calibracion.h` | Conversión física, filtros y diagnóstico |
 | `Protocolo.h` | Serialización explícita y temporizadores |
 | `Consola.h` | Comandos serie de calibración y guardado en flash |
-| `tests/` | Casos de conversión, filtrado, bytes y rollover |
+| `Bateria.h` | Lectura del medidor de batería MAX17048 por I2C (Qwiic) |
+| `Leds.h` | Tres LED de nivel de batería con destello |
+| `tests/` | Casos de conversión, filtrado, bytes, rollover, batería y LED |
+
+## Batería y LED
+
+**Medidor:** módulo **MAX17048** (Adafruit o SparkFun con Qwiic/STEMMA QT, o módulo genérico).
+Calcula el porcentaje real de la LiPo; un divisor de tensión solo daría una estimación a partir del voltaje.
+
+- Batería LiPo → entrada de batería del medidor; salida del medidor → conector de batería de la placa.
+- Qwiic/STEMMA QT a la placa, o cables: SDA → **8**, SCL → **11**, VCC → 3V3, GND → GND.
+- Dirección I2C 0x36. Se lee al arrancar y cada 30 s (`SOC` en 1/256 %, `VCELL` en 78,125 µV).
+- Sin medidor o si no responde (el registro `VERSION` no es 0x001X), la batería es **desconocida**:
+  no se enciende ningún LED de nivel ni se anuncia batería. No se inventa un valor.
+
+**LED:** pin → resistencia → pata larga del LED → pata corta → GND. Nunca sin resistencia.
+
+| LED | Pin | Resistencia orientativa (3,3 V) | Nivel |
+| --- | --- | --- | --- |
+| Verde | 3 | 220 Ω | > 60 % |
+| Azul | 4 | 220 Ω | 20–60 % |
+| Rojo | 2 | 1 kΩ | < 20 % |
+
+Destello de 80 ms cada 5 s con el color del nivel (≈1–2 mA solo durante el destello).
+Los pines se cambian en `Leds.h`. El monitor serie añade `BAT=57%(3912mV)` o `BAT=SIN_MEDIDOR`.
 
 ## Pines y fórmulas reales
 
@@ -97,7 +121,9 @@ inicial son llamadas sincrónicas acotadas del core. Las esperas se resuelven co
 La publicidad permanece detenida durante la adquisición.
 
 Ciclo válido: adquisición (~300 ms o más), O3 1200 ms, pausa 300 ms, temperatura
-1200 ms, reposo 1500 ms. O3 y temperatura proceden del mismo ciclo y comparten
+1200 ms, reposo 1500 ms. Si hay medidor de batería, los primeros 1200 ms del reposo
+anuncian la batería (tipo `10`) y los 300 ms finales quedan sin publicidad: el ciclo
+dura lo mismo y el ADC sigue midiendo con la radio parada. O3 y temperatura proceden del mismo ciclo y comparten
 secuencia. Primera secuencia 1; después de 255 vuelve a 0 y al reiniciar empieza
 de nuevo. No sirve como identificador global ni fecha.
 
@@ -124,9 +150,9 @@ AD completo (30 bytes): `02 01 06 1A FF` seguido de los 25 bytes del fabricante.
 | --- | --- | --- |
 | 0 | 2 | `02 15` |
 | 2 | 16 | ASCII `EPSG-GTI-PROY-3A`, sin NUL |
-| 18 | 1 | `0E` O3; `0C` temperatura; `0F` estado de ciclo inválido |
+| 18 | 1 | `0E` O3; `0C` temperatura; `0F` estado de ciclo inválido; `10` batería |
 | 19 | 1 | Secuencia uint8 del ciclo |
-| 20 | 2 | Big-endian: O3 uint16 ppb; temperatura int16 °C complemento a dos; estado uint16 |
+| 20 | 2 | Big-endian: O3 uint16 ppb; temperatura int16 °C complemento a dos; estado uint16; batería uint16 0–100 % |
 | 22 | 1 | `CB` = −53 dBm de referencia RSSI; no es la potencia radio |
 
 Ejemplo fabricante incluido: O3 **123 ppb**, ciclo **7**:
@@ -183,9 +209,10 @@ Ejemplo ID `0123456789ABCDEF`, ciclo 7, válido:
 | 7 | `0080` | VGAS−VREF−cero > ±60 mV: cableado/montaje, no se publica |
 | 8–15 | | Reservados, emisor los deja a cero |
 
-Es una máscara combinable. Sin bit 0 no guardar lecturas del ciclo. No se
-transmite batería: faltan circuito/divisor y calibración. Tampoco se suponen GPIO
-de LED ni se confunde recepción BLE con conexión GATT.
+Es una máscara combinable. Sin bit 0 no guardar lecturas del ciclo. La batería
+(tipo `10`) es estado del Orb, no una medición: Android la muestra y la envía a
+`field.php?action=battery`, nunca como lectura. No se confunde recepción BLE con
+conexión GATT.
 
 ## Validación
 

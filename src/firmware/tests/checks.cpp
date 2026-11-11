@@ -91,5 +91,23 @@ extern "C" int run_tests() {
   m = sens.convertir(ref - .003694596f, ref, term20, false);
   CHECK(m.ozono == 200);
   CHECK(!sens.muestraCero(ref, 0, term20, v));
+
+  // Bateria MAX17048: SOC en 1/256 %, VCELL en 78.125 uV, version 0x001X.
+  CHECK(porcentajeMax17048(57 << 8) == 57);
+  CHECK(porcentajeMax17048((57 << 8) + 127) == 57 && porcentajeMax17048((57 << 8) + 128) == 58);
+  CHECK(porcentajeMax17048(0xffff) == 100); // por encima del 100 % se limita
+  CHECK(milivoltiosMax17048(53760) == 4200 && milivoltiosMax17048(0) == 0);
+  CHECK(esMax1704x(0x0012) && esMax1704x(0x0011) && !esMax1704x(0xffff) && !esMax1704x(0));
+  // Colores: verde > 60 %, azul 20..60 %, rojo < 20 %, ninguno sin dato.
+  CHECK(colorBateria(-1) == Color::NINGUNO && colorBateria(100) == Color::VERDE && colorBateria(61) == Color::VERDE);
+  CHECK(colorBateria(60) == Color::AZUL && colorBateria(20) == Color::AZUL);
+  CHECK(colorBateria(19) == Color::ROJO && colorBateria(0) == Color::ROJO);
+  // Destello de 80 ms cada 5 s, tambien al dar la vuelta el reloj.
+  CHECK(destelloEncendido(0, 0) && destelloEncendido(79, 0) && !destelloEncendido(80, 0));
+  CHECK(destelloEncendido(5000, 0) && !destelloEncendido(4999, 0));
+  CHECK(destelloEncendido(0x10, 0xfffffff0)); // 32 ms despues del rollover
+  uint8_t bat[25];
+  anuncio(TIPO_BATERIA, 9, 57, bat);
+  CHECK(bat[20] == 16 && bat[21] == 9 && bat[22] == 0 && bat[23] == 57);
   return 0;
 }

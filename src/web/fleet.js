@@ -17,10 +17,10 @@ async function initFleet(){
       const recent=Number(d.activo)&&d.ultima_recepcion&&Date.now()-new Date(d.ultima_recepcion.replace(' ','T')+'Z').getTime()<900000;
       if((filter==='active'&&!recent)||(filter==='inactive'&&recent)||!(d.nombre+' '+d.id+' '+d.direccion_ble).toLowerCase().includes(term))continue;
       shown++;const tr=create('tr');
-      for(const text of [d.nombre+' · Orb #'+d.id,!Number(d.activo)?'Baja administrativa':recent?'Lecturas recientes':'Sin lecturas recientes',d.trabajador||'Sin trabajador',d.campana||'Sin campaña',d.ultima_medicion?d.ultima_medicion+' UTC':'Sin mediciones',Number(d.simulado)?'Simulado':'Real'])tr.append(create('td',text));
+      for(const text of [d.nombre+' · Orb #'+d.id,!Number(d.activo)?'Baja administrativa':recent?'Lecturas recientes':'Sin lecturas recientes',d.trabajador||'Sin trabajador',d.campana||'Sin campaña',d.ultima_medicion?d.ultima_medicion+' UTC':'Sin mediciones',Number(d.simulado)?'Simulado':'Real',AeriqDomain.battery(d.bateria_pct,d.bateria_en)])tr.append(create('td',text));
       const actions=create('td');if(admin){const b=create('button','Editar / asignar');b.className='text-link';b.onclick=()=>edit(d);actions.append(b);}else actions.textContent='Consulta';tr.append(actions);body.append(tr);
     }
-    if(!shown){const tr=create('tr'),td=create('td','No hay dispositivos que coincidan.');td.colSpan=7;tr.append(td);body.append(tr);}
+    if(!shown){const tr=create('tr'),td=create('td','No hay dispositivos que coincidan.');td.colSpan=8;tr.append(td);body.append(tr);}
     const summary=document.querySelector('.table-bottom');summary.textContent=`${shown} de ${devices.length} Orb · Actividad basada en recepción durante los últimos 15 minutos.`;
     const stats=document.querySelectorAll('.stat strong');if(stats.length>=3){stats[0].textContent=devices.length;stats[1].textContent=devices.filter(d=>Number(d.activo)).length;stats[2].textContent=devices.filter(d=>!Number(d.activo)).length;}
   }
@@ -31,5 +31,5 @@ async function initFleet(){
   document.querySelector('#add-device').onclick=()=>edit(null);
   form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await Aeriq.portal('device',{...(current?{id:current.id}:{}),name:name.value,address:address.value,worker:worker.value,campaign:campaign.value,active:active.checked,simulated:simulated.checked});modal.close();await refresh();toast('Orb guardado en tu organización.');}catch(error){toast(error.message);}finally{button.disabled=false;}};
   try{const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}admin=(user.permissions||[]).includes('organizacion.gestionar');document.querySelector('#add-device').hidden=!admin;await refresh();}
-  catch(error){body.replaceChildren();const tr=create('tr'),td=create('td',error.message);td.colSpan=7;tr.append(td);body.append(tr);}
+  catch(error){body.replaceChildren();const tr=create('tr'),td=create('td',error.message);td.colSpan=8;tr.append(td);body.append(tr);}
 }

@@ -31,6 +31,13 @@
     let sum=0,weight=0;for(const x of points){const w=1/Math.max(1,x.d)**2;sum+=Number(x.r.valor)*w;weight+=w;}
     return sum/weight;
   }
-  const api={level,csv,statistics,distance,interpolate};
+  // Batería del Orb (mismos tramos que sus LED): alta > 60 %, media 20–60 %, baja < 20 %.
+  // Sin dato no se inventa nada: «Sin datos» hasta que el Orb con medidor la envíe.
+  function battery(percent,at){
+    if(percent===null||percent===undefined||percent===''||!Number.isFinite(Number(percent)))return 'Sin datos';
+    const p=Number(percent),tier=p>60?'alta':p>=20?'media':'baja';
+    return `${p} % · ${tier}`+(at?` · ${String(at).slice(0,16)} UTC`:'');
+  }
+  const api={level,csv,statistics,distance,interpolate,battery};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AeriqDomain=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

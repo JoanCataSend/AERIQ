@@ -204,8 +204,9 @@ public final class WorkScreens {
             dot.setShape(android.graphics.drawable.GradientDrawable.OVAL);
             dot.setColor(dotColor);
             receptionDot.setBackground(dot);
-            // El firmware actual no transmite la batería: se muestra "—" en lugar de inventar un valor.
-            battery.setText(ble.batteryPercent >= 0 ? ble.batteryPercent + "%" : "—");
+            // Batería en directo del Orb; si no llega, la última guardada. Sin medidor: "—", nunca inventada.
+            battery.setText(ble.batteryPercent >= 0 ? ble.batteryPercent + "%"
+                : selected != null && selected.batteryPercent >= 0 ? selected.batteryPercent + "% (última)" : "—");
 
             List<SensorWidgets.Point> points = new ArrayList<>(today);
             Double current = null;

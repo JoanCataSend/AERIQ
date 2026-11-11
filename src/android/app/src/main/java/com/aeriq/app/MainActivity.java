@@ -106,6 +106,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         field = new AeriqFieldClient(this, auth::sessionToken, () -> auth.user == null ? 0L : auth.user.id);
         location = new ForegroundCaptureLocation(this);
         ble = new AeriqBleController(this, this::receive);
+        ble.onBattery = this::receiveBattery;
         if (state != null) {
             current = Screen.valueOf(state.getString("screen", Screen.LOGIN.name()));
         }
@@ -409,6 +410,23 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         serverStatus = "Enviando " + reading.reading.label() + "…";
         // Sin "Guardar mi recorrido" la lectura se envía sin posición GPS.
         field.upload(reading, assignment, prefs.saveRoute() ? location.current() : null, status -> serverStatus = status);
+    }
+
+    private String batterySentAddress;
+    private int batterySentPercent = -1;
+    private long batterySentAt;
+
+    /** Envía la batería del Orb asignado si ha cambiado o han pasado 10 minutos desde el último envío. */
+    private void receiveBattery(String address, int percent) {
+        OrbAssignment assignment = assigned(address);
+        if (assignment == null || assignment.simulated) return;
+        long now = System.currentTimeMillis();
+        boolean same = address.equalsIgnoreCase(batterySentAddress) && percent == batterySentPercent;
+        if (same && now - batterySentAt < 10 * 60_000L) return;
+        batterySentAddress = address;
+        batterySentPercent = percent;
+        batterySentAt = now;
+        field.battery(assignment, address, percent, now);
     }
 
     public void setSharing(boolean enabled) {

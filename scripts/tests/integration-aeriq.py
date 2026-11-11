@@ -61,6 +61,7 @@ def main():
         sql("USE aeriq_v1_test; INSERT INTO organizaciones(id,nombre) VALUES(9,'Empresa Verde · demostración'); UPDATE usuarios SET firebase_uid='uid-demo' WHERE id=1; UPDATE campanas SET umbral_medio=55 WHERE id=2; UPDATE solicitudes SET estado='en revision' WHERE id=2;")
         for _ in range(2):
             sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v2-catalogos.sql').read_text(encoding='utf-8'))
+            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v3-bateria.sql').read_text(encoding='utf-8'))
             assert sql('USE aeriq_v1_test; SELECT COUNT(*) FROM mediciones')=='9'
             assert sql("USE aeriq_v1_test; SELECT r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id ORDER BY u.id")=='admin\ntrabajador\nanalista\ncomercial\nadmin\ntrabajador'
             assert sql("USE aeriq_v1_test; SELECT nombre FROM organizaciones WHERE id=9")=='Empresa Verde · demostración (#9)'
@@ -135,7 +136,7 @@ def main():
             sql('USE aeriq_test;'+format_sql)
             assert sql("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio'")=='_reinicio_aeriq'
             sql(install_sql)
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='22'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='23'
             assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='4'
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='0'
             assert sql('SELECT id FROM jcatsen_pbio.magnitudes ORDER BY id')=='12\n14'
@@ -351,6 +352,19 @@ class PHPMailer {
         both=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}&type=all",identity='a')['readings']
         assert {row['unidad'] for row in both}=={'ppb','°C'}
         expect(422,'portal.php?action=readings&type=99',identity='a')
+        # Batería anunciada por el Orb real: se guarda, no se duplica y aparece en app y panel.
+        now=dt.datetime.now(dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00','Z')
+        battery={'deviceId':own['id'],'address':own['direccion_ble'],'percent':57,'capturedAt':now}
+        assert expect(200,'field.php?action=battery',battery,token=token)['stored'] is True
+        assert expect(200,'field.php?action=battery',battery,token=token)['stored'] is False
+        expect(422,'field.php?action=battery',{**battery,'percent':101},token=token)
+        expect(403,'field.php?action=battery',{**battery,'address':'AA:BB:CC:DD:EE:99'},token=token)
+        assert expect(200,'field.php?action=battery',{**battery,'percent':55},token=token)['stored'] is True
+        mine=next(row for row in expect(200,'field.php',token=token)['assignments'] if row['id']==own['id'])
+        assert int(mine['bateria_pct'])==55 and mine['bateria_en']
+        board_device=next(d for d in expect(200,'portal.php?action=dashboard',identity='a')['devices'] if d['id']==own['id'])
+        assert int(board_device['bateria_pct'])==55
+        assert sql(f"USE aeriq_test; SELECT COUNT(*) FROM lecturas_bateria WHERE dispositivo_id={own['id']}")=='2'
         # GPS real: aparece en el mapa privado y sigue excluido del mapa público.
         gps={**actual,'eventId':str(uuid.uuid4()),'latitude':38.99665,'longitude':-0.166,'accuracy':8}
         expect(200,'field.php',gps,token=token)

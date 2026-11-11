@@ -40,6 +40,8 @@ const AERIQ_PUEDE_MEDIR="EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p O
 const AERIQ_UMBRALES_O3='COALESCE(cu.umbral_medio,mo.umbral_medio_defecto) AS umbral_medio,COALESCE(cu.umbral_alto,mo.umbral_alto_defecto) AS umbral_alto';
 const AERIQ_JOIN_UMBRALES_O3='LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=14 JOIN magnitudes mo ON mo.id=14';
 /** Umbral de la campaña c para la magnitud t de cada lectura (la temperatura no tiene). */
+/** Última batería conocida del Orb d (porcentaje y fecha UTC de captura). */
+const AERIQ_BATERIA='(SELECT b.porcentaje FROM lecturas_bateria b WHERE b.dispositivo_id=d.id ORDER BY b.capturada_en DESC,b.id DESC LIMIT 1) AS bateria_pct,(SELECT MAX(b.capturada_en) FROM lecturas_bateria b WHERE b.dispositivo_id=d.id) AS bateria_en';
 const AERIQ_UMBRALES_LECTURA='COALESCE(cu.umbral_medio,t.umbral_medio_defecto) AS umbral_medio,COALESCE(cu.umbral_alto,t.umbral_alto_defecto) AS umbral_alto';
 
 function aeriq_int(mixed $v, int $min=1, int $max=PHP_INT_MAX): int {
@@ -144,7 +146,7 @@ function aeriq_device_save(array $a,array $d): array {
 }
 
 function aeriq_assignments(array $a): array {
-    return aeriq_rows('SELECT d.id,d.nombre,d.direccion_ble,a.id AS asignacion_id,a.campana_id,c.nombre AS campana,z.nombre AS zona,c.publicar,'.AERIQ_UMBRALES_O3.',d.simulado FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 AND c.activa=1 AND UTC_DATE() BETWEEN c.inicio AND c.fin',[aeriq_org($a),(int)$a['usuario_id']]);
+    return aeriq_rows('SELECT d.id,d.nombre,d.direccion_ble,a.id AS asignacion_id,a.campana_id,c.nombre AS campana,z.nombre AS zona,c.publicar,'.AERIQ_UMBRALES_O3.',d.simulado,'.AERIQ_BATERIA.' FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 AND c.activa=1 AND UTC_DATE() BETWEEN c.inicio AND c.fin',[aeriq_org($a),(int)$a['usuario_id']]);
 }
 
 function aeriq_capture_time(mixed $v): string {
@@ -185,6 +187,26 @@ function aeriq_ingest(array $a,array $d): array {
     } catch (Throwable $e) {$db->rollback();throw $e;}
 }
 
+/**
+ * Batería que el Orb anuncia por BLE, enviada por la app de quien lo tiene asignado.
+ * Solo Orb reales: un Orb simulado no tiene batería que medir. Para no llenar la tabla,
+ * el mismo porcentaje en menos de 10 minutos no crea otra fila.
+ */
+function aeriq_battery(array $a,array $d): array {
+    $device=aeriq_int($d['deviceId']??null);$percent=aeriq_int($d['percent']??null,0,100);
+    $captured=aeriq_capture_time($d['capturedAt']??'');
+    $orb=aeriq_one('SELECT d.id,d.direccion_ble,d.activo,d.simulado FROM dispositivos d JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL WHERE d.id=? AND d.organizacion_id=? AND a.trabajador_id=?',[$device,aeriq_org($a),(int)$a['usuario_id']]);
+    if (!$orb || !(int)$orb['activo']) throw new AeriqError('Orb no asignado o inactivo.',403);
+    if ((int)$orb['simulado']) throw new AeriqError('Un Orb simulado no tiene batería que registrar.');
+    if (strtoupper((string)($d['address']??''))!==$orb['direccion_ble']) throw new AeriqError('El anuncio no corresponde al Orb asignado.',403);
+    $last=aeriq_one('SELECT porcentaje,capturada_en FROM lecturas_bateria WHERE dispositivo_id=? ORDER BY capturada_en DESC,id DESC LIMIT 1',[$device]);
+    if ($last && (int)$last['porcentaje']===$percent && strtotime($captured.' UTC')-strtotime($last['capturada_en'].' UTC')<600) {
+        return ['ok'=>true,'stored'=>false,'percent'=>$percent];
+    }
+    aeriq_sql('INSERT INTO lecturas_bateria(dispositivo_id,porcentaje,capturada_en,usuario_id) VALUES(?,?,?,?)',[$device,$percent,$captured,(int)$a['usuario_id']]);
+    return ['ok'=>true,'stored'=>true,'percent'=>$percent];
+}
+
 function aeriq_worker_history(array $a): array {
     return aeriq_rows('SELECT m.id,a.dispositivo_id,a.campana_id,m.valor,t.unidad,m.magnitud_id AS tipo,m.capturada_en,m.latitud,m.longitud,m.simulado,d.nombre AS dispositivo,c.nombre AS campana,z.nombre AS zona,'.AERIQ_UMBRALES_LECTURA.' FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN magnitudes t ON t.id=m.magnitud_id LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=m.magnitud_id WHERE a.organizacion_id=? AND a.trabajador_id=? AND m.valida=1 ORDER BY m.capturada_en DESC,m.id DESC LIMIT 1000',[aeriq_org($a),(int)$a['usuario_id']]);
 }
@@ -198,7 +220,7 @@ function aeriq_dashboard(array $a): array {
         'zones'=>aeriq_rows('SELECT id,nombre FROM zonas WHERE organizacion_id=? ORDER BY nombre',[$org]),
         'roles'=>aeriq_rows('SELECT codigo,nombre,descripcion FROM roles WHERE asignable=1 AND requiere_organizacion=1 ORDER BY id'),
         'thresholds'=>['umbral_medio'=>(float)$ref['umbral_medio'],'umbral_alto'=>(float)$ref['umbral_alto']],
-        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,a.trabajador_id,a.campana_id,u.email AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=? ORDER BY d.nombre',[$org])
+        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,'.AERIQ_BATERIA.',a.trabajador_id,a.campana_id,u.email AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=? ORDER BY d.nombre',[$org])
     ];
 }
 

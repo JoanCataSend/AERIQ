@@ -36,8 +36,11 @@ public final class AeriqBleController {
     public String selectedAddress;
     public long lastAdvertisementAt;
     public int sensorDiagnostic = -1;
-    /** Batería del sensor en %; -1 mientras el firmware no la transmita (no se inventa). */
+    /** Batería del sensor en %; -1 mientras el Orb no la anuncie (sin medidor no se inventa). */
     public int batteryPercent = -1;
+    public long batteryAt;
+    /** Se avisa con la dirección y el porcentaje cada vez que llega la batería del Orb seleccionado. */
+    public java.util.function.BiConsumer<String, Integer> onBattery;
     public LiveMeasurement lastO3, lastTemperature;
     private final Context context;
     private final Consumer<LiveMeasurement> onReading;
@@ -103,7 +106,9 @@ public final class AeriqBleController {
                     if (record == null || result.getDevice() == null) return;
                     byte[] data = record.getManufacturerSpecificData(IBeaconParser.APPLE_MANUFACTURER_ID);
                     BeaconReading measurement = IBeaconParser.parse(data);
-                    BeaconReading reading = measurement != null ? measurement : IBeaconParser.parseStatus(data);
+                    BeaconReading status = measurement != null ? null : IBeaconParser.parseStatus(data);
+                    BeaconReading reading = measurement != null ? measurement
+                        : status != null ? status : IBeaconParser.parseBattery(data);
                     if (reading == null) return;
                     String address = result.getDevice().getAddress();
                     long received = System.currentTimeMillis();
@@ -147,6 +152,13 @@ public final class AeriqBleController {
         if (!address.equalsIgnoreCase(selectedAddress)) return;
         lastAdvertisementAt = received;
         sensorDiagnostic = diagnostic;
+        if (reading.typeId == IBeaconParser.BATTERY_ID) {
+            // La batería es estado del Orb: se muestra y se envía aparte, nunca como medición.
+            batteryPercent = reading.value;
+            batteryAt = received;
+            if (onBattery != null) onBattery.accept(address, reading.value);
+            return;
+        }
         if (reading.typeId == IBeaconParser.STATUS_ID) {
             lastO3 = null;
             lastTemperature = null;
@@ -185,6 +197,8 @@ public final class AeriqBleController {
         selectedAddress = null;
         lastAdvertisementAt = 0;
         sensorDiagnostic = -1;
+        batteryPercent = -1;
+        batteryAt = 0;
         lastO3 = null;
         lastTemperature = null;
         counters.clear();

@@ -26,6 +26,17 @@ public final class IBeaconParserTest {
         assertEquals("°C", data.unit());
     }
 
+    @Test public void batteryIsNotAMeasurement() {
+        assertNull(IBeaconParser.parse(packet(16, 3, 57)));
+        assertNull(IBeaconParser.parseStatus(packet(16, 3, 57)));
+        BeaconReading battery = IBeaconParser.parseBattery(packet(16, 3, 57));
+        assertEquals(16, battery.typeId);
+        assertEquals(57, battery.value);
+        assertEquals(3, battery.counter);
+        assertNull(IBeaconParser.parseBattery(packet(16, 3, 101)));
+        assertNull(IBeaconParser.parseBattery(packet(14, 3, 57)));
+    }
+
     @Test public void rejectsWrongUuid() {
         byte[] data = packet(14, 2, 20);
         data[2] = 'X';

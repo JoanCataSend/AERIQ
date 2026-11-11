@@ -65,7 +65,7 @@ Si cambias un contrato HTTP, actualiza `doc/api.md` y los clientes (web y Androi
 
 ### Base de datos (`src/database/`)
 
-Esquema único en `schema.sql` (22 tablas, vistas `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`). Roles, permisos, servicios, estados de solicitud, zonas, umbrales y modelos de Orb son tablas de catálogo, no `ENUM`: el código comprueba permisos (`aeriq_ready($u,'informes.ver')`), nunca nombres de rol. `migracion-v2-catalogos.sql` lleva una base v1 al esquema actual conservando datos; el diseño está en `doc/base-de-datos.md`. `mediciones` → `asignaciones` (organización + Orb + trabajador + campaña); `magnitudes` define rango/unidad usados por la validación de ingesta. Los demás `.sql` son migraciones repetibles, datos demo o scripts de recreación; documenta cualquier cambio de esquema como migración antes de aplicarlo.
+Esquema único en `schema.sql` (23 tablas, vistas `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`). Roles, permisos, servicios, estados de solicitud, zonas, umbrales y modelos de Orb son tablas de catálogo, no `ENUM`: el código comprueba permisos (`aeriq_ready($u,'informes.ver')`), nunca nombres de rol. `migracion-v2-catalogos.sql` lleva una base v1 al esquema actual conservando datos; el diseño está en `doc/base-de-datos.md`. `mediciones` → `asignaciones` (organización + Orb + trabajador + campaña); `magnitudes` define rango/unidad usados por la validación de ingesta. Los demás `.sql` son migraciones repetibles, datos demo o scripts de recreación; documenta cualquier cambio de esquema como migración antes de aplicarlo.
 
 `scripts/reset-database.py` y `recrear-*.sql` son destructivos: usa `--dry-run`, exigen `--confirm RECREAR:<base>` y hacen copia previa. No los ejecutes como paso rutinario ni contra Plesk sin que el usuario lo pida.
 
@@ -75,7 +75,7 @@ Java 11 con **Android Views** (no Compose, aunque `src/README.md` diga Kotlin/Co
 
 ### Firmware (`src/firmware/NodoO3/`)
 
-Arduino, Adafruit nRF52 BSP 1.7.0, SparkFun Pro nRF52840 Mini. Sin `delay()`: máquina de estados con `millis()`/`micros()`. El contrato BLE (tipos 14 = O3, 12 = temperatura, 15 = estado inválido; major = tipo/secuencia, minor = valor) está especificado en `src/firmware/README.md` y debe mantenerse compatible con `IBeaconParser.java`.
+Arduino, Adafruit nRF52 BSP 1.7.0, SparkFun Pro nRF52840 Mini. Sin `delay()`: máquina de estados con `millis()`/`micros()`. El contrato BLE (tipos 14 = O3, 12 = temperatura, 15 = estado inválido, 16 = batería en %; major = tipo/secuencia, minor = valor) está especificado en `src/firmware/README.md` y debe mantenerse compatible con `IBeaconParser.java`.
 
 ## Configuración privada (excluida de Git)
 

@@ -5,8 +5,9 @@ Un único esquema legible, sin la combinación anterior de tablas Sprint 0 y tab
 ## Archivos
 
 - [Reinstalación limpia en Plesk](reinicio/LEEME.md) con inventario, borrado y creación del esquema, y alta del primer administrador.
-- [schema.sql](schema.sql): 22 tablas (catálogos, cuentas, campañas, flota, mediciones, solicitudes y seguridad), restricciones, índices y cuatro vistas de lectura. No borra ninguna base.
+- [schema.sql](schema.sql): 23 tablas (catálogos, cuentas, campañas, flota con batería, mediciones, solicitudes y seguridad), restricciones, índices y cuatro vistas de lectura. No borra ninguna base.
 - [migracion-v2-catalogos.sql](migracion-v2-catalogos.sql): lleva una base anterior (con `usuarios.rol` como `ENUM`) al esquema actual **sin perder datos**. Repetible. Es la opción para la base de Plesk.
+- [migracion-v3-bateria.sql](migracion-v3-bateria.sql): añade la batería de los Orb (`lecturas_bateria`) a una base v2. Repetible, no borra datos. Aplicar después de la v2.
 - [anadir-firebase-google.sql](anadir-firebase-google.sql): migración antigua para bases anteriores a la v2; en una base v2 no hace nada.
 - Los `recrear-*.sql` y `reinicio/01-instalar.sql` se generan a partir de `schema.sql` y `seed-demo.sql` con `python scripts/build-database-scripts.py`. Si cambias el esquema o los datos demo, vuelve a ejecutarlo; la prueba de integración comprueba que coinciden.
 - [seed-demo.sql](seed-demo.sql): datos ficticios para una instalación nueva. No se importa automáticamente en producción.

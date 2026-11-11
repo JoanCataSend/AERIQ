@@ -1,12 +1,12 @@
 # Modelo de datos
 
-AERIQ usa 22 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql), que conserva todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
+AERIQ usa 23 tablas y 4 vistas en MariaDB. El esquema completo está en [schema.sql](../src/database/schema.sql). Una base existente se actualiza con [migracion-v2-catalogos.sql](../src/database/migracion-v2-catalogos.sql) y después [migracion-v3-bateria.sql](../src/database/migracion-v3-bateria.sql); las dos conservan todos los datos. Una instalación limpia se hace con [Reinstalar AERIQ](../src/database/reinicio/LEEME.md).
 
 La versión 2 del esquema sustituye los `ENUM` y los textos repetidos por **tablas de catálogo**. Un catálogo es una tabla pequeña con un `id`, un `codigo` estable que usa el programa y un `nombre` legible. Para añadir un rol, un permiso, un servicio o un estado basta con insertar una fila; no hace falta modificar la tabla ni el código.
 
-![Esquema v2 de AERIQ](aeriq-esquema-v2.png)
+![Esquema v3 de AERIQ](aeriq-esquema-v3.png)
 
-`aeriq-esquema-v2.png` es el diagrama de esta versión. `aeriq-esquema-actual.png` y `base-de-datos.png` son diagramas de versiones anteriores. Este es el mismo esquema en texto:
+`aeriq-esquema-v3.png` es el diagrama de esta versión (catálogos y batería de los Orb). `aeriq-esquema-actual.png` y `base-de-datos.png` son diagramas de versiones anteriores. Este es el mismo esquema en texto:
 
 ## Diagrama
 
@@ -27,6 +27,7 @@ erDiagram
   modelos_dispositivo ||--o{ modelo_magnitudes : ""
   magnitudes ||--o{ modelo_magnitudes : ""
   dispositivos ||--o{ asignaciones : ""
+  dispositivos ||--o{ lecturas_bateria : "batería"
   usuarios ||--o{ asignaciones : "trabajador_id"
   campanas ||--o{ asignaciones : ""
   asignaciones ||--o{ mediciones : ""
@@ -62,6 +63,7 @@ erDiagram
 | | `campana_umbrales` | Umbrales propios de una campaña para una magnitud |
 | | `dispositivos` | Orb: organización, modelo, MAC BLE, alta y procedencia real o simulada |
 | | `asignaciones` | Historial Orb–trabajador–campaña, con una sola asignación abierta por Orb |
+| | `lecturas_bateria` | Porcentaje de batería que anuncia cada Orb, cuándo se midió y quién lo envió |
 | Mediciones | `mediciones` | Evento único, asignación, magnitud, valor, fechas UTC, GPS opcional y validez |
 | Solicitudes | `solicitudes` | Peticiones de presupuesto de la web |
 | | `solicitudes_historial` | Cada cambio de estado: qué estado, quién y cuándo |
@@ -118,6 +120,8 @@ El administrador lo verá en el formulario de alta y la app Android le dejará m
 **¿Cómo se sabe qué puede medir un Orb?** `modelos_dispositivo` y `modelo_magnitudes`. La ingesta rechaza una magnitud que el modelo del Orb no mide. Un Orb v2 con NO₂ sería una fila de modelo, una de magnitud y las filas que los unen, sin cambiar las tablas.
 
 **¿Por qué `magnitudes.id` no es autoincremental?** Porque es el código del anuncio BLE del firmware (14 = O₃, 12 = temperatura, ver `src/firmware/README.md`). Es una clave natural fijada por el protocolo: la app manda `type: 14` y el servidor lo usa directamente. Por eso la columna de `mediciones` se llama `magnitud_id` (antes `tipo`): todas las claves foráneas terminan en `_id`.
+
+**¿La batería del Orb es una medición?** No. El ozono y la temperatura describen el aire de una zona durante una campaña; la batería describe el aparato. Si fuera a `mediciones` aparecería en informes y mapas y dependería de una asignación. Por eso va en `lecturas_bateria`, colgada del Orb. Guarda el historial (se puede ver cómo se descarga) y la última lectura de cada Orb sale con una consulta por `(dispositivo_id, capturada_en)`. Para no llenar la tabla, el mismo porcentaje en menos de 10 minutos no crea otra fila. Los Orb simulados no tienen batería: sin medidor no hay valor, nunca se inventa.
 
 ### Mediciones
 

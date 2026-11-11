@@ -37,6 +37,10 @@ POST incluye:
 {"eventId":"014be610-334a-49cb-8f78-345af82a2551","deviceId":1,"assignmentId":1,"campaignId":1,"address":"D0:00:00:00:00:01","type":14,"unit":"ppb","value":68,"capturedAt":"2026-11-03T12:00:00.000Z","counter":7,"rssi":-60,"latitude":38.99665,"longitude":-0.166,"accuracy":5}
 ```
 
+POST `?action=battery` guarda la batería que anuncia el Orb (tipo BLE 16): `deviceId,address,percent` (0–100) y `capturedAt` (UTC). Exige el Orb asignado y activo, con la misma dirección BLE; un Orb simulado devuelve 422. Respuesta `ok,stored,percent`: `stored=false` cuando repite el último porcentaje en menos de 10 minutos. La app lo envía al cambiar el porcentaje o cada 10 minutos, fuera de la cola de lecturas.
+
+Las asignaciones del GET y los `devices` de `portal.php?action=dashboard` incluyen `bateria_pct` y `bateria_en` (última batería conocida, `null` si el Orb nunca la ha enviado).
+
 GPS es opcional como conjunto. El servidor consulta el rango/unidad de `magnitudes`, rechaza (422) una magnitud que el modelo del Orb no mide (`modelo_magnitudes`), comprueba asignación y fechas, y toma la procedencia del Orb. `assignmentId` y `unit` se comprueban si se incluyen; la app actual siempre los envía. No se permite que un cliente elija otra organización o declare su lectura como real.
 
 El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta: `ok,id,eventId,duplicate`. Reutilizar el evento con datos diferentes devuelve 409; cambiar de asignación no reasigna lecturas históricas.

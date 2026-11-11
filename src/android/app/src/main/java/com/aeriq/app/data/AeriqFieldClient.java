@@ -127,6 +127,25 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    /**
+     * Envía la batería del Orb asignado. No pasa por la cola de lecturas: si falla, el Orb
+     * la vuelve a anunciar en el siguiente ciclo y se reintenta más tarde.
+     */
+    public void battery(OrbAssignment assignment, String address, int percent, long capturedAtMillis) {
+        String credential = token.get();
+        if (credential == null || assignment == null || assignment.simulated) return;
+        sender.execute(() -> {
+            try {
+                SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT);
+                date.setTimeZone(TimeZone.getTimeZone("UTC"));
+                JsonHttp.request(ApiRoutes.FIELD + "?action=battery", JsonHttp.object("deviceId", assignment.id,
+                    "address", address, "percent", percent, "capturedAt", date.format(new Date(capturedAtMillis))), credential);
+            } catch (Exception ignored) {
+                // Dato de estado, no medición: no se guarda en la cola ni se avisa al usuario.
+            }
+        });
+    }
+
     private void postStatus(String credential, long account, String status, Consumer<String> done) {
         main.post(() -> {
             if (!closed && credential.equals(token.get()) && account == owner.get()) done.accept(status);

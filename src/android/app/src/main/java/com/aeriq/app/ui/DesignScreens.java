@@ -588,7 +588,8 @@ public final class DesignScreens {
             connected.setTextColor(live ? GREEN : MUTED);
             connected.setBackground(ui.shape(live ? PANEL_SOFT : CHIP, 16, 0));
             connection.setText(ble.bluetoothEnabled() ? "Bluetooth LE" : "Bluetooth desactivado");
-            battery.setText(ble.batteryPercent >= 0 ? ble.batteryPercent + " %" : "—");
+            battery.setText(ble.batteryPercent >= 0 ? ble.batteryPercent + " %"
+                : sensor != null && sensor.batteryPercent >= 0 ? sensor.batteryPercent + " % (última)" : "—");
             Integer rssi = null;
             if (sensor != null) for (AeriqBleController.FoundDevice device : ble.devices())
                 if (device.address.equalsIgnoreCase(sensor.address)) rssi = device.rssi;

@@ -8,6 +8,9 @@ public final class OrbAssignment {
     public final String name, address, campaign;
     public final boolean simulated;
     public final double medium, high;
+    /** Última batería guardada en el servidor (-1 si el Orb nunca la ha enviado) y su fecha UTC. */
+    public final int batteryPercent;
+    public final String batteryAt;
 
     OrbAssignment(JSONObject data) throws JSONException {
         id = data.getLong("id");
@@ -19,5 +22,7 @@ public final class OrbAssignment {
         simulated = data.optInt("simulado") == 1 || data.optBoolean("simulado");
         medium = data.optDouble("umbral_medio", 60);
         high = data.optDouble("umbral_alto", 100);
+        batteryPercent = data.isNull("bateria_pct") ? -1 : data.optInt("bateria_pct", -1);
+        batteryAt = data.isNull("bateria_en") ? "" : data.optString("bateria_en", "");
     }
 }
