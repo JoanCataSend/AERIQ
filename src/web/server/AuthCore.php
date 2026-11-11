@@ -46,7 +46,7 @@ function auth_rate(string $action, string $subject, int $limit, int $interval=90
     if ((int)($stmt->get_result()->fetch_assoc()['intentos']??0)>$limit) auth_responder(429,['error'=>'Demasiados intentos. Vuelve a intentarlo más tarde.']);
 }
 function auth_find(string $email): ?array {
-    $s=conexionBD()->prepare('SELECT * FROM usuarios WHERE email=? LIMIT 1');
+    $s=conexionBD()->prepare('SELECT u.*,r.codigo AS rol FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.email=? LIMIT 1');
     $s->bind_param('s',$email);$s->execute(); return $s->get_result()->fetch_assoc()?:null;
 }
 function auth_login_allowed(array $user): void {
@@ -59,7 +59,8 @@ function auth_public(array $user): array {
     $a=aeriq_access((int)$user['id']);
     auth_login_allowed($user);
     return ['id'=>(int)$user['id'],'name'=>$user['nombre'],'last'=>$user['apellidos'],'email'=>$user['email'],'phone'=>$user['telefono']??'',
-        'role'=>$a['rol'],'organizationId'=>$a['organizacion_id'],'organization'=>$a['organizacion'],
+        'role'=>$a['rol'],'roleName'=>$a['rol_nombre'],'permissions'=>$a['permisos'],
+        'organizationId'=>$a['organizacion_id'],'organization'=>$a['organizacion'],
         'mustChangePassword'=>(bool)$a['cambiar_clave']];
 }
 function auth_current(): ?array {

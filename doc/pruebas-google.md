@@ -34,7 +34,7 @@ Prepara una cuenta de Google por caso y usa el correo exacto de `usuarios.email`
 
 | Caso | Preparación | Resultado esperado |
 | --- | --- | --- |
-| Invitación vigente | Admin invita a `operador1@…`; la invitación no ha caducado | Entra, se guarda `firebase_uid`, se activa y la contraseña temporal deja de servir |
+| Invitación vigente | Admin invita a `operador1@…`; la invitación no ha caducado | Entra, se guarda el UID en `identidades_externas`, se activa y la contraseña temporal deja de servir |
 | Correo no registrado | Cuenta Google `desconocido@…` que no existe en `usuarios` | HTTP 403; no se crea ninguna fila |
 | Cuenta desactivada | `activo=0` y sin invitación pendiente | HTTP 403; no se inicia sesión |
 | Invitación caducada | `debe_cambiar_clave=1` y `invitacion_expira_en` en el pasado | HTTP 403; se debe recuperar el acceso |
@@ -42,7 +42,7 @@ Prepara una cuenta de Google por caso y usa el correo exacto de `usuarios.email`
 | Token inválido o alterado | Cambiar un carácter del `idToken` | HTTP 401; no se vincula |
 | Token caducado | Usar un token con `exp` vencido | HTTP 401; no se vincula |
 | Repetición | Reenviar el mismo `idToken` ya consumido | HTTP 409; el frontend debe pedir un token nuevo |
-| Login tradicional | Cuenta con contraseña verificada | Entra igual que antes; no se altera `firebase_uid` |
+| Login tradicional | Cuenta con contraseña verificada | Entra igual que antes; no se altera `identidades_externas` |
 | Ruta real | Abrir `https://ldiamur.upv.edu.es/src/web/login.html` | El botón carga y el POST va a `/src/web/auth.php` |
 
 Para observar los códigos HTTP, abre las herramientas de red del navegador o revisa el registro de Plesk. No publiques tokens completos en capturas o incidencias.

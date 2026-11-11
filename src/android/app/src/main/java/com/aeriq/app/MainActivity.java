@@ -357,7 +357,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     private boolean workerAccount() {
-        return auth.user != null && ("trabajador".equals(auth.user.role) || "admin".equals(auth.user.role)) && !auth.user.mustChangePassword;
+        return auth.user != null && auth.user.can(AeriqAuthManager.User.PERMISSION_COLLECT) && !auth.user.mustChangePassword;
     }
 
     private void refreshWorker() {

@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
 <meta name="description" content="El Orb es el sensor de ozono de AERIQ: cabe en un llavero y envía sus lecturas a la app Android por Bluetooth.">
-<title>El Orb, sensor de ozono · AERIQ</title>
+<title>AERIQ Orb, sensor de ozono · AERIQ</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
+<link rel="preload" href="assets/aeriq_sensor_3d.glb" as="fetch" crossorigin="anonymous">
+<link rel="preconnect" href="https://ajax.googleapis.com" crossorigin>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 </head>
 <body data-page="sensor">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -30,17 +33,15 @@
 <main>
   <section class="section" style="padding-bottom:clamp(48px,6vw,80px)">
     <div class="container product-hero">
-      <h1>Orb</h1>
+      <h1>AERIQ Orb</h1>
       <p class="tagline">Un sensor de ozono del tamaño de un llavero.</p>
       <span class="product-status">Prototipo en desarrollo</span>
-      <div class="product-stage">
-        <img id="product-main-image" class="product-main-image" src="assets/sensor_view_frontal.png" alt="El Orb, vista frontal" data-color-target>
-      </div>
-      <div class="thumb-row" role="group" aria-label="Vistas del Orb">
-        <button class="thumb active" type="button" data-angle="front" data-view-label="Vista frontal" data-image-src="assets/sensor_view_frontal.png" data-image-alt="El Orb, vista frontal"><img src="assets/sensor_view_frontal.png" alt=""><small>Frontal</small></button>
-        <button class="thumb" type="button" data-angle="back" data-view-label="Vista trasera" data-image-src="assets/sensor_view_trasera.png" data-image-alt="El Orb, vista trasera"><img src="assets/sensor_view_trasera.png" alt=""><small>Trasera</small></button>
-        <button class="thumb" type="button" data-angle="left" data-view-label="Vista izquierda" data-image-src="assets/sensor_view_izquierda.png" data-image-alt="El Orb, vista izquierda"><img src="assets/sensor_view_izquierda.png" alt=""><small>Izquierda</small></button>
-        <button class="thumb" type="button" data-angle="right" data-view-label="Vista derecha" data-image-src="assets/sensor_view_derecha.png" data-image-alt="El Orb, vista derecha"><img src="assets/sensor_view_derecha.png" alt=""><small>Derecha</small></button>
+      <div class="product-stage product-stage-3d">
+        <div class="sensor-3d-shell">
+                    <model-viewer class="sensor-model-viewer" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del AERIQ Orb que se puede girar en todas las direcciones" poster="assets/orb_poster_frontal.webp" camera-controls camera-orbit="28deg 75deg 150%" min-camera-orbit="-Infinity 0deg 110%" max-camera-orbit="Infinity 180deg 220%" interaction-prompt="none" touch-action="none" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>
+          <p class="stage-hint">Arrástralo en cualquier dirección para girarlo</p>
+          <span class="mv-loading" role="status">Cargando modelo 3D…</span>
+        </div>
       </div>
     </div>
   </section>
@@ -49,12 +50,10 @@
       <div class="offer">
         <h2>Kits para organizaciones.</h2>
         <p>Código Norte prepara el presupuesto según el número de Orb y lo que necesite tu campaña.</p>
-        <span class="quantity-label" id="qty-label">Cantidad</span>
         <div class="purchase-actions">
-          <div class="quantity" role="group" aria-labelledby="qty-label"><button type="button" data-qty-minus aria-label="Restar uno">−</button><span id="product-qty">1</span><button type="button" data-qty-plus aria-label="Sumar uno">+</button></div>
           <button class="btn btn-primary" type="button" id="add-to-cart">Solicitar este kit</button>
         </div>
-        <p class="fine">Cada Orb se asigna a un trabajador y a una campaña. Para recibir sus lecturas hace falta un teléfono Android compatible.</p>
+        <p class="fine">La cantidad la concretas en el siguiente paso. Cada Orb se asigna a un trabajador y a una campaña, y necesita un teléfono Android compatible.</p>
       </div>
     </div>
   </section>
@@ -85,10 +84,6 @@
 </main>
 <footer class="footer">
   <div class="container">
-    <div class="footnotes">
-      <p>Las mediciones del Orb son complementarias, deben validarse y no sustituyen a la red oficial de vigilancia de la calidad del aire. Los umbrales de color los fija cada campaña.</p>
-      <p>Las imágenes y las lecturas de ejemplo son ilustrativas. Zona piloto: Grau de Gandia, Valencia.</p>
-    </div>
     <div class="footer-top">
       <a href="index.html" class="footer-brand"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"><span>Medir para comprender.</span></a>
       <nav aria-label="Pie de página"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>

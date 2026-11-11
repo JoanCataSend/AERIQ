@@ -36,7 +36,8 @@ function aeriq_link_sensor(array $a, array $data): array {
             $campaignName = 'Mis mediciones · '.$user;
             $campaign = aeriq_one('SELECT id FROM campanas WHERE organizacion_id=? AND nombre=? AND publicar=0 AND activa=1 AND UTC_DATE() BETWEEN inicio AND fin ORDER BY id LIMIT 1 FOR UPDATE', [$org,$campaignName]);
             if (!$campaign) {
-                aeriq_sql("INSERT INTO campanas(organizacion_id,nombre,zona,inicio,fin,activa,publicar) VALUES(?,?,?,UTC_DATE(),DATE_ADD(UTC_DATE(),INTERVAL 1 YEAR),1,0)", [$org,$campaignName,'Captura personal']);
+                // Sin fila en campana_umbrales: usa los umbrales de referencia del ozono.
+                aeriq_sql("INSERT INTO campanas(organizacion_id,zona_id,nombre,inicio,fin,activa,publicar) VALUES(?,?,?,UTC_DATE(),DATE_ADD(UTC_DATE(),INTERVAL 1 YEAR),1,0)", [$org,aeriq_zone($org,'Captura personal'),$campaignName]);
                 $campaign = ['id'=>(int)$db->insert_id];
             }
             aeriq_sql('INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) VALUES(?,?,?,?)', [$org,$id,$user,(int)$campaign['id']]);

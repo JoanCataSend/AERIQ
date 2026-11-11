@@ -7,53 +7,196 @@ WHERE TABLE_SCHEMA = 'jcatsen_pbio' AND TABLE_NAME = '_reinicio_aeriq';
 
 -- AERIQ · Esquema único para instalaciones nuevas (MariaDB 10.4+).
 -- No contiene DROP DATABASE, cuentas reales ni datos de producción.
+-- Las decisiones de diseño están explicadas en doc/base-de-datos.md.
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
+
+-- ============================================================ Catálogos
+-- Tablas pequeñas que sustituyen a los ENUM: añadir un rol, un permiso,
+-- un servicio o un estado es un INSERT, no un ALTER TABLE.
+
+CREATE TABLE `jcatsen_pbio`.`roles` (
+ id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(30) NOT NULL UNIQUE,
+ nombre VARCHAR(60) NOT NULL,
+ descripcion VARCHAR(255) NOT NULL DEFAULT '',
+ requiere_organizacion BOOLEAN NOT NULL DEFAULT TRUE,
+ asignable BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`roles` (id,codigo,nombre,descripcion,requiere_organizacion,asignable) VALUES
+ (1,'visitante','Visitante','Cuenta sin organización. Solo consulta pública.',0,0),
+ (2,'trabajador','Trabajador','Recoge mediciones con los Orb que tiene asignados.',1,1),
+ (3,'analista','Analista','Consulta informes y exporta los datos de su organización.',1,1),
+ (4,'admin','Administrador','Gestiona cuentas, campañas y Orb de su organización.',1,0),
+ (5,'comercial','Comercial','Atiende las solicitudes de presupuesto de Código Norte.',0,0);
+
+CREATE TABLE `jcatsen_pbio`.`permisos` (
+ id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(60) NOT NULL UNIQUE,
+ descripcion VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`permisos` (id,codigo,descripcion) VALUES
+ (1,'mapa.organizacion','Ver el mapa privado de su organización.'),
+ (2,'informes.ver','Ver el panel, los informes y exportar los datos de toda la organización.'),
+ (3,'organizacion.gestionar','Dar de alta cuentas, campañas y Orb de su organización.'),
+ (4,'mediciones.registrar','Recibir asignaciones, vincular Orb propios y enviar lecturas desde Android.'),
+ (5,'solicitudes.gestionar','Ver las solicitudes comerciales y cambiar su estado.');
+
+CREATE TABLE `jcatsen_pbio`.`rol_permisos` (
+ rol_id TINYINT UNSIGNED NOT NULL,
+ permiso_id SMALLINT UNSIGNED NOT NULL,
+ PRIMARY KEY (rol_id,permiso_id),
+ FOREIGN KEY (rol_id) REFERENCES `jcatsen_pbio`.`roles`(id) ON DELETE CASCADE,
+ FOREIGN KEY (permiso_id) REFERENCES `jcatsen_pbio`.`permisos`(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`rol_permisos` (rol_id,permiso_id) VALUES
+ (2,1),(2,4),
+ (3,1),(3,2),
+ (4,1),(4,2),(4,3),(4,4),
+ (5,5);
+
+-- El id coincide con el código de tipo del anuncio BLE del Orb (14 = O3, 12 = temperatura):
+-- es una clave natural fijada por el firmware, por eso no es AUTO_INCREMENT.
+CREATE TABLE `jcatsen_pbio`.`magnitudes` (
+ id INT PRIMARY KEY, nombre VARCHAR(60) NOT NULL, unidad VARCHAR(16) NOT NULL,
+ valor_minimo DOUBLE NOT NULL, valor_maximo DOUBLE NOT NULL,
+ umbral_medio_defecto DOUBLE NULL, umbral_alto_defecto DOUBLE NULL,
+ CHECK (valor_maximo >= valor_minimo),
+ CHECK ((umbral_medio_defecto IS NULL AND umbral_alto_defecto IS NULL) OR
+        (umbral_medio_defecto >= 0 AND umbral_alto_defecto > umbral_medio_defecto))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`magnitudes` VALUES
+ (14,'Ozono','ppb',0,65535,60,100),
+ (12,'Temperatura','°C',-32768,32767,NULL,NULL);
+
+CREATE TABLE `jcatsen_pbio`.`modelos_dispositivo` (
+ id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(40) NOT NULL UNIQUE,
+ nombre VARCHAR(120) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`modelos_dispositivo` (id,codigo,nombre) VALUES
+ (1,'orb-v1','Orb v1 · nRF52840 (ozono y temperatura)');
+
+-- Qué magnitudes puede enviar cada modelo; la ingesta lo comprueba.
+CREATE TABLE `jcatsen_pbio`.`modelo_magnitudes` (
+ modelo_id SMALLINT UNSIGNED NOT NULL,
+ magnitud_id INT NOT NULL,
+ PRIMARY KEY (modelo_id,magnitud_id),
+ FOREIGN KEY (modelo_id) REFERENCES `jcatsen_pbio`.`modelos_dispositivo`(id) ON DELETE CASCADE,
+ FOREIGN KEY (magnitud_id) REFERENCES `jcatsen_pbio`.`magnitudes`(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`modelo_magnitudes` (modelo_id,magnitud_id) VALUES (1,12),(1,14);
+
+CREATE TABLE `jcatsen_pbio`.`servicios` (
+ id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(30) NOT NULL UNIQUE,
+ nombre VARCHAR(80) NOT NULL,
+ descripcion VARCHAR(255) NOT NULL DEFAULT '',
+ mide_superficie BOOLEAN NOT NULL DEFAULT FALSE,
+ activo BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`servicios` (id,codigo,nombre,descripcion,mide_superficie) VALUES
+ (1,'administracion','Kits para administraciones públicas','Kits Orb para campañas municipales.',0),
+ (2,'empresa','Kits para empresas privadas','Kits Orb para instalaciones y recintos privados.',0),
+ (3,'estudio','Estudio ambiental de Código Norte','Estudio completo con informe, según la superficie.',1);
+
+CREATE TABLE `jcatsen_pbio`.`estados_solicitud` (
+ id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(30) NOT NULL UNIQUE,
+ nombre VARCHAR(60) NOT NULL,
+ orden TINYINT UNSIGNED NOT NULL,
+ final BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `jcatsen_pbio`.`estados_solicitud` (id,codigo,nombre,orden,final) VALUES
+ (1,'pendiente','Pendiente',1,0),
+ (2,'en_revision','En revisión',2,0),
+ (3,'respondida','Respondida',3,0),
+ (4,'cerrada','Cerrada',4,1);
+
+-- ============================================================ Organizaciones y cuentas
 
 CREATE TABLE `jcatsen_pbio`.`organizaciones` (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  nombre VARCHAR(160) NOT NULL,
- creada_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+ creada_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE KEY organizacion_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Una cuenta pertenece como máximo a una organización y tiene un rol.
+-- Que los roles con requiere_organizacion tengan organización lo comprueba la aplicación.
 CREATE TABLE `jcatsen_pbio`.`usuarios` (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  organizacion_id BIGINT UNSIGNED NULL,
- rol ENUM('visitante','trabajador','analista','admin','comercial') NOT NULL DEFAULT 'visitante',
+ rol_id TINYINT UNSIGNED NOT NULL DEFAULT 1,
  nombre VARCHAR(90) NOT NULL, apellidos VARCHAR(120) NOT NULL,
  email VARCHAR(254) NOT NULL UNIQUE, telefono VARCHAR(40) NOT NULL DEFAULT '',
  password_hash VARCHAR(255) NOT NULL,
- firebase_uid VARCHAR(128) NULL,
  activo BOOLEAN NOT NULL DEFAULT TRUE,
  debe_cambiar_clave BOOLEAN NOT NULL DEFAULT FALSE,
  invitacion_expira_en DATETIME NULL,
  verificado_en DATETIME NULL,
  creada_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  UNIQUE KEY usuario_organizacion (id,organizacion_id),
- UNIQUE KEY usuario_firebase_uid (firebase_uid),
  FOREIGN KEY (organizacion_id) REFERENCES `jcatsen_pbio`.`organizaciones`(id),
- CHECK (rol IN ('visitante','comercial') OR organizacion_id IS NOT NULL)
+ FOREIGN KEY (rol_id) REFERENCES `jcatsen_pbio`.`roles`(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Accesos con proveedores externos (hoy Firebase/Google). Una fila por proveedor y cuenta.
+CREATE TABLE `jcatsen_pbio`.`identidades_externas` (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ usuario_id BIGINT UNSIGNED NOT NULL,
+ proveedor VARCHAR(30) NOT NULL,
+ uid_externo VARCHAR(128) NOT NULL,
+ vinculada_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE KEY identidad_unica (proveedor,uid_externo),
+ UNIQUE KEY una_por_proveedor (usuario_id,proveedor),
+ FOREIGN KEY (usuario_id) REFERENCES `jcatsen_pbio`.`usuarios`(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================ Campañas y flota
+
+-- Zonas reutilizables por organización: los informes filtran por zona sin depender de cómo se escribió.
+CREATE TABLE `jcatsen_pbio`.`zonas` (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ organizacion_id BIGINT UNSIGNED NOT NULL,
+ nombre VARCHAR(200) NOT NULL,
+ UNIQUE KEY zona_nombre (organizacion_id,nombre),
+ UNIQUE KEY zona_organizacion (id,organizacion_id),
+ FOREIGN KEY (organizacion_id) REFERENCES `jcatsen_pbio`.`organizaciones`(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `jcatsen_pbio`.`campanas` (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, organizacion_id BIGINT UNSIGNED NOT NULL,
- nombre VARCHAR(160) NOT NULL, zona VARCHAR(200) NOT NULL,
+ zona_id BIGINT UNSIGNED NOT NULL,
+ nombre VARCHAR(160) NOT NULL,
  inicio DATE NOT NULL, fin DATE NOT NULL,
  activa BOOLEAN NOT NULL DEFAULT TRUE, publicar BOOLEAN NOT NULL DEFAULT FALSE,
  radio_m INT NOT NULL DEFAULT 30,
- umbral_medio DOUBLE NOT NULL DEFAULT 60, umbral_alto DOUBLE NOT NULL DEFAULT 100,
  UNIQUE KEY campana_organizacion (id,organizacion_id),
  FOREIGN KEY (organizacion_id) REFERENCES `jcatsen_pbio`.`organizaciones`(id),
- CHECK (fin >= inicio), CHECK (radio_m BETWEEN 20 AND 50),
+ FOREIGN KEY (zona_id,organizacion_id) REFERENCES `jcatsen_pbio`.`zonas`(id,organizacion_id),
+ CHECK (fin >= inicio), CHECK (radio_m BETWEEN 20 AND 50)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Umbrales propios de una campaña. Sin fila, se usan los de referencia de la magnitud.
+CREATE TABLE `jcatsen_pbio`.`campana_umbrales` (
+ campana_id BIGINT UNSIGNED NOT NULL,
+ magnitud_id INT NOT NULL,
+ umbral_medio DOUBLE NOT NULL, umbral_alto DOUBLE NOT NULL,
+ PRIMARY KEY (campana_id,magnitud_id),
+ FOREIGN KEY (campana_id) REFERENCES `jcatsen_pbio`.`campanas`(id) ON DELETE CASCADE,
+ FOREIGN KEY (magnitud_id) REFERENCES `jcatsen_pbio`.`magnitudes`(id),
  CHECK (umbral_medio >= 0 AND umbral_alto > umbral_medio)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `jcatsen_pbio`.`dispositivos` (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, organizacion_id BIGINT UNSIGNED NOT NULL,
+ modelo_id SMALLINT UNSIGNED NOT NULL DEFAULT 1,
  nombre VARCHAR(160) NOT NULL, direccion_ble VARCHAR(17) NULL UNIQUE,
  activo BOOLEAN NOT NULL DEFAULT TRUE, simulado BOOLEAN NOT NULL DEFAULT FALSE,
  UNIQUE KEY dispositivo_organizacion (id,organizacion_id),
- FOREIGN KEY (organizacion_id) REFERENCES `jcatsen_pbio`.`organizaciones`(id)
+ FOREIGN KEY (organizacion_id) REFERENCES `jcatsen_pbio`.`organizaciones`(id),
+ FOREIGN KEY (modelo_id) REFERENCES `jcatsen_pbio`.`modelos_dispositivo`(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Un cambio de asignación cierra la anterior; no cambia la autoría del histórico.
@@ -72,17 +215,12 @@ CREATE TABLE `jcatsen_pbio`.`asignaciones` (
  INDEX (trabajador_id,finalizada_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `jcatsen_pbio`.`magnitudes` (
- id INT PRIMARY KEY, nombre VARCHAR(60) NOT NULL, unidad VARCHAR(16) NOT NULL,
- valor_minimo DOUBLE NOT NULL, valor_maximo DOUBLE NOT NULL,
- CHECK (valor_maximo >= valor_minimo)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT INTO `jcatsen_pbio`.`magnitudes` VALUES (14,'Ozono','ppb',0,65535),(12,'Temperatura','°C',-32768,32767);
+-- ============================================================ Mediciones
 
 CREATE TABLE `jcatsen_pbio`.`mediciones` (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  evento CHAR(36) NOT NULL, asignacion_id BIGINT UNSIGNED NOT NULL,
- tipo INT NOT NULL, valor DOUBLE NOT NULL,
+ magnitud_id INT NOT NULL, valor DOUBLE NOT NULL,
  capturada_en DATETIME(3) NOT NULL,
  recibida_en DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
  latitud DOUBLE NULL, longitud DOUBLE NULL, precision_m DOUBLE NULL,
@@ -90,28 +228,48 @@ CREATE TABLE `jcatsen_pbio`.`mediciones` (
  simulado BOOLEAN NOT NULL, valida BOOLEAN NOT NULL DEFAULT TRUE,
  UNIQUE KEY evento_unico (evento),
  FOREIGN KEY (asignacion_id) REFERENCES `jcatsen_pbio`.`asignaciones`(id),
- FOREIGN KEY (tipo) REFERENCES `jcatsen_pbio`.`magnitudes`(id),
+ FOREIGN KEY (magnitud_id) REFERENCES `jcatsen_pbio`.`magnitudes`(id),
  CHECK ((latitud IS NULL AND longitud IS NULL AND precision_m IS NULL) OR
    (latitud IS NOT NULL AND longitud IS NOT NULL AND precision_m IS NOT NULL AND
     latitud BETWEEN -90 AND 90 AND longitud BETWEEN -180 AND 180 AND precision_m BETWEEN 0 AND 10000)),
  CHECK (rssi BETWEEN -127 AND 20),
- INDEX (capturada_en), INDEX (asignacion_id,tipo,capturada_en)
+ INDEX (capturada_en), INDEX (asignacion_id,magnitud_id,capturada_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ============================================================ Solicitudes comerciales
+
+-- Un kit pide cantidad; un estudio pide superficie (servicios.mide_superficie).
 CREATE TABLE `jcatsen_pbio`.`solicitudes` (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
- servicio ENUM('administracion','empresa','estudio') NOT NULL,
+ servicio_id TINYINT UNSIGNED NOT NULL,
+ estado_id TINYINT UNSIGNED NOT NULL DEFAULT 1,
  entidad VARCHAR(180) NOT NULL, contacto VARCHAR(160) NOT NULL,
  email VARCHAR(254) NOT NULL, telefono VARCHAR(40) NOT NULL DEFAULT '',
  cantidad INT NULL, zona VARCHAR(200) NOT NULL, superficie DOUBLE NULL,
  duracion VARCHAR(100) NOT NULL DEFAULT '', necesidades TEXT NOT NULL,
  consentimiento_en DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
- estado ENUM('pendiente','en revision','respondida','cerrada') NOT NULL DEFAULT 'pendiente',
  recibida_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
- CHECK ((servicio='estudio' AND superficie > 0 AND cantidad IS NULL) OR
-        (servicio<>'estudio' AND cantidad > 0 AND superficie IS NULL)),
- INDEX (estado,recibida_en)
+ FOREIGN KEY (servicio_id) REFERENCES `jcatsen_pbio`.`servicios`(id),
+ FOREIGN KEY (estado_id) REFERENCES `jcatsen_pbio`.`estados_solicitud`(id),
+ CHECK ((cantidad > 0 AND superficie IS NULL) OR (cantidad IS NULL AND superficie > 0)),
+ INDEX (estado_id,recibida_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Quién cambió cada solicitud de estado y cuándo. usuario_id NULL = formulario público.
+CREATE TABLE `jcatsen_pbio`.`solicitudes_historial` (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ solicitud_id BIGINT UNSIGNED NOT NULL,
+ estado_id TINYINT UNSIGNED NOT NULL,
+ usuario_id BIGINT UNSIGNED NULL,
+ cambiado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (solicitud_id) REFERENCES `jcatsen_pbio`.`solicitudes`(id) ON DELETE CASCADE,
+ FOREIGN KEY (estado_id) REFERENCES `jcatsen_pbio`.`estados_solicitud`(id),
+ FOREIGN KEY (usuario_id) REFERENCES `jcatsen_pbio`.`usuarios`(id) ON DELETE SET NULL,
+ INDEX (solicitud_id,cambiado_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================ Seguridad técnica
+-- proposito sigue siendo ENUM: es un conjunto cerrado que solo cambia junto con el código.
 
 CREATE TABLE `jcatsen_pbio`.`codigos_email` (
  usuario_id BIGINT UNSIGNED NOT NULL, proposito ENUM('registro','recuperar') NOT NULL,
@@ -129,27 +287,47 @@ CREATE TABLE `jcatsen_pbio`.`limites_acceso` (
  clave_hash CHAR(64) PRIMARY KEY, ventana_en DATETIME NOT NULL, intentos INT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Vistas de lectura para entender los datos desde phpMyAdmin sin memorizar JOIN.
+-- ============================================================ Vistas
+-- Para leer los datos desde phpMyAdmin con nombres, sin memorizar JOIN.
+
 CREATE VIEW `jcatsen_pbio`.`vista_mediciones` AS
  SELECT m.id,m.capturada_en AS fecha_utc,o.nombre AS organizacion,
- c.nombre AS campana,c.zona,d.nombre AS dispositivo,
+ c.nombre AS campana,z.nombre AS zona,d.nombre AS dispositivo,
  CONCAT(u.nombre,' ',u.apellidos) AS trabajador,
  t.nombre AS magnitud,m.valor,t.unidad,m.latitud,m.longitud,
  IF(m.simulado,'Simulado','Real') AS origen,
  IF(m.valida,'Válida','Pendiente o inválida') AS validacion
  FROM `jcatsen_pbio`.`mediciones` m JOIN `jcatsen_pbio`.`asignaciones` a ON a.id=m.asignacion_id
  JOIN `jcatsen_pbio`.`organizaciones` o ON o.id=a.organizacion_id JOIN `jcatsen_pbio`.`campanas` c ON c.id=a.campana_id
+ JOIN `jcatsen_pbio`.`zonas` z ON z.id=c.zona_id
  JOIN `jcatsen_pbio`.`dispositivos` d ON d.id=a.dispositivo_id JOIN `jcatsen_pbio`.`usuarios` u ON u.id=a.trabajador_id
- JOIN `jcatsen_pbio`.`magnitudes` t ON t.id=m.tipo;
+ JOIN `jcatsen_pbio`.`magnitudes` t ON t.id=m.magnitud_id;
 
 CREATE VIEW `jcatsen_pbio`.`vista_flota` AS
- SELECT d.id,d.nombre,o.nombre AS organizacion,d.direccion_ble,
+ SELECT d.id,d.nombre,o.nombre AS organizacion,md.nombre AS modelo,d.direccion_ble,
  CONCAT(u.nombre,' ',u.apellidos) AS trabajador,c.nombre AS campana,
  IF(d.activo,'Alta','Baja administrativa') AS estado,
  IF(d.simulado,'Simulado','Real') AS origen
  FROM `jcatsen_pbio`.`dispositivos` d JOIN `jcatsen_pbio`.`organizaciones` o ON o.id=d.organizacion_id
+ JOIN `jcatsen_pbio`.`modelos_dispositivo` md ON md.id=d.modelo_id
  LEFT JOIN `jcatsen_pbio`.`asignaciones` a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL
  LEFT JOIN `jcatsen_pbio`.`usuarios` u ON u.id=a.trabajador_id LEFT JOIN `jcatsen_pbio`.`campanas` c ON c.id=a.campana_id;
+
+CREATE VIEW `jcatsen_pbio`.`vista_usuarios` AS
+ SELECT u.id,CONCAT(u.nombre,' ',u.apellidos) AS nombre,u.email,
+ o.nombre AS organizacion,r.nombre AS rol,
+ CASE WHEN u.debe_cambiar_clave THEN 'Invitación pendiente'
+      WHEN u.activo THEN 'Activa' ELSE 'Desactivada' END AS estado,
+ (SELECT GROUP_CONCAT(i.proveedor) FROM `jcatsen_pbio`.`identidades_externas` i WHERE i.usuario_id=u.id) AS accesos_externos
+ FROM `jcatsen_pbio`.`usuarios` u JOIN `jcatsen_pbio`.`roles` r ON r.id=u.rol_id
+ LEFT JOIN `jcatsen_pbio`.`organizaciones` o ON o.id=u.organizacion_id;
+
+CREATE VIEW `jcatsen_pbio`.`vista_solicitudes` AS
+ SELECT s.id,s.recibida_en,sv.nombre AS servicio,e.nombre AS estado,
+ s.entidad,s.contacto,s.email,s.zona,s.cantidad,s.superficie,
+ (SELECT MAX(h.cambiado_en) FROM `jcatsen_pbio`.`solicitudes_historial` h WHERE h.solicitud_id=s.id) AS ultimo_cambio
+ FROM `jcatsen_pbio`.`solicitudes` s JOIN `jcatsen_pbio`.`servicios` sv ON sv.id=s.servicio_id
+ JOIN `jcatsen_pbio`.`estados_solicitud` e ON e.id=s.estado_id;
 
 -- Conserva el límite de IDs de usuario incluso al reinstalar varias veces.
 SET @aeriq_sql = CONCAT('ALTER TABLE `jcatsen_pbio`.`usuarios` AUTO_INCREMENT = ', @aeriq_next_user);

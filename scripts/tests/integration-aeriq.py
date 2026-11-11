@@ -50,12 +50,30 @@ def main():
         sql('CREATE DATABASE aeriq_test CHARACTER SET utf8mb4; USE aeriq_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8'))
         password='Integration-Only-2026!'
         hashed=subprocess.check_output([opt.php,'-r',f'echo password_hash("{password}", PASSWORD_DEFAULT);'],text=True).strip()
-        sql(f"USE aeriq_test; INSERT INTO organizaciones(nombre) VALUES('Org A'),('Org B'); INSERT INTO usuarios(nombre,apellidos,email,password_hash,verificado_en) VALUES('Admin','A','admin-a@example.test','{hashed}',NOW()),('Admin','B','admin-b@example.test','{hashed}',NOW()),('Comercial','CN','sales@example.test','{hashed}',NOW()); UPDATE usuarios SET organizacion_id=1,rol='admin' WHERE id=1; UPDATE usuarios SET organizacion_id=2,rol='admin' WHERE id=2; UPDATE usuarios SET rol='comercial' WHERE id=3;")
+        sql(f"USE aeriq_test; INSERT INTO organizaciones(nombre) VALUES('Org A'),('Org B'); INSERT INTO usuarios(nombre,apellidos,email,password_hash,verificado_en) VALUES('Admin','A','admin-a@example.test','{hashed}',NOW()),('Admin','B','admin-b@example.test','{hashed}',NOW()),('Comercial','CN','sales@example.test','{hashed}',NOW()); UPDATE usuarios SET organizacion_id=1,rol_id=(SELECT id FROM roles WHERE codigo='admin') WHERE id=1; UPDATE usuarios SET organizacion_id=2,rol_id=(SELECT id FROM roles WHERE codigo='admin') WHERE id=2; UPDATE usuarios SET rol_id=(SELECT id FROM roles WHERE codigo='comercial') WHERE id=3;")
         # Una instalación nueva puede recrearse sin depender de las tablas de Plesk.
-        sql('CREATE DATABASE aeriq_demo_test; USE aeriq_demo_test;'+(ROOT/'src/database/schema.sql').read_text()+(ROOT/'src/database/seed-demo.sql').read_text())
+        sql('CREATE DATABASE aeriq_demo_test; USE aeriq_demo_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8')+(ROOT/'src/database/seed-demo.sql').read_text(encoding='utf-8'))
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM usuarios')=='6'
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones WHERE simulado=0')=='0'
+        # Migración v1 -> v2: conserva los datos, es repetible y deja la misma estructura que schema.sql.
+        sql('CREATE DATABASE aeriq_v1_test CHARACTER SET utf8mb4; USE aeriq_v1_test;'+(ROOT/'scripts/tests/fixtures/esquema-v1-con-demo.sql').read_text(encoding='utf-8'))
+        sql("USE aeriq_v1_test; INSERT INTO organizaciones(id,nombre) VALUES(9,'Empresa Verde · demostración'); UPDATE usuarios SET firebase_uid='uid-demo' WHERE id=1; UPDATE campanas SET umbral_medio=55 WHERE id=2; UPDATE solicitudes SET estado='en revision' WHERE id=2;")
+        for _ in range(2):
+            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v2-catalogos.sql').read_text(encoding='utf-8'))
+            assert sql('USE aeriq_v1_test; SELECT COUNT(*) FROM mediciones')=='9'
+            assert sql("USE aeriq_v1_test; SELECT r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id ORDER BY u.id")=='admin\ntrabajador\nanalista\ncomercial\nadmin\ntrabajador'
+            assert sql("USE aeriq_v1_test; SELECT nombre FROM organizaciones WHERE id=9")=='Empresa Verde · demostración (#9)'
+            assert sql("USE aeriq_v1_test; SELECT usuario_id,proveedor,uid_externo FROM identidades_externas")=='1\tfirebase\tuid-demo'
+            assert sql("USE aeriq_v1_test; SELECT umbral_medio FROM campana_umbrales WHERE campana_id=2 AND magnitud_id=14")=='55'
+            assert sql("USE aeriq_v1_test; SELECT e.codigo FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=2")=='en_revision'
+            assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM solicitudes_historial")=='3'
+            assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM vista_mediciones")=='9'
+        structure="SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,COALESCE(COLUMN_DEFAULT,'-') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='{}' ORDER BY 1,2"
+        foreign="SELECT TABLE_NAME,REFERENCED_TABLE_NAME,GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='{}' AND REFERENCED_TABLE_NAME IS NOT NULL GROUP BY CONSTRAINT_NAME,TABLE_NAME,REFERENCED_TABLE_NAME ORDER BY 1,2,3"
+        checks="SELECT TABLE_NAME,CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='{}' ORDER BY 1,2"
+        for query in [structure,foreign,checks]:
+            assert sql(query.format('aeriq_v1_test'))==sql(query.format('aeriq_demo_test')),query
         # SQL completo de phpMyAdmin: elimina incluso tablas/vistas heredadas y se puede repetir.
         sql('USE aeriq_demo_test; CREATE TABLE tabla_antigua(id INT); CREATE VIEW vista_antigua AS SELECT * FROM tabla_antigua;')
         for _ in range(2):
@@ -69,20 +87,21 @@ def main():
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
         recreated=subprocess.run(reset+['--confirm','RECREAR:aeriq_demo_test'],env={**os.environ,'AERIQ_DB_PASSWORD':''},capture_output=True,text=True)
         assert recreated.returncode==0,recreated.stderr
-        assert 'Copia previa:' in recreated.stdout
+        assert 'Copia previa:' in recreated.stdout,(recreated.stdout,recreated.stderr)
         assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
         # Migración de un Sprint 0 mínimo: conserva valores y no inventa GPS ni MAC.
-        sql('CREATE DATABASE aeriq_cleanup_test; USE aeriq_cleanup_test;'+(ROOT/'src/database/schema.sql').read_text()+(ROOT/'src/database/seed-demo.sql').read_text())
-        sql(f"USE aeriq_cleanup_test; INSERT INTO mediciones(evento,asignacion_id,tipo,valor,capturada_en,simulado) SELECT '{uuid.uuid4()}',id,14,73,UTC_TIMESTAMP(3),0 FROM asignaciones ORDER BY id LIMIT 1")
+        sql('CREATE DATABASE aeriq_cleanup_test; USE aeriq_cleanup_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8')+(ROOT/'src/database/seed-demo.sql').read_text(encoding='utf-8'))
+        sql(f"USE aeriq_cleanup_test; INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,simulado) SELECT '{uuid.uuid4()}',id,14,73,UTC_TIMESTAMP(3),0 FROM asignaciones ORDER BY id LIMIT 1")
         accounts_before=sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
         orgs_before=sql('USE aeriq_cleanup_test; SELECT * FROM organizaciones ORDER BY id')
         for _ in range(2):
-            sql('USE aeriq_cleanup_test;'+(ROOT/'src/database/limpiar-simulados-y-sensores.sql').read_text(encoding='utf-8'))
-            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM mediciones')=='0'
-            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM dispositivos')=='0'
-            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM asignaciones')=='0'
+            cleanup_out=sql('USE aeriq_cleanup_test;'+(ROOT/'src/database/limpiar-simulados-y-sensores.sql').read_text(encoding='utf-8'))
+            n=sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM mediciones');assert n=='0',('mediciones',n,cleanup_out)
+            n=sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM dispositivos');assert n=='0',('dispositivos',n,cleanup_out)
+            n=sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM asignaciones');assert n=='0',('asignaciones',n,cleanup_out)
             assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM archivo_sensores_mediciones WHERE simulado=0 AND valor=73')=='1'
-            assert accounts_before==sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
+            after=sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
+            assert accounts_before==after,(accounts_before,after)
             assert orgs_before==sql('USE aeriq_cleanup_test; SELECT * FROM organizaciones ORDER BY id')
         sql('CREATE DATABASE jcatsen_pbio; USE jcatsen_pbio; CREATE TABLE AeriqUsuario(id INT PRIMARY KEY); CREATE TABLE AeriqCodigoEmail(id INT, FOREIGN KEY(id) REFERENCES AeriqUsuario(id)); CREATE TABLE AeriqSesionMovil(id INT, FOREIGN KEY(id) REFERENCES AeriqUsuario(id)); CREATE TABLE Dispositivo(id INT PRIMARY KEY); CREATE TABLE TipoMedida(id INT PRIMARY KEY); CREATE TABLE Medida(id INT, dispositivo_id INT, tipo INT, FOREIGN KEY(dispositivo_id) REFERENCES Dispositivo(id), FOREIGN KEY(tipo) REFERENCES TipoMedida(id)); INSERT INTO Medida(id) VALUES(1);')
         for _ in range(2):
@@ -116,8 +135,8 @@ def main():
             sql('USE aeriq_test;'+format_sql)
             assert sql("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio'")=='_reinicio_aeriq'
             sql(install_sql)
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='11'
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='2'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='22'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='4'
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='0'
             assert sql('SELECT id FROM jcatsen_pbio.magnitudes ORDER BY id')=='12\n14'
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='0'
@@ -127,11 +146,18 @@ def main():
             sql(admin_seed.replace("INSERT INTO `jcatsen_pbio`.`usuarios`", "SELECT 1;\nINSERT INTO `jcatsen_pbio`.`usuarios`"))
             sql(admin_seed)
             assert sql('SELECT COUNT(*) FROM jcatsen_pbio.organizaciones')=='1'
-            admin_id,role=sql('SELECT id,rol FROM jcatsen_pbio.usuarios').split('\t')
+            admin_id,role=sql('SELECT u.id,r.codigo FROM jcatsen_pbio.usuarios u JOIN jcatsen_pbio.roles r ON r.id=u.rol_id').split('\t')
             assert role=='admin' and int(admin_id)>previous_admin
             previous_admin=int(admin_id)
+        # Datos simulados opcionales sobre la instalación por fases: repetibles y sin duplicados.
+        for _ in range(2):
+            sql((reset_dir/'03-simulacion.sql').read_text(encoding='utf-8'))
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones WHERE simulado=1')=='54'
+            assert sql("SELECT COUNT(*) FROM jcatsen_pbio.mediciones m JOIN jcatsen_pbio.asignaciones a ON a.id=m.asignacion_id JOIN jcatsen_pbio.campanas c ON c.id=a.campana_id WHERE c.publicar=1 AND m.magnitud_id=14")=='30'
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='5'
+            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.solicitudes_historial')=='6'
         sql("CREATE DATABASE aeriq_old_test; USE aeriq_old_test; CREATE TABLE AeriqUsuario(id BIGINT PRIMARY KEY,nombre VARCHAR(90),apellidos VARCHAR(120),email VARCHAR(254),telefono VARCHAR(40),password_hash VARCHAR(255),verificado_en DATETIME); CREATE TABLE Dispositivo(dispositivoId VARCHAR(16),nombre VARCHAR(100)); CREATE TABLE TipoMedida(tipoMedidaId INT,nombre VARCHAR(30),unidad VARCHAR(16)); CREATE TABLE Medida(id INT,dispositivoId VARCHAR(16),tipoMedidaId INT,valor INT,fechaHora DATETIME); INSERT INTO Dispositivo VALUES('EPSG-GTI-PROY-3A','Orb de Sprint 0'); INSERT INTO TipoMedida VALUES(14,'Ozono','ppb'),(12,'Temperatura','°C'); INSERT INTO Medida VALUES(1,'EPSG-GTI-PROY-3A',14,123,UTC_TIMESTAMP()),(2,'EPSG-GTI-PROY-3A',12,-12,UTC_TIMESTAMP());")
-        sql('CREATE DATABASE aeriq_import_test; USE aeriq_import_test;'+(ROOT/'src/database/schema.sql').read_text())
+        sql('CREATE DATABASE aeriq_import_test; USE aeriq_import_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8'))
         configs=[]
         for database in ['aeriq_old_test','aeriq_import_test']:
             cfg=folder/(database+'.php');cfg.write_text(f"<?php return ['host'=>'127.0.0.1','port'=>{dbport},'user'=>'root','password'=>'','database'=>'{database}'];")
@@ -141,7 +167,7 @@ def main():
         assert sql('USE aeriq_import_test; SELECT COUNT(*) FROM mediciones')=='0'
         imported=subprocess.run(migrate+['--apply'],capture_output=True,text=True)
         assert imported.returncode==0,imported.stderr
-        assert sql('USE aeriq_import_test; SELECT GROUP_CONCAT(valor ORDER BY tipo) FROM mediciones')=='-12,123'
+        assert sql('USE aeriq_import_test; SELECT GROUP_CONCAT(valor ORDER BY magnitud_id) FROM mediciones')=='-12,123'
         assert sql('USE aeriq_import_test; SELECT COUNT(*) FROM mediciones WHERE latitud IS NOT NULL')=='0'
         assert sql('USE aeriq_old_test; SELECT COUNT(*) FROM Medida')=='2'
         assert subprocess.run(migrate+['--apply'],capture_output=True).returncode!=0
@@ -192,8 +218,17 @@ class PHPMailer {
             expect(200,'auth.php?action=session',identity=identity)
             expect(200,'auth.php?action=login',{'email':email,'password':password},identity)
             expect(200,'auth.php?action=session',identity=identity)
+        admin_user=expect(200,'auth.php?action=session',identity='a')['user']
+        assert admin_user['role']=='admin' and 'organizacion.gestionar' in admin_user['permissions'] and admin_user['roleName']=='Administrador'
+        assert 'solicitudes.gestionar' in expect(200,'auth.php?action=session',identity='sales')['user']['permissions']
+        board=expect(200,'portal.php?action=dashboard',identity='a')
+        assert [r['codigo'] for r in board['roles']]==['trabajador','analista'] and board['thresholds']=={'umbral_medio':60.0,'umbral_alto':100.0}
+        expect(422,'portal.php?action=worker',{'name':'No','last':'Comercial','email':'no2@example.test','role':'comercial'},'a')
+        expect(422,'portal.php?action=worker',{'name':'No','last':'Visitante','email':'no3@example.test','role':'visitante'},'a')
+        services=expect(200,'public.php?action=services')['services']
+        assert [s['codigo'] for s in services]==['administracion','empresa','estudio'] and services[2]['mide_superficie'] is True
         worker=expect(201,'portal.php?action=worker',{'name':'Worker','last':'One','email':'worker@example.test','role':'trabajador'},'a')
-        mail=json.loads((web/'vendor/mail.jsonl').read_text().splitlines()[-1]);temporary=re.search(r'Contraseña temporal: (\w+)',mail['body']).group(1)
+        mail=json.loads((web/'vendor/mail.jsonl').read_text(encoding='utf-8').splitlines()[-1]);temporary=re.search(r'Contraseña temporal: (\w+)',mail['body']).group(1)
         expect(200,'auth.php?action=session',identity='worker')
         webworker=expect(200,'auth.php?action=login',{'email':'worker@example.test','password':temporary},'worker')
         assert webworker['user']['mustChangePassword'] is True
@@ -219,6 +254,12 @@ class PHPMailer {
         expect(401,'field.php',token=token);token=changed['token']
         today=dt.datetime.now(dt.timezone.utc).date();campaign={'name':'Campaign A','zone':'UPV','start':str(today-dt.timedelta(days=1)),'end':str(today+dt.timedelta(days=1)),'public':False}
         cid=expect(200,'portal.php?action=campaign',campaign,'a')['id']
+        # La zona se reutiliza por nombre y los umbrales se guardan por magnitud.
+        board=expect(200,'portal.php?action=dashboard',identity='a')
+        assert [z['nombre'] for z in board['zones']]==['UPV']
+        saved=next(c for c in board['campaigns'] if c['id']==cid)
+        assert saved['zona']=='UPV' and float(saved['umbral_medio'])==60 and float(saved['umbral_alto'])==100
+        expect(422,'portal.php?action=campaign',{**campaign,'id':cid,'medium':90,'high':80},'a')
         device={'name':'Orb A','address':'AA:BB:CC:DD:EE:01','worker':worker['id'],'campaign':cid,'active':True,'simulated':True}
         did=expect(200,'portal.php?action=device',device,'a')['id']
         expect(404,'portal.php?action=device',{**device,'id':did},'b')
@@ -242,11 +283,13 @@ class PHPMailer {
         assert len(expect(200,'portal.php?action=readings',identity='a')['readings'])==3
         assert len(expect(200,'field.php?action=history',token=token)['readings'])==3
         assert len(expect(200,f'portal.php?action=readings&devices={did}',identity='a')['readings'])==3
+        assert len(expect(200,'portal.php?action=readings&zone=UPV',identity='a')['readings'])==3
+        assert expect(200,'portal.php?action=readings&zone=Otra',identity='a')['readings']==[]
         expect(422,'portal.php?action=readings&from=2026-12-01&to=2026-01-01',identity='a')
         assert expect(200,'public.php?action=map&mode=simulated')['measurements']==[]
         private=expect(200,'portal.php?action=map&mode=simulated',identity='a')
         assert len(private['measurements'])==3
-        sql(f"USE aeriq_test; INSERT INTO usuarios(id,organizacion_id,rol,nombre,apellidos,email,password_hash,verificado_en) VALUES(50,1,'trabajador','Segundo','Operador','second@example.test','{hashed}',UTC_TIMESTAMP());")
+        sql(f"USE aeriq_test; INSERT INTO usuarios(id,organizacion_id,rol_id,nombre,apellidos,email,password_hash,verificado_en) VALUES(50,1,(SELECT id FROM roles WHERE codigo='trabajador'),'Segundo','Operador','second@example.test','{hashed}',UTC_TIMESTAMP());")
         expect(200,'portal.php?action=device',{**device,'id':did,'worker':50},'a')
         assert len(expect(200,'field.php?action=history',token=token)['readings'])==3
         assert expect(200,'field.php',token=token)['assignments']==[]
@@ -264,9 +307,14 @@ class PHPMailer {
         expect(422,'public.php?action=request',{**req,'consent':False})
         registered=expect(201,'public.php?action=request',req)
         assert registered['id']>0 # SMTP failure does not lose the persisted request.
-        requests=expect(200,'portal.php?action=requests',identity='sales')['requests'];assert len(requests)==1
+        listing=expect(200,'portal.php?action=requests',identity='sales');requests=listing['requests'];assert len(requests)==1
+        assert [s['codigo'] for s in listing['states']]==['pendiente','en_revision','respondida','cerrada']
+        assert requests[0]['servicio']=='estudio' and requests[0]['estado']=='pendiente' and [h['estado'] for h in requests[0]['historial']]==['pendiente']
+        expect(422,'portal.php?action=request-status',{'id':registered['id'],'status':'en revision'},'sales')
         expect(200,'portal.php?action=request-status',{'id':registered['id'],'status':'respondida'},'sales')
-        assert expect(200,'portal.php?action=requests',identity='sales')['requests'][0]['estado']=='respondida'
+        answered=expect(200,'portal.php?action=requests',identity='sales')['requests'][0]
+        assert answered['estado']=='respondida' and answered['estado_nombre']=='Respondida'
+        assert [h['estado'] for h in answered['historial']]==['pendiente','respondida'] and answered['historial'][1]['usuario']=='Comercial CN'
         for service in ['administracion','empresa']:
             expect(422,'public.php?action=request',{**req,'service':service,'quantity':0})
             expect(201,'public.php?action=request',{**req,'service':service,'quantity':4})
@@ -292,8 +340,14 @@ class PHPMailer {
         assert any(row['evento']==actual['eventId'] and int(row['simulado'])==0 for row in report)
         thermal={**actual,'eventId':str(uuid.uuid4()),'type':12,'value':-12,'unit':'°C'}
         expect(200,'field.php',thermal,token=token)
+        # El modelo del Orb decide qué magnitudes acepta la ingesta.
+        sql("USE aeriq_test; INSERT INTO modelos_dispositivo(codigo,nombre) VALUES('solo-o3','Prueba solo ozono'); INSERT INTO modelo_magnitudes(modelo_id,magnitud_id) SELECT id,14 FROM modelos_dispositivo WHERE codigo='solo-o3';")
+        sql(f"USE aeriq_test; UPDATE dispositivos SET modelo_id=(SELECT id FROM modelos_dispositivo WHERE codigo='solo-o3') WHERE id={own['id']}")
+        expect(422,'field.php',{**thermal,'eventId':str(uuid.uuid4())},token=token)
+        sql(f"USE aeriq_test; UPDATE dispositivos SET modelo_id=1 WHERE id={own['id']}")
         temperatures=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}&type=12",identity='a')['readings']
         assert len(temperatures)==1 and temperatures[0]['unidad']=='°C' and float(temperatures[0]['valor'])==-12
+        assert temperatures[0]['umbral_medio'] is None and int(temperatures[0]['tipo'])==12
         both=expect(200,f"portal.php?action=readings&campaign={own['campana_id']}&type=all",identity='a')['readings']
         assert {row['unidad'] for row in both}=={'ppb','°C'}
         expect(422,'portal.php?action=readings&type=99',identity='a')
@@ -319,7 +373,7 @@ class PHPMailer {
         # Recuperación real del flujo, con correo retenido en el transporte falso.
         (web/'vendor/fail-mail').unlink()
         expect(200,'mobile-auth.php?action=forgot',{'email':'worker@example.test'})
-        recovery=json.loads((web/'vendor/mail.jsonl').read_text().splitlines()[-1])
+        recovery=json.loads((web/'vendor/mail.jsonl').read_text(encoding='utf-8').splitlines()[-1])
         code=re.search(r'código AERIQ es: (\d{6})',recovery['body']).group(1)
         reset=expect(200,'mobile-auth.php?action=reset-password',{'email':'worker@example.test','code':code,'password':'Recovered-Only-2026!'})
         assert reset['user']['mustChangePassword'] is False
@@ -331,7 +385,11 @@ class PHPMailer {
         expect(200,'auth.php?action=session',identity='initial-admin')
         assert expect(200,'auth.php?action=login',initial_login,'initial-admin')['user']['role']=='admin'
         assert expect(200,'mobile-auth.php?action=login',initial_login)['user']['role']=='admin'
-        print('AERIQ integración OK: reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
+        # Cuentas de 03-simulacion.sql: misma contraseña 1234 que la administradora inicial.
+        assert expect(200,'mobile-auth.php?action=login',{'email':'operador.simulacion@aeriq.example','password':'1234'})['user']['role']=='trabajador'
+        expect(200,'auth.php?action=session',identity='sim-sales')
+        assert expect(200,'auth.php?action=login',{'email':'comercial.simulacion@codigonorte.example','password':'1234'},'sim-sales')['user']['role']=='comercial'
+        print('AERIQ integración OK: migración v1->v2, reinstalación por fases, acceso inicial web y Android, roles, invitaciones, asignaciones, deduplicación, publicación y solicitudes.')
         print('Entorno aislado conservado en',folder)
     finally:
         for process in [php,db]:

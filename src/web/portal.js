@@ -1,6 +1,8 @@
 'use strict';
 const portalFeedback=document.querySelector('#portal-feedback');
 let dashboard={},currentRows=[],administrator=false;
+const can=(user,permission)=>(user.permissions||[]).includes(permission);
+const levelOf=r=>r.umbral_medio===null||r.umbral_medio===undefined?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text??'—');return n;};
 function table(host,headers,rows,action){
   host.replaceChildren();const t=el('table');t.className='devices-table';const head=el('tr');for(const h of headers)head.append(el('th',h));
@@ -13,8 +15,9 @@ function fill(form,data){for(const [key,value] of Object.entries(data)){const fi
 function payload(form){const d=Object.fromEntries(new FormData(form));for(const f of form.querySelectorAll('[type="checkbox"]'))d[f.name]=f.checked;if(!d.id)delete d.id;return d;}
 async function refresh(){
   dashboard=await Aeriq.portal('dashboard');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
-  table(document.querySelector('#workers-list'),['Nombre','Correo','Función','Acceso'],dashboard.workers.map(w=>({cells:[w.nombre+' '+w.apellidos,w.email,w.rol,Number(w.cambiar_clave)?((w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':('Activación pendiente · '+(w.invitacion_expira_en||'')+' UTC')):(Number(w.activo)?'Activo':'Desactivado')]})));
-  options('device-worker',dashboard.workers.filter(w=>w.rol==='trabajador'&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.email);
+  table(document.querySelector('#workers-list'),['Nombre','Correo','Función','Acceso'],dashboard.workers.map(w=>({cells:[w.nombre+' '+w.apellidos,w.email,w.rol_nombre||w.rol,Number(w.cambiar_clave)?((w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':('Activación pendiente · '+(w.invitacion_expira_en||'')+' UTC')):(Number(w.activo)?'Activo':'Desactivado')]})));
+  options('device-worker',dashboard.workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.email);
+  catalogs();
   for(const id of ['device-campaign','report-campaign'])options(id,dashboard.campaigns,c=>c.nombre);
   options('report-device',dashboard.devices,d=>d.nombre);
   table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,Number(c.publicar)?'Autorizada':'Privada'],source:c})),administrator?c=>fill(document.querySelector('#campaign-form'),{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,medium:c.umbral_medio,high:c.umbral_alto,radius:c.radio_m,active:c.activa,public:c.publicar}):null);
@@ -26,6 +29,16 @@ for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],
     catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
   };
 }
+// Funciones, zonas y umbrales de referencia vienen de la base de datos, no del HTML.
+function catalogs(){
+  const role=document.querySelector('#worker-form [name="role"]');
+  if(role&&dashboard.roles?.length){const value=role.value;role.replaceChildren(...dashboard.roles.map(r=>new Option(r.descripcion?`${r.nombre}: ${r.descripcion}`:r.nombre,r.codigo)));if([...role.options].some(o=>o.value===value))role.value=value;}
+  const list=document.querySelector('#zone-options');if(list)list.replaceChildren(...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));
+  const zone=document.querySelector('#report-zone');
+  if(zone){const value=zone.value;zone.replaceChildren(new Option('Todas las zonas',''),...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));zone.value=[...zone.options].some(o=>o.value===value)?value:'';}
+  const form=document.querySelector('#campaign-form');
+  if(form&&dashboard.thresholds){form.elements.medium.defaultValue=dashboard.thresholds.umbral_medio;form.elements.high.defaultValue=dashboard.thresholds.umbral_alto;if(!form.elements.id.value){form.elements.medium.value=dashboard.thresholds.umbral_medio;form.elements.high.value=dashboard.thresholds.umbral_alto;}}
+}
 function renderReport(rows,group){
   const host=document.querySelector('#report-results');host.replaceChildren();
   const sets=new Map();for(const r of rows){const key=`${Number(r.simulado)?'Simulado':'Real'} · ${r.unidad}`;if(!sets.has(key))sets.set(key,[]);sets.get(key).push(r);}
@@ -36,9 +49,9 @@ function renderReport(rows,group){
     stats.series.forEach((s,i)=>{const x=20+i*850/Math.max(1,stats.series.length-1),y=200-(s.mean-min)/(max-min)*180;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);ctx.fillStyle='#0e6b5e';ctx.fillRect(x-2,y-2,4,4);});ctx.stroke();
     const summary=el('div');host.append(summary);table(summary,['Periodo (UTC)','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[s.date,s.min,s.max,s.mean.toFixed(2)]})));
     host.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
-    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso (UTC)','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[r.capturada_en,r.valor,r.unidad,r.umbral_medio,r.umbral_alto,AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto))]})));}
+    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso (UTC)','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[r.capturada_en,r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
     const detail=el('div');detail.className='table-scroll';host.append(detail);
-    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto)),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
+    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
   }
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#report-results').replaceChildren();
@@ -47,23 +60,25 @@ document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();con
 };
 document.querySelector('#export-report').onclick=()=>{const url=URL.createObjectURL(new Blob([AeriqDomain.csv(currentRows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
 async function commercial(){
-  const {requests}=await Aeriq.portal('requests');const host=document.querySelector('#requests-list');host.replaceChildren();
+  const {requests,states=[]}=await Aeriq.portal('requests');const host=document.querySelector('#requests-list');host.replaceChildren();
   for(const r of requests){const box=el('article');box.className='portal-section';box.append(el('h3',`#${r.id} · ${r.entidad}`));
-    box.append(el('p',`${r.contacto} · ${r.email} · ${r.telefono} · ${r.recibida_en} UTC`));box.append(el('p',`${r.servicio} · Zona: ${r.zona} · Cantidad: ${r.cantidad??'—'} · Superficie m²: ${r.superficie??'—'} · Duración: ${r.duracion}`));box.append(el('p',r.necesidades));
-    const select=el('select');select.setAttribute('aria-label',`Estado solicitud ${r.id}`);for(const state of ['pendiente','en revision','respondida','cerrada'])select.add(new Option(state,state));select.value=r.estado;
-    const save=el('button','Guardar estado');save.className='btn btn-outline';save.onclick=async()=>{save.disabled=true;try{await Aeriq.portal('request-status',{id:r.id,status:select.value});portalFeedback.textContent='Estado guardado.';}catch(e){portalFeedback.textContent=e.message;}finally{save.disabled=false;}};
+    box.append(el('p',`${r.contacto} · ${r.email} · ${r.telefono} · ${r.recibida_en} UTC`));box.append(el('p',`${r.servicio_nombre||r.servicio} · Zona: ${r.zona} · Cantidad: ${r.cantidad??'—'} · Superficie m²: ${r.superficie??'—'} · Duración: ${r.duracion}`));box.append(el('p',r.necesidades));
+    if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);for(const h of r.historial)log.append(el('li',`${h.estado_nombre} · ${h.cambiado_en} UTC${h.usuario?' · '+h.usuario:' · Formulario público'}`));box.append(log);}
+    const select=el('select');select.setAttribute('aria-label',`Estado solicitud ${r.id}`);for(const state of states)select.add(new Option(state.nombre,state.codigo));select.value=r.estado;
+    const save=el('button','Guardar estado');save.className='btn btn-outline';save.onclick=async()=>{save.disabled=true;try{await Aeriq.portal('request-status',{id:r.id,status:select.value});portalFeedback.textContent='Estado guardado.';await commercial();}catch(e){portalFeedback.textContent=e.message;}finally{save.disabled=false;}};
     box.append(select,save);host.append(box);
   }
   if(!requests.length)host.append(el('p','Todavía no hay solicitudes.'));
 }
 (async()=>{try{
   const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}
-  document.querySelector('#portal-title').textContent=user.organization||'Código Norte';administrator=user.role==='admin';
-  if(user.role==='comercial'){document.querySelector('#commercial-panel').hidden=false;await commercial();}
-  else if(['admin','analista'].includes(user.role)){document.querySelector('#organization-panel').hidden=false;for(const n of document.querySelectorAll('[data-admin]'))n.hidden=!administrator;await refresh();}
+  document.querySelector('#portal-title').textContent=user.organization||'Código Norte';administrator=can(user,'organizacion.gestionar');
+  const sales=can(user,'solicitudes.gestionar');
+  if(sales){document.querySelector('#commercial-panel').hidden=false;await commercial();}
+  else if(can(user,'informes.ver')){document.querySelector('#organization-panel').hidden=false;for(const n of document.querySelectorAll('[data-admin]'))n.hidden=!administrator;await refresh();}
   else throw new Error('Esta cuenta no tiene permisos de administración o análisis. Utiliza la aplicación Android para tu Orb.');
-  portalFeedback.textContent='Sesión autorizada · '+user.role;
-  window.workspaceRole=user.role;showWorkspace(location.hash.slice(1)||'overview');
+  portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
+  window.workspaceRole=sales?'comercial':user.role;showWorkspace(location.hash.slice(1)||'overview');
 }catch(e){portalFeedback.textContent=e.message;}})();
 
 function showWorkspace(view){

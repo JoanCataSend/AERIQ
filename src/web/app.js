@@ -21,7 +21,8 @@ function initNavigation(){
 function authDestination(user){
   if(!user)return 'login.html';
   if(user.mustChangePassword)return 'cambiar-clave.html';
-  return ['admin','analista','comercial'].includes(user.role)?'portal.html':'perfil.html';
+  const panel=['informes.ver','solicitudes.gestionar'].some(p=>(user.permissions||[]).includes(p));
+  return panel?'portal.html':'perfil.html';
 }
 window.authDestination=authDestination;
 function authFeedback(error){
@@ -105,15 +106,16 @@ function initCheckout(){if(!$('input[name="delivery"]'))return;if(!cartCount()){
  $('#checkout-form')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;if($('input[name="delivery"]:checked').value==='pickup'){toast('La recogida no está disponible: faltan puntos confirmados. No se ha realizado ningún pago.');return}toast('Compra de demostración: no se ha realizado ningún pedido ni cobro.')});refreshCheckout();}
 function initMap(){ if(typeof initAeriqMap==='function')initAeriqMap(); }
 function initModelViewer(){
- const model=$('.sensor-model-viewer');if(!model)return;
- const shell=model.closest('.sensor-3d-shell');
- function ready(){shell?.classList.add('is-ready')}
- model.addEventListener('load',ready,{once:true});
- model.addEventListener('error',()=>{
-   const label=$('.studio-loading');if(label)label.textContent='No se ha podido cargar el modelo 3D. Comprueba la conexión y el archivo GLB.';
- });
- if(model.loaded)ready();
- if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)model.removeAttribute('auto-rotate');
+ // Cada visor muestra su foto provisional (poster) hasta cargar; el aviso pequeño se apaga al terminar.
+ for(const model of document.querySelectorAll('.sensor-model-viewer')){
+  const label=model.parentElement.querySelector('.mv-loading');
+  const ready=()=>{model.closest('.sensor-3d-shell')?.classList.add('is-ready');label?.classList.add('is-ready');};
+  model.addEventListener('load',ready,{once:true});
+  model.addEventListener('progress',e=>{if(e.detail?.totalProgress>=1)ready();});
+  model.addEventListener('error',()=>{if(label)label.textContent='Modelo 3D no disponible';});
+  if(model.loaded)ready();
+  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)model.removeAttribute('auto-rotate');
+ }
 }
 function initDevices(){if(typeof initFleet==='function')void initFleet();}
 async function initProfile(){
@@ -124,7 +126,7 @@ async function initProfile(){
     const user=session.user;
     const organization=document.querySelector('#profile-organization'),role=document.querySelector('#profile-role');
     if(organization)organization.textContent=user.organization||'Cuenta de consulta pública, sin organización asignada';
-    if(role)role.textContent='Función: '+user.role;
+    if(role)role.textContent='Función: '+(user.roleName||user.role);
     const avatar=document.querySelector('.avatar');if(avatar)avatar.textContent=(user.name?.[0]||'')+(user.last?.[0]||'');
     if(user.mustChangePassword){location.href="cambiar-clave.html";return;}
     form.elements.namedItem('name').value=user.name||'';

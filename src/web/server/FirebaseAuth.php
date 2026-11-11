@@ -13,8 +13,9 @@ if (isset($_SERVER['SCRIPT_FILENAME']) && realpath((string)$_SERVER['SCRIPT_FILE
  *
  * El admin crea al operador en la tabla usuarios. Google no crea cuentas nuevas:
  * solo puede entrar un correo que ya exista. En el primer acceso se guarda el UID
- * de Firebase en usuarios.firebase_uid y, si la invitación sigue vigente, la cuenta
- * pendiente se activa. El resto de accesos se resuelven por ese UID estable.
+ * de Firebase en identidades_externas (proveedor 'firebase') y, si la invitación
+ * sigue vigente, la cuenta pendiente se activa. El resto de accesos se resuelven
+ * por ese UID estable.
  */
 
 function firebase_config(): array {
@@ -245,7 +246,7 @@ function firebase_link_account(array $claims): array {
     $db = conexionBD();
     $db->begin_transaction();
     try {
-        $user = aeriq_one('SELECT * FROM usuarios WHERE firebase_uid=? LIMIT 1', [$uid]);
+        $user = aeriq_one("SELECT u.* FROM identidades_externas i JOIN usuarios u ON u.id=i.usuario_id WHERE i.proveedor='firebase' AND i.uid_externo=? LIMIT 1", [$uid]);
         $linkedNow = false;
 
         if ($user) {
@@ -268,7 +269,7 @@ function firebase_link_account(array $claims): array {
             if (!$user) {
                 throw new AeriqError('Tu correo de Google no está registrado en AERIQ. Pide a tu organización que te invite.', 403);
             }
-            if (!empty($user['firebase_uid'])) {
+            if (aeriq_one("SELECT id FROM identidades_externas WHERE usuario_id=? AND proveedor='firebase'", [(int)$user['id']])) {
                 throw new AeriqError('Ese correo ya está vinculado a otra cuenta de Google. Contacta con tu organización.', 409);
             }
             if (!(int)$user['activo'] && !(int)$user['debe_cambiar_clave']) {
@@ -284,8 +285,14 @@ function firebase_link_account(array $claims): array {
             $passwordHash = $pending
                 ? password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT)
                 : (string)$user['password_hash'];
-            $stmt = aeriq_sql('UPDATE usuarios SET firebase_uid=?,password_hash=?,debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=? AND firebase_uid IS NULL', [$uid, $passwordHash, (int)$user['id']]);
-            if ($stmt->affected_rows !== 1) throw new AeriqError('No se ha podido vincular la cuenta de Google. Inténtalo de nuevo.', 409);
+            // Las claves únicas (proveedor, uid) y (usuario, proveedor) impiden dos vínculos simultáneos.
+            try {
+                aeriq_sql("INSERT INTO identidades_externas(usuario_id,proveedor,uid_externo) VALUES(?,'firebase',?)", [(int)$user['id'], $uid]);
+            } catch (mysqli_sql_exception $e) {
+                if ($e->getCode() === 1062) throw new AeriqError('No se ha podido vincular la cuenta de Google. Inténtalo de nuevo.', 409);
+                throw $e;
+            }
+            aeriq_sql('UPDATE usuarios SET password_hash=?,debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=?', [$passwordHash, (int)$user['id']]);
             if ($pending) aeriq_sql('DELETE FROM sesiones_moviles WHERE usuario_id=?', [(int)$user['id']]);
         }
 

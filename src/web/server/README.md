@@ -6,7 +6,7 @@
 | `AuthCore.php` | Contraseña, códigos de recuperación y correo reutilizados |
 | `AeriqCore.php` | Organizaciones, campañas, asignaciones, mediciones, informes y solicitudes |
 | `AeriqHttp.php` | Cookie/CSRF, token móvil y errores HTTP |
-| `FirebaseAuth.php` | Verifica el ID token de Google y vincula `usuarios.firebase_uid` sin crear cuentas |
+| `FirebaseAuth.php` | Verifica el ID token de Google y vincula la cuenta en `identidades_externas` sin crear cuentas |
 | `*.example.php` | Plantillas sin credenciales |
 
 `SDBaseDatos.php`, `SMTPConfig.php`, `MailConfig.php` y `FirebaseConfig.php` son privados y están ignorados por Git. `.htaccess` bloquea las descargas HTTP de esta carpeta. Las funciones/organización se consultan en servidor, nunca se toman como autorización declarada en JSON.

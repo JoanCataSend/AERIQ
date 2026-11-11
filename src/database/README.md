@@ -5,8 +5,10 @@ Un único esquema legible, sin la combinación anterior de tablas Sprint 0 y tab
 ## Archivos
 
 - [Reinstalación limpia en Plesk](reinicio/LEEME.md) con inventario, borrado y creación del esquema, y alta del primer administrador.
-- [schema.sql](schema.sql): once tablas, restricciones, índices y dos vistas de lectura. No borra ninguna base.
-- [anadir-firebase-google.sql](anadir-firebase-google.sql): migración repetible que añade `usuarios.firebase_uid` y su índice único para el acceso con Google.
+- [schema.sql](schema.sql): 22 tablas (catálogos, cuentas, campañas, flota, mediciones, solicitudes y seguridad), restricciones, índices y cuatro vistas de lectura. No borra ninguna base.
+- [migracion-v2-catalogos.sql](migracion-v2-catalogos.sql): lleva una base anterior (con `usuarios.rol` como `ENUM`) al esquema actual **sin perder datos**. Repetible. Es la opción para la base de Plesk.
+- [anadir-firebase-google.sql](anadir-firebase-google.sql): migración antigua para bases anteriores a la v2; en una base v2 no hace nada.
+- Los `recrear-*.sql` y `reinicio/01-instalar.sql` se generan a partir de `schema.sql` y `seed-demo.sql` con `python scripts/build-database-scripts.py`. Si cambias el esquema o los datos demo, vuelve a ejecutarlo; la prueba de integración comprueba que coinciden.
 - [seed-demo.sql](seed-demo.sql): datos ficticios para una instalación nueva. No se importa automáticamente en producción.
 - [Diseño](../../doc/base-de-datos.md): relaciones y decisiones del modelo.
 
@@ -19,7 +21,12 @@ SELECT * FROM vista_mediciones ORDER BY fecha_utc DESC;
 SELECT * FROM vista_flota;
 ```
 
-`mediciones` referencia una `asignacion`; esta identifica organización, Orb, trabajador y campaña. Cambiar de trabajador cierra la asignación anterior sin cambiar sus lecturas. `magnitudes` define el nombre, unidad y rango del ozono y la temperatura.
+`mediciones` referencia una `asignacion`; esta identifica organización, Orb, trabajador y campaña. Cambiar de trabajador cierra la asignación anterior sin cambiar sus lecturas. `magnitudes` define el nombre, unidad, rango y umbrales de referencia del ozono y la temperatura. `vista_usuarios` muestra cada cuenta con su rol y `vista_solicitudes` cada solicitud con su servicio y estado.
+
+```sql
+SELECT * FROM vista_usuarios;
+SELECT * FROM vista_solicitudes ORDER BY recibida_en DESC;
+```
 
 ## Instalación nueva
 
@@ -69,4 +76,4 @@ Contraseña de todas: `AeriqDemo-2026!`. Son cuentas ficticias con dominios `.ex
 | `admin@empresaverde.example` | Administradora de otra organización |
 | `operador@empresaverde.example` | Trabajador de la segunda organización |
 
-Hay tres Orb con MAC ficticias, dos campañas, nueve mediciones simuladas y tres solicitudes. Cambia la MAC por la real para probar BLE. Ningún valor de ejemplo se presenta como medición real; la segunda campaña es privada. No publiques estas cuentas conocidas en un entorno real.
+Hay tres Orb con MAC ficticias, dos zonas, dos campañas (la segunda con umbrales propios), nueve mediciones simuladas y tres solicitudes con su historial. Cambia la MAC por la real para probar BLE. Ningún valor de ejemplo se presenta como medición real; la segunda campaña es privada. No publiques estas cuentas conocidas en un entorno real.

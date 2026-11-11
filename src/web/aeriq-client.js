@@ -23,6 +23,7 @@ const Aeriq = (() => {
   return {
     portal:(action,payload,filters)=>request('portal.php',action,payload,filters),
     map:(mode,source='all',hours=24)=>request(source==='mine'?'portal.php':'public.php','map',undefined,{mode,hours}),
-    submit:(payload)=>request('public.php','request',payload)
+    submit:(payload)=>request('public.php','request',payload),
+    services:()=>request('public.php','services')
   };
 })();

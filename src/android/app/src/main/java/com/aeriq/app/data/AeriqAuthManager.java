@@ -3,17 +3,26 @@ package com.aeriq.app.data;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 public final class AeriqAuthManager implements AutoCloseable {
     public static final class User {
+        /** Permiso que concede recibir asignaciones, vincular Orb y enviar lecturas. */
+        public static final String PERMISSION_COLLECT = "mediciones.registrar";
         public final long id;
-        public final String name, last, email, phone, role, organization;
+        public final String name, last, email, phone, role, roleName, organization;
+        /** Permisos que el servidor calcula a partir del rol (tabla rol_permisos). */
+        public final Set<String> permissions;
         public final boolean mustChangePassword;
+        private final boolean permissionsFromServer;
 
         User(JSONObject data) throws JSONException {
             id = data.getLong("id");
@@ -22,11 +31,26 @@ public final class AeriqAuthManager implements AutoCloseable {
             email = data.getString("email");
             phone = data.optString("phone");
             role = data.optString("role", "visitante");
+            roleName = data.optString("roleName", role);
+            JSONArray granted = data.optJSONArray("permissions");
+            Set<String> list = new HashSet<>();
+            if (granted != null) for (int i = 0; i < granted.length(); i++) list.add(granted.optString(i));
+            permissions = Collections.unmodifiableSet(list);
+            permissionsFromServer = granted != null;
             organization = data.optString("organization");
             mustChangePassword = data.optBoolean("mustChangePassword");
         }
 
         public String fullName() { return (name + " " + last).trim(); }
+
+        /** La app no decide por el nombre del rol: pregunta si la cuenta tiene el permiso. */
+        public boolean can(String permission) { return can(permissionsFromServer, permissions, role, permission); }
+
+        /** Un servidor anterior al esquema v2 solo envía el rol; entonces se usa la regla antigua. */
+        static boolean can(boolean fromServer, Set<String> granted, String role, String permission) {
+            if (fromServer) return granted.contains(permission);
+            return PERMISSION_COLLECT.equals(permission) && ("trabajador".equals(role) || "admin".equals(role));
+        }
     }
 
     public static final class Result {

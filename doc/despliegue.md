@@ -55,9 +55,9 @@ Una invitación crea la cuenta pendiente de activación. El cambio inicial o la 
 
 1. En Firebase Console, proyecto `airiq-e9d70`, habilita `Authentication > Sign-in method > Google`.
 2. En `Authentication > Settings > Authorized domains`, añade `ldiamur.upv.edu.es` (sin ruta) y `localhost` para pruebas. Si la API key tiene restricciones de referrer, autoriza `https://ldiamur.upv.edu.es/*`.
-3. Ejecuta `src/database/anadir-firebase-google.sql` una vez sobre la base de AERIQ. Añade `usuarios.firebase_uid` y su índice único sin borrar datos.
+3. La base debe tener el esquema v2 (`schema.sql` o `migracion-v2-catalogos.sql`): los vínculos con Google se guardan en `identidades_externas`. `anadir-firebase-google.sql` solo es para bases anteriores y no hace nada en una base v2.
 4. La configuración pública del proyecto ya está en `src/web/server/FirebaseConfig.example.php` y se usa por defecto. Si el servidor necesita otro proyecto, crea `src/web/server/FirebaseConfig.php` (ignorado por Git) a partir del ejemplo y cambia `api_key`, `app_id` y `messaging_sender_id`. El SDK web se carga desde el CDN de Firebase: no hace falta `npm install` ni compilar. No publiques claves de servicio.
-5. Invita al operador con el correo exacto de su cuenta de Google. El primer acceso con Google vincula `firebase_uid`, activa una invitación vigente y anula la contraseña temporal. Un correo que no exista en `usuarios` se rechaza: Google no crea cuentas.
+5. Invita al operador con el correo exacto de su cuenta de Google. El primer acceso con Google guarda el UID en `identidades_externas`, activa una invitación vigente y anula la contraseña temporal. Un correo que no exista en `usuarios` se rechaza: Google no crea cuentas.
 6. Comprueba `https://ldiamur.upv.edu.es/src/web/auth.php?action=firebase-config` y que `configured` sea `true`.
 
 La verificación del token se hace en PHP con los certificados públicos de Google; no se necesita clave de servicio ni Firebase Admin. El servidor debe permitir conexiones HTTPS salientes y tener OpenSSL. Si Google rota sus certificados, se refrescan automáticamente.

@@ -54,7 +54,7 @@
           <section data-view="workers" class="panel portal-section"><h2>Personas de la organización</h2><div id="workers-list" class="table-scroll"></div></section>
           <section data-view="campaigns" class="panel portal-section" data-admin>
             <h2>Campañas de medición</h2>
-            <form id="campaign-form" class="form-grid"><input type="hidden" name="id"><label>Nombre<input name="name" required maxlength="160"></label><label>Zona<input name="zone" required maxlength="200"></label><label>Inicio (UTC)<input name="start" type="date" required></label><label>Fin (UTC)<input name="end" type="date" required></label><label>Umbral moderado (ppb)<input name="medium" type="number" min="0" value="60" step="any" required></label><label>Umbral alto (ppb)<input name="high" type="number" min="0" value="100" step="any" required></label><label>Distancia de interpolación (m)<input name="radius" type="number" min="20" max="50" value="30" required></label><label><input name="active" type="checkbox" checked> Campaña activa</label><label><input name="public" type="checkbox"> Autorizar la publicación de las lecturas válidas y sus coordenadas</label><button type="submit" class="btn btn-primary">Guardar campaña</button><button type="reset" class="btn btn-outline">Nueva campaña</button></form>
+            <form id="campaign-form" class="form-grid"><input type="hidden" name="id"><label>Nombre<input name="name" required maxlength="160"></label><label>Zona<input name="zone" required maxlength="200" list="zone-options" autocomplete="off"></label><datalist id="zone-options"></datalist><label>Inicio (UTC)<input name="start" type="date" required></label><label>Fin (UTC)<input name="end" type="date" required></label><label>Umbral moderado (ppb)<input name="medium" type="number" min="0" value="60" step="any" required></label><label>Umbral alto (ppb)<input name="high" type="number" min="0" value="100" step="any" required></label><label>Distancia de interpolación (m)<input name="radius" type="number" min="20" max="50" value="30" required></label><label><input name="active" type="checkbox" checked> Campaña activa</label><label><input name="public" type="checkbox"> Autorizar la publicación de las lecturas válidas y sus coordenadas</label><button type="submit" class="btn btn-primary">Guardar campaña</button><button type="reset" class="btn btn-outline">Nueva campaña</button></form>
             <p class="note">Los umbrales son parámetros del proyecto: no equivalen a los oficiales ni convierten ppb a µg/m³.</p>
             <div id="campaigns-list" class="table-scroll"></div>
           </section>
@@ -66,7 +66,7 @@
           </section>
           <section data-view="reports" class="panel portal-section">
             <h2>Informes y exportación</h2>
-            <form id="report-form" class="form-grid"><label>Magnitud<select name="type"><option value="14">Ozono · ppb</option><option value="12">Temperatura · °C</option><option value="all">Ozono y temperatura (series separadas)</option></select></label><label>Campaña<select id="report-campaign" name="campaign"></select></label><label>Dispositivos (Ctrl para elegir varios)<select id="report-device" name="device" multiple size="4"></select></label><label>Zona<input name="zone" placeholder="Todas las zonas, o el nombre exacto"></label><label>Desde (UTC)<input name="from" type="date"></label><label>Hasta (UTC)<input name="to" type="date"></label><label>Agrupar por<select name="group"><option value="day">Días</option><option value="week">Semanas</option></select></label><button class="btn btn-primary" type="submit">Generar informe</button></form>
+            <form id="report-form" class="form-grid"><label>Magnitud<select name="type"><option value="14">Ozono · ppb</option><option value="12">Temperatura · °C</option><option value="all">Ozono y temperatura (series separadas)</option></select></label><label>Campaña<select id="report-campaign" name="campaign"></select></label><label>Dispositivos (Ctrl para elegir varios)<select id="report-device" name="device" multiple size="4"></select></label><label>Zona<select id="report-zone" name="zone"><option value="">Todas las zonas</option></select></label><label>Desde (UTC)<input name="from" type="date"></label><label>Hasta (UTC)<input name="to" type="date"></label><label>Agrupar por<select name="group"><option value="day">Días</option><option value="week">Semanas</option></select></label><button class="btn btn-primary" type="submit">Generar informe</button></form>
             <p id="report-summary" role="status"></p>
             <button id="export-report" class="btn btn-outline" type="button" disabled>Descargar CSV</button>
             <p class="note">Las series reales y simuladas se muestran por separado; sus estadísticas no se mezclan.</p>
@@ -80,10 +80,6 @@
 </main>
 <footer class="footer">
   <div class="container">
-    <div class="footnotes">
-      <p>Las mediciones del Orb son complementarias, deben validarse y no sustituyen a la red oficial de vigilancia de la calidad del aire. Los umbrales de color los fija cada campaña.</p>
-      <p>Las imágenes y las lecturas de ejemplo son ilustrativas. Zona piloto: Grau de Gandia, Valencia.</p>
-    </div>
     <div class="footer-top">
       <a href="index.html" class="footer-brand"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"><span>Medir para comprender.</span></a>
       <nav aria-label="Pie de página"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
@@ -97,5 +93,6 @@
 <script src="aeriq-domain.js" defer></script>
 <script src="portal.js" defer></script>
 <script src="workspace-nav.js" defer></script>
+<script src="precarga-3d.js" defer></script>
 </body>
 </html>

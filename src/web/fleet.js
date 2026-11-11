@@ -24,12 +24,12 @@ async function initFleet(){
     const summary=document.querySelector('.table-bottom');summary.textContent=`${shown} de ${devices.length} Orb · Actividad basada en recepción durante los últimos 15 minutos.`;
     const stats=document.querySelectorAll('.stat strong');if(stats.length>=3){stats[0].textContent=devices.length;stats[1].textContent=devices.filter(d=>Number(d.activo)).length;stats[2].textContent=devices.filter(d=>!Number(d.activo)).length;}
   }
-  async function refresh(){const data=await Aeriq.portal('dashboard');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>w.rol==='trabajador'&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);selectOptions(campaign,campaigns,c=>c.nombre);render();}
+  async function refresh(){const data=await Aeriq.portal('dashboard');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);selectOptions(campaign,campaigns,c=>c.nombre);render();}
   document.querySelector('#device-search').oninput=render;
   for(const button of document.querySelectorAll('[data-device-filter]'))button.onclick=()=>{filter=button.dataset.deviceFilter;for(const b of document.querySelectorAll('[data-device-filter]'))b.classList.toggle('selected',b===button);render();};
   document.querySelector('#device-modal-close').onclick=()=>modal.close();
   document.querySelector('#add-device').onclick=()=>edit(null);
   form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await Aeriq.portal('device',{...(current?{id:current.id}:{}),name:name.value,address:address.value,worker:worker.value,campaign:campaign.value,active:active.checked,simulated:simulated.checked});modal.close();await refresh();toast('Orb guardado en tu organización.');}catch(error){toast(error.message);}finally{button.disabled=false;}};
-  try{const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}admin=user.role==='admin';document.querySelector('#add-device').hidden=!admin;await refresh();}
+  try{const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}admin=(user.permissions||[]).includes('organizacion.gestionar');document.querySelector('#add-device').hidden=!admin;await refresh();}
   catch(error){body.replaceChildren();const tr=create('tr'),td=create('td',error.message);td.colSpan=7;tr.append(td);body.append(tr);}
 }

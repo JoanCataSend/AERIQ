@@ -8,6 +8,8 @@
 <title>AERIQ · Un mapa del ozono abierto a todos</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
+<link rel="preload" href="assets/aeriq_sensor_3d.glb" as="fetch" crossorigin="anonymous">
+<link rel="preconnect" href="https://ajax.googleapis.com" crossorigin>
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 </head>
 <body data-page="index">
@@ -99,11 +101,11 @@
     <h2 id="specs-title" class="display-2 center">Todo lo necesario para medir, en un llavero.</h2>
     <div class="bento">
       <article class="tile tile-3d">
-        <div class="tile-copy"><h3>Gíralo.</h3><p>Arrástralo para verlo desde cualquier ángulo.</p></div>
+        <div class="tile-copy"><h3>Gíralo.</h3><p>Arrástralo a la izquierda o a la derecha para darle la vuelta.</p></div>
         <div class="feature-media-3d">
           <div class="sensor-3d-shell">
-            <div class="studio-loading" role="status" aria-live="polite"><span class="studio-spinner"></span>Cargando el modelo 3D…</div>
-            <model-viewer class="sensor-model-viewer" loading="lazy" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del Orb, el sensor de ozono de AERIQ" camera-controls camera-orbit="28deg 78deg 160%" max-camera-orbit="auto auto 220%" interaction-prompt="none" touch-action="pan-y" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>
+                        <model-viewer class="sensor-model-viewer" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del Orb que gira de izquierda a derecha" poster="assets/orb_poster_frontal.webp" camera-controls disable-zoom disable-pan camera-orbit="0deg 80deg 160%" min-camera-orbit="-Infinity 80deg 160%" max-camera-orbit="Infinity 80deg 160%" interaction-prompt="none" touch-action="pan-y" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>
+            <span class="mv-loading" role="status">Cargando modelo 3D…</span>
           </div>
         </div>
       </article>
@@ -123,8 +125,11 @@
         <p>Batería LiPo de 3,7 V que se recarga por USB-C.</p>
       </article>
       <article class="tile tile-photo">
-        <img src="assets/sensor_view_derecha.png" alt="El Orb visto de perfil, delgado, con el mosquetón arriba" width="2048" height="2048" loading="lazy" decoding="async">
-        <div class="tile-copy"><h3>Se cuelga de las llaves.</h3><p>O de la mochila. Mide por donde pasas.</p></div>
+        <div class="tile-3d-small">
+          <model-viewer class="sensor-model-viewer sensor-model-tilt" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del Orb que se inclina hacia arriba y hacia abajo" poster="assets/orb_poster_derecha.webp" camera-controls disable-zoom disable-pan camera-orbit="90deg 78deg 170%" min-camera-orbit="90deg 15deg 170%" max-camera-orbit="90deg 165deg 170%" interaction-prompt="none" touch-action="pan-x" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>
+          <span class="mv-loading" role="status">Cargando modelo 3D…</span>
+        </div>
+        <div class="tile-copy"><h3>Se cuelga de las llaves.</h3><p>O de la mochila. Arrástralo hacia arriba o hacia abajo para verlo de perfil.</p></div>
       </article>
     </div>
     <p class="center" style="margin-top:32px"><a class="chev-link" href="sensor.html">Ver el Orb en detalle<svg aria-hidden="true"><use href="#i-chev"/></svg></a></p>
@@ -174,17 +179,17 @@
         <p class="plan-includes">Orb, app Android, gestión de equipo y campañas, informes en CSV.</p>
         <a class="chev-link" href="solicitar.html?service=administracion">Solicitar presupuesto<svg aria-hidden="true"><use href="#i-chev"/></svg></a>
       </article>
-      <article class="tile plan">
+      <article class="tile plan plan-featured">
+        <span class="plan-badge">Recomendado</span>
         <h3>Kits para empresas</h3>
         <p>Una red propia para estudiar instalaciones y zonas de actividad.</p>
         <p class="plan-includes">Orb asignados a cada operario, datos privados y seguimiento de actividad.</p>
-        <a class="chev-link" href="solicitar.html?service=empresa">Solicitar presupuesto<svg aria-hidden="true"><use href="#i-chev"/></svg></a>
+        <a class="btn btn-primary btn-sm" href="solicitar.html?service=empresa">Solicitar presupuesto</a>
       </article>
-      <article class="tile plan plan-wide">
-        <div>
-          <h3>Estudios ambientales</h3>
-          <p>Dinos qué zona necesitas estudiar. Código Norte pone los sensores, organiza la campaña y te entrega los resultados.</p>
-        </div>
+      <article class="tile plan">
+        <h3>Estudios ambientales</h3>
+        <p>Dinos qué zona necesitas estudiar. Código Norte pone los sensores y organiza la campaña.</p>
+        <p class="plan-includes">Sin comprar sensores. Según superficie y duración, con informe final.</p>
         <a class="chev-link" href="solicitar.html?service=estudio">Solicitar estudio<svg aria-hidden="true"><use href="#i-chev"/></svg></a>
       </article>
     </div>
@@ -214,10 +219,6 @@
 
 <footer class="footer">
   <div class="container">
-    <div class="footnotes">
-      <p>Las mediciones del Orb son complementarias, deben validarse y no sustituyen a la red oficial de vigilancia de la calidad del aire. Los umbrales de color los fija cada campaña.</p>
-      <p>Las imágenes y las lecturas de ejemplo son ilustrativas. Zona piloto: Grau de Gandia, Valencia.</p>
-    </div>
     <div class="footer-top">
       <a href="index.html" class="footer-brand"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"><span>Medir para comprender.</span></a>
       <nav aria-label="Pie de página"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
