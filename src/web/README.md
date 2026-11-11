@@ -12,8 +12,7 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 | `perfil.html` | Perfil/contraseña, organización y herramientas |
 | `login.html` | Acceso con correo/contraseña o Google mediante Firebase (solo cuentas ya invitadas) |
 | `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
-| `solicitar.html` | Kits para administración/empresa y estudios |
-| `carrito.html`, `checkout.html` | Rutas conservadas como preparación y envío de presupuesto, sin tienda ciudadana |
+| `solicitar.html` | Único formulario comercial: kits, estudio temporal de ozono o asesoramiento, con validación en línea |
 
 Los formularios/llamadas existentes se reutilizan y se amplían con `fleet.js`, `portal.js`, `public-map.js`, `solicitudes.js` y los clientes especializados. `styles.css` sigue siendo el CSS compartido. No se han sustituido los recursos por imágenes nuevas.
 

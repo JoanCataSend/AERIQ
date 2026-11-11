@@ -65,7 +65,11 @@ Si cambias un contrato HTTP, actualiza `doc/api.md` y los clientes (web y Androi
 
 ### Base de datos (`src/database/`)
 
+<<<<<<< HEAD
 Esquema único en `schema.sql` (23 tablas, vistas `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`). Roles, permisos, servicios, estados de solicitud, zonas, umbrales y modelos de Orb son tablas de catálogo, no `ENUM`: el código comprueba permisos (`aeriq_ready($u,'informes.ver')`), nunca nombres de rol. `migracion-v2-catalogos.sql` lleva una base v1 al esquema actual conservando datos; el diseño está en `doc/base-de-datos.md`. `mediciones` → `asignaciones` (organización + Orb + trabajador + campaña); `magnitudes` define rango/unidad usados por la validación de ingesta. Los demás `.sql` son migraciones repetibles, datos demo o scripts de recreación; documenta cualquier cambio de esquema como migración antes de aplicarlo.
+=======
+Esquema único en `schema.sql` (25 tablas, vistas `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`). Roles, permisos, servicios, tipos de organización, objetivos de medición, estados de solicitud, zonas, umbrales y modelos de Orb son tablas de catálogo, no `ENUM`: el código comprueba permisos (`aeriq_ready($u,'informes.ver')`), nunca nombres de rol. `migracion-v2-catalogos.sql` lleva una base v1 a v2 y `migracion-v3-solicitudes.sql` de v2 al esquema actual, conservando datos; el diseño está en `doc/base-de-datos.md`. `mediciones` → `asignaciones` (organización + Orb + trabajador + campaña); `magnitudes` define rango/unidad usados por la validación de ingesta. Los demás `.sql` son migraciones repetibles, datos demo o scripts de recreación; documenta cualquier cambio de esquema como migración antes de aplicarlo.
+>>>>>>> origin/rediseno-web
 
 `scripts/reset-database.py` y `recrear-*.sql` son destructivos: usa `--dry-run`, exigen `--confirm RECREAR:<base>` y hacen copia previa. No los ejecutes como paso rutinario ni contra Plesk sin que el usuario lo pida.
 

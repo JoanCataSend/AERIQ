@@ -4,7 +4,7 @@
   "title": "Design System: AERIQ",
   "extensions": {
     "scope": {
-      "inWorld": ["src/web/aeriq.css", "src/web/index.html", "src/web/mapa.html", "src/web/sensor.html", "src/web/login.html", "src/web/recuperar.html", "src/web/cambiar-clave.html", "src/web/solicitar.html", "src/web/carrito.html", "src/web/checkout.html", "src/web/perfil.html", "src/web/portal.html", "src/web/sensores.html"],
+      "inWorld": ["src/web/aeriq.css", "src/web/index.html", "src/web/mapa.html", "src/web/sensor.html", "src/web/login.html", "src/web/recuperar.html", "src/web/cambiar-clave.html", "src/web/solicitar.html", "src/web/perfil.html", "src/web/portal.html", "src/web/sensores.html"],
       "appCounterpart": "Figma «Proyecto» (pLq0la9g1ew4pFn6OUqUBQ), página «AERIQ · Rediseño app (propuesta)»: 15 pantallas Android con variables locales «AERIQ 2026 · color» y componentes «App · Barra inferior», «App · Botón», «App · Campo», «App · Fila de lista», «App · Botón atrás»; misma tipografía."
     },
     "colorMeta": {
@@ -71,7 +71,7 @@
       "Tokens declarados sin uso: --r-sm, --r; --r-lg solo en .tile y .modal (.panel, .stat y .offer repiten 24/28 px en literal).",
       ".btn-outline duplica a .btn-secondary y .text-link duplica a .link; .btn-on-brand y .btn-ghost-on-brand sin uso en las páginas.",
       "Valores sueltos: rojo de acción peligrosa #a3372f, etiqueta de simulado #f3eadb/#7a5a1e, placeholder #707572, hover de tabla #fafbfa, regla .spec-list sin uso.",
-      "Estilos en línea puntuales (márgenes y rellenos) en sensor.html, perfil.html, carrito.html, index.html y mapa.html."
+      "Estilos en línea puntuales (márgenes y rellenos) en sensor.html, perfil.html, index.html y mapa.html."
     ]
   },
   "components": [

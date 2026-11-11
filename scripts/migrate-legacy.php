@@ -63,10 +63,13 @@ try {
             command($target,'INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) VALUES(?,?,?,?)',[(int)$d['organizacion_id'],(int)$d['id'],(int)$d['trabajador_id'],(int)$d['campana_id']]);
         }
         foreach ($data['AirqSolicitud'] as $r) {
-            $service=$target->query("SELECT id FROM servicios WHERE codigo='".$target->real_escape_string((string)$r['servicio'])."'")->fetch_assoc();
+            // Los antiguos servicios administracion/empresa son ahora 'kits' + tipo de organización; la cantidad ya no se guarda.
+            $legacy=(string)$r['servicio'];$org=in_array($legacy,['administracion','empresa'],true)?$legacy:null;
+            $service=$target->query("SELECT id FROM servicios WHERE codigo='".$target->real_escape_string($org?'kits':$legacy)."'")->fetch_assoc();
+            $orgId=$org?(int)$target->query("SELECT id FROM tipos_organizacion WHERE codigo='$org'")->fetch_assoc()['id']:null;
             $state=$target->query("SELECT id FROM estados_solicitud WHERE codigo='".$target->real_escape_string(str_replace(' ','_',(string)$r['estado']))."'")->fetch_assoc();
             if (!$service || !$state) throw new RuntimeException('Servicio o estado de solicitud desconocido: importación revertida.');
-            command($target,'INSERT INTO solicitudes(id,servicio_id,estado_id,entidad,contacto,email,telefono,cantidad,zona,superficie,duracion,necesidades,recibida_en,consentimiento_en) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[(int)$r['id'],(int)$service['id'],(int)$state['id'],$r['entidad'],$r['contacto'],$r['email'],$r['telefono'],$r['cantidad'],$r['zona'],$r['superficie'],$r['duracion'],$r['necesidades'],$r['recibida_en'],null]);
+            command($target,'INSERT INTO solicitudes(id,servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,telefono,zona,superficie,duracion,necesidades,recibida_en,consentimiento_en) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[(int)$r['id'],(int)$service['id'],$orgId,(int)$state['id'],$r['entidad'],$r['contacto'],$r['email'],$r['telefono'],$r['zona'],$r['superficie'],$r['duracion'],$r['necesidades'],$r['recibida_en'],null]);
             // Solo se conoce la recepción; los cambios de estado antiguos no tenían fecha.
             command($target,'INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id,cambiado_en) VALUES(?,1,NULL,?)',[(int)$r['id'],$r['recibida_en']]);
         }

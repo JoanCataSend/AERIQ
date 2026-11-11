@@ -62,7 +62,13 @@ document.querySelector('#export-report').onclick=()=>{const url=URL.createObject
 async function commercial(){
   const {requests,states=[]}=await Aeriq.portal('requests');const host=document.querySelector('#requests-list');host.replaceChildren();
   for(const r of requests){const box=el('article');box.className='portal-section';box.append(el('h3',`#${r.id} · ${r.entidad}`));
-    box.append(el('p',`${r.contacto} · ${r.email} · ${r.telefono} · ${r.recibida_en} UTC`));box.append(el('p',`${r.servicio_nombre||r.servicio} · Zona: ${r.zona} · Cantidad: ${r.cantidad??'—'} · Superficie m²: ${r.superficie??'—'} · Duración: ${r.duracion}`));box.append(el('p',r.necesidades));
+    box.append(el('p',`${r.contacto} · ${r.email}${r.telefono?' · '+r.telefono:''} · ${r.recibida_en} UTC`));
+    const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
+    box.append(el('p',`${r.servicio_nombre||r.servicio} · ${r.tipo_organizacion_nombre||'Tipo de organización sin indicar'}${place?' · '+place:''} · Zona: ${r.zona}`));
+    if(r.objetivos?.length)box.append(el('p',`Objetivos: ${r.objetivos.join(', ')}`));
+    // Datos de estudio: solo cuando la solicitud los tiene (duración obligatoria en estudios).
+    if(r.duracion||r.superficie!=null||r.inicio_deseado)box.append(el('p',`Superficie: ${r.superficie!=null?r.superficie+' m²':'por estimar'} · Duración: ${r.duracion||'—'} · Inicio orientativo: ${r.inicio_deseado?r.inicio_deseado.slice(0,7):'sin indicar'}`));
+    box.append(el('p',r.necesidades));
     if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);for(const h of r.historial)log.append(el('li',`${h.estado_nombre} · ${h.cambiado_en} UTC${h.usuario?' · '+h.usuario:' · Formulario público'}`));box.append(log);}
     const select=el('select');select.setAttribute('aria-label',`Estado solicitud ${r.id}`);for(const state of states)select.add(new Option(state.nombre,state.codigo));select.value=r.estado;
     const save=el('button','Guardar estado');save.className='btn btn-outline';save.onclick=async()=>{save.disabled=true;try{await Aeriq.portal('request-status',{id:r.id,status:select.value});portalFeedback.textContent='Estado guardado.';await commercial();}catch(e){portalFeedback.textContent=e.message;}finally{save.disabled=false;}};

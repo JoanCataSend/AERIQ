@@ -5,7 +5,11 @@
 - AERIQ escrito de forma coherente; Código Norte como desarrolladora y Orb como dispositivo.
 - Recuperación de diseño, recursos, galería, visor 3D, cuenta y flota anteriores. Las pantallas Android útiles se conservan y sus datos se conectan al servidor.
 - Suscripciones/venta ciudadana sustituidas por solicitudes para organizaciones, conforme a la especificación nueva.
+<<<<<<< HEAD
 - Esquema único con 23 tablas: catálogos de roles y permisos, servicios, estados, zonas, umbrales por magnitud y modelos de Orb en lugar de `ENUM`; claves foráneas, histórico de asignaciones y de solicitudes, y cuatro vistas para leer datos con nombres.
+=======
+- Esquema único v3 con 25 tablas: catálogos de roles y permisos, servicios, estados, zonas, umbrales por magnitud y modelos de Orb en lugar de `ENUM`; claves foráneas, histórico de asignaciones y de solicitudes, y cuatro vistas para leer datos con nombres.
+>>>>>>> origin/rediseno-web
 - Recreación explícita con copia previa y modo de simulación; importación hacia otra base sin modificar el origen.
 - Invitación temporal con caducidad y cuenta no operativa hasta activación.
 - Historial y exportación real en Android; comparación pública sin suscripción.

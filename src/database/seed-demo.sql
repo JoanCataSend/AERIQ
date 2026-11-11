@@ -39,11 +39,13 @@ INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,latit
  ('00000000-0000-4000-8000-000000000007',1,12,22,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.996671,-0.165989,5,7,-60,1),
  ('00000000-0000-4000-8000-000000000008',2,14,49,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 HOUR),38.998000,-0.162500,8,1,-65,1),
  ('00000000-0000-4000-8000-000000000009',2,14,57,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.998060,-0.162500,8,2,-63,1);
--- Servicios: 1 administración, 2 empresa, 3 estudio. Estados: 1 pendiente, 2 en revisión, 3 respondida.
-INSERT INTO solicitudes(id,servicio_id,estado_id,entidad,contacto,email,cantidad,zona,superficie,duracion,necesidades,recibida_en) VALUES
- (1,1,1,'Ayuntamiento de ejemplo','Responsable municipal','municipio@example.test',5,'Parques del municipio',NULL,'','Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
- (2,2,2,'Empresa de ejemplo','Responsable ambiental','empresa@example.test',3,'Recinto industrial',NULL,'','Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),
- (3,3,3,'Centro educativo de ejemplo','Coordinación del centro','centro@example.test',NULL,'Entorno del centro',2500,'Dos semanas','Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY));
+-- Servicios: 1 kits, 2 estudio, 3 asesoramiento. Tipos: 1 administración, 2 empresa, 3 otra.
+-- Estados: 1 pendiente, 2 en revisión, 3 respondida. Objetivos: ver objetivos_medicion.
+INSERT INTO solicitudes(id,servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,telefono,municipio,provincia,zona,superficie,duracion,inicio_deseado,necesidades,recibida_en) VALUES
+ (1,1,1,1,'Ayuntamiento de ejemplo','Responsable municipal','municipio@example.test','600000001','Gandia','Valencia','Parques del municipio',NULL,'',NULL,'Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
+ (2,1,2,2,'Empresa de ejemplo','Responsable ambiental','empresa@example.test','','Oliva','Valencia','Recinto industrial',NULL,'',NULL,'Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),
+ (3,2,3,3,'Centro educativo de ejemplo','Coordinación del centro','centro@example.test','','Tavernes de la Valldigna','Valencia','Entorno del centro',2500,'2 semanas',NULL,'Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY));
+INSERT INTO solicitud_objetivos(solicitud_id,objetivo_id) VALUES (1,1),(2,2),(3,1),(3,4);
 INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id,cambiado_en) VALUES
  (1,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
  (2,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),

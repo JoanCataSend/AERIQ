@@ -5,7 +5,11 @@ Un único esquema legible, sin la combinación anterior de tablas Sprint 0 y tab
 ## Archivos
 
 - [Reinstalación limpia en Plesk](reinicio/LEEME.md) con inventario, borrado y creación del esquema, y alta del primer administrador.
+<<<<<<< HEAD
 - [schema.sql](schema.sql): 23 tablas (catálogos, cuentas, campañas, flota con batería, mediciones, solicitudes y seguridad), restricciones, índices y cuatro vistas de lectura. No borra ninguna base.
+=======
+- [schema.sql](schema.sql): 25 tablas (catálogos, cuentas, campañas, flota, mediciones, solicitudes y seguridad), restricciones, índices y cuatro vistas de lectura. No borra ninguna base.
+>>>>>>> origin/rediseno-web
 - [migracion-v2-catalogos.sql](migracion-v2-catalogos.sql): lleva una base anterior (con `usuarios.rol` como `ENUM`) al esquema actual **sin perder datos**. Repetible. Es la opción para la base de Plesk.
 - [migracion-v3-bateria.sql](migracion-v3-bateria.sql): añade la batería de los Orb (`lecturas_bateria`) a una base v2. Repetible, no borra datos. Aplicar después de la v2.
 - [anadir-firebase-google.sql](anadir-firebase-google.sql): migración antigua para bases anteriores a la v2; en una base v2 no hace nada.
