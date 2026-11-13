@@ -69,6 +69,14 @@ function aeriq_password_changed(int $id): void {
 
 function aeriq_mail(string $recipient,string $subject,string $text): void {
     $cfg=auth_mail_config_ok();
+    if ($cfg['transport']==='smtp_native') {
+        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$text); }
+        catch (Throwable $ex) {
+            error_log('AERIQ: fallo en SMTP directo (sin registrar credenciales): '.$ex->getMessage());
+            throw new AeriqError('No se pudo enviar el correo por SMTP. Comprueba la contraseña de aplicación y el acceso saliente del servidor.',503);
+        }
+        return;
+    }
     if ($cfg['transport']==='smtp') {
         require_once dirname(__DIR__).'/vendor/autoload.php';
         $c=$cfg['smtp']; $m=new PHPMailer\PHPMailer\PHPMailer(true); $m->isSMTP();

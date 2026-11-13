@@ -83,25 +83,83 @@ function auth_login_session(int $id): void {
     $_SESSION['last_seen']=time();
     $_SESSION['csrf']=bin2hex(random_bytes(24));
 }
+/** Envío SMTP directo sobre TLS, sin librerías Composer. */
+function auth_smtp_read($socket,array $expected): string {
+    $response='';$code=null;
+    do {
+        $line=fgets($socket,2048);
+        if ($line===false) throw new RuntimeException('El servidor SMTP cerró la conexión.');
+        $response.=$line;
+        if ($code===null && preg_match('/^(\d{3})[- ]/',$line,$m)) $code=(int)$m[1];
+    } while (isset($line[3]) && $line[3]==='-');
+    if ($code===null || !in_array($code,$expected,true)) throw new RuntimeException('Respuesta SMTP inesperada ('.($code??'sin código').').');
+    return $response;
+}
+function auth_smtp_write($socket,string $data): void {
+    $offset=0;$length=strlen($data);
+    while ($offset<$length) {
+        $written=fwrite($socket,substr($data,$offset));
+        if ($written===false || $written===0) throw new RuntimeException('No se pudo escribir en la conexión SMTP.');
+        $offset+=$written;
+    }
+}
+function auth_smtp_command($socket,string $command,array $expected): string {
+    auth_smtp_write($socket,$command."\r\n");
+    return auth_smtp_read($socket,$expected);
+}
+function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body): void {
+    $host=(string)$smtp['host'];$port=(int)$smtp['port'];$encryption=(string)($smtp['encryption']??'tls');
+    $endpoint=($encryption==='ssl'?'ssl://':'').$host.':'.$port;
+    $socket=@stream_socket_client($endpoint,$errno,$errstr,20,STREAM_CLIENT_CONNECT);
+    if (!$socket) throw new RuntimeException('No se pudo conectar con el servidor SMTP ('.$errno.').');
+    stream_set_timeout($socket,20);
+    try {
+        auth_smtp_read($socket,[220]);
+        $hello=preg_replace('/[^A-Za-z0-9.-]/','',(string)($_SERVER['SERVER_NAME']??'localhost'))?:'localhost';
+        auth_smtp_command($socket,'EHLO '.$hello,[250]);
+        if ($encryption==='tls') {
+            auth_smtp_command($socket,'STARTTLS',[220]);
+            $crypto=stream_socket_enable_crypto($socket,true,STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            if ($crypto!==true) throw new RuntimeException('No se pudo negociar TLS con el servidor SMTP.');
+            auth_smtp_command($socket,'EHLO '.$hello,[250]);
+        }
+        auth_smtp_command($socket,'AUTH LOGIN',[334]);
+        auth_smtp_command($socket,base64_encode((string)$smtp['username']),[334]);
+        $smtpPassword=preg_replace('/\s+/','',(string)$smtp['password']);
+        auth_smtp_command($socket,base64_encode($smtpPassword),[235]);
+        auth_smtp_command($socket,'MAIL FROM:<'.(string)$smtp['from_email'].'>',[250]);
+        auth_smtp_command($socket,'RCPT TO:<'.$recipient.'>',[250,251]);
+        auth_smtp_command($socket,'DATA',[354]);
+        $fromName=str_replace(["\r","\n"],'',(string)($smtp['from_name']??'AERIQ'));
+        $encodedSubject='=?UTF-8?B?'.base64_encode($subject).'?=';
+        $headers=['From: '.$fromName.' <'.$smtp['from_email'].'>','To: '.$recipient,'Subject: '.$encodedSubject,
+            'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit','X-Mailer: AERIQ'];
+        $body=str_replace(["\r\n","\r"],"\n",$body);
+        $body=preg_replace('/(^|\n)\./','$1..',$body);
+        $message=implode("\r\n",$headers)."\r\n\r\n".str_replace("\n","\r\n",$body)."\r\n.\r\n";
+        auth_smtp_write($socket,$message);
+        auth_smtp_read($socket,[250]);
+        auth_smtp_command($socket,'QUIT',[221]);
+    } finally { fclose($socket); }
+}
 /**
- * Transporte: SMTP opcional cuando hay SMTPConfig.php;
- * de lo contrario, PHP mail() del alojamiento Plesk.
+ * Transporte: SMTP cuando hay SMTPConfig.php (nativo si falta PHPMailer);
+ * de lo contrario, PHP mail() del alojamiento.
  * MailConfig.php es opcional y solo contiene el remitente (no secretos).
  */
 function auth_mail_config_ok(): array {
     $smtpFile=__DIR__.'/SMTPConfig.php';
     if (is_file($smtpFile)) {
         $vendor=dirname(__DIR__).'/vendor/autoload.php';
-        if (!is_file($vendor)) throw new AeriqError('La configuración SMTP necesita PHPMailer (Composer).',503);
         $smtp=require $smtpFile;
         if (!is_array($smtp)) throw new AeriqError('Revisa la configuración de correo SMTP.',503);
         foreach (['host','port','username','password','from_email'] as $key) {
-            if (empty($smtp[$key]) || str_contains((string)$smtp[$key],'tudominio.es') || str_contains((string)$smtp[$key],'CONTRASENA')) {
-                throw new AeriqError('Revisa SMTPConfig.php o retíralo para utilizar PHP mail().',503);
+            if (empty($smtp[$key]) || str_contains((string)$smtp[$key],'tudominio.es') || str_contains((string)$smtp[$key],'CONTRASENA') || str_contains((string)$smtp[$key],'GOOGLE_APP_PASSWORD')) {
+                throw new AeriqError('Completa los datos SMTP en SMTPConfig.php.',503);
             }
         }
         if (!filter_var((string)$smtp['from_email'],FILTER_VALIDATE_EMAIL)) throw new AeriqError('Remitente SMTP no válido.',503);
-        return ['transport'=>'smtp','smtp'=>$smtp];
+        return ['transport'=>is_file($vendor)?'smtp':'smtp_native','smtp'=>$smtp];
     }
 
     $opts=[];
@@ -136,6 +194,14 @@ function auth_send_mail(string $recipient,string $code,string $purpose): void {
     }
     $subject='AERIQ · Recupera tu contraseña';
     $plain="Tu código AERIQ es: {$code}\n\nCaduca en 10 minutos. Si no lo has solicitado, ignora este mensaje.\nNunca compartas este código.";
+    if ($cfg['transport']==='smtp_native') {
+        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$plain); }
+        catch (Throwable $ex) {
+            error_log('AERIQ: fallo en SMTP directo (sin registrar códigos ni credenciales): '.$ex->getMessage());
+            auth_responder(503,['error'=>'No se ha podido enviar el correo. Comprueba la contraseña de aplicación y el acceso SMTP del servidor.']);
+        }
+        return;
+    }
     if ($cfg['transport']==='smtp') {
         $smtp=$cfg['smtp'];
         require_once dirname(__DIR__).'/vendor/autoload.php';
