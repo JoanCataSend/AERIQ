@@ -49,7 +49,7 @@ El comando solo eleva una cuenta visitante ya verificada y rechaza sobrescribir 
 
 Configura `MailConfig.php` para `mail()` o `SMTPConfig.php` más `composer install --no-dev`. Parte de los ejemplos sin versionar secretos. Las solicitudes del formulario público se envían completas a `codigonorte.aeriq@gmail.com` (constante `AERIQ_COMMERCIAL_EMAIL_DEFAULT` en `server/AeriqCore.php`); la variable de entorno `AERIQ_COMMERCIAL_EMAIL` permite cambiar el buzón. El registro persistente sigue siendo la fuente de verdad. `AERIQ_INVITATION_HOURS` configura la caducidad temporal, 24 h por defecto.
 
-Una invitación crea la cuenta pendiente de activación. El cambio inicial o la recuperación por correo verifican el acceso y activan la cuenta. Si falla el transporte de invitación, el alta se revierte. La aceptación del transporte no garantiza llegada a bandeja: comprobarlo en el alojamiento sigue siendo necesario.
+Una invitación crea la cuenta pendiente de activación y envía la contraseña inicial compartida `AeriqDemo-2026!`; el usuario debe sustituirla en el primer acceso. El cambio inicial o la recuperación por correo verifican el acceso y activan la cuenta. Si falla el transporte de invitación, el alta se revierte. La aceptación del transporte no garantiza llegada a bandeja: comprobarlo en el alojamiento sigue siendo necesario. Esta clave es común a todas las cuentas nuevas hasta que cada usuario la cambie.
 
 ## Acceso con Google (Firebase)
 
