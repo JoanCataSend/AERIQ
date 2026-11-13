@@ -24,23 +24,20 @@
     <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a>
     <nav class="main-nav" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html" aria-current="page">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
     <div class="header-actions">
-      <a href="login.html" class="link-login" id="account-link">Entrar</a>
+      <a href="login.html" class="link-login" id="account-link">Iniciar sesión</a>
       <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
     </div>
     <button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </div>
 </header>
 <main>
-  <section class="section" style="padding-bottom:clamp(48px,6vw,80px)">
+  <section class="section" style="padding:clamp(32px,4vw,56px) 0 clamp(8px,1.5vw,16px)">
     <div class="container product-hero">
       <h1>AERIQ Orb</h1>
       <p class="tagline">Un sensor de ozono del tamaño de un llavero.</p>
-      <span class="product-status">Prototipo en desarrollo</span>
       <div class="product-stage product-stage-3d">
         <div class="sensor-3d-shell">
-                    <model-viewer class="sensor-model-viewer" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del AERIQ Orb que se puede girar en todas las direcciones" poster="assets/orb_poster_frontal.webp" camera-controls camera-orbit="28deg 75deg 150%" min-camera-orbit="-Infinity 0deg 110%" max-camera-orbit="Infinity 180deg 220%" interaction-prompt="none" touch-action="none" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>
-          <p class="stage-hint">Arrástralo en cualquier dirección para girarlo</p>
-          <span class="mv-loading" role="status">Cargando modelo 3D…</span>
+                    <model-viewer class="sensor-model-viewer" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del AERIQ Orb que se puede girar en todas las direcciones" poster="assets/orb_poster_frontal.webp" camera-controls disable-zoom disable-pan camera-orbit="28deg 75deg 150%" min-camera-orbit="-Infinity 0deg 150%" max-camera-orbit="Infinity 180deg 150%" interaction-prompt="none" touch-action="none" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>          <span class="mv-loading" role="status">Cargando modelo 3D…</span>
         </div>
       </div>
     </div>

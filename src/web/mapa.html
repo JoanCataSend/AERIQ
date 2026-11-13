@@ -17,8 +17,6 @@
   <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14"/></symbol>
-  <symbol id="i-reset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
-  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
 </svg>
 
@@ -33,7 +31,7 @@
       <a href="index.html#contacto">Contacto</a>
     </nav>
     <div class="header-actions">
-      <a class="link-login" href="login.html" id="account-link">Entrar</a>
+      <a class="link-login" href="login.html" id="account-link">Iniciar sesión</a>
     </div>
     <button aria-label="Abrir menú" class="mobile-toggle" data-menu-toggle type="button"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </div>
@@ -43,26 +41,22 @@
   <aside class="map-sidebar" aria-label="Opciones del mapa">
     <div>
       <h1>Mapa de ozono</h1>
-      <p class="intro">Mediciones del Orb en Gandia. Toca un punto para ver su valor, hora y origen.</p>
-      <p class="intro">Los colores siguen los umbrales de cada campaña, no los oficiales. AERIQ es un prototipo y no sustituye a las estaciones de vigilancia.</p>
+      <p class="intro">Toca un punto para ver su valor, hora y origen.</p>
     </div>
 
     <section class="side-group" aria-labelledby="g-datos">
       <h2 id="g-datos">Qué datos ver</h2>
-      <div class="segmented" role="group" aria-label="Ámbito de los datos">
+      <!-- Solo se muestra con una sesión de organización (public-map.js). -->
+      <div class="segmented" role="group" aria-label="Ámbito de los datos" id="source-switch" hidden>
         <button class="selected" data-source="all" type="button">Públicos</button>
         <button data-source="mine" type="button">Mi organización</button>
       </div>
-      <label class="field">Procedencia
-        <select class="select" id="public-mode"><option value="real">Mediciones reales</option><option value="simulated">Mediciones simuladas</option></select>
-      </label>
-      <p class="help">«Mi organización» solo muestra datos si has iniciado sesión con una cuenta de organización.</p>
+      <label class="check"><input id="simulated-toggle" type="checkbox">Ver mediciones simuladas</label>
     </section>
 
     <section class="side-group" aria-labelledby="g-capas">
       <h2 id="g-capas">Capas</h2>
-      <button class="disclosure" id="toggle-map-layers" type="button">Elegir capas <svg aria-hidden="true"><use href="#i-chevron"/></svg></button>
-      <div class="map-layer-options" hidden id="map-layer-options">
+      <div class="map-layer-options" id="map-layer-options">
         <label class="check"><input checked id="heat-toggle" type="checkbox">Zonas estimadas (interpolación)</label>
         <label class="check"><input checked id="marker-toggle" type="checkbox">Puntos de medición</label>
       </div>
@@ -75,7 +69,7 @@
       <button class="btn btn-primary btn-block" id="export-sensor" type="button"><svg aria-hidden="true"><use href="#i-download"/></svg>Descargar CSV</button>
     </section>
 
-    <section class="side-group sensor-directory" aria-labelledby="g-lista">
+    <section class="side-group sensor-directory" aria-labelledby="g-lista" id="sensor-directory" hidden>
       <h2 id="g-lista">Mediciones visibles</h2>
       <div id="map-sensor-list"></div>
     </section>
@@ -83,21 +77,13 @@
 
   <section class="map-main" aria-label="Mapa">
     <div class="map-toolbar">
-      <label class="map-search"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar lugar</span><input id="map-search" list="gandia-localizaciones" placeholder="Buscar: campus UPV, playa, Grau…" value="Campus de Gandia · UPV" enterkeyhint="search"></label>
-      <datalist id="gandia-localizaciones"><option value="Campus UPV Gandia"></option><option value="Playa de Gandia"></option><option value="Grau de Gandia"></option></datalist>
+      <label class="map-search"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar lugar</span><input id="map-search" type="search" placeholder="Buscar: campus UPV, playa, Grau…" enterkeyhint="search" autocomplete="off"></label>
       <div class="map-toolbar-actions">
         <select class="select map-period" id="public-period" aria-label="Periodo"><option value="24">Últimas 24 h</option><option value="168">Últimos 7 días</option><option value="0">Todo el histórico</option></select>
-        <div class="map-style-switch" role="group" aria-label="Aspecto del mapa">
-          <button type="button" class="map-style-option" data-map-style="light" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg><span>Claro</span></button>
-          <button type="button" class="map-style-option" data-map-style="dark" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.1A8.5 8.5 0 0 1 9.9 3.5 8.5 8.5 0 1 0 20.5 14.1Z"/></svg><span>Oscuro</span></button>
-        </div>
-        <button class="icon-btn" id="map-zoom-in" type="button" title="Acercar" aria-label="Acercar"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" id="map-reset" type="button" title="Volver al campus" aria-label="Volver al campus"><svg aria-hidden="true"><use href="#i-reset"/></svg></button>
       </div>
     </div>
     <div class="map-visual">
       <div aria-label="Mapa de calles del campus UPV de Gandia y su entorno" class="real-gandia-map" id="real-gandia-map" role="application"></div>
-      <div class="map-float map-demo-chip"><strong>Gandia</strong> · campus UPV, playa y Grau</div>
       <div class="map-float map-loading" id="map-loading" role="status">Preparando el mapa…</div>
       <div class="map-float" id="map-info" hidden aria-live="polite"></div>
       <div class="map-float map-zoom"><button aria-label="Acercar el mapa" id="zoomin-map" type="button"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><button aria-label="Alejar el mapa" id="zoomout-map" type="button"><svg aria-hidden="true"><use href="#i-minus"/></svg></button></div>

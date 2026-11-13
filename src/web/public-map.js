@@ -1,7 +1,7 @@
 'use strict';
 function initAeriqMap(){
   const host=document.querySelector('#real-gandia-map');if(!host)return;
-  const q=s=>document.querySelector(s),status=q('#map-loading'),list=q('#map-sensor-list');
+  const q=s=>document.querySelector(s),status=q('#map-loading'),list=q('#map-sensor-list'),directory=q('#sensor-directory');
   if(typeof L==='undefined'){status.hidden=false;status.textContent='No se ha podido cargar la cartografía. Comprueba tu conexión.';return;}
   const campus=[38.996651,-0.166009],map=L.map(host,{zoomControl:false}).setView(campus,16),pins=L.layerGroup().addTo(map),zones=L.layerGroup().addTo(map);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
@@ -39,9 +39,11 @@ function initAeriqMap(){
     }
   }
   async function refresh(){
-    const id=++requestId,previousId=selected?.id;status.hidden=false;status.textContent='Consultando mediciones autorizadas…';selected=null;q('#map-info').hidden=true;q('#selected-id').textContent='—';pins.clearLayers();zones.clearLayers();list.replaceChildren();
+    const id=++requestId,previousId=selected?.id;status.hidden=false;status.textContent='Consultando mediciones autorizadas…';selected=null;q('#map-info').hidden=true;q('#selected-id').textContent='—';pins.clearLayers();zones.clearLayers();list.replaceChildren();directory.hidden=true;
     try{
-      const result=await Aeriq.map(q('#public-mode').value,source,Number(q('#public-period')?.value||24));if(id!==requestId)return;rows=result.measurements;
+      // Reales y simuladas nunca se mezclan: la casilla elige uno u otro origen.
+      const mode=q('#simulated-toggle').checked?'simulated':'real';
+      const result=await Aeriq.map(mode,source,Number(q('#public-period')?.value||24));if(id!==requestId)return;rows=result.measurements;directory.hidden=!rows.length;
       for(const r of rows){
         const marker=L.circleMarker([r.latitud,r.longitud],{radius:6,color:'#fff',weight:2,fillColor:colors[level(r)],fillOpacity:1}).on('click',()=>choose(r));pins.addLayer(marker);
         const button=document.createElement('button');button.className='sensor-list-item';button.textContent=`${r.zona} · ${r.valor} ${r.unidad} · ${r.simulado?'Simulado':'Real'}`;button.onclick=()=>choose(r);list.append(button);
@@ -51,16 +53,15 @@ function initAeriqMap(){
       if(rows.length){if(!hasFit){map.fitBounds(L.latLngBounds(rows.map(r=>[r.latitud,r.longitud])),{maxZoom:18});hasFit=true;}drawZones();const previous=rows.find(r=>r.id===previousId);if(previous)choose(previous,false);}
     }catch(e){if(id===requestId){rows=[];status.textContent=e.message;}}
   }
-  q('#public-mode').onchange=()=>{hasFit=false;refresh();};q('#public-period').onchange=refresh;
+  q('#simulated-toggle').onchange=()=>{hasFit=false;refresh();};q('#public-period').onchange=refresh;
+  // «Mi organización» solo tiene sentido con una cuenta vinculada a una organización.
+  if(typeof AeriqAuth!=='undefined')AeriqAuth.session().then(s=>{q('#source-switch').hidden=!s?.user?.organizationId;}).catch(()=>{});
   for(const button of document.querySelectorAll('[data-source]'))button.onclick=()=>{source=button.dataset.source;hasFit=false;for(const b of document.querySelectorAll('[data-source]'))b.classList.toggle('selected',b===button);refresh();};q('#heat-toggle').onchange=drawZones;
   q('#marker-toggle').onchange=e=>{if(e.target.checked)pins.addTo(map);else map.removeLayer(pins);};
-  q('#toggle-map-layers').onclick=()=>{q('#map-layer-options').hidden=!q('#map-layer-options').hidden;};
-  q('#map-reset').onclick=()=>map.setView(campus,16);
-  for(const id of ['#zoomin-map','#map-zoom-in'])q(id)?.addEventListener('click',()=>map.zoomIn());q('#zoomout-map').onclick=()=>map.zoomOut();
+  q('#zoomin-map').onclick=()=>map.zoomIn();q('#zoomout-map').onclick=()=>map.zoomOut();
   q('#map-search').onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const term=e.target.value.toLowerCase();if(term.includes('playa'))map.setView([38.999,-.1589],16);else if(term.includes('grau')||term.includes('grao'))map.setView([38.9922,-.1656],15);else if(term.includes('upv')||term.includes('gand'))map.setView(campus,16);else toast('Búsqueda local: UPV, playa o Grau de Gandía.');};
-  for(const button of document.querySelectorAll('[data-map-style]'))button.onclick=()=>{const dark=button.dataset.mapStyle==='dark';store.set('mapStyle',dark?'dark':'light');host.classList.toggle('map-theme-dark',dark);host.closest('.map-visual').classList.toggle('is-dark-map',dark);for(const b of document.querySelectorAll('[data-map-style]')){const on=b===button;b.setAttribute('aria-pressed',String(on));b.classList.toggle('active',on);}};
   q('#export-sensor').onclick=()=>{if(!selected){toast('Selecciona una medición pública.');return;}const r=selected;const csv=AeriqDomain.csv([{...r,dispositivo:'Medición pública #'+r.id,campana:r.campaignId}]);const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='AERIQ-medicion-publica.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
   map.on('moveend',()=>{clearTimeout(controllerTimer);controllerTimer=setTimeout(drawZones,150);});
-  q(store.get('mapStyle','dark')==='light'?'[data-map-style="light"]':'[data-map-style="dark"]')?.click();refresh();
+  refresh();
   const timer=setInterval(()=>{if(!document.hidden)refresh();},30000);window.addEventListener('pagehide',()=>{clearInterval(timer);clearTimeout(controllerTimer);map.remove();},{once:true});
 }

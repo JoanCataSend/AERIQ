@@ -1,16 +1,24 @@
 /* AERIQ · JavaScript GLOBAL · Interacciones de demostración, sin backend ni cobros. */
 'use strict';
-// Preferencias locales (p. ej. el estilo del mapa en public-map.js).
+// Preferencias locales del navegador (try/catch por si el almacenamiento está bloqueado).
 const store={get(k,def=null){try{let v=localStorage.getItem('aeriq_'+k);return v===null?def:JSON.parse(v)}catch{return def}},set(k,v){try{localStorage.setItem('aeriq_'+k,JSON.stringify(v))}catch{}}};
 function toast(msg){const n=document.querySelector('#toast');if(!n)return;n.textContent=msg;n.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>n.classList.remove('show'),3600)}
 const $=(s,root=document)=>root.querySelector(s),$$=(s,root=document)=>[...root.querySelectorAll(s)];
 function initNavigation(){
   const toggle=$('[data-menu-toggle]');
   toggle?.addEventListener('click',()=>$('.main-nav')?.classList.toggle('open'));
+  // Sobre una sección oscura (.dark) la cabecera translúcida pasa a texto claro para que se lea.
+  const header=$('.site-header'),darks=$$('.dark');
+  if(header&&darks.length){
+    let frame=0;
+    const update=()=>{frame=0;const mid=header.offsetHeight/2;header.classList.toggle('on-dark',darks.some(s=>{const r=s.getBoundingClientRect();return r.top<=mid&&r.bottom>=mid;}));};
+    const schedule=()=>{if(!frame)frame=requestAnimationFrame(update);};
+    addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule);update();
+  }
   if(typeof AeriqAuth==='undefined')return;
   AeriqAuth.session().then(s=>{
     const a=$('#account-link');
-    if(a){a.href=s.user?authDestination(s.user):'login.html';a.textContent=s.user?'Mi cuenta':'Entrar';}
+    if(a){a.href=s.user?authDestination(s.user):'login.html';a.textContent=s.user?'Mi cuenta':'Iniciar sesión';}
   }).catch(()=>{});
 }
 function authDestination(user){
