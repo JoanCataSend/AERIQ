@@ -15,7 +15,7 @@
 return [
     'host' => 'localhost',
     'port' => 3306,
-    'database' => 'aeriq_demo',
-    'user' => 'aeriq_user',
+    'database' => 'ldiamur_proyecto',
+    'user' => 'ldmp',
     'password' => 'CAMBIAR_EN_EL_SERVIDOR'
 ];
