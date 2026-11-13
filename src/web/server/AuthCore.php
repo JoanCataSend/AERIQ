@@ -107,7 +107,7 @@ function auth_smtp_command($socket,string $command,array $expected): string {
     auth_smtp_write($socket,$command."\r\n");
     return auth_smtp_read($socket,$expected);
 }
-function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body): void {
+function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null): void {
     $host=(string)$smtp['host'];$port=(int)$smtp['port'];$encryption=(string)($smtp['encryption']??'tls');
     $endpoint=($encryption==='ssl'?'ssl://':'').$host.':'.$port;
     $socket=@stream_socket_client($endpoint,$errno,$errstr,20,STREAM_CLIENT_CONNECT);
@@ -134,6 +134,7 @@ function auth_smtp_send(array $smtp,string $recipient,string $subject,string $bo
         $encodedSubject='=?UTF-8?B?'.base64_encode($subject).'?=';
         $headers=['From: '.$fromName.' <'.$smtp['from_email'].'>','To: '.$recipient,'Subject: '.$encodedSubject,
             'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit','X-Mailer: AERIQ'];
+        if ($replyTo!==null && filter_var($replyTo,FILTER_VALIDATE_EMAIL)) $headers[]='Reply-To: '.$replyTo;
         $body=str_replace(["\r\n","\r"],"\n",$body);
         $body=preg_replace('/(^|\n)\./','$1..',$body);
         $message=implode("\r\n",$headers)."\r\n\r\n".str_replace("\n","\r\n",$body)."\r\n.\r\n";

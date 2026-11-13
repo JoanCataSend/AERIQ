@@ -67,10 +67,12 @@ function aeriq_password_changed(int $id): void {
     aeriq_sql('UPDATE usuarios SET debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=?',[$id]);
 }
 
-function aeriq_mail(string $recipient,string $subject,string $text): void {
+/** $replyTo (opcional) permite contestar directamente a quien envió el formulario. */
+function aeriq_mail(string $recipient,string $subject,string $text,?string $replyTo=null): void {
     $cfg=auth_mail_config_ok();
+    if ($replyTo!==null && !filter_var($replyTo,FILTER_VALIDATE_EMAIL)) $replyTo=null;
     if ($cfg['transport']==='smtp_native') {
-        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$text); }
+        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$text,$replyTo); }
         catch (Throwable $ex) {
             error_log('AERIQ: fallo en SMTP directo (sin registrar credenciales): '.$ex->getMessage());
             throw new AeriqError('No se pudo enviar el correo por SMTP. Comprueba la contraseña de aplicación y el acceso saliente del servidor.',503);
@@ -82,9 +84,10 @@ function aeriq_mail(string $recipient,string $subject,string $text): void {
         $c=$cfg['smtp']; $m=new PHPMailer\PHPMailer\PHPMailer(true); $m->isSMTP();
         $m->Host=$c['host'];$m->Port=(int)$c['port'];$m->SMTPAuth=true;$m->Username=$c['username'];$m->Password=$c['password'];
         $m->SMTPSecure=($c['encryption']??'tls')==='ssl'?'ssl':'tls';$m->CharSet='UTF-8';
-        $m->setFrom($c['from_email'],$c['from_name']??'Código Norte');$m->addAddress($recipient);$m->Subject=$subject;$m->Body=$text;$m->send();return;
+        $m->setFrom($c['from_email'],$c['from_name']??'Código Norte');$m->addAddress($recipient);if($replyTo!==null)$m->addReplyTo($replyTo);$m->Subject=$subject;$m->Body=$text;$m->send();return;
     }
     $headers=['From: '.$cfg['from_name'].' <'.$cfg['from_email'].'>','Content-Type: text/plain; charset=UTF-8'];
+    if ($replyTo!==null) $headers[]='Reply-To: '.$replyTo;
     if (!mail($recipient,'=?UTF-8?B?'.base64_encode($subject).'?=',$text,implode("\r\n",$headers))) throw new AeriqError('El servidor no ha aceptado el correo.',503);
 }
 function aeriq_worker(array $a,array $d): array {
@@ -278,6 +281,8 @@ function aeriq_map_data(?array $access,array $query): array {
 /** Provincias de España: por ahora el formulario comercial solo atiende España. */
 const AERIQ_PROVINCIAS=['A Coruña','Álava','Albacete','Alicante','Almería','Asturias','Ávila','Badajoz','Barcelona','Bizkaia','Burgos','Cáceres','Cádiz','Cantabria','Castellón','Ceuta','Ciudad Real','Córdoba','Cuenca','Gipuzkoa','Girona','Granada','Guadalajara','Huelva','Huesca','Illes Balears','Jaén','La Rioja','Las Palmas','León','Lleida','Lugo','Madrid','Málaga','Melilla','Murcia','Navarra','Ourense','Palencia','Pontevedra','Salamanca','Santa Cruz de Tenerife','Segovia','Sevilla','Soria','Tarragona','Teruel','Toledo','Valencia','Valladolid','Zamora','Zaragoza'];
 /** Duraciones que se ofrecen para un estudio; se guardan tal cual en solicitudes.duracion. */
+/** Buzón comercial de Código Norte que recibe las solicitudes del formulario público. */
+const AERIQ_COMMERCIAL_EMAIL_DEFAULT='codigonorte.aeriq@gmail.com';
 const AERIQ_DURACIONES=['1 semana','2 semanas','1 mes','3 meses','Más de 3 meses','A definir con Código Norte'];
 
 /** Texto de un campo del formulario público; el error indica qué campo revisar. Longitud en caracteres, como maxlength. */
@@ -294,7 +299,7 @@ function aeriq_request(array $d): array {
     if (is_string($d['website']??null) && trim($d['website'])!=='') return ['ok'=>true,'id'=>0,'message'=>'Solicitud registrada.'];
     $service=aeriq_one('SELECT id,codigo,nombre,mide_superficie FROM servicios WHERE codigo=? AND activo=1',[is_string($d['interest']??null)?$d['interest']:'']);
     if (!$service) throw new AeriqError('Elige qué te interesa.',422,'interest');
-    $org=aeriq_one('SELECT id FROM tipos_organizacion WHERE codigo=? AND activo=1',[is_string($d['orgType']??null)?$d['orgType']:'']);
+    $org=aeriq_one('SELECT id,nombre FROM tipos_organizacion WHERE codigo=? AND activo=1',[is_string($d['orgType']??null)?$d['orgType']:'']);
     if (!$org) throw new AeriqError('Elige el tipo de organización.',422,'orgType');
     $entity=aeriq_field_text($d,'entity',180,'Escribe el nombre de la organización.');
     $contact=aeriq_field_text($d,'contact',160,'Escribe el nombre de la persona de contacto.');
@@ -309,7 +314,7 @@ function aeriq_request(array $d): array {
     $codes=$d['objectives']??null;
     if (!is_array($codes) || count($codes)>20) throw new AeriqError('Marca al menos un objetivo de la medición.',422,'objectives');
     $codes=array_values(array_unique(array_filter($codes,'is_string')));
-    $objectives=$codes?aeriq_rows('SELECT id FROM objetivos_medicion WHERE activo=1 AND codigo IN ('.implode(',',array_fill(0,count($codes),'?')).')',$codes):[];
+    $objectives=$codes?aeriq_rows('SELECT id,nombre FROM objetivos_medicion WHERE activo=1 AND codigo IN ('.implode(',',array_fill(0,count($codes),'?')).')',$codes):[];
     if (!$codes || count($objectives)!==count($codes)) throw new AeriqError('Marca al menos un objetivo de la medición.',422,'objectives');
     $needs=aeriq_field_text($d,'needs',6000,'Cuéntanos qué necesitas (máximo 6000 caracteres).');
     if (($d['consent']??false)!==true) throw new AeriqError('Debes autorizar el tratamiento de los datos para gestionar la solicitud.',422,'consent');
@@ -340,9 +345,19 @@ function aeriq_request(array $d): array {
     } catch (Throwable $e) {$db->rollback();throw $e;}
     $service=$service['nombre'];
     // El registro es la fuente de verdad: un fallo del aviso no invalida la solicitud.
-    $notify=getenv('AERIQ_COMMERCIAL_EMAIL');
-    if ($notify && filter_var($notify,FILTER_VALIDATE_EMAIL)) {
-        try { aeriq_mail($notify,'AERIQ · Nueva solicitud #'.$id,"Consulta el panel comercial. Servicio: $service. Solicitud: $id."); }
+    // AERIQ_COMMERCIAL_EMAIL (variable de entorno) sustituye al buzón por defecto de Código Norte.
+    $notify=getenv('AERIQ_COMMERCIAL_EMAIL')?:AERIQ_COMMERCIAL_EMAIL_DEFAULT;
+    if (filter_var($notify,FILTER_VALIDATE_EMAIL)) {
+        $lines=['Nueva solicitud desde el formulario de AERIQ.','',
+            'Solicitud: #'.$id,'Servicio: '.$service,'Tipo de organización: '.$org['nombre'],'Organización: '.$entity,
+            'Contacto: '.$contact,'Correo: '.$email,'Teléfono: '.($phone!==''?$phone:'—'),
+            'Municipio: '.$municipality.' ('.$province.')','Zona: '.$zone,
+            'Objetivos: '.implode(', ',array_column($objectives,'nombre'))];
+        if ($surface!==null) $lines[]='Superficie: '.rtrim(rtrim(number_format($surface,2,',','.'),'0'),',').' m²';
+        if ($duration!=='') $lines[]='Duración: '.$duration;
+        if ($start!==null) $lines[]='Inicio deseado: '.substr($start,0,7);
+        array_push($lines,'','Necesidades:',$needs,'','Responde a este correo para contestar directamente a '.$contact.'.','La solicitud también está en el panel comercial de AERIQ.');
+        try { aeriq_mail($notify,'AERIQ · Nueva solicitud #'.$id.' · '.$entity,implode("\n",$lines),$email); }
         catch (Throwable $e) { error_log('AERIQ: solicitud registrada; aviso comercial no entregado.'); }
     }
     return ['ok'=>true,'id'=>$id,'message'=>'Solicitud registrada. Código Norte la revisará y te propondrá la solución que mejor encaje.'];

@@ -186,6 +186,7 @@ class PHPMailer {
  const ENCRYPTION_SMTPS='ssl';const ENCRYPTION_STARTTLS='tls';
  public function __construct(...$v){} public function isSMTP(){} public function setFrom(...$v){}
  public function addAddress($recipient){$this->recipient=$recipient;}
+ public function addReplyTo($address){$this->replyTo=$address;}
  public function send(){if(file_exists(__DIR__.'/fail-mail'))throw new \\RuntimeException('Test SMTP failure');file_put_contents(__DIR__.'/mail.jsonl',json_encode(['to'=>$this->recipient,'body'=>$this->Body])."\\n",FILE_APPEND);}
 }''',encoding='utf-8')
         env={**os.environ,'AERIQ_COMMERCIAL_EMAIL':'sales@example.test'}

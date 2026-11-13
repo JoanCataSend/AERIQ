@@ -62,7 +62,7 @@ POST `?action=request` (máximo 8 por hora y dirección):
 - No se pide cantidad de Orb: la recomienda Código Norte.
 - `website` es un campo trampa. Si llega con texto, se responde 201 sin guardar nada.
 
-Un error de validación devuelve 422 con `error` y `field` (el campo que hay que revisar). La solicitud nace en el primer estado del catálogo, guarda sus objetivos en `solicitud_objetivos` y se registra en `solicitudes_historial`. Devuelve número y confirmación de registro. El fallo del aviso a `AERIQ_COMMERCIAL_EMAIL` no revierte la solicitud guardada.
+Un error de validación devuelve 422 con `error` y `field` (el campo que hay que revisar). La solicitud nace en el primer estado del catálogo, guarda sus objetivos en `solicitud_objetivos` y se registra en `solicitudes_historial`. Devuelve número y confirmación de registro. Además se envía la solicitud completa por correo al buzón comercial (`codigonorte.aeriq@gmail.com` por defecto, o la variable de entorno `AERIQ_COMMERCIAL_EMAIL`), con `Reply-To` al correo del cliente. El fallo de ese correo no revierte la solicitud guardada.
 
 ## Adaptador de consultas anteriores
 
