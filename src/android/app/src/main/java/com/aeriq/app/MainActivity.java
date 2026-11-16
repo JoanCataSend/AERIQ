@@ -300,7 +300,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             icon.setColorFilter(selected ? Views.GREEN : Views.MUTED);
             if (selected) icon.setBackground(ui.shape(Views.SOFT, 18, 0));
             tab.addView(icon, new LinearLayout.LayoutParams(ui.dp(56), ui.dp(30)));
-            tab.addView(ui.text(labels[index], 12, selected, selected ? Views.GREEN : Views.MUTED));
+            // La etiqueta ocupa todo el ancho de la pestaña: hay que centrar su texto
+            // para que quede justo debajo del icono (si no, se pega a la izquierda).
+            TextView label = ui.text(labels[index], 12, selected, selected ? Views.GREEN : Views.MUTED);
+            label.setGravity(Gravity.CENTER);
+            label.setSingleLine(true);
+            tab.addView(label, new LinearLayout.LayoutParams(-1, -2));
             tab.setContentDescription(labels[index]);
             tab.setOnClickListener(view -> go(route));
             ui.weighted(navigation, tab);
