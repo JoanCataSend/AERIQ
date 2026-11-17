@@ -60,7 +60,13 @@
         <label class="check"><input checked id="heat-toggle" type="checkbox">Zonas estimadas (interpolación)</label>
         <label class="check"><input checked id="marker-toggle" type="checkbox">Puntos de medición</label>
       </div>
-      <p class="help">Una zona solo se colorea si hay lecturas suficientes en un radio de 20 a 50 m. Sin color significa sin datos, no aire limpio.</p>
+      <div class="radius-control">
+        <label for="radius-range">Radio de interpolación <output for="radius-range" id="radius-value">30 m</output></label>
+        <input aria-describedby="radius-note" id="radius-range" max="50" min="20" step="5" type="range" value="30">
+        <p class="help" id="radius-note">Se aplica el radio configurado en cada campaña.</p>
+        <button class="radius-reset" hidden id="radius-reset" type="button">Usar el radio de cada campaña</button>
+      </div>
+      <p class="help">Una zona solo se colorea con al menos tres posiciones medidas dentro del radio (20 a 50 m). Gris: hay mediciones cerca, pero no bastan. Sin color: sin datos, no aire limpio. Pulsa el mapa para consultar un punto.</p>
     </section>
 
     <section class="side-group" aria-labelledby="g-export">
@@ -91,6 +97,10 @@
         <strong>Nivel de ozono</strong>
         <div class="scale-strip" aria-hidden="true"><span></span><span></span><span></span></div>
         <div class="scale-labels"><span>Bajo</span><span>Moderado</span><span>Alto</span></div>
+        <ul class="legend-states">
+          <li><span aria-hidden="true" class="legend-swatch legend-partial"></span>Datos insuficientes</li>
+          <li><span aria-hidden="true" class="legend-swatch legend-empty"></span>Sin color: sin datos</li>
+        </ul>
         <p>Umbrales fijados por cada campaña, no oficiales. Prototipo: no sustituye a las estaciones de vigilancia.</p>
       </div>
     </div>

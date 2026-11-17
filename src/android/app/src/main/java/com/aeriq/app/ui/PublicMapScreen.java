@@ -2,6 +2,7 @@ package com.aeriq.app.ui;
 
 import android.graphics.Color;
 import android.graphics.ColorMatrixColorFilter;
+import android.graphics.DashPathEffect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.location.Location;
@@ -24,12 +25,16 @@ import com.aeriq.app.R;
 import com.aeriq.app.data.ForegroundCaptureLocation;
 import com.aeriq.app.data.PlaceSearch;
 import com.aeriq.app.data.PublicReadings;
+import com.aeriq.app.data.PublicReadings.Estimate;
 import com.aeriq.app.data.PublicReadings.Reading;
+import com.aeriq.app.data.PublicReadings.Reason;
 import org.osmdroid.config.Configuration;
+import org.osmdroid.events.MapEventsReceiver;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.MapEventsOverlay;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polygon;
 import java.util.*;
@@ -41,6 +46,7 @@ import static com.aeriq.app.ui.Views.*;
 public final class PublicMapScreen {
     private static final GeoPoint CAMPUS = new GeoPoint(38.99665, -0.16601);
     private static final double NEAR_ZONE_METERS = 3000;
+    private static final int RADIUS_STEP = 5, MAX_CELLS = 1500, MAX_EXAMINED = 8000;
     private final MainActivity activity;
     private final Views ui;
     private final ExecutorService worker;
@@ -51,11 +57,19 @@ public final class PublicMapScreen {
     private final LinearLayout suggestions;
     private final LinearLayout warning;
     private final TextView warningText;
-    private final CheckBox markers, zones;
+    private final CheckBox markers, zones, campaignRadius;
+    private final SeekBar radiusSeek;
+    private final TextView radiusLabel, legend;
     // Ficha inferior
     private final View zoneDot;
     private final TextView zoneTitle, zoneSubtitle, zoneValue, zoneUnit, zoneChip, zoneUpdated;
     private List<Reading> readings = Collections.emptyList();
+    // Interpolación (T25): posiciones de soporte por campaña, unidad y origen; el cálculo está en PublicReadings.
+    private List<List<Reading>> groups = Collections.emptyList();
+    /** Radio de prueba elegido en «Capas»; 0 = el de cada campaña. Solo afecta a esta vista. */
+    private int radiusOverride;
+    /** Último punto consultado al tocar el mapa, para recalcularlo si cambian los datos o el radio. */
+    private GeoPoint queried;
     private int request, searchRequest;
     private boolean closed, suppressSuggestions;
     private Marker locationMarker;
@@ -138,8 +152,8 @@ public final class PublicMapScreen {
         controls.addView(control(R.drawable.ic_refresh, "Actualizar mediciones", this::load));
 
         // Leyenda en la parte de abajo del mapa
-        TextView legend = ui.text("", 14, false, INK);
-        legend.setText(legendText());
+        legend = ui.text("", 14, false, INK);
+        legend.setText(legendText(false));
         legend.setGravity(Gravity.CENTER_VERTICAL);
         legend.setBackground(ui.shape(WHITE, 22, 0));
         legend.setElevation(ui.dp(3));
@@ -159,7 +173,7 @@ public final class PublicMapScreen {
         // ---------- Capas ----------
         layers = ui.column();
         layers.setPadding(ui.dp(20), ui.dp(8), ui.dp(20), 0);
-        zones = toggle(layers, "Zonas coloreadas (interpolación 20–50 m)", true);
+        zones = toggle(layers, "Zonas estimadas (interpolación)", true);
         markers = toggle(layers, "Puntos de medición", true);
         CheckBox dark = toggle(layers, "Mapa oscuro", false);
         dark.setOnCheckedChangeListener((button, checked) -> {
@@ -170,6 +184,32 @@ public final class PublicMapScreen {
         });
         zones.setOnCheckedChangeListener((button, checked) -> draw());
         markers.setOnCheckedChangeListener((button, checked) -> draw());
+        // Radio de interpolación: por defecto el de cada campaña; el control lo sustituye solo en esta vista.
+        radiusLabel = ui.text("", 14, false, INK);
+        radiusLabel.setPadding(ui.dp(6), ui.dp(14), 0, ui.dp(4));
+        layers.addView(radiusLabel);
+        radiusSeek = new SeekBar(activity);
+        radiusSeek.setMax((PublicReadings.RADIUS_MAX - PublicReadings.RADIUS_MIN) / RADIUS_STEP);
+        radiusSeek.setProgress((PublicReadings.RADIUS_DEFAULT - PublicReadings.RADIUS_MIN) / RADIUS_STEP);
+        radiusSeek.setContentDescription("Radio de interpolación, de 20 a 50 metros");
+        layers.addView(radiusSeek, new LinearLayout.LayoutParams(-1, -2));
+        campaignRadius = toggle(layers, "Usar el radio de cada campaña", true);
+        campaignRadius.setOnCheckedChangeListener((button, checked) -> {
+            radiusOverride = checked ? 0 : PublicReadings.RADIUS_MIN + radiusSeek.getProgress() * RADIUS_STEP;
+            refreshRadius();
+        });
+        radiusSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                if (!fromUser) return;
+                // Al desmarcar la casilla, su propio aviso aplica el radio elegido.
+                if (campaignRadius.isChecked()) { campaignRadius.setChecked(false); return; }
+                radiusOverride = PublicReadings.RADIUS_MIN + progress * RADIUS_STEP;
+                refreshRadius();
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) { }
+            @Override public void onStopTrackingTouch(SeekBar bar) { }
+        });
+        showRadius();
 
         // ---------- Ficha de la zona ----------
         // Panel inferior arrastrable: plegado solo enseña la rayita y la zona; desplegado, todo.
@@ -362,7 +402,7 @@ public final class PublicMapScreen {
         return button;
     }
 
-    private CharSequence legendText() {
+    private CharSequence legendText(boolean clipped) {
         SpannableStringBuilder text = new SpannableStringBuilder();
         text.append("Leyenda");
         text.setSpan(new StyleSpan(Typeface.BOLD), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -375,7 +415,90 @@ public final class PublicMapScreen {
             text.setSpan(new ForegroundColorSpan(colors[i]), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             text.append(" ").append(labels[i]);
         }
+        // Gris discontinuo: hay mediciones cerca pero no bastan. Sin color: sin datos.
+        text.append("\n");
+        int grey = text.length();
+        text.append("●");
+        text.setSpan(new ForegroundColorSpan(0xff9aa3a0), grey, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.append(" Datos insuficientes · sin color: sin datos");
+        // El tope de rendimiento se avisa: una zona recortada no debe confundirse con una zona sin datos.
+        if (clipped) text.append("\nZonas incompletas: hay demasiadas mediciones para pintarlas todas.");
         return text;
+    }
+
+    // ---------------------------------------------------------------- interpolación
+
+    private int radiusOf(List<Reading> group) { return radiusOverride != 0 ? radiusOverride : group.get(0).radius; }
+
+    private void showRadius() {
+        if (radiusOverride != 0) {
+            radiusLabel.setText("Radio de prueba: " + radiusOverride + " m. Solo cambia esta vista y no se guarda.");
+            return;
+        }
+        int min = Integer.MAX_VALUE, max = 0;
+        for (List<Reading> group : groups) {
+            if (group.isEmpty()) continue;
+            min = Math.min(min, group.get(0).radius);
+            max = Math.max(max, group.get(0).radius);
+        }
+        if (max == 0) min = max = PublicReadings.RADIUS_DEFAULT;
+        radiusLabel.setText("Radio de interpolación: " + (min == max ? min + " m" : min + "–" + max + " m")
+            + " (el de cada campaña)");
+    }
+
+    private void refreshRadius() {
+        showRadius();
+        draw();
+        if (queried != null) query(queried);
+    }
+
+    /**
+     * Tocar el mapa explica ese punto en la ficha inferior: valor estimado, datos insuficientes o sin datos.
+     * Con varias campañas gana la que estima; a igualdad, la de medición más cercana.
+     */
+    private void query(GeoPoint point) {
+        Estimate best = null;
+        List<Reading> bestGroup = null;
+        int bestRank = -1;
+        for (List<Reading> group : groups) {
+            if (group.isEmpty()) continue;
+            Estimate estimate = PublicReadings.estimate(point.getLatitude(), point.getLongitude(), group, radiusOf(group));
+            int rank = estimate.value != null ? 2 : estimate.reason == Reason.INSUFFICIENT ? 1 : 0;
+            if (rank > bestRank || (rank == bestRank && estimate.nearest < best.nearest)) {
+                best = estimate;
+                bestGroup = group;
+                bestRank = rank;
+            }
+        }
+        int radius = bestGroup == null ? PublicReadings.RADIUS_DEFAULT : radiusOf(bestGroup);
+        if (best == null) {
+            best = PublicReadings.estimate(point.getLatitude(), point.getLongitude(), Collections.<Reading>emptyList(), radius);
+        }
+        Reading sample = bestGroup == null ? null : bestGroup.get(0);
+        String[] text = PublicReadings.describe(best, radius, sample == null ? "" : sample.unit,
+            sample == null ? 0 : sample.medium, sample == null ? 0 : sample.high, sample != null && sample.simulated);
+        queried = point;
+        zoneTitle.setText(text[0]);
+        zoneSubtitle.setText(text[1]);
+        zoneUpdated.setText("");
+        warning.setVisibility(View.GONE);
+        if (best.value != null && sample != null) {
+            int level = Quality.level(best.value, sample.medium, sample.high);
+            zoneDot.setBackground(dot(Quality.color(level)));
+            zoneValue.setText(Quality.number(best.value));
+            zoneUnit.setText(sample.unit);
+            zoneChip.setText("Estimación: " + Quality.label(level));
+            zoneChip.setTextColor(Quality.text(level));
+            zoneChip.setBackground(ui.shape(Quality.soft(level), 18, 0));
+        } else {
+            zoneDot.setBackground(dot(Quality.NONE));
+            zoneValue.setText("—");
+            zoneUnit.setText("");
+            zoneChip.setText("Calidad: —");
+            zoneChip.setTextColor(MUTED);
+            zoneChip.setBackground(ui.shape(0xffeff3f1, 18, 0));
+        }
+        setExpanded(true);
     }
 
     private void showLayers() {
@@ -403,6 +526,15 @@ public final class PublicMapScreen {
                 activity.runOnUiThread(() -> {
                     if (closed || generation != request) return;
                     readings = result.rows;
+                    GeoPoint pending = queried;
+                    Map<String, List<Reading>> byKey = new LinkedHashMap<>();
+                    for (Reading reading : readings) {
+                        byKey.computeIfAbsent(PublicReadings.groupKey(reading), key -> new ArrayList<>()).add(reading);
+                    }
+                    List<List<Reading>> support = new ArrayList<>();
+                    for (List<Reading> group : byKey.values()) support.add(PublicReadings.support(group));
+                    groups = support;
+                    showRadius();
                     draw();
                     if (!readings.isEmpty()) {
                         Reading latest = readings.get(0);
@@ -410,6 +542,8 @@ public final class PublicMapScreen {
                         if (locationMarker == null) map.getController().setCenter(latest.position());
                         showZone(latest.zone, null);
                     } else showZone(null, null);
+                    // La consulta de un punto se mantiene tras recargar los datos.
+                    if (pending != null) query(pending);
                 });
             } catch (Exception error) {
                 activity.runOnUiThread(() -> {
@@ -423,7 +557,15 @@ public final class PublicMapScreen {
 
     private void draw() {
         map.getOverlays().clear();
-        if (zones.isChecked()) drawZones();
+        // Debajo de todo: recoge los toques que no caen en un marcador y consulta ese punto.
+        map.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
+            @Override public boolean singleTapConfirmedHelper(GeoPoint point) {
+                query(point);
+                return true;
+            }
+            @Override public boolean longPressHelper(GeoPoint point) { return false; }
+        }));
+        legend.setText(legendText(zones.isChecked() && drawZones()));
         if (markers.isChecked()) for (Reading reading : readings) {
             Marker marker = new Marker(map);
             marker.setPosition(reading.position());
@@ -445,49 +587,66 @@ public final class PublicMapScreen {
         map.invalidate();
     }
 
-    private void drawZones() {
-        Map<String, List<Reading>> groups = new LinkedHashMap<>();
-        for (Reading reading : readings) {
-            groups.computeIfAbsent(reading.campaign + "/" + reading.unit, key -> new ArrayList<>()).add(reading);
-        }
+    /**
+     * Pinta las celdas alrededor de las mediciones. Color: tres o más posiciones dentro del radio.
+     * Gris discontinuo: hay mediciones cerca pero no bastan. Sin pintar: sin datos.
+     * Devuelve true si el tope de rendimiento dejó celdas sin pintar.
+     */
+    private boolean drawZones() {
         int drawn = 0, examined = 0;
-        for (List<Reading> group : groups.values()) {
+        double latStep = PublicReadings.CELL / PublicReadings.METERS_PER_DEGREE;
+        double bucketLat = PublicReadings.RADIUS_MAX * 1.1 / PublicReadings.METERS_PER_DEGREE;
+        for (List<Reading> group : groups) {
+            if (group.isEmpty()) continue;
             Reading first = group.get(0);
-            double latStep = 10.0 / 111320;
-            double lonStep = latStep / Math.max(0.01, Math.cos(Math.toRadians(first.latitude)));
+            // Latitud de referencia fija por grupo: la rejilla no depende de la posición del mapa.
+            double cos = Math.max(0.01, Math.cos(Math.toRadians(Math.round(first.latitude))));
+            double lonStep = latStep / cos, bucketLon = bucketLat / cos;
+            int radius = radiusOf(group), reach = (int) Math.ceil(radius / PublicReadings.CELL) + 1;
             Set<String> visited = new HashSet<>();
             Map<String, List<Reading>> buckets = new HashMap<>();
             for (Reading reading : group) {
-                long x = (long) Math.floor(reading.latitude / (latStep * 6));
-                long y = (long) Math.floor(reading.longitude / (lonStep * 6));
+                long x = (long) Math.floor(reading.latitude / bucketLat);
+                long y = (long) Math.floor(reading.longitude / bucketLon);
                 buckets.computeIfAbsent(x + "/" + y, key -> new ArrayList<>()).add(reading);
             }
             for (Reading reading : group) {
-                long a = Math.round(reading.latitude / latStep), b = Math.round(reading.longitude / lonStep);
-                for (int i = -5; i <= 5; i++) for (int j = -5; j <= 5; j++) {
+                long a = (long) Math.floor(reading.latitude / latStep), b = (long) Math.floor(reading.longitude / lonStep);
+                for (int i = -reach; i <= reach; i++) for (int j = -reach; j <= reach; j++) {
                     if (!visited.add((a + i) + "/" + (b + j))) continue;
-                    if (++examined > 5000 || drawn >= 1500) return;
-                    double lat = (a + i) * latStep, lon = (b + j) * lonStep;
-                    long x = (long) Math.floor(lat / (latStep * 6)), y = (long) Math.floor(lon / (lonStep * 6));
+                    if (++examined > MAX_EXAMINED || drawn >= MAX_CELLS) return true;
+                    double south = (a + i) * latStep, west = (b + j) * lonStep;
+                    // El valor se calcula en el centro de la celda que se pinta.
+                    double lat = south + latStep / 2, lon = west + lonStep / 2;
+                    long x = (long) Math.floor(lat / bucketLat), y = (long) Math.floor(lon / bucketLon);
                     List<Reading> nearby = new ArrayList<>();
                     for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
                         List<Reading> bucket = buckets.get((x + dx) + "/" + (y + dy));
                         if (bucket != null) nearby.addAll(bucket);
                     }
-                    Double value = PublicReadings.interpolate(lat, lon, nearby, first.radius);
-                    if (value == null) continue;
+                    Estimate estimate = PublicReadings.estimate(lat, lon, nearby, radius);
+                    if (estimate.value == null && estimate.reason != Reason.INSUFFICIENT) continue;
                     Polygon cell = new Polygon(map);
-                    cell.setPoints(Arrays.asList(new GeoPoint(lat, lon), new GeoPoint(lat + latStep, lon),
-                        new GeoPoint(lat + latStep, lon + lonStep), new GeoPoint(lat, lon + lonStep)));
-                    cell.getFillPaint().setColor((first.color(value) & 0xffffff) | 0x46000000);
-                    cell.getOutlinePaint().setStrokeWidth(0);
-                    cell.getOutlinePaint().setColor(Color.TRANSPARENT);
+                    cell.setPoints(Arrays.asList(new GeoPoint(south, west), new GeoPoint(south + latStep, west),
+                        new GeoPoint(south + latStep, west + lonStep), new GeoPoint(south, west + lonStep)));
+                    if (estimate.value != null) {
+                        cell.getFillPaint().setColor((first.color(estimate.value) & 0xffffff) | 0x46000000);
+                        cell.getOutlinePaint().setStrokeWidth(0);
+                        cell.getOutlinePaint().setColor(Color.TRANSPARENT);
+                    } else {
+                        cell.getFillPaint().setColor(0x22686d6b);
+                        cell.getOutlinePaint().setStrokeWidth(ui.dp(1));
+                        cell.getOutlinePaint().setColor(0x8c686d6b);
+                        cell.getOutlinePaint().setPathEffect(new DashPathEffect(new float[]{ui.dp(3), ui.dp(3)}, 0));
+                    }
+                    // Las celdas no consumen el toque: llega a la consulta de punto.
                     cell.setOnClickListener((polygon, view, point) -> false);
                     map.getOverlays().add(cell);
                     drawn++;
                 }
             }
         }
+        return false;
     }
 
     /**
@@ -495,6 +654,7 @@ public final class PublicMapScreen {
      * Sin zona pero con lugar buscado: indica que allí aún no hay sensores.
      */
     private void showZone(String zone, String placeName) {
+        queried = null;
         List<Reading> rows = new ArrayList<>();
         if (zone != null) for (Reading reading : readings) if (reading.zone.equals(zone)) rows.add(reading);
         if (rows.isEmpty()) {

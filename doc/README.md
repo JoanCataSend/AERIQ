@@ -6,6 +6,7 @@
 | [Arquitectura](arquitectura.md) | Componentes y flujo completo |
 | [Web](web.md) | Diseño conservado, flota, panel, mapas y servicios |
 | [Android](android.md) | Pantallas, BLE, captura, historial y cuenta |
+| [Interpolación](interpolacion.md) | Algoritmo del mapa, parámetros, zonas sin datos y validación |
 | [API](api.md) | Contratos y permisos |
 | [Base de datos](base-de-datos.md) | Esquema único, relaciones y vistas legibles |
 | [Despliegue](despliegue.md) | Instalación nueva, conservación de datos y configuración |

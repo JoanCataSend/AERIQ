@@ -187,7 +187,7 @@ class PHPMailer {
  public function __construct(...$v){} public function isSMTP(){} public function setFrom(...$v){}
  public function addAddress($recipient){$this->recipient=$recipient;}
  public function addReplyTo($address){$this->replyTo=$address;}
- public function send(){if(file_exists(__DIR__.'/fail-mail'))throw new \\RuntimeException('Test SMTP failure');file_put_contents(__DIR__.'/mail.jsonl',json_encode(['to'=>$this->recipient,'body'=>$this->Body])."\\n",FILE_APPEND);}
+ public function send(){if(file_exists(__DIR__.'/fail-mail'))throw new \\RuntimeException('Test SMTP failure');file_put_contents(__DIR__.'/mail.jsonl',json_encode(['to'=>$this->recipient,'subject'=>$this->Subject,'replyTo'=>$this->replyTo??null,'body'=>$this->Body])."\\n",FILE_APPEND);}
 }''',encoding='utf-8')
         env={**os.environ,'AERIQ_COMMERCIAL_EMAIL':'sales@example.test'}
         httplog=(folder/'http.log').open('w')
@@ -269,6 +269,15 @@ class PHPMailer {
         saved=next(c for c in board['campaigns'] if c['id']==cid)
         assert saved['zona']=='UPV' and float(saved['umbral_medio'])==60 and float(saved['umbral_alto'])==100
         expect(422,'portal.php?action=campaign',{**campaign,'id':cid,'medium':90,'high':80},'a')
+        # T25: el radio de interpolación es configurable por campaña solo entre 20 y 50 m; por defecto 30.
+        assert int(saved['radio_m'])==30
+        for bad in (19,51,0,'30.5'):
+            expect(422,'portal.php?action=campaign',{**campaign,'id':cid,'radius':bad},'a')
+        for good in (20,50,40):
+            expect(200,'portal.php?action=campaign',{**campaign,'id':cid,'radius':good},'a')
+            assert int(next(c for c in expect(200,'portal.php?action=dashboard',identity='a')['campaigns'] if c['id']==cid)['radio_m'])==good
+        # El formulario del panel envía siempre el radio; sin él, el servidor vuelve al valor por defecto.
+        campaign['radius']=40
         device={'name':'Orb A','address':'AA:BB:CC:DD:EE:01','worker':worker['id'],'campaign':cid,'active':True,'simulated':True}
         did=expect(200,'portal.php?action=device',device,'a')['id']
         expect(404,'portal.php?action=device',{**device,'id':did},'b')
@@ -305,7 +314,10 @@ class PHPMailer {
         assert sql('USE aeriq_test; SELECT COUNT(*) FROM asignaciones WHERE finalizada_en IS NOT NULL')=='1'
         expect(200,'portal.php?action=device',{**device,'id':did},'a')
         expect(200,'portal.php?action=campaign',{**campaign,'id':cid,'public':True},'a')
-        assert len(expect(200,'public.php?action=map&mode=simulated')['measurements'])==3
+        published=expect(200,'public.php?action=map&mode=simulated')['measurements']
+        assert len(published)==3
+        # El mapa recibe el radio configurado en la campaña, que es el que aplica la interpolación.
+        assert all(row['radio_m']==40 and row['simulado'] is True for row in published)
         assert expect(200,'public.php?action=map&mode=real')['measurements']==[]
         expect(200,'portal.php?action=campaign',{**campaign,'id':cid,'public':False},'a')
         assert expect(200,'public.php?action=map&mode=simulated')['measurements']==[]
@@ -339,6 +351,20 @@ class PHPMailer {
         # Campo trampa: un bot recibe la misma respuesta, pero no se guarda nada.
         expect(201,'public.php?action=request',{**req,'website':'http://spam.example'})
         assert len(expect(200,'portal.php?action=requests',identity='sales')['requests'])==4
+        # Con el SMTP disponible, la solicitud completa llega al buzón comercial y «Responder» va al cliente.
+        (web/'vendor/fail-mail').unlink()
+        reset_rate();sent=expect(201,'public.php?action=request',{**req,'entity':'Ayuntamiento de prueba','phone':'612345678'})
+        notice=json.loads((web/'vendor/mail.jsonl').read_text(encoding='utf-8').splitlines()[-1])
+        (web/'vendor/fail-mail').touch()
+        assert notice['to']=='sales@example.test' and notice['replyTo']=='client@example.test'
+        assert notice['subject']==f"AERIQ · Nueva solicitud #{sent['id']} · Ayuntamiento de prueba"
+        for line in [f"Solicitud: #{sent['id']}",'Servicio: Contratar un estudio de ozono','Tipo de organización: Administración pública',
+                     'Organización: Ayuntamiento de prueba','Contacto: Contact','Correo: client@example.test','Teléfono: 612345678',
+                     'Municipio: Gandia (Valencia)','Zona: UPV','Objetivos: Calidad del aire en espacios públicos, Investigación o divulgación',
+                     'Superficie: 100 m²','Duración: 2 semanas','Daily report']:
+            assert line in notice['body'],(line,notice['body'])
+        # Sin variable de entorno, el destino es el buzón oficial de Código Norte.
+        assert re.search(r"const AERIQ_COMMERCIAL_EMAIL_DEFAULT='([^']+)'",(ROOT/'src/web/server/AeriqCore.php').read_text(encoding='utf-8')).group(1)=='codigonorte.aeriq@gmail.com'
         # Autoasignación real desde Android: persistencia, idempotencia y aislamiento.
         expect(401,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Mi Orb'})
         expect(422,'sensor-link.php',{'address':'incorrecta','name':'Mi Orb'},token=token)

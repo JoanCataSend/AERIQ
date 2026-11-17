@@ -355,6 +355,19 @@ body[data-page="mapa"]{overflow-x:hidden}
 .map-legend .scale-labels span:nth-child(2){text-align:center}
 .map-legend .scale-labels span:nth-child(3){text-align:right}
 .map-legend p{margin-top:10px;font-size:12px;color:var(--ink-3);line-height:1.45}
+/* Estados sin nivel de ozono: gris discontinuo = datos insuficientes; sin relleno = sin datos. */
+.legend-states{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;font-size:12.5px;color:var(--ink-2)}
+.legend-states li{display:flex;align-items:center;gap:8px}
+.legend-swatch{width:18px;height:12px;border-radius:3px;flex:none}
+.legend-partial{background:rgba(104,109,107,.2);border:1px dashed #686d6b}
+.legend-empty{border:1px solid var(--line-strong)}
+.radius-control{display:grid;gap:8px;margin-top:16px}
+.radius-control label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14.5px;color:var(--ink)}
+.radius-control output{font-weight:600;font-variant-numeric:tabular-nums}
+.radius-control input[type=range]{width:100%;margin:0;accent-color:var(--brand);cursor:pointer}
+.radius-control p.help{margin-top:0}
+.radius-reset{justify-self:start;padding:0;border:0;background:transparent;font-size:13.5px;font-weight:550;color:var(--brand);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.radius-reset[hidden]{display:none}
 .footer-compact{padding:16px 0}
 .footer-compact .footer-bottom{margin:0;padding:0;border:0}
 

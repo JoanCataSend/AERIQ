@@ -33,6 +33,7 @@ La prueba DOM necesita jsdom, instalado solo como herramienta local, no como dep
 ```powershell
 npm install --prefix .local-backups/test-tools jsdom --no-audit --no-fund
 node scripts/tests/ui-contract.test.js
+node scripts/tests/map-interpolation.test.js
 ```
 
 `preview-aeriq.js` sirve la interfaz con respuestas ficticias para una revisión manual local en `127.0.0.1:8766`. No ejecuta PHP ni acredita pruebas de permisos; se detiene con Ctrl+C.

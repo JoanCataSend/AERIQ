@@ -51,6 +51,15 @@ Configura `MailConfig.php` para `mail()` o `SMTPConfig.php` más `composer insta
 
 Una invitación crea la cuenta pendiente de activación. El cambio inicial o la recuperación por correo verifican el acceso y activan la cuenta. Si falla el transporte de invitación, el alta se revierte. La aceptación del transporte no garantiza llegada a bandeja: comprobarlo en el alojamiento sigue siendo necesario.
 
+### Comprobar que las solicitudes llegan a codigonorte.aeriq@gmail.com
+
+Las pruebas locales verifican el destinatario, el asunto, el contenido y el `Reply-To` con un SMTP falso; la entrega real solo se comprueba en Plesk:
+
+1. Crea `server/SMTPConfig.php` a partir del ejemplo con `smtp.gmail.com`, puerto 587, `tls`, la cuenta `codigonorte.aeriq@gmail.com` como usuario y remitente, y una contraseña de aplicación de Google (no la contraseña normal de la cuenta). No subas este archivo a GitHub.
+2. Envía una solicitud de prueba desde `solicitar.html`.
+3. Comprueba que llega a la bandeja de codigonorte.aeriq@gmail.com con el asunto «AERIQ · Nueva solicitud #… · organización» (revisa también Spam) y que «Responder» se dirige al correo escrito en el formulario.
+4. Si no llega, busca «aviso comercial no entregado» o «fallo en SMTP» en el registro de errores de PHP de Plesk. La persona que envía ve igualmente la confirmación y la solicitud queda guardada en el panel comercial.
+
 ## Acceso con Google (Firebase)
 
 1. En Firebase Console, proyecto `airiq-e9d70`, habilita `Authentication > Sign-in method > Google`.

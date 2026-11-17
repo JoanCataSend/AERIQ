@@ -16,6 +16,7 @@ Desde la raíz del repositorio (Windows/PowerShell; Python 3.9+):
 python scripts/audit-repository.py                 # estructura, enlaces de docs, secretos, sintaxis JS/PHP, SHA-256 de recursos originales
 node scripts/tests/aeriq-domain.test.js            # dominio JS: IDW, estadísticas, CSV (sin DOM)
 node scripts/tests/ui-contract.test.js             # prueba DOM con jsdom y API falsa (ver abajo)
+node scripts/tests/map-interpolation.test.js       # mapa en jsdom: zonas estimadas, sin datos y radio (doc/interpolacion.md)
 python scripts/tests/integration-aeriq.py --php C:/xampp/php/php.exe --mysql-bin C:/xampp/mysql/bin   # PHP+MariaDB aislados
 php scripts/tests/google-auth-unit.php
 python scripts/tests/google-auth-live.py           # solo envía un token inválido al despliegue real

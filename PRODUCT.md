@@ -39,7 +39,7 @@ Lo que la distingue: un sensor que cabe en un llavero y viaja con quien mide, en
 ## Capabilities and Constraints
 
 - Mapa público con mediciones reales o simuladas (siempre separadas), periodo (24 h, 7 días, histórico), capas, búsqueda, tema claro/oscuro y exportación CSV.
-- Interpolación IDW local acotada (20–50 m); sin soporte suficiente, la zona queda sin color.
+- Interpolación IDW local acotada (radio configurable de 20–50 m): con datos insuficientes la zona se marca en gris y sin mediciones próximas queda sin color.
 - Ozono en ppb, temperatura en °C, fechas en UTC. No se convierten unidades.
 - Los umbrales verde/naranja/rojo son parámetros de campaña, no umbrales oficiales.
 - No hay autoregistro, ni venta ni suscripciones a particulares: las organizaciones piden presupuesto.

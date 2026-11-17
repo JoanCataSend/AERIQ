@@ -16,7 +16,7 @@ La [especificación completa](especificacion-sprint.md) contiene los criterios d
 | HU18 | Kits para administraciones: entidad, contacto, cantidad/finalidad y registro confirmado. |
 | HU19 | Kits para empresas: contacto, instalaciones, cantidad y registro confirmado. |
 | HU20 | Estudios: superficie, duración, necesidades/resultados y confirmación de revisión de presupuesto. |
-| HU28 | IDW local acotado 20–50 m con soporte suficiente, modos separados y zonas sin color cuando falta soporte. |
+| HU28 | IDW local acotado con radio configurable de 20–50 m, modos real y simulado separados, celdas grises con datos insuficientes y zonas sin color cuando no hay mediciones próximas. Ver [interpolación](interpolacion.md). |
 | HU29 | Diagnóstico de recepción independiente del envío; pérdida de anuncios y problemas de red no se confunden. |
 | HU30 | Panel comercial privado con solicitudes, contacto, fechas, estados y aviso opcional sin perder el registro. |
 

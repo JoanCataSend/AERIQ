@@ -251,13 +251,6 @@
       else feedback.textContent=error.message||'No se ha podido enviar la solicitud. Inténtalo de nuevo.';
     }finally{setBusy(false);}
   });
-  $('#new-request').addEventListener('click',()=>{
-    form.reset();touched.clear();
-    for(const name of FIELDS)show(name,'');
-    summary.hidden=true;feedback.textContent='';$('#email-hint').hidden=true;
-    $('#request-success').hidden=true;form.hidden=false;
-    syncStudy();updateCount();form.querySelector('[name=interest]')?.focus();
-  });
 
   // ------------------------------------------------------------ Arranque
   updateCount();

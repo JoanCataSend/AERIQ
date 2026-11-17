@@ -5,7 +5,11 @@ const root=path.resolve(__dirname,'../../src/web');
 const campaign={id:1,nombre:'Campaña de revisión visual',zona:'UPV Gandía',inicio:'2026-11-01',fin:'2026-12-01',activa:1,publicar:1,radio_m:30,umbral_medio:60,umbral_alto:100};
 const worker={id:2,nombre:'Persona',apellidos:'de prueba',email:'trabajador@example.test',rol:'trabajador',rol_nombre:'Trabajador',puede_medir:1,activo:1,cambiar_clave:1};
 const device={id:1,nombre:'Orb de prueba',direccion_ble:'AA:BB:CC:DD:EE:01',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-02 12:00:00'};
-const rows=[0,1,2].map(i=>({id:i+1,campaignId:1,valor:50+i*30,unidad:'ppb',capturada_en:'2026-11-02 12:00:00.000',latitud:38.99665+(i===1?.00005:0),longitud:-.166+(i===2?.00005:0),simulado:true,zona:campaign.zona,radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:device.nombre,campana:campaign.nombre}));
+// Posiciones ficticias para revisar la interpolación (T25): un grupo denso de 5 × 3 a ~11 m (zona coloreada),
+// dos posiciones próximas y una aislada (datos insuficientes, en gris). El resto del mapa queda sin datos.
+const fake=(id,latitud,longitud,valor)=>({id,campaignId:1,valor,unidad:'ppb',capturada_en:'2026-11-02 12:00:00.000',latitud,longitud,simulado:true,zona:campaign.zona,radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:device.nombre,campana:campaign.nombre});
+const rows=[38,42,47,51,56,61,66,72,78,84,91,97,103,108,114].map((valor,n)=>fake(n+1,38.996651+Math.floor(n/5)*.0001,-.166009+(n%5)*.00013,valor))
+  .concat([fake(16,38.9975,-.1664,58),fake(17,38.9976,-.1664,64),fake(18,38.9962,-.1648,70)]);
 // Catálogos del formulario comercial (mismos códigos que schema.sql).
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios con app y panel. Te recomendamos cuántos necesitas.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros la zona durante un tiempo, sin comprar sensores, y entregamos un informe.',mide_superficie:true},{codigo:'asesoramiento',nombre:'No lo tengo claro, aconsejadme',descripcion:'Cuéntanos tu caso y te proponemos la opción que mejor encaja.',mide_superficie:false}],
  orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad (centro educativo, asociación…)'}],
