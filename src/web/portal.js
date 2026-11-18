@@ -82,7 +82,7 @@ async function commercial(){
   const sales=can(user,'solicitudes.gestionar');
   if(sales){document.querySelector('#commercial-panel').hidden=false;await commercial();}
   else if(can(user,'informes.ver')){document.querySelector('#organization-panel').hidden=false;for(const n of document.querySelectorAll('[data-admin]'))n.hidden=!administrator;await refresh();}
-  else throw new Error('Esta cuenta no tiene permisos de administración o análisis. Utiliza la aplicación Android para tu Orb.');
+  else throw new Error('Esta cuenta no tiene permisos de administración o análisis. Utiliza la aplicación Android para gestionar el Orb que tienes asignado.');
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
   window.workspaceRole=sales?'comercial':user.role;showWorkspace(location.hash.slice(1)||'overview');
 }catch(e){portalFeedback.textContent=e.message;}})();

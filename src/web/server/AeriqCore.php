@@ -103,7 +103,7 @@ function aeriq_worker(array $a,array $d): array {
         // Solo se persiste su hash; el valor original se envía al destinatario.
         $temporary=bin2hex(random_bytes(16));$hash=password_hash($temporary,PASSWORD_DEFAULT);
         aeriq_sql('INSERT INTO usuarios(organizacion_id,rol_id,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave,invitacion_expira_en) VALUES(?,?,?,?,?,?,0,1,DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR))',[$org,(int)$role['id'],$name,$last,$email,$hash,$hours]);$id=(int)$db->insert_id;
-        aeriq_mail($email,'AERIQ · Invitación de tu organización',"Tu organización te invita a AERIQ.\nCorreo: $email\nContraseña temporal: $temporary\n\nAbre AERIQ e inicia sesión con este mismo correo. Puedes entrar con Google (la cuenta se activa en el primer acceso) o con la contraseña temporal (cámbiala para activar la cuenta). El acceso temporal caduca en $hours horas. Si caduca, recupera el acceso desde la web o la app.\nCódigo Norte · Orb");
+        aeriq_mail($email,'AERIQ · Invitación de tu organización',"Tu organización te invita a AERIQ.\nCorreo: $email\nContraseña temporal: $temporary\n\nAbre AERIQ e inicia sesión con este mismo correo. Puedes entrar con Google (la cuenta se activa en el primer acceso) o con la contraseña temporal (cámbiala para activar la cuenta). El acceso temporal caduca en $hours horas. Si caduca, recupera el acceso desde la web o la app.\nCódigo Norte · AERIQ");
         $db->commit();return ['ok'=>true,'id'=>$id,'message'=>'Invitación registrada. El servidor ha aceptado el correo; la cuenta se activará al cambiar la contraseña.'];
     } catch (Throwable $e) {$db->rollback();throw $e;}
 }

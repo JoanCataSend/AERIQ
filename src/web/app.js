@@ -6,7 +6,14 @@ function toast(msg){const n=document.querySelector('#toast');if(!n)return;n.text
 const $=(s,root=document)=>root.querySelector(s),$$=(s,root=document)=>[...root.querySelectorAll(s)];
 function initNavigation(){
   const toggle=$('[data-menu-toggle]');
-  toggle?.addEventListener('click',()=>$('.main-nav')?.classList.toggle('open'));
+  const nav=toggle?.getAttribute('aria-controls')?document.getElementById(toggle.getAttribute('aria-controls')):$('.main-nav');
+  if(toggle&&nav){
+    const setMenu=open=>{nav.classList.toggle('open',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Cerrar menú':'Abrir menú');};
+    toggle.addEventListener('click',()=>setMenu(!nav.classList.contains('open')));
+    nav.addEventListener('click',event=>{if(event.target.closest('a'))setMenu(false);});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&nav.classList.contains('open')){setMenu(false);toggle.focus();}});
+    addEventListener('resize',()=>{if(matchMedia('(min-width: 861px)').matches)setMenu(false);});
+  }
   // Sobre una sección oscura (.dark) la cabecera translúcida pasa a texto claro para que se lea.
   const header=$('.site-header'),darks=$$('.dark');
   if(header&&darks.length){
@@ -91,7 +98,7 @@ function initSensorProduct(){
  const main=$('#product-main-image');
  $$('[data-angle]').forEach(button=>button.addEventListener('click',()=>{
    $$('[data-angle]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button))});
-   if(main){main.src=button.dataset.imageSrc;main.alt=button.dataset.imageAlt||'Sensor AERIQ O₃'}
+   if(main){main.src=button.dataset.imageSrc;main.alt=button.dataset.imageAlt||'Sensor Orb de ozono (O₃)'}
  }));
  $$('[data-angle]').forEach(b=>b.setAttribute('aria-pressed',String(b.classList.contains('active'))));
 }
