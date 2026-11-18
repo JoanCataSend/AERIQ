@@ -76,7 +76,8 @@ y la API dejan los sensores nuevos en modo real por defecto.
 4. Abrir el panel web con la misma organización: flota con última recepción y,
    en informes, elegir la campaña del sensor y las fechas UTC actuales.
 5. Sin GPS las lecturas se guardan y salen en informes/historial, pero no en el
-   mapa. Con GPS se ven en **Mi organización → Mediciones reales**. Una campaña
+   mapa. Con GPS se ven en **Mi organización → Mediciones reales**, y la casilla
+   **Ruta del Orb** dibuja por dónde ha pasado cada Orb. Una campaña
    privada sigue excluida del mapa público; publicar requiere configuración de
    su organización. No se cambia ese permiso automáticamente.
 

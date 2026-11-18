@@ -15,7 +15,7 @@ public final class ForegroundCaptureLocation {
     private final LocationManager manager;
     private Location last;
     private final LocationListener listener = new LocationListener() {
-        @Override public void onLocationChanged(Location location) { last = location; }
+        @Override public void onLocationChanged(Location location) { if (better(location, last)) last = location; }
         @Override public void onProviderEnabled(String provider) {}
         @Override public void onProviderDisabled(String provider) {}
         @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
@@ -43,10 +43,26 @@ public final class ForegroundCaptureLocation {
             try {
                 if (!manager.isProviderEnabled(provider)) continue;
                 Location cached = manager.getLastKnownLocation(provider);
-                if (cached != null && (last == null || cached.getTime() > last.getTime())) last = cached;
-                manager.requestLocationUpdates(provider, 3000, 3, listener, Looper.getMainLooper());
+                if (cached != null && better(cached, last)) last = cached;
+                // Distancia mínima 0: con el móvil quieto también llegan posiciones nuevas. Con 3 m, una
+                // persona parada dejaba de recibirlas y, pasado un minuto, las lecturas se enviaban sin GPS.
+                manager.requestLocationUpdates(provider, 2000, 0, listener, Looper.getMainLooper());
             } catch (IllegalArgumentException | SecurityException ignored) {}
         }
+    }
+
+    /**
+     * Red y GPS llegan mezclados: una posición de red (decenas o cientos de metros) no sustituye a una
+     * de GPS más precisa y reciente. Pasados 10 s sin nada mejor, gana la más nueva.
+     */
+    static boolean better(Location candidate, Location current) {
+        if (current == null) return true;
+        long newer = candidate.getTime() - current.getTime();
+        if (newer > 10_000) return true;
+        if (newer < -10_000) return false;
+        float a = candidate.hasAccuracy() ? candidate.getAccuracy() : Float.MAX_VALUE;
+        float b = current.hasAccuracy() ? current.getAccuracy() : Float.MAX_VALUE;
+        return newer >= 0 ? a <= b + 5 : a < b;
     }
 
     public Location current() {

@@ -17,9 +17,11 @@ async function page(name,search=''){
   const w=dom.window;
   w.matchMedia=()=>({matches:false});w.requestAnimationFrame=f=>w.setTimeout(f,0);w.URL.createObjectURL=()=> 'blob:test';w.URL.revokeObjectURL=()=>{};
   w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
-  w.HTMLCanvasElement.prototype.getContext=()=>({beginPath(){},moveTo(){},lineTo(){},fillRect(){},stroke(){}});
-  const chain=()=>({addTo(){return this;},on(){return this;},setView(){return this;},setCenter(){},clearLayers(){},addLayer(){},getBounds(){return {pad(){return this;},contains(){return true;}};},getCenter(){return {lat:38.99665};},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){}});
-  w.L={map:chain,layerGroup:chain,tileLayer:chain,circleMarker:chain,rectangle:chain,latLngBounds:chain};
+  w.HTMLCanvasElement.prototype.getContext=()=>({beginPath(){},moveTo(){},lineTo(){},fillRect(){},stroke(){},clearRect(){},drawImage(){},putImageData(){},createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}});
+  // El mapa pinta las zonas en un lienzo propio (public-map.js): proyección lineal de ~1 m por píxel en el campus.
+  const chain=()=>({addTo(){return this;},on(){return this;},setView(){return this;},setCenter(){},clearLayers(){},addLayer(){},getBounds(){return {pad(){return this;},contains(){return true;}};},getCenter(){return {lat:38.99665};},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){},bindTooltip(){return this;},
+    getSize(){return {x:800,y:600};},containerPointToLatLng([x,y]){return {lat:38.9984-y*9e-6,lng:-0.1704+x*11.6e-6};},containerPointToLayerPoint(){return {x:0,y:0};},createPane(){return w.document.createElement('div');}});
+  w.L={map:chain,layerGroup:chain,tileLayer:chain,circleMarker:chain,rectangle:chain,polyline:chain,latLngBounds:chain,DomUtil:{setPosition(){}}};
   w.fetch=async(url,options={})=>{
     const u=new URL(url,'http://localhost/');const body=options.body?JSON.parse(options.body):null;calls.push({path:u.pathname,action:u.searchParams.get('action'),body});
     let data;

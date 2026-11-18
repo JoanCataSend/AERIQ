@@ -28,7 +28,8 @@
     separacionMin:5,         // lecturas más juntas (m) cuentan como una sola posición: deriva del GPS
     potencia:2,              // exponente del peso 1/d^p
     distanciaMin:1,          // suelo de distancia (m) para no dividir entre cero
-    celda:10                 // lado de la celda de pintado (m)
+    celda:10,                // lado (m) de la rejilla de validación de las pruebas
+    maxEvaluaciones:250000   // puntos que raster() evalúa como máximo por pintado; si se alcanza, se avisa
   });
   const METROS_GRADO=111320;
   // Solo se interpolan lecturas de la misma campaña, unidad y origen (real/simulado).
@@ -85,6 +86,52 @@
   }
   /** Valor interpolado o null si el punto queda sin datos. Acepta lecturas en bruto. */
   function interpolate(point,rows,radius,options){return estimate(point,support(rows,options),radius,options).valor;}
+  /** Estado de cada punto de raster(): 0 sin datos, 1 datos insuficientes, 2-4 nivel bajo, moderado o alto. */
+  const ZONA=Object.freeze({sinDatos:0,insuficiente:1,bajo:2,moderado:3,alto:4});
+  /** Índices [desde, hasta] de los valores de una lista ordenada (creciente o decreciente) que caen en [min, max]. */
+  function span(values,min,max){
+    const n=values.length,asc=n<2||values[0]<=values[n-1],at=i=>asc?values[i]:values[n-1-i];
+    let lo=0,hi=n;while(lo<hi){const m=(lo+hi)>>1;if(at(m)<min)lo=m+1;else hi=m;}
+    let a=lo;hi=n;while(lo<hi){const m=(lo+hi)>>1;if(at(m)<=max)lo=m+1;else hi=m;}
+    const b=lo-1;return asc?[a,b]:[n-1-b,n-1-a];
+  }
+  /**
+   * Rejilla para pintar las zonas sin celdas cuadradas: evalúa estimate() en el centro de cada punto de una
+   * rejilla fina (la pantalla, cada pocos píxeles), así el borde de cada zona sigue el radio y sale redondo.
+   * lats: latitud de cada fila; lngs: longitud de cada columna (ordenadas). groups: [{samples, radius,
+   * umbral_medio, umbral_alto}], con samples ya reducidas por support(). Solo se evalúan los puntos cercanos
+   * a alguna posición. Si varios grupos alcanzan un punto, un valor estimado gana a «datos insuficientes».
+   * Devuelve {filas, columnas, estados (Uint8Array con ZONA, fila a fila), evaluadas, recortado}.
+   */
+  function raster(groups,lats,lngs,options){
+    const o={...INTERPOLACION,...options},R=lats.length,C=lngs.length,states=new Uint8Array(R*C),seen=new Uint32Array(R*C);
+    let evaluated=0,clipped=false,pass=0;
+    const bucketLat=o.radioMax*1.1/METROS_GRADO;
+    scan:for(const g of groups){
+      const radius=Number(g.radius);pass++;
+      if(!g.samples?.length||!Number.isFinite(radius)||radius<o.radioMin||radius>o.radioMax)continue;
+      // Cubos de ~radio máximo para comparar cada punto solo con las posiciones vecinas.
+      const cos=Math.max(.01,Math.cos(Number(g.samples[0].latitud)*Math.PI/180)),bucketLon=bucketLat/cos,buckets=new Map();
+      for(const s of g.samples){const k=`${Math.floor(s.latitud/bucketLat)}:${Math.floor(s.longitud/bucketLon)}`;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(s);}
+      const dLat=radius/METROS_GRADO;
+      for(const s of g.samples){
+        const lat=Number(s.latitud),lng=Number(s.longitud),dLng=dLat/Math.max(.01,Math.cos(lat*Math.PI/180));
+        const [r0,r1]=span(lats,lat-dLat,lat+dLat),[c0,c1]=span(lngs,lng-dLng,lng+dLng);
+        for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++){
+          const k=i*C+j;if(seen[k]===pass||states[k]>=ZONA.bajo)continue;seen[k]=pass;
+          // El tope de rendimiento se avisa: una zona recortada no debe confundirse con una zona sin datos.
+          if(evaluated>=o.maxEvaluaciones){clipped=true;break scan;}
+          evaluated++;
+          const x=Math.floor(lats[i]/bucketLat),y=Math.floor(lngs[j]/bucketLon),near=[];
+          for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const list=buckets.get(`${x+a}:${y+b}`);if(list)near.push(...list);}
+          const e=estimate([lats[i],lngs[j]],near,radius,o);
+          if(e.valor!==null)states[k]=ZONA[level(e.valor,Number(g.umbral_medio),Number(g.umbral_alto))];
+          else if(e.motivo==='insuficiente')states[k]=ZONA.insuficiente;
+        }
+      }
+    }
+    return {filas:R,columnas:C,estados:states,evaluadas:evaluated,recortado:clipped};
+  }
   // Batería del Orb (mismos tramos que sus LED): alta > 60 %, media 20–60 %, baja < 20 %.
   // Sin dato no se inventa nada: «Sin datos» hasta que el Orb con medidor la envíe.
   function battery(percent,at){
@@ -92,6 +139,22 @@
     const p=Number(percent),tier=p>60?'alta':p>=20?'media':'baja';
     return `${p} % · ${tier}`+(at?` · ${String(at).slice(0,16)} UTC`:'');
   }
-  const api={level,csv,statistics,distance,INTERPOLACION,groupKey,support,estimate,describe,interpolate,battery};
+  /**
+   * Ruta de un Orb: sus posiciones en orden de captura, partida en tramos cuando pasan más de
+   * maxHueco minutos entre dos lecturas (un descanso o un día distinto no se une con una línea recta).
+   * rows: lecturas con latitud, longitud y capturada_en (UTC). Devuelve una lista de tramos de lecturas.
+   */
+  function route(rows,maxHueco=10){
+    const time=r=>Date.parse(String(r.capturada_en??'').replace(' ','T')+'Z');
+    const valid=rows.filter(r=>[r.latitud,r.longitud].every(v=>v!==null&&v!==''&&Number.isFinite(Number(v)))&&Number.isFinite(time(r)));
+    const sorted=[...valid].sort((a,b)=>time(a)-time(b)||Number(a.id??0)-Number(b.id??0)),out=[];
+    let last=null;
+    for(const r of sorted){
+      if(!last||time(r)-time(last)>maxHueco*60000)out.push([]);
+      out[out.length-1].push(r);last=r;
+    }
+    return out;
+  }
+  const api={level,csv,statistics,distance,INTERPOLACION,groupKey,support,estimate,describe,interpolate,ZONA,raster,route,battery};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AeriqDomain=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

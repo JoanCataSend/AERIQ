@@ -21,7 +21,7 @@ La acción `google` verifica la firma RS256 del ID token con los certificados p�
 | `campaign` | POST `organizacion.gestionar` | `id?`, `name,zone,start,end,active,public,radius,medium,high`. `zone` es el nombre: se reutiliza la zona si existe. `medium/high` se guardan en `campana_umbrales` |
 | `device` | POST `organizacion.gestionar` | `id?`, `name,address,worker,campaign,active,simulated`; `worker` debe tener el permiso `mediciones.registrar` |
 | `readings` | GET `informes.ver` | `type` (14, 12 o `all`), `campaign,devices` (IDs con comas), `zone` (nombre de zona), `from,to`. Cada fila incluye `tipo`; los umbrales son `null` en magnitudes sin umbral (temperatura) |
-| `map` | GET `mapa.organizacion` | Mismo formato de mapa público. Sin `informes.ver` solo ve sus propias asignaciones |
+| `map` | GET `mapa.organizacion` | Mismo formato de mapa público y, además, `dispositivo_id` y `dispositivo` (nombre del Orb) en cada medición, para dibujar la ruta de un Orb. Sin `informes.ver` solo ve sus propias asignaciones |
 | `requests` | GET `solicitudes.gestionar` | `requests` (con `servicio`, `servicio_nombre`, `estado`, `estado_nombre` e `historial`) y `states` (catálogo ordenado) |
 | `request-status` | POST `solicitudes.gestionar` | `id,status`; `status` es un código de `estados_solicitud` (`pendiente`, `en_revision`, `respondida`, `cerrada`). Cada cambio queda en `solicitudes_historial` con la persona y la fecha |
 
@@ -47,7 +47,7 @@ El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta
 
 ## Público: `public.php`
 
-GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 2.000 lecturas recientes del filtro, sin identidad del trabajador.
+GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 2.000 lecturas recientes del filtro, sin identidad del trabajador ni del Orb: con el mapa público no se puede reconstruir el recorrido de nadie.
 
 GET `?action=services` devuelve los catálogos del formulario comercial:
 - `services`: código, nombre, descripción y `mide_superficie` de cada servicio activo (`kits`, `estudio`, `asesoramiento`), ordenados por `servicios.orden`.

@@ -7,9 +7,14 @@ const worker={id:2,nombre:'Persona',apellidos:'de prueba',email:'trabajador@exam
 const device={id:1,nombre:'Orb de prueba',direccion_ble:'AA:BB:CC:DD:EE:01',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-02 12:00:00'};
 // Posiciones ficticias para revisar la interpolación (T25): un grupo denso de 5 × 3 a ~11 m (zona coloreada),
 // dos posiciones próximas y una aislada (datos insuficientes, en gris). El resto del mapa queda sin datos.
-const fake=(id,latitud,longitud,valor)=>({id,campaignId:1,valor,unidad:'ppb',capturada_en:'2026-11-02 12:00:00.000',latitud,longitud,simulado:true,zona:campaign.zona,radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:device.nombre,campana:campaign.nombre});
+const fake=(id,latitud,longitud,valor)=>({id,campaignId:1,valor,unidad:'ppb',capturada_en:'2026-11-02 12:00:00.000',latitud,longitud,simulado:true,zona:campaign.zona,radio_m:30,umbral_medio:60,umbral_alto:100,campana:campaign.nombre});
 const rows=[38,42,47,51,56,61,66,72,78,84,91,97,103,108,114].map((valor,n)=>fake(n+1,38.996651+Math.floor(n/5)*.0001,-.166009+(n%5)*.00013,valor))
   .concat([fake(16,38.9975,-.1664,58),fake(17,38.9976,-.1664,64),fake(18,38.9962,-.1648,70)]);
+// «Mi organización»: las mismas posiciones con su Orb y una hora por lectura, para revisar la ruta.
+// El grupo denso se recorre en zigzag cada minuto; las tres sueltas llegan tras un hueco de 30 min (otro tramo).
+const zigzag=[0,1,2,3,4,9,8,7,6,5,10,11,12,13,14];
+const at=minutes=>`2026-11-02 ${String(12+Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}:00.000`;
+const mine=rows.map((r,n)=>({...r,dispositivo_id:device.id,dispositivo:device.nombre,capturada_en:at(n<15?zigzag.indexOf(n):45+n-15)}));
 // Catálogos del formulario comercial (mismos códigos que schema.sql).
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios con app y panel. Te recomendamos cuántos necesitas.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros la zona durante un tiempo, sin comprar sensores, y entregamos un informe.',mide_superficie:true},{codigo:'asesoramiento',nombre:'No lo tengo claro, aconsejadme',descripcion:'Cuéntanos tu caso y te proponemos la opción que mejor encaja.',mide_superficie:false}],
  orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad (centro educativo, asociación…)'}],
@@ -17,8 +22,9 @@ const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organizaci�
  provinces:['Alicante','Castellón','Madrid','Valencia'],durations:['1 semana','2 semanas','1 mes','3 meses','Más de 3 meses','A definir con Código Norte']};
 const server=http.createServer((req,res)=>{
   const u=new URL(req.url,'http://localhost');let data;
-  if(u.pathname==='/auth.php')data={ok:true,csrf:'visual-test',user:{id:1,name:'Revisión',last:'visual',role:'admin',roleName:'Administrador',permissions:['informes.ver','mapa.organizacion','mediciones.registrar','organizacion.gestionar'],organization:'Organización de prueba · revisión visual',mustChangePassword:false,email:'admin@example.test'}};
-  else if(u.pathname==='/portal.php')data=u.searchParams.get('action')==='readings'?{readings:rows}:{workers:[worker],campaigns:[campaign],devices:[device],zones:[{id:1,nombre:campaign.zona}],roles:[{codigo:'trabajador',nombre:'Trabajador',descripcion:'Recoge mediciones con los Orb que tiene asignados.'},{codigo:'analista',nombre:'Analista',descripcion:'Consulta informes y exporta los datos de su organización.'}],thresholds:{umbral_medio:60,umbral_alto:100}};
+  if(u.pathname==='/auth.php')data={ok:true,csrf:'visual-test',user:{id:1,name:'Revisión',last:'visual',role:'admin',roleName:'Administrador',permissions:['informes.ver','mapa.organizacion','mediciones.registrar','organizacion.gestionar'],organization:'Organización de prueba · revisión visual',organizationId:1,mustChangePassword:false,email:'admin@example.test'}};
+  else if(u.pathname==='/portal.php'&&u.searchParams.get('action')==='map')data={measurements:u.searchParams.get('mode')==='simulated'?mine:[],mode:u.searchParams.get('mode'),truncated:false};
+  else if(u.pathname==='/portal.php')data=u.searchParams.get('action')==='readings'?{readings:rows.map(r=>({...r,dispositivo:device.nombre}))}:{workers:[worker],campaigns:[campaign],devices:[device],zones:[{id:1,nombre:campaign.zona}],roles:[{codigo:'trabajador',nombre:'Trabajador',descripcion:'Recoge mediciones con los Orb que tiene asignados.'},{codigo:'analista',nombre:'Analista',descripcion:'Consulta informes y exporta los datos de su organización.'}],thresholds:{umbral_medio:60,umbral_alto:100}};
   else if(u.pathname==='/public.php'&&req.method==='POST')data={ok:true,id:42,message:'Solicitud registrada (revisión visual, no se guarda).'};
   else if(u.pathname==='/public.php'&&u.searchParams.get('action')==='services')data=catalogs;
   else if(u.pathname==='/public.php')data={measurements:u.searchParams.get('mode')==='simulated'?rows:[],mode:u.searchParams.get('mode'),truncated:false};

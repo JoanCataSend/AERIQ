@@ -307,6 +307,8 @@ class PHPMailer {
         assert expect(200,'public.php?action=map&mode=simulated')['measurements']==[]
         private=expect(200,'portal.php?action=map&mode=simulated',identity='a')
         assert len(private['measurements'])==3
+        # El mapa de la organización identifica el Orb de cada medición (ruta del Orb en la web).
+        assert all(row['dispositivo_id']==did and row['dispositivo']==device['name'] for row in private['measurements'])
         sql(f"USE aeriq_test; INSERT INTO usuarios(id,organizacion_id,rol_id,nombre,apellidos,email,password_hash,verificado_en) VALUES(50,1,(SELECT id FROM roles WHERE codigo='trabajador'),'Segundo','Operador','second@example.test','{hashed}',UTC_TIMESTAMP());")
         expect(200,'portal.php?action=device',{**device,'id':did,'worker':50},'a')
         assert len(expect(200,'field.php?action=history',token=token)['readings'])==3
@@ -318,6 +320,8 @@ class PHPMailer {
         assert len(published)==3
         # El mapa recibe el radio configurado en la campaña, que es el que aplica la interpolación.
         assert all(row['radio_m']==40 and row['simulado'] is True for row in published)
+        # El mapa público nunca dice qué Orb tomó cada medición: no se puede reconstruir su ruta.
+        assert not any('dispositivo_id' in row or 'dispositivo' in row for row in published)
         assert expect(200,'public.php?action=map&mode=real')['measurements']==[]
         expect(200,'portal.php?action=campaign',{**campaign,'id':cid,'public':False},'a')
         assert expect(200,'public.php?action=map&mode=simulated')['measurements']==[]
