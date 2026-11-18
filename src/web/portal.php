@@ -12,13 +12,19 @@ try {
     }
     $a=aeriq_ready($u,'informes.ver');
     if ($method==='GET' && $action==='dashboard') auth_responder(200,aeriq_dashboard($a));
-    if ($method==='GET' && $action==='readings') auth_responder(200,['readings'=>aeriq_readings($a,$_GET)]);
+    if ($method==='GET' && $action==='readings') {
+        // El CSV se pide con export=1: solo el admin de campaña puede exportar.
+        if (!empty($_GET['export'])) aeriq_ready($u,'datos.exportar');
+        auth_responder(200,['readings'=>aeriq_readings($a,$_GET)]);
+    }
     if ($method==='POST') {
-        if (!aeriq_can($a,'organizacion.gestionar')) throw new AeriqError('Solo el administrador puede gestionar recursos.',403);
         $d=aeriq_json_body();
-        if ($action==='worker') auth_responder(201,aeriq_worker($a,$d));
-        if ($action==='campaign') auth_responder(200,aeriq_campaign_save($a,$d));
-        if ($action==='device') auth_responder(200,aeriq_device_save($a,$d));
+        if ($action==='worker') {
+            if (!aeriq_can($a,'campanas.gestionar') && !aeriq_can($a,'equipo.gestionar')) throw new AeriqError('Tu función no permite crear cuentas.',403);
+            auth_responder(201,aeriq_worker($a,$d));
+        }
+        if ($action==='campaign') auth_responder(200,aeriq_campaign_save(aeriq_ready($u,'campanas.gestionar'),$d));
+        if ($action==='device') auth_responder(200,aeriq_device_save(aeriq_ready($u,'equipo.gestionar'),$d));
     }
     throw new AeriqError('Operación o método no disponible.',405);
 } catch (Throwable $e) { aeriq_failure($e); }
