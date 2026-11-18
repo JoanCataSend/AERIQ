@@ -20,7 +20,7 @@ function googleDestination(user) {
   if (typeof window.authDestination === 'function') return window.authDestination(user);
   if (!user) return 'login.html';
   if (user.mustChangePassword) return 'cambiar-clave.html';
-  return ['admin', 'analista', 'comercial'].includes(user.role) ? 'portal.html' : 'perfil.html';
+  return ['admin', 'admin_campana'].includes(user.role) ? 'portal.html' : 'perfil.html';
 }
 
 function googleErrorMessage(error) {

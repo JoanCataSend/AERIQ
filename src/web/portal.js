@@ -1,7 +1,9 @@
 'use strict';
 const portalFeedback=document.querySelector('#portal-feedback');
-let dashboard={},currentRows=[],administrator=false;
+let dashboard={},currentRows=[],lastFilters={},me={};
 const can=(user,permission)=>(user.permissions||[]).includes(permission);
+// data-perm="a b": el elemento se muestra si la cuenta tiene alguno de esos permisos.
+const allowed=n=>!n.dataset.perm||n.dataset.perm.split(' ').some(p=>can(me,p));
 const levelOf=r=>r.umbral_medio===null||r.umbral_medio===undefined?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text??'—');return n;};
 function table(host,headers,rows,action){
@@ -18,10 +20,10 @@ async function refresh(){
   table(document.querySelector('#workers-list'),['Nombre','Correo','Función','Acceso'],dashboard.workers.map(w=>({cells:[w.nombre+' '+w.apellidos,w.email,w.rol_nombre||w.rol,Number(w.cambiar_clave)?((w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':('Activación pendiente · '+(w.invitacion_expira_en||'')+' UTC')):(Number(w.activo)?'Activo':'Desactivado')]})));
   options('device-worker',dashboard.workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.email);
   catalogs();
-  for(const id of ['device-campaign','report-campaign'])options(id,dashboard.campaigns,c=>c.nombre);
+  for(const id of ['worker-campaign','report-campaign'])options(id,dashboard.campaigns,c=>c.nombre);
   options('report-device',dashboard.devices,d=>d.nombre);
-  table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,Number(c.publicar)?'Autorizada':'Privada'],source:c})),administrator?c=>fill(document.querySelector('#campaign-form'),{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,medium:c.umbral_medio,high:c.umbral_alto,radius:c.radio_m,active:c.activa,public:c.publicar}):null);
-  table(document.querySelector('#devices-list'),['Orb','Dirección BLE','Trabajador','Campaña','Alta','Actividad','Última lectura (UTC)','Batería'],dashboard.devices.map(d=>({cells:[d.nombre,d.direccion_ble,d.trabajador,d.campana,Number(d.activo)?'Activo':'Baja',d.ultima_recepcion?(Date.now()-new Date(d.ultima_recepcion.replace(' ','T')+'Z').getTime()<900000?'Lecturas en los últimos 15 min':'Sin lecturas recientes'):'Sin lecturas',d.ultima_medicion,AeriqDomain.battery(d.bateria_pct,d.bateria_en)],source:d})),administrator?d=>fill(document.querySelector('#device-form'),{id:d.id,name:d.nombre,address:d.direccion_ble,worker:d.trabajador_id,campaign:d.campana_id,active:d.activo,simulated:d.simulado}):null);
+  table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,Number(c.publicar)?'Autorizada':'Privada'],source:c})),can(me,'campanas.gestionar')?c=>fill(document.querySelector('#campaign-form'),{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,medium:c.umbral_medio,high:c.umbral_alto,radius:c.radio_m,active:c.activa,public:c.publicar}):null);
+  table(document.querySelector('#devices-list'),['Orb','Dirección BLE','Trabajador','Campaña','Alta','Actividad','Última lectura (UTC)','Batería'],dashboard.devices.map(d=>({cells:[d.nombre,d.direccion_ble,d.trabajador,d.campana,Number(d.activo)?'Activo':'Baja',d.ultima_recepcion?(Date.now()-new Date(d.ultima_recepcion.replace(' ','T')+'Z').getTime()<900000?'Lecturas en los últimos 15 min':'Sin lecturas recientes'):'Sin lecturas',d.ultima_medicion,AeriqDomain.battery(d.bateria_pct,d.bateria_en)],source:d})),can(me,'equipo.gestionar')?d=>fill(document.querySelector('#device-form'),{id:d.id,name:d.nombre,address:d.direccion_ble,worker:d.trabajador_id,active:d.activo,simulated:d.simulado}):null);
 }
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['device-form','device']]){
   document.getElementById(id).onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
@@ -31,8 +33,8 @@ for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],
 }
 // Funciones, zonas y umbrales de referencia vienen de la base de datos, no del HTML.
 function catalogs(){
-  const role=document.querySelector('#worker-form [name="role"]');
-  if(role&&dashboard.roles?.length){const value=role.value;role.replaceChildren(...dashboard.roles.map(r=>new Option(r.descripcion?`${r.nombre}: ${r.descripcion}`:r.nombre,r.codigo)));if([...role.options].some(o=>o.value===value))role.value=value;}
+  // El servidor decide qué rol crea esta cuenta: admin de campaña u operador.
+  const title=document.querySelector('#worker-title');if(title&&dashboard.roles?.length)title.textContent='Añadir '+dashboard.roles[0].nombre.toLowerCase();
   const list=document.querySelector('#zone-options');if(list)list.replaceChildren(...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));
   const zone=document.querySelector('#report-zone');
   if(zone){const value=zone.value;zone.replaceChildren(new Option('Todas las zonas',''),...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));zone.value=[...zone.options].some(o=>o.value===value)?value:'';}
@@ -55,10 +57,11 @@ function renderReport(rows,group){
   }
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#report-results').replaceChildren();
-  try{const filters=payload(f);filters.devices=[...f.querySelector('#report-device').selectedOptions].map(o=>o.value).filter(Boolean).join(',');delete filters.device;const group=filters.group;delete filters.group;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
+  try{const filters=payload(f);filters.devices=[...f.querySelector('#report-device').selectedOptions].map(o=>o.value).filter(Boolean).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
   catch(error){document.querySelector('#report-summary').textContent=error.message;}finally{b.disabled=false;}
 };
-document.querySelector('#export-report').onclick=()=>{const url=URL.createObjectURL(new Blob([AeriqDomain.csv(currentRows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
+// El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
+document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.portal('readings',undefined,{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
 async function commercial(){
   const {requests,states=[]}=await Aeriq.portal('requests');const host=document.querySelector('#requests-list');host.replaceChildren();
   for(const r of requests){const box=el('article');box.className='portal-section';box.append(el('h3',`#${r.id} · ${r.entidad}`));
@@ -78,21 +81,25 @@ async function commercial(){
 }
 (async()=>{try{
   const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}
-  document.querySelector('#portal-title').textContent=user.organization||'Código Norte';administrator=can(user,'organizacion.gestionar');
-  const sales=can(user,'solicitudes.gestionar');
-  if(sales){document.querySelector('#commercial-panel').hidden=false;await commercial();}
-  else if(can(user,'informes.ver')){document.querySelector('#organization-panel').hidden=false;for(const n of document.querySelectorAll('[data-admin]'))n.hidden=!administrator;await refresh();}
-  else throw new Error('Esta cuenta no tiene permisos de administración o análisis. Utiliza la aplicación Android para gestionar el Orb que tienes asignado.');
+  me=user;document.querySelector('#portal-title').textContent=user.organization||'Código Norte';
+  if(!can(user,'informes.ver'))throw new Error('Esta cuenta no tiene acceso al panel. Utiliza la aplicación Android para gestionar el Orb que tienes asignado.');
+  document.querySelector('#organization-panel').hidden=false;
+  for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
+  await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
-  window.workspaceRole=sales?'comercial':user.role;showWorkspace(location.hash.slice(1)||'overview');
+  showWorkspace(location.hash.slice(1)||'overview');
 }catch(e){portalFeedback.textContent=e.message;}})();
 
 function showWorkspace(view){
-  const commercial=window.workspaceRole==='comercial';if(commercial)view='requests';
   if(!['overview','workers','campaigns','devices','reports','requests'].includes(view))view='overview';
-  if(!commercial&&view==='requests')view='overview';
-  for(const n of document.querySelectorAll('[data-view]'))n.hidden=n.dataset.view!==view||(n.hasAttribute('data-admin')&&!administrator);
-  for(const a of document.querySelectorAll('[data-workspace-view]')){a.hidden=commercial?a.dataset.workspaceView!=='requests':a.dataset.workspaceView==='requests';a.classList.toggle('active',a.dataset.workspaceView===view);}
+  if(view==='requests'&&!can(me,'solicitudes.gestionar'))view='overview';
+  for(const n of document.querySelectorAll('[data-view]'))n.hidden=n.dataset.view!==view||!allowed(n);
+  for(const a of document.querySelectorAll('[data-workspace-view]'))a.classList.toggle('active',a.dataset.workspaceView===view);
 }
 for(const a of document.querySelectorAll('[data-workspace-view]'))a.addEventListener('click',()=>showWorkspace(a.dataset.workspaceView));
 window.addEventListener('hashchange',()=>showWorkspace(location.hash.slice(1)));
+document.querySelector('#logout').onclick=async e=>{
+  const b=e.currentTarget;b.disabled=true;
+  try{await AeriqAuth.post('logout');location.href='login.html';}
+  catch(err){b.disabled=false;portalFeedback.textContent=err.message;}
+};

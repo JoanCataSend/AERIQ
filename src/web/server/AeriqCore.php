@@ -18,7 +18,7 @@ function aeriq_rows(string $sql, array $params = []): array { return aeriq_sql($
 function aeriq_one(string $sql, array $params = []): ?array { return aeriq_rows($sql,$params)[0] ?? null; }
 /** Identidad, organización, rol y permisos de una cuenta, leídos siempre del servidor. */
 function aeriq_access(int $id): array {
-    $a=aeriq_one('SELECT u.id AS usuario_id,u.organizacion_id,o.nombre AS organizacion,u.rol_id,r.codigo AS rol,r.nombre AS rol_nombre,r.requiere_organizacion,u.debe_cambiar_clave AS cambiar_clave,u.activo,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id LEFT JOIN organizaciones o ON o.id=u.organizacion_id WHERE u.id=?',[$id]);
+    $a=aeriq_one('SELECT u.id AS usuario_id,u.organizacion_id,u.campana_id,o.nombre AS organizacion,u.rol_id,r.codigo AS rol,r.nombre AS rol_nombre,r.requiere_organizacion,u.debe_cambiar_clave AS cambiar_clave,u.activo,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id LEFT JOIN organizaciones o ON o.id=u.organizacion_id WHERE u.id=?',[$id]);
     if (!$a) throw new AeriqError('Cuenta no disponible.',401);
     $a['permisos']=array_column(aeriq_rows('SELECT p.codigo FROM rol_permisos rp JOIN permisos p ON p.id=rp.permiso_id WHERE rp.rol_id=? ORDER BY p.codigo',[(int)$a['rol_id']]),'codigo');
     // Un rol de organización sin organización no concede permisos (antes era un CHECK sobre el ENUM).
@@ -63,6 +63,10 @@ function aeriq_own(string $table,int $id,int $org): array {
     $r=aeriq_one("SELECT * FROM $table WHERE id=? AND organizacion_id=?",[$id,$org]);
     if (!$r) throw new AeriqError('El recurso no está disponible en tu organización.',404); return $r;
 }
+/** Campaña a la que se limita la cuenta. null = admin principal: ve toda la organización. */
+function aeriq_campaign(array $a): ?int { return $a['campana_id']===null?null:(int)$a['campana_id']; }
+/** SQL: campaña de la última asignación del Orb d. Un Orb pertenece a la campaña donde se asignó por última vez. */
+const AERIQ_CAMPANA_ORB='(SELECT h.campana_id FROM asignaciones h WHERE h.dispositivo_id=d.id ORDER BY h.iniciada_en DESC,h.id DESC LIMIT 1)';
 function aeriq_password_changed(int $id): void {
     aeriq_sql('UPDATE usuarios SET debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=?',[$id]);
 }
@@ -92,8 +96,16 @@ function aeriq_mail(string $recipient,string $subject,string $text,?string $repl
 }
 function aeriq_worker(array $a,array $d): array {
     $org=aeriq_org($a);$email=auth_email($d['email']??'');$name=auth_string($d['name']??'',90);$last=auth_string($d['last']??'',120);
-    // Solo roles marcados como asignables: un administrador no puede crear otro administrador.
-    $role=aeriq_one('SELECT id FROM roles WHERE codigo=? AND asignable=1 AND requiere_organizacion=1',[is_string($d['role']??null)?$d['role']:'trabajador']);
+    // El admin principal crea el admin de una campaña; el admin de campaña crea operadores de la suya.
+    // El rol y la campaña los decide el servidor, nunca el formulario.
+    if (aeriq_can($a,'campanas.gestionar')) {
+        if (empty($d['campaign'])) throw new AeriqError('Elige la campaña que va a gestionar.',422,'campaign');
+        $campaign=aeriq_int($d['campaign']);aeriq_own('campanas',$campaign,$org);$code='admin_campana';
+    } else {
+        $campaign=aeriq_campaign($a);$code='trabajador';
+        if (!$campaign) throw new AeriqError('Tu cuenta no tiene campaña asignada.',403);
+    }
+    $role=aeriq_one('SELECT id FROM roles WHERE codigo=?',[$code]);
     if (!$role) throw new AeriqError('Función no permitida.');
     $hours=max(1,min(168,(int)(getenv('AERIQ_INVITATION_HOURS')?:24)));
     auth_mail_config_ok();$db=conexionBD();$db->begin_transaction();
@@ -102,7 +114,7 @@ function aeriq_worker(array $a,array $d): array {
         // Cada invitación recibe una clave impredecible y de un solo uso.
         // Solo se persiste su hash; el valor original se envía al destinatario.
         $temporary=bin2hex(random_bytes(16));$hash=password_hash($temporary,PASSWORD_DEFAULT);
-        aeriq_sql('INSERT INTO usuarios(organizacion_id,rol_id,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave,invitacion_expira_en) VALUES(?,?,?,?,?,?,0,1,DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR))',[$org,(int)$role['id'],$name,$last,$email,$hash,$hours]);$id=(int)$db->insert_id;
+        aeriq_sql('INSERT INTO usuarios(organizacion_id,rol_id,campana_id,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave,invitacion_expira_en) VALUES(?,?,?,?,?,?,?,0,1,DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR))',[$org,(int)$role['id'],$campaign,$name,$last,$email,$hash,$hours]);$id=(int)$db->insert_id;
         aeriq_mail($email,'AERIQ · Invitación de tu organización',"Tu organización te invita a AERIQ.\nCorreo: $email\nContraseña temporal: $temporary\n\nAbre AERIQ e inicia sesión con este mismo correo. Puedes entrar con Google (la cuenta se activa en el primer acceso) o con la contraseña temporal (cámbiala para activar la cuenta). El acceso temporal caduca en $hours horas. Si caduca, recupera el acceso desde la web o la app.\nCódigo Norte · AERIQ");
         $db->commit();return ['ok'=>true,'id'=>$id,'message'=>'Invitación registrada. El servidor ha aceptado el correo; la cuenta se activará al cambiar la contraseña.'];
     } catch (Throwable $e) {$db->rollback();throw $e;}
@@ -134,14 +146,16 @@ function aeriq_zone(int $org,string $name): int {
     return (int)aeriq_one('SELECT id FROM zonas WHERE organizacion_id=? AND nombre=?',[$org,$name])['id'];
 }
 function aeriq_device_save(array $a,array $d): array {
-    $org=aeriq_org($a);$id=isset($d['id'])?aeriq_int($d['id']):null;
-    if($id)aeriq_own('dispositivos',$id,$org);
+    $org=aeriq_org($a);$id=isset($d['id'])?aeriq_int($d['id']):null;$scope=aeriq_campaign($a);
+    if (!$scope) throw new AeriqError('Solo el admin de una campaña registra Orb.',403);
+    if ($id && !aeriq_one('SELECT d.id FROM dispositivos d WHERE d.id=? AND d.organizacion_id=? AND '.AERIQ_CAMPANA_ORB.'=?',[$id,$org,$scope])) throw new AeriqError('El Orb no pertenece a tu campaña.',404);
     $mac=strtoupper(aeriq_text($d['address']??'',17));if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/D',$mac)) throw new AeriqError('Dirección BLE no válida.');
-    $worker=empty($d['worker'])?null:aeriq_int($d['worker']);$campaign=empty($d['campaign'])?null:aeriq_int($d['campaign']);
-    if (($worker===null)!==($campaign===null)) throw new AeriqError('Asigna trabajador y campaña juntos, o deja ambos vacíos.');
-    if ($worker && !aeriq_one('SELECT u.id FROM usuarios u WHERE u.id=? AND u.organizacion_id=? AND '.AERIQ_PUEDE_MEDIR.' AND (u.activo=1 OR u.debe_cambiar_clave=1)',[$worker,$org])) throw new AeriqError('Trabajador no autorizado.',403);
-    if ($campaign) aeriq_own('campanas',$campaign,$org);
-    $active=aeriq_bool($d['active']??true);$simulated=aeriq_bool($d['simulated']??false);$name=aeriq_text($d['name']??'',160);
+    // La campaña es siempre la del admin; el Orb se asigna a un operador de esa campaña.
+    if (empty($d['worker'])) throw new AeriqError('Asigna el Orb a un operador de tu campaña.',422,'worker');
+    $worker=aeriq_int($d['worker']);$campaign=$scope;
+    if (!aeriq_one('SELECT u.id FROM usuarios u WHERE u.id=? AND u.organizacion_id=? AND u.campana_id=? AND '.AERIQ_PUEDE_MEDIR.' AND (u.activo=1 OR u.debe_cambiar_clave=1)',[$worker,$org,$scope])) throw new AeriqError('Ese operador no es de tu campaña.',403);
+    $active=aeriq_bool($d['active']??true);
+    if (!$id && !$active) throw new AeriqError('Un Orb nuevo se registra activo.');$simulated=aeriq_bool($d['simulated']??false);$name=aeriq_text($d['name']??'',160);
     $db=conexionBD();$db->begin_transaction();
     try {
         if ($id) {
@@ -226,20 +240,23 @@ function aeriq_worker_history(array $a): array {
 }
 
 function aeriq_dashboard(array $a): array {
-    $org=aeriq_org($a);
+    $org=aeriq_org($a);$scope=aeriq_campaign($a);
+    // Admin de campaña: solo su campaña. Admin principal ($scope null): toda la organización.
+    $only=fn(string $col)=>$scope?" AND $col=".$scope:'';
     $ref=aeriq_one('SELECT umbral_medio_defecto AS umbral_medio,umbral_alto_defecto AS umbral_alto FROM magnitudes WHERE id=14');
     return [
-        'workers'=>aeriq_rows('SELECT u.id,u.nombre,u.apellidos,u.email,r.codigo AS rol,r.nombre AS rol_nombre,'.AERIQ_PUEDE_MEDIR.' AS puede_medir,u.activo,u.debe_cambiar_clave AS cambiar_clave,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.organizacion_id=? ORDER BY u.nombre',[$org]),
-        'campaigns'=>aeriq_rows('SELECT c.*,z.nombre AS zona,'.AERIQ_UMBRALES_O3.' FROM campanas c JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE c.organizacion_id=? ORDER BY c.inicio DESC',[$org]),
-        'zones'=>aeriq_rows('SELECT id,nombre FROM zonas WHERE organizacion_id=? ORDER BY nombre',[$org]),
-        'roles'=>aeriq_rows('SELECT codigo,nombre,descripcion FROM roles WHERE asignable=1 AND requiere_organizacion=1 ORDER BY id'),
+        'workers'=>aeriq_rows('SELECT u.id,u.nombre,u.apellidos,u.email,r.codigo AS rol,r.nombre AS rol_nombre,'.AERIQ_PUEDE_MEDIR.' AS puede_medir,u.activo,u.debe_cambiar_clave AS cambiar_clave,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.organizacion_id=?'.$only('u.campana_id').' ORDER BY u.nombre',[$org]),
+        'campaigns'=>aeriq_rows('SELECT c.*,z.nombre AS zona,'.AERIQ_UMBRALES_O3.' FROM campanas c JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE c.organizacion_id=?'.$only('c.id').' ORDER BY c.inicio DESC',[$org]),
+        'zones'=>aeriq_rows('SELECT id,nombre FROM zonas WHERE organizacion_id=?'.($scope?' AND id=(SELECT zona_id FROM campanas WHERE id='.$scope.')':'').' ORDER BY nombre',[$org]),
+        'roles'=>aeriq_rows('SELECT codigo,nombre,descripcion FROM roles WHERE codigo=?',[$scope?'trabajador':'admin_campana']),
         'thresholds'=>['umbral_medio'=>(float)$ref['umbral_medio'],'umbral_alto'=>(float)$ref['umbral_alto']],
-        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,'.AERIQ_BATERIA.',a.trabajador_id,a.campana_id,u.email AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=? ORDER BY d.nombre',[$org])
+        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,'.AERIQ_BATERIA.',a.trabajador_id,a.campana_id,u.email AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=?'.$only(AERIQ_CAMPANA_ORB).' ORDER BY d.nombre',[$org])
     ];
 }
 
 function aeriq_readings(array $a,array $filters): array {
     $where=['c.organizacion_id=?','l.valida=1','l.magnitud_id IN (12,14)'];$params=[aeriq_org($a)];
+    if ($scope=aeriq_campaign($a)) { $where[]='a.campana_id=?';$params[]=$scope; }
     $type=$filters['type']??14;
     if ($type!=='all') {
         $type=aeriq_int($type);
@@ -272,7 +289,7 @@ function aeriq_map_data(?array $access,array $query): array {
     $mode=$query['mode']??'real';if (!in_array($mode,['real','simulated'],true)) throw new AeriqError('Selecciona datos reales o simulados.');
     $hours=aeriq_int($query['hours']??24,0,168);if(!in_array($hours,[0,24,168],true))throw new AeriqError('Periodo no válido.');
     $where=['l.valida=1','l.magnitud_id=14','l.latitud IS NOT NULL','l.longitud IS NOT NULL','l.simulado=?'];$params=[$mode==='simulated'?1:0];
-    if ($access) {$where[]='a.organizacion_id=?';$params[]=aeriq_org($access);if(!aeriq_can($access,'informes.ver')){$where[]='a.trabajador_id=?';$params[]=(int)$access['usuario_id'];}}
+    if ($access) {$where[]='a.organizacion_id=?';$params[]=aeriq_org($access);if($scope=aeriq_campaign($access)){$where[]='a.campana_id=?';$params[]=$scope;}if(!aeriq_can($access,'informes.ver')){$where[]='a.trabajador_id=?';$params[]=(int)$access['usuario_id'];}}
     else $where[]='c.publicar=1';
     if($hours)$where[]='l.capturada_en>=DATE_SUB(UTC_TIMESTAMP(),INTERVAL '.$hours.' HOUR)';
     // Solo el mapa de la organización identifica el Orb (para dibujar su ruta); el público no lo expone.

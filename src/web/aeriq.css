@@ -458,7 +458,7 @@ body[data-page="mapa"]{overflow-x:hidden}
   .rules-grid,.plans{grid-template-columns:1fr}
   .plan,.plan-featured{min-height:0}
   .plan-featured{transform:none}
-  }
+}
 @media (max-width:560px){
   .hero-devices{padding-right:22%;margin-top:112px}
   .laptop-screen{box-shadow:0 0 0 6px #1c1e1d,0 0 0 7px #3a3d3b;margin:7px 7px 0;border-radius:12px 12px 3px 3px}
@@ -680,13 +680,14 @@ form .field-check{margin-top:20px}
 .account-grid,.workspace-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:start}
 .account-grid>*,.workspace-layout>*,.split>*{min-width:0}
 .side-nav,.workspace-nav{position:sticky;top:calc(var(--header-h) + 24px);display:grid;gap:2px}
-.side-nav a,.side-nav button,.workspace-nav a{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:10px;background:none;text-decoration:none;font-size:15px;font-weight:500;color:var(--ink-2);cursor:pointer}
-.side-nav a:hover,.side-nav button:hover,.workspace-nav a:hover{background:var(--alt);color:var(--ink)}
+.side-nav a,.side-nav button,.workspace-nav a,.workspace-nav button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:10px;background:none;text-decoration:none;font-size:15px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.side-nav a:hover,.side-nav button:hover,.workspace-nav a:hover,.workspace-nav button:hover{background:var(--alt);color:var(--ink)}
 .workspace-nav a.active,.side-nav a.active{background:var(--alt);color:var(--ink);font-weight:650}
 .workspace-nav a[hidden]{display:none}
 .side-nav,.workspace-nav{scrollbar-width:none}
 .side-nav::-webkit-scrollbar,.workspace-nav::-webkit-scrollbar{display:none}
-.side-nav .danger{color:#a3372f;margin-top:8px}
+.side-nav .danger,.workspace-nav .danger{color:#a3372f;margin-top:8px}
+.side-nav .danger:hover,.workspace-nav .danger:hover{color:var(--danger);background:var(--danger-tint)}
 .account-id{padding:4px 12px 16px;margin-bottom:8px;border-bottom:1px solid var(--line)}
 .account-id strong{display:block;font-size:16px;font-weight:600}
 .account-id span{display:block;font-size:13.5px;color:var(--ink-3);word-break:break-all}
@@ -743,7 +744,7 @@ form .field-check{margin-top:20px}
   .split,.account-grid,.workspace-layout{grid-template-columns:1fr}
   .three-col{grid-template-columns:1fr}
   .side-nav,.workspace-nav{position:static;display:flex;overflow-x:auto;gap:4px;padding-bottom:4px}
-  .side-nav a,.side-nav button,.workspace-nav a{white-space:nowrap;width:auto}
+  .side-nav a,.side-nav button,.workspace-nav a,.workspace-nav button{white-space:nowrap;width:auto}
   .account-id{display:none}
 }
 @media (max-width:640px){

@@ -30,6 +30,6 @@ async function initFleet(){
   document.querySelector('#device-modal-close').onclick=()=>modal.close();
   document.querySelector('#add-device').onclick=()=>edit(null);
   form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await Aeriq.portal('device',{...(current?{id:current.id}:{}),name:name.value,address:address.value,worker:worker.value,campaign:campaign.value,active:active.checked,simulated:simulated.checked});modal.close();await refresh();toast('Orb guardado en tu organización.');}catch(error){toast(error.message);}finally{button.disabled=false;}};
-  try{const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}admin=(user.permissions||[]).includes('organizacion.gestionar');document.querySelector('#add-device').hidden=!admin;await refresh();}
+  try{const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}admin=(user.permissions||[]).includes('equipo.gestionar');document.querySelector('#add-device').hidden=!admin;await refresh();}
   catch(error){body.replaceChildren();const tr=create('tr'),td=create('td',error.message);td.colSpan=8;tr.append(td);body.append(tr);}
 }
