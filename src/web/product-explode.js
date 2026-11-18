@@ -14,7 +14,7 @@
   const debug=/[?&]explode-debug\b/.test(location.search);
   if(debug)section.classList.add('is-debug');
 
-  // Unidades del timeline: 1000 = todo el recorrido fijado. Un paso por componente, en el orden del DOM.
+  // Unidades del timeline: 1000 = todo el recorrido fijado. Un paso por componente.
   const TOTAL=1000,STEPS=[380,500,620,740,860];
   let tl=null,observer=null,activeIndex=-2,lastSize='';
 
@@ -27,7 +27,10 @@
   // Estado cerrado de una pieza: data-closed="cx cy ancho" en fracciones de la caja del producto cerrado.
   function closedState(part){
     const c=layoutBox(closed),p=layoutBox(part);
-    const [cx,cy,cw]=(part.dataset.closed||'.5 .5 .2').split(' ').map(Number);
+    let [cx,cy,cw]=(part.dataset.closed||'.5 .5 .2').split(' ').map(Number);
+    if(window.matchMedia?.('(max-width:780px)').matches&&part.dataset.part==='sensor'){
+      [cx,cy,cw]=[.5,.56,.1];
+    }
     return {x:c.x+cx*c.w-(p.x+p.w/2),y:c.y+cy*c.h-(p.y+p.h/2),scale:p.w?cw*c.w/p.w:1,rise:c.h*.5};
   }
   const shellOffset=el=>layoutBox(closed).y-layoutBox(el).y;
@@ -53,8 +56,10 @@
   }
 
   function setActive(progress){
-    const t=progress*TOTAL;let index=-1;
-    STEPS.forEach((start,i)=>{if(t>=start+5)index=i});
+    const t=progress*TOTAL;let index=-1,revealIndex=-1;
+    STEPS.forEach((start,i)=>{if(t>=start+5)revealIndex=i});
+    index=revealIndex;
+    if(window.matchMedia?.('(max-width:780px)').matches&&revealIndex>=0)index=parts.length-1-revealIndex;
     if(index===activeIndex)return;
     activeIndex=index;
     labels.forEach((label,i)=>label.classList.toggle('is-active',i===index));
@@ -64,6 +69,7 @@
   function build(){
     if(tl||typeof anime==='undefined'||reduce?.matches)return;
     const {createTimeline,onScroll}=anime;
+    const mobile=window.matchMedia?.('(max-width:780px)').matches;
     section.classList.add('is-animated');
     layoutLeaders();
     tl=createTimeline({autoplay:false,defaults:{ease:'inOutSine'},onUpdate:self=>setActive(self.progress)});
@@ -73,19 +79,37 @@
     // 2 · La tapa sube y la carcasa inferior baja un poco (la pared frontal la acompaña).
     tl.add(lid,{y:{from:()=>px(shellOffset(lid)),to:0},duration:190,ease:'inOutCubic'},40);
     tl.add(shell,{y:{from:()=>px(shellOffset(bottom)),to:0},duration:300},40);
-    parts.forEach(part=>{
-      // Suben con la tapa, centradas y tapadas por la pared frontal; después se separan.
-      tl.add(part,{opacity:{from:0,to:1},duration:30,ease:'linear'},40);
-      tl.add(part,{
-        x:{from:()=>px(closedState(part).x),to:()=>px(closedState(part).x)},
-        y:{from:()=>px(closedState(part).y),to:()=>px(closedState(part).y-closedState(part).rise)},
-        scale:{from:()=>closedState(part).scale,to:()=>closedState(part).scale},
-        duration:170,ease:'inOutCubic'
-      },55);
-      tl.add(part,{x:{to:0,ease:'outCubic'},y:{to:0,ease:'inOutQuad'},scale:{to:1},duration:150},230);
-    });
+    if(mobile){
+      // En móvil, las piezas se despliegan una a una en columna desde la carcasa.
+      const accordionOrder=['rgb','leds','sparkfun','bateria','sensor'];
+      accordionOrder.forEach((id,index)=>{
+        const part=byPart(parts,id);
+        if(!part)return;
+        const start=70+index*105;
+        const initialScale=id==='sensor' ? 0.18 : 0.55;
+        // Las piezas ya están visibles dentro del montaje cerrado: no aparecen por fundido.
+        tl.add(part,{
+          x:{from:()=>px(closedState(part).x),to:0},
+          y:{from:()=>px(closedState(part).y),to:0},
+          scale:{from:()=>closedState(part).scale*initialScale,to:1},
+          duration:260,ease:'outCubic'
+        },start);
+      });
+    }else{
+      parts.forEach(part=>{
+        // Suben con la tapa, centradas y tapadas por la pared frontal; después se separan.
+        tl.add(part,{opacity:{from:0,to:1},duration:30,ease:'linear'},40);
+        tl.add(part,{
+          x:{from:()=>px(closedState(part).x),to:()=>px(closedState(part).x)},
+          y:{from:()=>px(closedState(part).y),to:()=>px(closedState(part).y-closedState(part).rise)},
+          scale:{from:()=>closedState(part).scale,to:()=>closedState(part).scale},
+          duration:170,ease:'inOutCubic'
+        },55);
+        tl.add(part,{x:{to:0,ease:'outCubic'},y:{to:0,ease:'inOutQuad'},scale:{to:1},duration:150},230);
+      });
+    }
     // 3 · Ya fuera de la carcasa, la copia de la pared frontal deja de hacer falta.
-    tl.add(front,{opacity:{from:1,to:0},duration:15,ease:'linear'},232);
+    tl.add(front,{opacity:{from:1,to:0},duration:15,ease:'linear'},mobile?130:232);
     // Los números de las piezas (solo visibles en móvil) aparecen cuando ya están separadas.
     tl.add(qa('.explode-part-num'),{opacity:{from:0,to:1},duration:40,ease:'linear'},330);
     // 4 · Un paso por componente: etiqueta, línea guía y un pequeño realce de la pieza.

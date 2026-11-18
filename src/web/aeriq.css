@@ -160,7 +160,7 @@ html{scrollbar-color:#c5ceca transparent}
 .dark .chev-link{color:var(--brand-on-dark)}
 .dark ::selection{background:#2e5f55;color:#fff}
 
-/* Vista despiezada del Orb (product-explode.js) */
+/* Vista despiezada del AERIQ (product-explode.js) */
 .explode-section{position:relative;background:var(--alt)}
 .explode-sticky{padding:clamp(72px,8vw,112px) 0 72px}
 .explode-intro{max-width:760px;text-align:center;margin-bottom:28px}
@@ -416,15 +416,15 @@ body[data-page="mapa"]{overflow-x:hidden}
   .explode-intro{margin-bottom:16px}
   .explode-intro p{font-size:15px}
   .explode-visual{aspect-ratio:4/5}
-  .explode-shellbox{left:15%;width:70%}
+  .explode-shellbox{left:26%;width:48%}
   .explode-closed{top:37.8%}
-  .explode-lid{top:3.8%}
-  .explode-bottom,.explode-front,.explode-shadow{top:67.8%}
-  .explode-part[data-part="sensor"]{left:7%;top:28.78%;width:36%}
-  .explode-part[data-part="sparkfun"]{left:56%;top:30.05%;width:38%}
-  .explode-part[data-part="bateria"]{left:9.5%;top:50.62%;width:31%}
-  .explode-part[data-part="leds"]{left:57.5%;top:51.06%;width:35%}
-  .explode-part[data-part="rgb"]{left:41%;top:48.35%;width:17%}
+  .explode-lid{top:2%}
+  .explode-bottom,.explode-front,.explode-shadow{top:76%}
+  .explode-part[data-part="rgb"]{left:37%;top:13%;width:26%}
+  .explode-part[data-part="leds"]{left:37%;top:26%;width:26%}
+  .explode-part[data-part="sparkfun"]{left:37%;top:39%;width:26%}
+  .explode-part[data-part="bateria"]{left:37%;top:52%;width:26%}
+  .explode-part[data-part="sensor"]{left:37%;top:65%;width:26%}
   .explode-part-num{display:grid}
   .explode-section.has-leaders .explode-leader{display:none}
   .explode-labels{position:relative;inset:auto;display:grid;gap:12px;margin-top:16px}
