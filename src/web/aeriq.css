@@ -308,6 +308,7 @@ body[data-page="mapa"]{overflow-x:hidden}
 .map-sidebar{overflow:auto;min-height:0;background:var(--surface);border-right:1px solid var(--line);padding:24px 20px 32px;display:flex;flex-direction:column;gap:0}
 .map-sidebar h1{font-size:22px;letter-spacing:-.02em;line-height:1.25}
 .map-sidebar .intro{margin-top:6px;font-size:14.5px;color:var(--ink-3)}
+.map-credit{margin:auto 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3)}
 .side-group{padding:20px 0;border-bottom:1px solid var(--line)}
 .side-group:last-child{border-bottom:0}
 .side-group h2{font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:12px}
@@ -627,6 +628,7 @@ form .field-check{margin-top:20px}
 .auth-bottom a{color:var(--brand);font-weight:550}
 .auth-aside{margin-top:28px;padding-top:20px;border-top:1px solid var(--line);font-size:14px;color:var(--ink-3)}
 .auth-aside a{color:var(--brand)}
+.auth-credit{margin:0 auto 24px;padding:0 var(--gutter);text-align:center;font-size:12px;color:var(--ink-3)}
 
 /* Ficha del Orb */
 .product-hero{text-align:center;display:flex;flex-direction:column;align-items:center}
@@ -655,7 +657,14 @@ form .field-check{margin-top:20px}
 .quantity span{min-width:36px;text-align:center;font-weight:650;font-variant-numeric:tabular-nums}
 .offer .fine{margin:16px auto 0;font-size:14px;color:var(--ink-3);max-width:52ch}
 .tech-specs{max-width:900px;margin:clamp(40px,5vw,56px) auto 0;border-top:1px solid var(--line)}
-.tech-specs div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px;padding:22px 0;border-bottom:1px solid var(--line)}
+.tech-specs div{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px;padding:22px 16px;border-bottom:1px solid var(--line);border-radius:14px;transition:transform .22s var(--ease-out),background-color .22s,box-shadow .22s;transform-origin:center}
+.tech-specs div:hover{z-index:1;transform:scale(1.025);background:rgba(14,107,94,.045);box-shadow:0 0 0 1px rgba(14,107,94,.12),0 0 22px rgba(14,107,94,.22)}
+.dark .tech-specs{border-top-color:rgba(255,255,255,.14)}
+.dark .tech-specs div{border-bottom-color:rgba(255,255,255,.14)}
+.dark .tech-specs div:hover{background:rgba(43,185,132,.09);box-shadow:0 0 0 1px rgba(43,185,132,.16),0 0 24px rgba(43,185,132,.2)}
+.dark .tech-specs dt{color:var(--on-dark)}
+.dark .tech-specs dd{color:var(--on-dark-2)}
+@media (prefers-reduced-motion:reduce){.tech-specs div{transition:none}.tech-specs div:hover{transform:none}}
 .tech-specs dt{font-size:20px;font-weight:700;letter-spacing:-.015em}
 .tech-specs dd{margin:0;font-size:17px;color:var(--ink-2)}
 .three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(24px,4vw,56px);margin-top:clamp(40px,5vw,56px)}

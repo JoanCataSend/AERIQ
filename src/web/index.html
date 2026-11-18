@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="AERIQ reúne lecturas de ozono del sensor Orb y las muestra en un mapa abierto. Consulta la información y las soluciones de Código Norte.">
+<meta name="description" content="AERIQ reúne las lecturas de ozono del sensor Orb y las muestra en un mapa abierto. Consulta la información y las soluciones de Código Norte.">
 <title>AERIQ · Un mapa del ozono abierto a todos</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
@@ -22,7 +22,7 @@
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/codigo-norte-simbolo.svg?v=3" alt="Símbolo de Código Norte" width="64" height="60"></a>
-    <nav class="main-nav" aria-label="Principal">
+    <nav class="main-nav" id="primary-navigation" aria-label="Principal">
       <a href="mapa.html">Mapa</a>
       <a href="sensor.html">El Orb</a>
       <a href="index.html#planes">Organizaciones</a>
@@ -33,7 +33,7 @@
       <a href="login.html" class="link-login" id="account-link">Iniciar sesión</a>
       <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
     </div>
-    <button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+    <button class="mobile-toggle" type="button" data-menu-toggle aria-controls="primary-navigation" aria-expanded="false" aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </div>
 </header>
 
@@ -112,7 +112,7 @@
       <article class="tile tile-stat">
         <p class="stat-big">O<sub>3</sub></p>
         <h3>Mide ozono.</h3>
-        <p>Sensor electroquímico SPEC ULPSM-O3. Cada lectura en partes por mil millones (ppb).</p>
+        <p>El ozono a nivel del suelo (O₃) se forma cuando la luz solar impulsa reacciones entre óxidos de nitrógeno y compuestos orgánicos volátiles. El Orb mide su concentración en ppb.</p>
       </article>
       <article class="tile tile-stat tile-dark">
         <p class="stat-big">BLE</p>
@@ -170,20 +170,20 @@
   <div class="container">
     <div class="center narrow">
       <h2 id="planes-title" class="display-2">Para ayuntamientos, empresas y estudios.</h2>
-      <p class="sub">Tu organización gestiona sus propios Orb, su equipo y sus campañas. Sus datos son privados hasta que decide publicarlos.</p>
+      <p class="sub">Tu organización gestiona sus dispositivos Orb, su equipo y sus campañas. Sus datos son privados hasta que decide publicarlos.</p>
     </div>
     <div class="plans">
       <article class="tile plan">
         <h3>Kits para municipios</h3>
         <p>Campañas de medición en parques, calles y zonas de interés del municipio.</p>
-        <p class="plan-includes">Orb, app Android, gestión de equipo y campañas, informes en CSV.</p>
+        <p class="plan-includes">Sensor Orb, app Android, gestión de equipo y campañas, informes en CSV.</p>
         <a class="btn btn-primary btn-sm" href="solicitar.html?interes=kits&amp;org=administracion">Solicitar presupuesto</a>
       </article>
       <article class="tile plan plan-featured">
         <span class="plan-badge">Recomendado</span>
         <h3>Kits para empresas</h3>
         <p>Una red propia para estudiar instalaciones y zonas de actividad.</p>
-        <p class="plan-includes">Orb asignados a cada operario, datos privados y seguimiento de actividad.</p>
+        <p class="plan-includes">Sensores Orb asignados a cada operario, datos privados y seguimiento de actividad.</p>
         <a class="btn btn-primary btn-sm" href="solicitar.html?interes=kits&amp;org=empresa">Solicitar presupuesto</a>
       </article>
       <article class="tile plan">
@@ -201,7 +201,7 @@
     <h2 id="nosotros-title" class="display-2">Quiénes somos.</h2>
     <img class="partner-logo" src="assets/codigo-norte-logo.svg" alt="Código Norte" width="240" height="80" loading="lazy" decoding="async">
     <p class="sub">AERIQ es la plataforma de monitorización ambiental de Código Norte. Nace en la Universitat Politècnica de València, en el campus de Gandia.</p>
-    <p class="body-lg">La construimos por partes: un sensor portátil de ozono, una app Android que recibe sus lecturas por Bluetooth y una web para explorar los datos en un mapa. Participar es voluntario: cada persona decide si comparte sus mediciones y cada organización decide qué publica.</p>
+    <p class="body-lg">La construimos por partes: el sensor Orb de ozono, una app Android que recibe sus lecturas por Bluetooth y una web para explorar los datos en un mapa. Participar es voluntario: cada persona decide si comparte sus mediciones y cada organización decide qué publica.</p>
     <p class="body-lg">Código Norte desarrolla AERIQ y ofrece kits para organizaciones y estudios ambientales. Las mediciones son complementarias, requieren validación y no sustituyen a las estaciones oficiales ni constituyen un diagnóstico de exposición personal.</p>
   </div>
 </section>

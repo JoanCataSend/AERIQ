@@ -21,7 +21,7 @@ async function initFleet(){
       const actions=create('td');if(admin){const b=create('button','Editar / asignar');b.className='text-link';b.onclick=()=>edit(d);actions.append(b);}else actions.textContent='Consulta';tr.append(actions);body.append(tr);
     }
     if(!shown){const tr=create('tr'),td=create('td','No hay dispositivos que coincidan.');td.colSpan=8;tr.append(td);body.append(tr);}
-    const summary=document.querySelector('.table-bottom');summary.textContent=`${shown} de ${devices.length} Orb · Actividad basada en recepción durante los últimos 15 minutos.`;
+    const summary=document.querySelector('.table-bottom');summary.textContent=`${shown} de ${devices.length} sensores Orb · Actividad basada en recepción durante los últimos 15 minutos.`;
     const stats=document.querySelectorAll('.stat strong');if(stats.length>=3){stats[0].textContent=devices.length;stats[1].textContent=devices.filter(d=>Number(d.activo)).length;stats[2].textContent=devices.filter(d=>!Number(d.activo)).length;}
   }
   async function refresh(){const data=await Aeriq.portal('dashboard');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);selectOptions(campaign,campaigns,c=>c.nombre);render();}

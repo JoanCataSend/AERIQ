@@ -23,7 +23,7 @@
 <header class="site-header">
   <div class="container header-inner" style="width:auto;max-width:none;margin-inline:var(--gutter)">
     <a aria-label="AERIQ, inicio" class="brand" href="index.html"><img alt="AERIQ" src="assets/aeriq_logo.png" width="926" height="288"></a>
-    <nav aria-label="Principal" class="main-nav">
+    <nav aria-label="Principal" class="main-nav" id="primary-navigation">
       <a aria-current="page" href="mapa.html">Mapa</a>
       <a href="sensor.html">El Orb</a>
       <a href="index.html#planes">Organizaciones</a>
@@ -33,7 +33,7 @@
     <div class="header-actions">
       <a class="link-login" href="login.html" id="account-link">Iniciar sesión</a>
     </div>
-    <button aria-label="Abrir menú" class="mobile-toggle" data-menu-toggle type="button"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+    <button aria-label="Abrir menú" class="mobile-toggle" data-menu-toggle aria-controls="primary-navigation" aria-expanded="false" type="button"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </div>
 </header>
 
@@ -86,6 +86,7 @@
       <h2 id="g-lista">Mediciones visibles</h2>
       <div id="map-sensor-list"></div>
     </section>
+    <p class="map-credit">© 2026 AERIQ · Código Norte</p>
   </aside>
 
   <section class="map-main" aria-label="Mapa">

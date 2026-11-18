@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="Los Orb de tu organización: actividad, asignaciones y alta administrativa.">
-<title>Flota de Orb · AERIQ</title>
+<meta name="description" content="Los dispositivos Orb de tu organización: actividad, asignaciones y alta administrativa.">
+<title>Dispositivos Orb · AERIQ</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
 </head>
@@ -19,23 +19,23 @@
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a>
-    <nav class="main-nav" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
+    <nav class="main-nav" id="primary-navigation" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
     <div class="header-actions">
       <a href="login.html" class="link-login" id="account-link">Iniciar sesión</a>
       <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
     </div>
-    <button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+    <button class="mobile-toggle" type="button" data-menu-toggle aria-controls="primary-navigation" aria-expanded="false" aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </div>
 </header>
 <main class="page">
   <div class="container">
-    <nav class="breadcrumb" aria-label="Ruta"><a href="perfil.html">Mi cuenta</a><span aria-hidden="true">/</span><span>Flota de Orb</span></nav>
+    <nav class="breadcrumb" aria-label="Ruta"><a href="perfil.html">Mi cuenta</a><span aria-hidden="true">/</span><span>Dispositivos Orb</span></nav>
     <div class="page-head-row">
-      <div class="page-head"><h1>Flota de Orb</h1><p>Comprueba qué dispositivos están enviando lecturas, a quién están asignados y en qué campaña.</p></div>
+      <div class="page-head"><h1>Dispositivos Orb</h1><p>Comprueba qué dispositivos están enviando lecturas, a quién están asignados y en qué campaña.</p></div>
       <div class="head-actions"><a href="mapa.html" class="btn btn-secondary">Ver el mapa</a><button class="btn btn-primary" type="button" id="add-device"><svg aria-hidden="true"><use href="#i-plus"/></svg>Registrar Orb</button></div>
     </div>
     <div class="stats-grid">
-      <div class="stat"><strong>—</strong><small>Orb registrados</small></div>
+      <div class="stat"><strong>—</strong><small>Dispositivos Orb registrados</small></div>
       <div class="stat"><strong>—</strong><small>Con alta administrativa</small></div>
       <div class="stat"><strong>—</strong><small>Dados de baja</small></div>
     </div>
@@ -46,7 +46,7 @@
         <label class="search-control"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar dispositivo</span><input type="search" id="device-search" placeholder="Buscar por nombre o ID"></label>
         <div class="segmented" role="group" aria-label="Filtrar por actividad"><button class="selected" type="button" data-device-filter="all">Todos</button><button type="button" data-device-filter="active">Recibiendo</button><button type="button" data-device-filter="inactive">Sin datos</button></div>
       </div>
-      <div class="table-scroll"><table class="devices-table"><thead><tr><th>Dispositivo</th><th>Actividad</th><th>Trabajador</th><th>Campaña</th><th>Última medición</th><th>Origen</th><th>Batería</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="8">Consultando los Orb de tu organización…</td></tr></tbody></table></div>
+      <div class="table-scroll"><table class="devices-table"><thead><tr><th>Dispositivo</th><th>Actividad</th><th>Trabajador</th><th>Campaña</th><th>Última medición</th><th>Origen</th><th>Batería</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="8">Consultando los dispositivos Orb de tu organización…</td></tr></tbody></table></div>
       <div class="table-bottom">Consultando dispositivos…</div>
     </section>
     <p class="note">Cada Orb indica si sus datos son reales o simulados. Darlo de baja conserva sus mediciones.</p>

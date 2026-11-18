@@ -19,12 +19,12 @@
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a>
-    <nav class="main-nav" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
+    <nav class="main-nav" id="primary-navigation" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
     <div class="header-actions">
       <a href="login.html" class="link-login" id="account-link">Iniciar sesión</a>
       <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
     </div>
-    <button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+    <button class="mobile-toggle" type="button" data-menu-toggle aria-controls="primary-navigation" aria-expanded="false" aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </div>
 </header>
 <main class="page">
@@ -42,8 +42,8 @@
             </div>
             <div class="panel portal-section">
               <h2>Todo empieza con una campaña</h2>
-              <p>Da de alta a tu equipo, registra los Orb y asigna cada dispositivo a una persona y a una campaña. Los informes y el mapa usan esas mediciones.</p>
-              <div class="button-row"><a class="btn btn-primary" href="#campaigns" data-workspace-view="campaigns">Ver campañas</a><a class="btn btn-secondary" href="sensores.html">Abrir la flota de Orb</a></div>
+              <p>Da de alta a tu equipo, registra los dispositivos Orb y asigna cada dispositivo a una persona y a una campaña. Los informes y el mapa usan esas mediciones.</p>
+              <div class="button-row"><a class="btn btn-primary" href="#campaigns" data-workspace-view="campaigns">Ver campañas</a><a class="btn btn-secondary" href="sensores.html">Abrir la flota Orb</a></div>
             </div>
           </section>
           <section data-view="workers" class="panel portal-section" data-admin>
