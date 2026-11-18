@@ -1,5 +1,7 @@
 'use strict';
 const portalFeedback=document.querySelector('#portal-feedback');
+// Si algo falla al cargar, se dice en pantalla en vez de quedarse en «Comprobando acceso…».
+addEventListener('error',e=>{if(portalFeedback)portalFeedback.textContent='No se pudo cargar el panel ('+e.message+'). Recarga con Ctrl+F5.';});
 let dashboard={},currentRows=[],lastFilters={},me={};
 const can=(user,permission)=>(user.permissions||[]).includes(permission);
 // data-perm="a b": el elemento se muestra si la cuenta tiene alguno de esos permisos.
@@ -17,7 +19,7 @@ function fill(form,data){for(const [key,value] of Object.entries(data)){const fi
 function payload(form){const d=Object.fromEntries(new FormData(form));for(const f of form.querySelectorAll('[type="checkbox"]'))d[f.name]=f.checked;if(!d.id)delete d.id;return d;}
 async function refresh(){
   dashboard=await Aeriq.portal('dashboard');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
-  table(document.querySelector('#workers-list'),['Nombre','Correo','Función','Acceso'],dashboard.workers.map(w=>({cells:[w.nombre+' '+w.apellidos,w.email,w.rol_nombre||w.rol,Number(w.cambiar_clave)?((w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':('Activación pendiente · '+(w.invitacion_expira_en||'')+' UTC')):(Number(w.activo)?'Activo':'Desactivado')]})));
+  renderWorkers();
   catalogs();
   for(const id of ['worker-campaign','report-campaign'])options(id,dashboard.campaigns,c=>c.nombre);
   // «Mi campaña» (admin de campaña): el servidor solo devuelve su campaña.
@@ -35,12 +37,59 @@ async function refresh(){
   table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,Number(c.publicar)?'Autorizada':'Privada'],source:c})),can(me,'campanas.gestionar')?c=>fill(document.querySelector('#campaign-form'),{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,medium:c.umbral_medio,high:c.umbral_alto,radius:c.radio_m,active:c.activa,public:c.publicar}):null);
 }
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
+  if(!document.getElementById(id))continue;
   document.getElementById(id).onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
     try{const result=await Aeriq.portal(action,payload(f));f.reset();await refresh();portalFeedback.textContent=result.message||'Cambios guardados.';}
     catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
   };
 }
 // Funciones, zonas y umbrales de referencia vienen de la base de datos, no del HTML.
+// Equipo: el admin principal gestiona a sus admins de campaña; el admin de campaña, a sus operadores.
+function accessText(w){
+  if(Number(w.cambiar_clave))return (w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':'Invitación pendiente';
+  return Number(w.activo)?'Activo':(Number(w.verificado)?'Desactivado':'Sin activar');
+}
+function renderWorkers(){
+  const host=document.querySelector('#workers-list');host.replaceChildren();
+  const manages=can(me,'campanas.gestionar')?'admin_campana':can(me,'equipo.gestionar')?'trabajador':null;
+  document.querySelector('#workers-title').textContent=manages==='trabajador'?'Operadores de tu campaña':'Personas de la organización';
+  const t=el('table');t.className='devices-table';const head=el('tr');
+  for(const h of ['Nombre','Correo',...(manages==='trabajador'?['Orb']:['Función']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
+  // El admin de campaña ve solo a sus operadores (no a sí mismo).
+  for(const w of dashboard.workers.filter(w=>manages!=='trabajador'||w.rol==='trabajador')){
+    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,w.email,...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.rol_nombre||w.rol]),accessText(w)])tr.append(el('td',v));
+    if(manages){
+      const td=el('td');td.className='row-actions';
+      if(w.rol===manages){
+        const act=(text,run,cls='text-link')=>{const b=el('button',text);b.type='button';b.className=cls;b.onclick=()=>run(b);td.append(b);};
+        const call=async(b,action,body)=>{b.disabled=true;try{const r=await Aeriq.portal(action,body);portalFeedback.textContent=r.message||'Cambios guardados.';await refresh();}catch(e){portalFeedback.textContent=e.message;b.disabled=false;}};
+        act('Editar',()=>editWorker(w));
+        if(!Number(w.verificado))act('Reenviar invitación',b=>call(b,'worker-invite',{id:w.id}));
+        else if(Number(w.activo))act('Desactivar',b=>{
+          // Doble pulsación en lugar de un diálogo del navegador.
+          if(b.dataset.confirm){call(b,'worker-status',{id:w.id,active:false});return;}
+          b.dataset.confirm='1';b.textContent='¿Seguro? Pulsa otra vez';setTimeout(()=>{delete b.dataset.confirm;b.textContent='Desactivar';},4000);
+        },'text-link danger-link');
+        else act('Reactivar',b=>call(b,'worker-status',{id:w.id,active:true}));
+      }
+      tr.append(td);
+    }
+    t.append(tr);
+  }
+  host.append(t);
+}
+function editWorker(w){
+  const f=document.querySelector('#worker-edit-form');f.reset();
+  fill(f,{id:w.id,name:w.nombre,last:w.apellidos,phone:w.telefono||''});
+  document.querySelector('#worker-edit-email').textContent=w.email+' · el correo no se puede cambiar';
+  document.querySelector('#worker-modal').showModal();
+}
+document.querySelector('#worker-modal-close')?.addEventListener('click',()=>document.querySelector('#worker-modal').close());
+document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
+  try{const r=await Aeriq.portal('worker-edit',payload(f));document.querySelector('#worker-modal').close();portalFeedback.textContent=r.message;await refresh();}
+  catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
+});
 function catalogs(){
   // El servidor decide qué rol crea esta cuenta: admin de campaña u operador.
   const title=document.querySelector('#worker-title');if(title&&dashboard.roles?.length)title.textContent='Añadir '+dashboard.roles[0].nombre.toLowerCase();

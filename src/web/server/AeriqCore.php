@@ -109,19 +109,62 @@ function aeriq_worker(array $a,array $d): array {
     }
     $role=aeriq_one('SELECT id FROM roles WHERE codigo=?',[$code]);
     if (!$role) throw new AeriqError('Función no permitida.');
-    $hours=max(1,min(168,(int)(getenv('AERIQ_INVITATION_HOURS')?:24)));
     auth_mail_config_ok();$db=conexionBD();$db->begin_transaction();
     try {
         if (auth_find($email)) throw new AeriqError('Ese correo ya tiene una cuenta. No se cambiará su organización.',409);
-        // Cada invitación recibe una clave impredecible y de un solo uso.
-        // Solo se persiste su hash; el valor original se envía al destinatario.
-        $temporary=bin2hex(random_bytes(16));$hash=password_hash($temporary,PASSWORD_DEFAULT);
-        aeriq_sql('INSERT INTO usuarios(organizacion_id,rol_id,campana_id,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave,invitacion_expira_en) VALUES(?,?,?,?,?,?,?,0,1,DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR))',[$org,(int)$role['id'],$campaign,$name,$last,$email,$hash,$hours]);$id=(int)$db->insert_id;
-        aeriq_mail($email,'AERIQ · Invitación de tu organización',"Tu organización te invita a AERIQ.\nCorreo: $email\nContraseña temporal: $temporary\n\nAbre AERIQ e inicia sesión con este mismo correo. Puedes entrar con Google (la cuenta se activa en el primer acceso) o con la contraseña temporal (cámbiala para activar la cuenta). El acceso temporal caduca en $hours horas. Si caduca, recupera el acceso desde la web o la app.\nCódigo Norte · AERIQ");
+        aeriq_sql('INSERT INTO usuarios(organizacion_id,rol_id,campana_id,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave) VALUES(?,?,?,?,?,?,?,0,1)',[$org,(int)$role['id'],$campaign,$name,$last,$email,'!']);$id=(int)$db->insert_id;
+        aeriq_invite($id,$email);
         $db->commit();return ['ok'=>true,'id'=>$id,'message'=>'Invitación registrada. El servidor ha aceptado el correo; la cuenta se activará al cambiar la contraseña.'];
     } catch (Throwable $e) {$db->rollback();throw $e;}
 }
 
+/** Invitación: clave temporal impredecible de un solo uso (solo se guarda su hash) y correo al destinatario. Va dentro de una transacción. */
+function aeriq_invite(int $id,string $email): void {
+    $hours=max(1,min(168,(int)(getenv('AERIQ_INVITATION_HOURS')?:24)));
+    $temporary=bin2hex(random_bytes(16));
+    aeriq_sql('UPDATE usuarios SET password_hash=?,activo=0,debe_cambiar_clave=1,invitacion_expira_en=DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR) WHERE id=?',[password_hash($temporary,PASSWORD_DEFAULT),$hours,$id]);
+    aeriq_mail($email,'AERIQ · Invitación de tu organización',"Tu organización te invita a AERIQ.\nCorreo: $email\nContraseña temporal: $temporary\n\nAbre AERIQ e inicia sesión con este mismo correo. Puedes entrar con Google (la cuenta se activa en el primer acceso) o con la contraseña temporal (cámbiala para activar la cuenta). El acceso temporal caduca en $hours horas. Si caduca, recupera el acceso desde la web o la app.\nCódigo Norte · AERIQ");
+}
+/** Cuenta que esta cuenta puede gestionar: el admin principal, los admins de campaña de su organización; el admin de campaña, los operadores de su campaña. */
+function aeriq_managed(array $a,int $id): array {
+    $org=aeriq_org($a);
+    if (aeriq_can($a,'campanas.gestionar')) $u=aeriq_one("SELECT u.* FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.id=? AND u.organizacion_id=? AND r.codigo='admin_campana'",[$id,$org]);
+    elseif (aeriq_can($a,'equipo.gestionar') && aeriq_campaign($a)) $u=aeriq_one("SELECT u.* FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.id=? AND u.organizacion_id=? AND u.campana_id=? AND r.codigo='trabajador'",[$id,$org,aeriq_campaign($a)]);
+    else throw new AeriqError('Tu función no permite gestionar cuentas.',403);
+    if (!$u) throw new AeriqError('Esa cuenta no está entre las que gestionas.',404);
+    return $u;
+}
+/** Editar nombre, apellidos y teléfono. El correo no se cambia: es la identidad de la cuenta. */
+function aeriq_worker_edit(array $a,array $d): array {
+    $u=aeriq_managed($a,aeriq_int($d['id']??null));
+    $phone=trim(is_string($d['phone']??null)?$d['phone']:'');if (mb_strlen($phone)>40) throw new AeriqError('Teléfono demasiado largo.',422,'phone');
+    aeriq_sql('UPDATE usuarios SET nombre=?,apellidos=?,telefono=? WHERE id=?',[auth_string($d['name']??'',90),auth_string($d['last']??'',120),$phone,(int)$u['id']]);
+    return ['ok'=>true,'message'=>'Datos guardados.'];
+}
+/** Desactivar: no puede entrar ni enviar lecturas, se cierran sus sesiones y queda libre su Orb. Sus mediciones se conservan. */
+function aeriq_worker_status(array $a,array $d): array {
+    $u=aeriq_managed($a,aeriq_int($d['id']??null));$id=(int)$u['id'];$active=aeriq_bool($d['active']??false);
+    if ($active) {
+        if (!$u['verificado_en']) throw new AeriqError('Esta cuenta aún no se ha activado: reenvía la invitación.',409);
+        aeriq_sql('UPDATE usuarios SET activo=1 WHERE id=?',[$id]);return ['ok'=>true,'message'=>'Cuenta reactivada.'];
+    }
+    $db=conexionBD();$db->begin_transaction();
+    try {
+        aeriq_sql('UPDATE usuarios SET activo=0,debe_cambiar_clave=0,invitacion_expira_en=NULL WHERE id=?',[$id]);
+        aeriq_sql('DELETE FROM sesiones_moviles WHERE usuario_id=?',[$id]);
+        aeriq_sql('UPDATE asignaciones SET finalizada_en=UTC_TIMESTAMP(3) WHERE trabajador_id=? AND finalizada_en IS NULL',[$id]);
+        $db->commit();
+    } catch (Throwable $e) {$db->rollback();throw $e;}
+    return ['ok'=>true,'message'=>'Cuenta desactivada. Su Orb queda libre para asignarlo a otra persona.'];
+}
+/** Reenviar la invitación a una cuenta que todavía no se ha activado (por ejemplo, porque caducó). */
+function aeriq_worker_invite(array $a,array $d): array {
+    $u=aeriq_managed($a,aeriq_int($d['id']??null));
+    if ($u['verificado_en']) throw new AeriqError('Esta cuenta ya está activa: si olvidó la contraseña, puede recuperarla desde el inicio de sesión.',409);
+    auth_mail_config_ok();$db=conexionBD();$db->begin_transaction();
+    try {aeriq_invite((int)$u['id'],$u['email']);$db->commit();} catch (Throwable $e) {$db->rollback();throw $e;}
+    return ['ok'=>true,'message'=>'Invitación reenviada a '.$u['email'].'.'];
+}
 function aeriq_campaign_save(array $a,array $d): array {
     $org=aeriq_org($a);$id=isset($d['id'])?aeriq_int($d['id']):null;
     if ($id) aeriq_own('campanas',$id,$org);
@@ -183,7 +226,11 @@ function aeriq_device_save(array $a,array $d): array {
         $same=$old && $active && $worker && (int)$old['trabajador_id']===$worker && (int)$old['campana_id']===$campaign;
         if (!$same) {
             aeriq_sql('UPDATE asignaciones SET finalizada_en=UTC_TIMESTAMP(3) WHERE dispositivo_id=? AND finalizada_en IS NULL',[$id]);
-            if ($active && $worker) aeriq_sql('INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) VALUES(?,?,?,?)',[$org,$id,$worker,$campaign]);
+            if ($active && $worker) {
+                // Un Orb por operador: si ya llevaba otro, ese queda libre.
+                aeriq_sql('UPDATE asignaciones SET finalizada_en=UTC_TIMESTAMP(3) WHERE trabajador_id=? AND finalizada_en IS NULL',[$worker]);
+                aeriq_sql('INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) VALUES(?,?,?,?)',[$org,$id,$worker,$campaign]);
+            }
         }
         $db->commit();return ['ok'=>true,'id'=>$id];
     } catch (Throwable $e) {$db->rollback();throw $e;}
@@ -261,7 +308,7 @@ function aeriq_dashboard(array $a): array {
     $only=fn(string $col)=>$scope?" AND $col=".$scope:'';
     $ref=aeriq_one('SELECT umbral_medio_defecto AS umbral_medio,umbral_alto_defecto AS umbral_alto FROM magnitudes WHERE id=14');
     return [
-        'workers'=>aeriq_rows('SELECT u.id,u.nombre,u.apellidos,u.email,r.codigo AS rol,r.nombre AS rol_nombre,'.AERIQ_PUEDE_MEDIR.' AS puede_medir,u.activo,u.debe_cambiar_clave AS cambiar_clave,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.organizacion_id=?'.$only('u.campana_id').' ORDER BY u.nombre',[$org]),
+        'workers'=>aeriq_rows('SELECT u.id,u.nombre,u.apellidos,u.email,u.telefono,(u.verificado_en IS NOT NULL) AS verificado,(SELECT d.nombre FROM asignaciones x JOIN dispositivos d ON d.id=x.dispositivo_id WHERE x.trabajador_id=u.id AND x.finalizada_en IS NULL LIMIT 1) AS orb,r.codigo AS rol,r.nombre AS rol_nombre,'.AERIQ_PUEDE_MEDIR.' AS puede_medir,u.activo,u.debe_cambiar_clave AS cambiar_clave,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.organizacion_id=?'.$only('u.campana_id').' ORDER BY u.nombre',[$org]),
         'campaigns'=>aeriq_rows('SELECT c.*,z.nombre AS zona,'.AERIQ_UMBRALES_O3.' FROM campanas c JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE c.organizacion_id=?'.$only('c.id').' ORDER BY c.inicio DESC',[$org]),
         'zones'=>aeriq_rows('SELECT id,nombre FROM zonas WHERE organizacion_id=?'.($scope?' AND id=(SELECT zona_id FROM campanas WHERE id='.$scope.')':'').' ORDER BY nombre',[$org]),
         'roles'=>aeriq_rows('SELECT codigo,nombre,descripcion FROM roles WHERE codigo=?',[$scope?'trabajador':'admin_campana']),

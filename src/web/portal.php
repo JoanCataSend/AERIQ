@@ -25,6 +25,10 @@ try {
         }
         if ($action==='campaign') auth_responder(200,aeriq_campaign_save(aeriq_ready($u,'campanas.gestionar'),$d));
         if ($action==='device') auth_responder(200,aeriq_device_save(aeriq_ready($u,'equipo.gestionar'),$d));
+        // Gestión de cuentas: el admin principal, sus admins de campaña; el admin de campaña, sus operadores.
+        if ($action==='worker-edit') auth_responder(200,aeriq_worker_edit($a,$d));
+        if ($action==='worker-status') auth_responder(200,aeriq_worker_status($a,$d));
+        if ($action==='worker-invite') auth_responder(200,aeriq_worker_invite($a,$d));
         if ($action==='campaign-settings') auth_responder(200,aeriq_campaign_settings(aeriq_ready($u,'equipo.gestionar'),$d));
     }
     throw new AeriqError('Operación o método no disponible.',405);
