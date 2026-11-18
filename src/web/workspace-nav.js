@@ -8,6 +8,3 @@ if(menuToggle&&mainNavigation){
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&mainNavigation.classList.contains('open')){setMenu(false);menuToggle.focus();}});
   addEventListener('resize',()=>{if(matchMedia('(min-width: 861px)').matches)setMenu(false);});
 }
-if(typeof AeriqAuth!=='undefined')AeriqAuth.session().then(({user})=>{
-  const account=document.querySelector('#account-link');if(account&&user){account.href=user.mustChangePassword?'cambiar-clave.html':(['admin','analista','comercial'].includes(user.role)?'portal.html':'perfil.html');account.textContent='Mi cuenta';}
-}).catch(()=>{});

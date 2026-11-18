@@ -22,18 +22,9 @@ function initNavigation(){
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(update);};
     addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule);update();
   }
-  if(typeof AeriqAuth==='undefined')return;
-  AeriqAuth.session().then(s=>{
-    const a=$('#account-link');
-    if(a){a.href=s.user?authDestination(s.user):'login.html';a.textContent=s.user?'Mi cuenta':'Iniciar sesión';}
-  }).catch(()=>{});
 }
-function authDestination(user){
-  if(!user)return 'login.html';
-  if(user.mustChangePassword)return 'cambiar-clave.html';
-  const panel=['informes.ver','solicitudes.gestionar'].some(p=>(user.permissions||[]).includes(p));
-  return panel?'portal.html':'perfil.html';
-}
+// La página de inicio de cada cuenta se decide en un solo sitio: AeriqAuth.home (auth-client.js).
+function authDestination(user){return AeriqAuth.home(user);}
 window.authDestination=authDestination;
 function authFeedback(error){
   const msg=error instanceof Error?error.message:String(error);
@@ -90,7 +81,7 @@ function initForms(){
     authSubmitButton(f,true);
     try{
       await AeriqAuth.post('reset-password',{email:f.elements.namedItem('email').value,code:f.elements.namedItem('code').value,password});
-      location.href='perfil.html';
+      location.href=AeriqAuth.home((await AeriqAuth.session(true)).user);
     }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
   });
 }
@@ -124,7 +115,7 @@ async function initProfile(){
     const user=session.user;
     const organization=document.querySelector('#profile-organization'),role=document.querySelector('#profile-role');
     if(organization)organization.textContent=user.organization||'Cuenta de consulta pública, sin organización asignada';
-    if(role)role.textContent='Función: '+(user.roleName||user.role);
+    if(role)role.textContent='Función: '+(user.roleName||user.role)+(user.campaign?' · Campaña: '+user.campaign:'');
     const avatar=document.querySelector('.avatar');if(avatar)avatar.textContent=(user.name?.[0]||'')+(user.last?.[0]||'');
     if(user.mustChangePassword){location.href="cambiar-clave.html";return;}
     form.elements.namedItem('name').value=user.name||'';
@@ -158,7 +149,7 @@ async function initProfile(){
   });
   $$('#logout').forEach(button=>button.addEventListener('click',async()=>{
     button.disabled=true;
-    try{await AeriqAuth.post('logout');location.href='login.html'}catch(error){button.disabled=false;authFeedback(error)}
+    try{await AeriqAuth.post('logout');location.href='index.html'}catch(error){button.disabled=false;authFeedback(error)}
   }));
   $('#delete-address')?.addEventListener('click',()=>toast('Las direcciones siguen siendo una maqueta; no se guardan en servidor.'));
   $('#edit-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.'));

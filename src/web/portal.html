@@ -8,6 +8,7 @@
 <title>Organización · AERIQ</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
+<script src="auth-client.js"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -31,10 +32,29 @@
   <div class="container">
     <div class="page-head"><h1 id="portal-title">Tu organización</h1><p id="portal-feedback" class="status" role="status" aria-live="polite">Comprobando acceso…</p></div>
     <div class="workspace-layout">
-      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#overview" data-workspace-view="overview">Resumen</a><a href="#workers" data-workspace-view="workers">Equipo</a><a href="#campaigns" data-workspace-view="campaigns">Campañas</a><a href="#devices" data-workspace-view="devices">Dispositivos Orb</a><a href="#reports" data-workspace-view="reports">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a><a href="perfil.html">Mi cuenta</a><button id="logout" class="danger" type="button">Cerrar sesión</button></aside>
+      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#campaign" data-workspace-view="campaign" data-perm="equipo.gestionar">Mi campaña</a><a href="#overview" data-workspace-view="overview" data-perm="campanas.gestionar">Resumen</a><a href="#workers" data-workspace-view="workers">Equipo</a><a href="#campaigns" data-workspace-view="campaigns" data-perm="campanas.gestionar">Campañas</a><a href="#devices" data-workspace-view="devices">Dispositivos Orb</a><a href="#reports" data-workspace-view="reports">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a><a href="perfil.html">Mi cuenta</a><button id="logout" class="danger" type="button">Cerrar sesión</button></aside>
       <div>
         <div id="organization-panel" hidden>
-          <section data-view="overview">
+          <section data-view="campaign" data-perm="equipo.gestionar">
+            <div class="panel portal-section campaign-card">
+              <p class="plan-badge" id="my-campaign-state">—</p>
+              <h2 id="my-campaign-name">Mi campaña</h2>
+              <p id="my-campaign-meta" class="campaign-meta"></p>
+              <div class="stats-grid">
+                <article class="stat"><strong id="my-campaign-workers">—</strong><small>Operadores</small></article>
+                <article class="stat"><strong id="my-campaign-devices">—</strong><small>Orb asignados</small></article>
+                <article class="stat"><strong id="my-campaign-public">—</strong><small>Mapa público</small></article>
+              </div>
+              <div class="button-row"><a class="btn btn-primary" href="#workers" data-workspace-view="workers">Añadir operador</a><a class="btn btn-secondary" href="#devices" data-workspace-view="devices">Registrar y asignar Orb</a><a class="btn btn-outline" href="#reports" data-workspace-view="reports">Ver informes y CSV</a></div>
+            </div>
+            <div class="panel portal-section">
+              <h2>Ajustes de la campaña</h2>
+              <p>Los umbrales colorean el mapa y los informes; la distancia decide hasta dónde se interpola cada lectura.</p>
+              <form id="campaign-settings-form" class="form-grid"><label>Umbral moderado (ppb)<input name="medium" type="number" min="0" step="any" required></label><label>Umbral alto (ppb)<input name="high" type="number" min="0" step="any" required></label><label>Distancia de interpolación (m)<input name="radius" type="number" min="20" max="50" required></label><label><input name="public" type="checkbox"> Mostrar las mediciones en el mapa público</label><button type="submit" class="btn btn-primary">Guardar ajustes</button></form>
+              <p class="note">Las fechas, el nombre y la zona los cambia el administrador principal.</p>
+            </div>
+          </section>
+          <section data-view="overview" data-perm="campanas.gestionar">
             <div class="stats-grid">
               <article class="stat"><strong data-count="workers">—</strong><small>Personas</small></article>
               <article class="stat"><strong data-count="campaigns">—</strong><small>Campañas</small></article>
@@ -43,7 +63,7 @@
             <div class="panel portal-section">
               <h2>Todo empieza con una campaña</h2>
               <p>Da de alta a tu equipo, registra los dispositivos Orb y asigna cada dispositivo a una persona y a una campaña. Los informes y el mapa usan esas mediciones.</p>
-              <div class="button-row"><a class="btn btn-primary" href="#campaigns" data-workspace-view="campaigns">Ver campañas</a><a class="btn btn-secondary" href="sensores.html">Abrir la flota Orb</a></div>
+              <div class="button-row"><a class="btn btn-primary" href="#campaigns" data-workspace-view="campaigns">Ver campañas</a><a class="btn btn-secondary" href="#devices" data-workspace-view="devices">Ver los dispositivos Orb</a></div>
             </div>
           </section>
           <section data-view="workers" class="panel portal-section" data-perm="campanas.gestionar equipo.gestionar">
@@ -58,11 +78,23 @@
             <p class="note">Los umbrales son parámetros del proyecto: no equivalen a los oficiales ni convierten ppb a µg/m³.</p>
             <div id="campaigns-list" class="table-scroll"></div>
           </section>
-          <section data-view="devices" class="panel portal-section">
-            <h2>Dispositivos Orb</h2>
-            <form id="device-form" class="form-grid" data-perm="equipo.gestionar"><input name="id" type="hidden"><label>Nombre<input name="name" required maxlength="160"></label><label>Dirección BLE del Orb<input name="address" required pattern="([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" placeholder="AA:BB:CC:DD:EE:FF"></label><label>Operador<select name="worker" id="device-worker"></select></label><label><input name="active" type="checkbox" checked> Alta administrativa activa</label><label><input name="simulated" type="checkbox"> Firmware con datos simulados</label><button class="btn btn-primary" type="submit">Guardar dispositivo</button><button class="btn btn-outline" type="reset">Nuevo dispositivo</button></form>
-            <p class="note">Para dar de baja un Orb, edítalo y desactiva su alta administrativa. Sus lecturas no se borran.</p>
-            <div id="devices-list" class="table-scroll"></div>
+          <section data-view="devices" id="fleet">
+            <div class="fleet-head"><div><h2>Dispositivos Orb</h2><p>Qué Orb están enviando lecturas, a quién están asignados y en qué campaña.</p></div><button class="btn btn-primary" type="button" id="add-device" hidden><svg aria-hidden="true"><use href="#i-plus"/></svg>Registrar Orb</button></div>
+            <div class="stats-grid">
+              <div class="stat"><strong>—</strong><small>Orb registrados</small></div>
+              <div class="stat"><strong>—</strong><small>Con alta administrativa</small></div>
+              <div class="stat"><strong>—</strong><small>Dados de baja</small></div>
+            </div>
+            <div class="panel portal-section">
+              <div class="devices-controls">
+                <label class="search-control"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar dispositivo</span><input type="search" id="device-search" placeholder="Buscar por nombre o ID"></label>
+                <div class="segmented" role="group" aria-label="Filtrar por actividad"><button class="selected" type="button" data-device-filter="all">Todos</button><button type="button" data-device-filter="active">Recibiendo</button><button type="button" data-device-filter="inactive">Sin datos</button></div>
+              </div>
+              <div class="table-scroll"><table class="devices-table"><thead><tr><th>Dispositivo</th><th>Actividad</th><th>Operador</th><th>Campaña</th><th>Última medición</th><th>Origen</th><th>Batería</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="8">Consultando los dispositivos Orb…</td></tr></tbody></table></div>
+              <div class="table-bottom">Consultando dispositivos…</div>
+            </div>
+            <p class="note">Cada Orb indica si sus datos son reales o simulados. Darlo de baja conserva sus mediciones.</p>
+            <dialog id="device-modal" class="modal"><form method="dialog" id="device-edit-form"><h2>Editar Orb</h2><p class="text-muted">El Orb se asigna a un operador de tu campaña.</p><label>Nombre del dispositivo<input id="device-new-name" required></label><div class="button-pair"><button type="button" class="btn btn-outline" id="device-modal-close">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></dialog>
           </section>
           <section data-view="reports" class="panel portal-section">
             <h2>Informes y exportación</h2>
@@ -88,9 +120,9 @@
   </div>
 </footer>
 
-<script src="auth-client.js" defer></script>
 <script src="aeriq-client.js" defer></script>
 <script src="aeriq-domain.js" defer></script>
+<script src="fleet.js" defer></script>
 <script src="portal.js" defer></script>
 <script src="workspace-nav.js" defer></script>
 <script src="precarga-3d.js" defer></script>

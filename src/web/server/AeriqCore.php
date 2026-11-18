@@ -18,11 +18,13 @@ function aeriq_rows(string $sql, array $params = []): array { return aeriq_sql($
 function aeriq_one(string $sql, array $params = []): ?array { return aeriq_rows($sql,$params)[0] ?? null; }
 /** Identidad, organización, rol y permisos de una cuenta, leídos siempre del servidor. */
 function aeriq_access(int $id): array {
-    $a=aeriq_one('SELECT u.id AS usuario_id,u.organizacion_id,u.campana_id,o.nombre AS organizacion,u.rol_id,r.codigo AS rol,r.nombre AS rol_nombre,r.requiere_organizacion,u.debe_cambiar_clave AS cambiar_clave,u.activo,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id LEFT JOIN organizaciones o ON o.id=u.organizacion_id WHERE u.id=?',[$id]);
+    $a=aeriq_one('SELECT u.id AS usuario_id,u.organizacion_id,u.campana_id,cp.nombre AS campana,o.nombre AS organizacion,u.rol_id,r.codigo AS rol,r.nombre AS rol_nombre,r.requiere_organizacion,u.debe_cambiar_clave AS cambiar_clave,u.activo,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id LEFT JOIN organizaciones o ON o.id=u.organizacion_id LEFT JOIN campanas cp ON cp.id=u.campana_id WHERE u.id=?',[$id]);
     if (!$a) throw new AeriqError('Cuenta no disponible.',401);
     $a['permisos']=array_column(aeriq_rows('SELECT p.codigo FROM rol_permisos rp JOIN permisos p ON p.id=rp.permiso_id WHERE rp.rol_id=? ORDER BY p.codigo',[(int)$a['rol_id']]),'codigo');
     // Un rol de organización sin organización no concede permisos (antes era un CHECK sobre el ENUM).
     if ((int)$a['requiere_organizacion'] && !$a['organizacion_id']) $a['permisos']=[];
+    // Un admin de campaña sin campaña no concede permisos: si no, vería toda la organización.
+    if ($a['rol']==='admin_campana' && !$a['campana_id']) $a['permisos']=[];
     return $a;
 }
 function aeriq_can(array $access, string $permission): bool { return in_array($permission,$access['permisos']??[],true); }
@@ -140,6 +142,20 @@ function aeriq_campaign_save(array $a,array $d): array {
     } catch (Throwable $e) {$db->rollback();throw $e;}
     return ['ok'=>true,'id'=>$id];
 }
+/** El admin de campaña ajusta SU campaña: umbrales de ozono, distancia de interpolación y si sale en el mapa público. */
+function aeriq_campaign_settings(array $a,array $d): array {
+    $id=aeriq_campaign($a);if (!$id) throw new AeriqError('Tu cuenta no tiene campaña asignada.',403);
+    $mid=aeriq_number($d['medium']??null,0,65535);$high=aeriq_number($d['high']??null,0,65535);
+    if ($high<=$mid) throw new AeriqError('El umbral alto debe superar al moderado.',422,'high');
+    $radius=aeriq_int($d['radius']??30,20,50);$public=aeriq_bool($d['public']??false);
+    $db=conexionBD();$db->begin_transaction();
+    try {
+        aeriq_sql('UPDATE campanas SET publicar=?,radio_m=? WHERE id=? AND organizacion_id=?',[$public,$radius,$id,aeriq_org($a)]);
+        aeriq_sql('INSERT INTO campana_umbrales(campana_id,magnitud_id,umbral_medio,umbral_alto) VALUES(?,14,?,?) ON DUPLICATE KEY UPDATE umbral_medio=VALUES(umbral_medio),umbral_alto=VALUES(umbral_alto)',[$id,$mid,$high]);
+        $db->commit();
+    } catch (Throwable $e) {$db->rollback();throw $e;}
+    return ['ok'=>true,'id'=>$id,'message'=>'Ajustes de la campaña guardados.'];
+}
 /** Devuelve la zona de la organización con ese nombre, creándola si aún no existe. */
 function aeriq_zone(int $org,string $name): int {
     aeriq_sql('INSERT IGNORE INTO zonas(organizacion_id,nombre) VALUES(?,?)',[$org,$name]);
@@ -250,7 +266,7 @@ function aeriq_dashboard(array $a): array {
         'zones'=>aeriq_rows('SELECT id,nombre FROM zonas WHERE organizacion_id=?'.($scope?' AND id=(SELECT zona_id FROM campanas WHERE id='.$scope.')':'').' ORDER BY nombre',[$org]),
         'roles'=>aeriq_rows('SELECT codigo,nombre,descripcion FROM roles WHERE codigo=?',[$scope?'trabajador':'admin_campana']),
         'thresholds'=>['umbral_medio'=>(float)$ref['umbral_medio'],'umbral_alto'=>(float)$ref['umbral_alto']],
-        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,'.AERIQ_BATERIA.',a.trabajador_id,a.campana_id,u.email AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=?'.$only(AERIQ_CAMPANA_ORB).' ORDER BY d.nombre',[$org])
+        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,'.AERIQ_BATERIA.',a.trabajador_id,a.campana_id,TRIM(CONCAT(u.nombre,\' \',u.apellidos)) AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=?'.$only(AERIQ_CAMPANA_ORB).' ORDER BY d.nombre',[$org])
     ];
 }
 

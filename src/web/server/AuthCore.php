@@ -60,7 +60,7 @@ function auth_public(array $user): array {
     auth_login_allowed($user);
     return ['id'=>(int)$user['id'],'name'=>$user['nombre'],'last'=>$user['apellidos'],'email'=>$user['email'],'phone'=>$user['telefono']??'',
         'role'=>$a['rol'],'roleName'=>$a['rol_nombre'],'permissions'=>$a['permisos'],
-        'organizationId'=>$a['organizacion_id'],'organization'=>$a['organizacion'],
+        'organizationId'=>$a['organizacion_id'],'organization'=>$a['organizacion'],'campaign'=>$a['campana'],
         'mustChangePassword'=>(bool)$a['cambiar_clave']];
 }
 function auth_current(): ?array {

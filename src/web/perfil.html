@@ -8,6 +8,7 @@
 <title>Mi cuenta · AERIQ</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
+<script src="auth-client.js"></script>
 </head>
 <body data-page="perfil">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -36,8 +37,6 @@
         <a href="#datos" class="active">Datos personales</a>
         <a href="#seguridad">Contraseña</a>
         <a href="#direcciones">Organización</a>
-        <a href="#pedidos">Herramientas</a>
-        <a href="sensores.html">Dispositivos Orb</a>
         <button id="logout" class="danger" type="button">Cerrar sesión</button>
       </aside>
       <div>
@@ -69,13 +68,7 @@
         <section id="direcciones" class="panel">
           <h2>Organización</h2>
           <p id="profile-organization">Consultando organización…</p>
-          <div class="row-link"><p id="profile-role"></p><a class="btn btn-secondary btn-sm" href="portal.html">Abrir el panel</a></div>
-        </section>
-        <section id="pedidos" class="panel">
-          <h2>Herramientas de medición</h2>
-          <p>Dispositivos, informes y campañas, según los permisos de tu organización.</p>
-          <div class="row-link"><div><strong>Dispositivos Orb</strong><p>Asignaciones, última actividad y gestión administrativa.</p></div><a class="btn btn-secondary btn-sm" href="sensores.html">Ver dispositivos</a></div>
-          <div class="row-link"><div><strong>Informes</strong><p>Lecturas válidas, gráficas y exportación CSV de tus campañas.</p></div><a class="text-link" href="portal.html#reports">Abrir informes</a></div>
+          <p id="profile-role"></p>
         </section>
       </div>
     </div>
@@ -91,7 +84,6 @@
   </div>
 </footer>
 <div class="toast" role="status" aria-live="polite" id="toast"></div>
-<script src="auth-client.js" defer></script>
 <script src="app.js" defer></script>
 <script src="precarga-3d.js" defer></script>
 </body>

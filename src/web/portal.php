@@ -25,6 +25,7 @@ try {
         }
         if ($action==='campaign') auth_responder(200,aeriq_campaign_save(aeriq_ready($u,'campanas.gestionar'),$d));
         if ($action==='device') auth_responder(200,aeriq_device_save(aeriq_ready($u,'equipo.gestionar'),$d));
+        if ($action==='campaign-settings') auth_responder(200,aeriq_campaign_settings(aeriq_ready($u,'equipo.gestionar'),$d));
     }
     throw new AeriqError('Operación o método no disponible.',405);
 } catch (Throwable $e) { aeriq_failure($e); }

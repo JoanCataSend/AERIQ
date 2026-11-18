@@ -7,9 +7,8 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 | `index.html` | Portada original, vista explosionada del Orb con el scroll (`product-explode.js` + anime.js), Orb 3D, tres soluciones y acceso al mapa |
 | `sensor.html` | Galería de cuatro vistas y preparación de un kit |
 | `mapa.html` | Público/organización, real/simulado, periodo, búsqueda, capas y aspecto |
-| `sensores.html` | Flota real con tabla, filtros, edición y asignación |
-| `portal.html` | Secciones de organización: equipo, campañas, Orb, informes; comercial ve solicitudes |
-| `perfil.html` | Perfil/contraseña, organización y herramientas |
+| `portal.html` | Panel según el rol. Admin principal: resumen, equipo, campañas, Orb (consulta), informes sin CSV y solicitudes. Admin de campaña: Mi campaña, equipo, flota de Orb (tabla con filtros, edición y asignación), informes con CSV |
+| `perfil.html` | Mi cuenta: datos, contraseña, organización y campaña |
 | `login.html` | Acceso con correo/contraseña o Google mediante Firebase (solo cuentas ya invitadas) |
 | `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
 | `solicitar.html` | Único formulario comercial: kits, estudio temporal de ozono o asesoramiento, con validación en línea |

@@ -18,14 +18,23 @@ function payload(form){const d=Object.fromEntries(new FormData(form));for(const 
 async function refresh(){
   dashboard=await Aeriq.portal('dashboard');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
   table(document.querySelector('#workers-list'),['Nombre','Correo','Función','Acceso'],dashboard.workers.map(w=>({cells:[w.nombre+' '+w.apellidos,w.email,w.rol_nombre||w.rol,Number(w.cambiar_clave)?((w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':('Activación pendiente · '+(w.invitacion_expira_en||'')+' UTC')):(Number(w.activo)?'Activo':'Desactivado')]})));
-  options('device-worker',dashboard.workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.email);
   catalogs();
   for(const id of ['worker-campaign','report-campaign'])options(id,dashboard.campaigns,c=>c.nombre);
+  // «Mi campaña» (admin de campaña): el servidor solo devuelve su campaña.
+  const mine=can(me,'equipo.gestionar')?dashboard.campaigns[0]:null;
+  if(mine){
+    const set=(id,text)=>{document.getElementById(id).textContent=text;};
+    set('my-campaign-name',mine.nombre);set('my-campaign-state',Number(mine.activa)?'Campaña activa':'Campaña inactiva');
+    set('my-campaign-meta',`${mine.zona} · del ${mine.inicio} al ${mine.fin}`);
+    set('my-campaign-workers',dashboard.workers.filter(w=>Number(w.puede_medir)).length);
+    set('my-campaign-devices',dashboard.devices.filter(d=>Number(d.activo)&&d.trabajador_id).length);
+    set('my-campaign-public',Number(mine.publicar)?'Sí':'No');
+    fill(document.querySelector('#campaign-settings-form'),{medium:mine.umbral_medio,high:mine.umbral_alto,radius:mine.radio_m,public:mine.publicar});
+  }
   options('report-device',dashboard.devices,d=>d.nombre);
   table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,Number(c.publicar)?'Autorizada':'Privada'],source:c})),can(me,'campanas.gestionar')?c=>fill(document.querySelector('#campaign-form'),{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,medium:c.umbral_medio,high:c.umbral_alto,radius:c.radio_m,active:c.activa,public:c.publicar}):null);
-  table(document.querySelector('#devices-list'),['Orb','Dirección BLE','Trabajador','Campaña','Alta','Actividad','Última lectura (UTC)','Batería'],dashboard.devices.map(d=>({cells:[d.nombre,d.direccion_ble,d.trabajador,d.campana,Number(d.activo)?'Activo':'Baja',d.ultima_recepcion?(Date.now()-new Date(d.ultima_recepcion.replace(' ','T')+'Z').getTime()<900000?'Lecturas en los últimos 15 min':'Sin lecturas recientes'):'Sin lecturas',d.ultima_medicion,AeriqDomain.battery(d.bateria_pct,d.bateria_en)],source:d})),can(me,'equipo.gestionar')?d=>fill(document.querySelector('#device-form'),{id:d.id,name:d.nombre,address:d.direccion_ble,worker:d.trabajador_id,active:d.activo,simulated:d.simulado}):null);
 }
-for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['device-form','device']]){
+for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
   document.getElementById(id).onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
     try{const result=await Aeriq.portal(action,payload(f));f.reset();await refresh();portalFeedback.textContent=result.message||'Cambios guardados.';}
     catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
@@ -86,13 +95,17 @@ async function commercial(){
   document.querySelector('#organization-panel').hidden=false;
   for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
   await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
+  // La flota (sección «Dispositivos Orb») se carga aparte; al guardar un Orb se refrescan los contadores.
+  if(typeof initFleet==='function'){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
-  showWorkspace(location.hash.slice(1)||'overview');
+  showWorkspace(location.hash.slice(1));
 }catch(e){portalFeedback.textContent=e.message;}})();
 
 function showWorkspace(view){
-  if(!['overview','workers','campaigns','devices','reports','requests'].includes(view))view='overview';
-  if(view==='requests'&&!can(me,'solicitudes.gestionar'))view='overview';
+  // Primera sección: «Mi campaña» para el admin de campaña; «Resumen» para el admin principal.
+  const first=can(me,'campanas.gestionar')?'overview':'campaign';
+  const link=document.querySelector(`.workspace-nav [data-workspace-view="${view}"]`);
+  if(!link||!allowed(link))view=first;
   for(const n of document.querySelectorAll('[data-view]'))n.hidden=n.dataset.view!==view||!allowed(n);
   for(const a of document.querySelectorAll('[data-workspace-view]'))a.classList.toggle('active',a.dataset.workspaceView===view);
 }
@@ -100,6 +113,6 @@ for(const a of document.querySelectorAll('[data-workspace-view]'))a.addEventList
 window.addEventListener('hashchange',()=>showWorkspace(location.hash.slice(1)));
 document.querySelector('#logout').onclick=async e=>{
   const b=e.currentTarget;b.disabled=true;
-  try{await AeriqAuth.post('logout');location.href='login.html';}
+  try{await AeriqAuth.post('logout');location.href='index.html';}
   catch(err){b.disabled=false;portalFeedback.textContent=err.message;}
 };
