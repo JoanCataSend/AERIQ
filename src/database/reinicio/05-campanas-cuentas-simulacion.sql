@@ -1,13 +1,14 @@
 -- Paso 05. Asigna campaña a las cuentas de prueba que quedaron sin ella tras el paso 04.
 -- Importar en phpMyAdmin con la base seleccionada. Se puede repetir sin problema.
--- Marta (admin de campaña) y Pau (operador) -> «Simulación · paseo por el campus».
+-- Marta y admincamp (admins de campaña) y Pau (operador) -> «Simulación · paseo por el campus».
+-- Si una cuenta no existe en tu base, simplemente no se toca.
 -- Lucía (operadora) -> «Simulación · playa de Gandia», donde está su Orb.
 SET NAMES utf8mb4;
 
 UPDATE usuarios u
 JOIN campanas c ON c.organizacion_id=u.organizacion_id AND c.nombre='Simulación · paseo por el campus'
 SET u.campana_id=c.id
-WHERE u.email IN ('analista.simulacion@aeriq.example','operador.simulacion@aeriq.example');
+WHERE u.email IN ('analista.simulacion@aeriq.example','admincamp.simulacion@aeriq.example','operador.simulacion@aeriq.example');
 
 UPDATE usuarios u
 JOIN campanas c ON c.organizacion_id=u.organizacion_id AND c.nombre='Simulación · playa de Gandia'
