@@ -2,7 +2,11 @@ package com.aeriq.app.ui;
 
 import android.graphics.Color;
 import android.graphics.ColorMatrixColorFilter;
-import android.graphics.DashPathEffect;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.location.Location;
@@ -36,7 +40,13 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.MapEventsOverlay;
 import org.osmdroid.views.overlay.Marker;
-import org.osmdroid.views.overlay.Polygon;
+import org.osmdroid.views.overlay.Overlay;
+import org.osmdroid.api.IGeoPoint;
+import org.osmdroid.events.DelayedMapListener;
+import org.osmdroid.events.MapListener;
+import org.osmdroid.events.ScrollEvent;
+import org.osmdroid.events.ZoomEvent;
+import org.osmdroid.views.Projection;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 
@@ -46,7 +56,12 @@ import static com.aeriq.app.ui.Views.*;
 public final class PublicMapScreen {
     private static final GeoPoint CAMPUS = new GeoPoint(38.99665, -0.16601);
     private static final double NEAR_ZONE_METERS = 3000;
-    private static final int RADIUS_STEP = 5, MAX_CELLS = 1500, MAX_EXAMINED = 8000;
+    private static final int RADIUS_STEP = 5;
+    /** Separación (dp) entre los puntos evaluados para pintar las zonas. */
+    private static final int ZONE_STEP_DP = 4;
+    /** Color ARGB de cada estado de PublicReadings.raster: sin datos, insuficiente, bajo, moderado y alto. */
+    private static final int[] ZONE_COLORS = {0x00000000, 0x30686d6b, 0x56219c72, 0x60eea22d, 0x60e35b5d};
+    private final ZoneOverlay zoneOverlay = new ZoneOverlay();
     private final MainActivity activity;
     private final Views ui;
     private final ExecutorService worker;
@@ -100,6 +115,12 @@ public final class PublicMapScreen {
             return false;
         });
         frame.addView(map, new FrameLayout.LayoutParams(-1, -1));
+        // Las zonas dependen de la vista: se recalculan al terminar de mover o ampliar el mapa, y en el primer dibujado.
+        map.addMapListener(new DelayedMapListener(new MapListener() {
+            @Override public boolean onScroll(ScrollEvent event) { refreshZones(); return false; }
+            @Override public boolean onZoom(ZoomEvent event) { refreshZones(); return false; }
+        }, 150));
+        map.addOnFirstLayoutListener((view, left, top, right, bottom) -> refreshZones());
 
         // Buscador (cualquier ciudad, pueblo o dirección del mundo)
         LinearLayout searchBar = ui.row();
@@ -415,7 +436,7 @@ public final class PublicMapScreen {
             text.setSpan(new ForegroundColorSpan(colors[i]), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             text.append(" ").append(labels[i]);
         }
-        // Gris discontinuo: hay mediciones cerca pero no bastan. Sin color: sin datos.
+        // Gris: hay mediciones cerca pero no bastan. Sin color: sin datos.
         text.append("\n");
         int grey = text.length();
         text.append("●");
@@ -565,7 +586,8 @@ public final class PublicMapScreen {
             }
             @Override public boolean longPressHelper(GeoPoint point) { return false; }
         }));
-        legend.setText(legendText(zones.isChecked() && drawZones()));
+        if (zones.isChecked()) map.getOverlays().add(zoneOverlay);
+        refreshZones();
         if (markers.isChecked()) for (Reading reading : readings) {
             Marker marker = new Marker(map);
             marker.setPosition(reading.position());
@@ -592,61 +614,67 @@ public final class PublicMapScreen {
      * Gris discontinuo: hay mediciones cerca pero no bastan. Sin pintar: sin datos.
      * Devuelve true si el tope de rendimiento dejó celdas sin pintar.
      */
-    private boolean drawZones() {
-        int drawn = 0, examined = 0;
-        double latStep = PublicReadings.CELL / PublicReadings.METERS_PER_DEGREE;
-        double bucketLat = PublicReadings.RADIUS_MAX * 1.1 / PublicReadings.METERS_PER_DEGREE;
-        for (List<Reading> group : groups) {
-            if (group.isEmpty()) continue;
-            Reading first = group.get(0);
-            // Latitud de referencia fija por grupo: la rejilla no depende de la posición del mapa.
-            double cos = Math.max(0.01, Math.cos(Math.toRadians(Math.round(first.latitude))));
-            double lonStep = latStep / cos, bucketLon = bucketLat / cos;
-            int radius = radiusOf(group), reach = (int) Math.ceil(radius / PublicReadings.CELL) + 1;
-            Set<String> visited = new HashSet<>();
-            Map<String, List<Reading>> buckets = new HashMap<>();
-            for (Reading reading : group) {
-                long x = (long) Math.floor(reading.latitude / bucketLat);
-                long y = (long) Math.floor(reading.longitude / bucketLon);
-                buckets.computeIfAbsent(x + "/" + y, key -> new ArrayList<>()).add(reading);
-            }
-            for (Reading reading : group) {
-                long a = (long) Math.floor(reading.latitude / latStep), b = (long) Math.floor(reading.longitude / lonStep);
-                for (int i = -reach; i <= reach; i++) for (int j = -reach; j <= reach; j++) {
-                    if (!visited.add((a + i) + "/" + (b + j))) continue;
-                    if (++examined > MAX_EXAMINED || drawn >= MAX_CELLS) return true;
-                    double south = (a + i) * latStep, west = (b + j) * lonStep;
-                    // El valor se calcula en el centro de la celda que se pinta.
-                    double lat = south + latStep / 2, lon = west + lonStep / 2;
-                    long x = (long) Math.floor(lat / bucketLat), y = (long) Math.floor(lon / bucketLon);
-                    List<Reading> nearby = new ArrayList<>();
-                    for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
-                        List<Reading> bucket = buckets.get((x + dx) + "/" + (y + dy));
-                        if (bucket != null) nearby.addAll(bucket);
-                    }
-                    Estimate estimate = PublicReadings.estimate(lat, lon, nearby, radius);
-                    if (estimate.value == null && estimate.reason != Reason.INSUFFICIENT) continue;
-                    Polygon cell = new Polygon(map);
-                    cell.setPoints(Arrays.asList(new GeoPoint(south, west), new GeoPoint(south + latStep, west),
-                        new GeoPoint(south + latStep, west + lonStep), new GeoPoint(south, west + lonStep)));
-                    if (estimate.value != null) {
-                        cell.getFillPaint().setColor((first.color(estimate.value) & 0xffffff) | 0x46000000);
-                        cell.getOutlinePaint().setStrokeWidth(0);
-                        cell.getOutlinePaint().setColor(Color.TRANSPARENT);
-                    } else {
-                        cell.getFillPaint().setColor(0x22686d6b);
-                        cell.getOutlinePaint().setStrokeWidth(ui.dp(1));
-                        cell.getOutlinePaint().setColor(0x8c686d6b);
-                        cell.getOutlinePaint().setPathEffect(new DashPathEffect(new float[]{ui.dp(3), ui.dp(3)}, 0));
-                    }
-                    // Las celdas no consumen el toque: llega a la consulta de punto.
-                    cell.setOnClickListener((polygon, view, point) -> false);
-                    map.getOverlays().add(cell);
-                    drawn++;
-                }
+    private void refreshZones() {
+        // Los avisos del mapa llegan después del constructor; la comprobación cubre un aviso temprano.
+        if (closed || zones == null || legend == null) return;
+        boolean clipped = false;
+        zoneOverlay.clear();
+        int width = map.getWidth(), height = map.getHeight();
+        if (zones.isChecked() && !groups.isEmpty() && width > 0 && height > 0) {
+            // Rejilla de pantalla: un punto cada ZONE_STEP_DP. En Web Mercator la latitud solo depende de la
+            // fila y la longitud de la columna, así que basta con convertir una fila y una columna.
+            Projection projection = map.getProjection();
+            int step = Math.max(2, ui.dp(ZONE_STEP_DP)), columns = (width + step - 1) / step, rows = (height + step - 1) / step;
+            double[] lats = new double[rows], lons = new double[columns];
+            for (int i = 0; i < rows; i++) lats[i] = projection.fromPixels(0, i * step + step / 2).getLatitude();
+            for (int j = 0; j < columns; j++) lons[j] = projection.fromPixels(j * step + step / 2, 0).getLongitude();
+            int[] radii = new int[groups.size()];
+            for (int g = 0; g < radii.length; g++) radii[g] = groups.get(g).isEmpty() ? 0 : radiusOf(groups.get(g));
+            PublicReadings.Raster grid = PublicReadings.raster(groups, radii, lats, lons, PublicReadings.MAX_EVALUATIONS);
+            clipped = grid.clipped;
+            if (grid.evaluated > 0) {
+                int[] pixels = new int[grid.states.length];
+                for (int k = 0; k < pixels.length; k++) pixels[k] = ZONE_COLORS[grid.states[k]];
+                IGeoPoint northWest = projection.fromPixels(0, 0), southEast = projection.fromPixels(columns * step, rows * step);
+                zoneOverlay.set(Bitmap.createBitmap(pixels, columns, rows, Bitmap.Config.ARGB_8888),
+                    new BoundingBox(northWest.getLatitude(), southEast.getLongitude(), southEast.getLatitude(), northWest.getLongitude()));
             }
         }
-        return false;
+        legend.setText(legendText(clipped));
+        map.invalidate();
+    }
+
+    /**
+     * Zonas estimadas como imagen: la rejilla de pantalla se amplía con filtrado, así el borde sigue el radio
+     * de cada medición (redondo) en vez de formar cuadrados. Mientras se arrastra o se hace zoom, la imagen se
+     * mueve con el mapa; al parar se vuelve a calcular. No consume toques: llegan a la consulta de punto.
+     */
+    private static final class ZoneOverlay extends Overlay {
+        private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+        private final Rect target = new Rect();
+        private final Point corner = new Point(), opposite = new Point();
+        private Bitmap bitmap;
+        private BoundingBox box;
+
+        void set(Bitmap image, BoundingBox bounds) {
+            clear();
+            bitmap = image;
+            box = bounds;
+        }
+
+        void clear() {
+            if (bitmap != null) bitmap.recycle();
+            bitmap = null;
+            box = null;
+        }
+
+        @Override public void draw(Canvas canvas, Projection projection) {
+            if (bitmap == null || box == null) return;
+            projection.toPixels(new GeoPoint(box.getLatNorth(), box.getLonWest()), corner);
+            projection.toPixels(new GeoPoint(box.getLatSouth(), box.getLonEast()), opposite);
+            target.set(corner.x, corner.y, opposite.x, opposite.y);
+            canvas.drawBitmap(bitmap, null, target, paint);
+        }
     }
 
     /**
@@ -845,5 +873,6 @@ public final class PublicMapScreen {
         if (pendingSearch != null) main.removeCallbacks(pendingSearch);
         pause();
         map.onDetach();
+        zoneOverlay.clear();
     }
 }

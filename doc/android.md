@@ -22,7 +22,7 @@
 
 Se mantienen fabricante `0x004C`, prefijo `02 15`, identificador ASCII `EPSG-GTI-PROY-3A`, tipos 14 ppb y 12 °C, contador de 8 bits y temperatura con signo. Vincular significa seleccionar anuncios iBeacon, no una conexión GATT permanente. Seleccionar de nuevo el mismo Orb no reinicia la deduplicación.
 
-Tras 15 s sin anuncios se indica ausencia de recepción; el estado del servidor es independiente. Los permisos BLE dependen de versión Android. El GPS es opcional, solo se adjunta una posición reciente y se detiene en segundo plano. El mapa distingue el punto del teléfono de las mediciones.
+Tras 15 s sin anuncios se indica ausencia de recepción; el estado del servidor es independiente. Los permisos BLE dependen de versión Android. El GPS es opcional, solo se adjunta una posición reciente (menos de 60 s) y se detiene en segundo plano. `ForegroundCaptureLocation` pide posiciones cada 2 s sin distancia mínima, para que una persona parada siga recibiendo posiciones frescas (antes, con 3 m de distancia mínima, al minuto quieta las lecturas se enviaban sin GPS y no salían en el mapa). Entre red y GPS se queda con la más precisa de los últimos 10 s. Estas posiciones son también las que forman la ruta del Orb en el mapa web de la organización. El mapa distingue el punto del teléfono de las mediciones.
 
 La batería no se inventa: el contrato actual no transmite ese dato y falta el firmware/circuito para T22. Las pruebas físicas de radio, GPS y LED no se sustituyen por compilar.
 

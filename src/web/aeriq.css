@@ -25,6 +25,7 @@
   --low:#219c72;
   --mid:#eea22d;
   --high:#e35b5d;
+  --route:#24508f; /* Ruta del Orb en el mapa: azul, distinto de los tres niveles de ozono. */
   --danger:#b3261e;
   --danger-tint:#fdeceb;
   --r-sm:8px;
@@ -364,7 +365,17 @@ body[data-page="mapa"]{overflow-x:hidden}
 .legend-states{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;font-size:12.5px;color:var(--ink-2)}
 .legend-states li{display:flex;align-items:center;gap:8px}
 .legend-swatch{width:18px;height:12px;border-radius:3px;flex:none}
-.legend-partial{background:rgba(104,109,107,.2);border:1px dashed #686d6b}
+.legend-partial{background:rgba(104,109,107,.22)}
+.legend-route{height:0;border-top:3px solid var(--route);border-radius:2px}
+.legend-states li[hidden]{display:none}
+/* Lienzo de las zonas estimadas (public-map.js): no intercepta toques ni clics. */
+.map-zones{position:absolute;left:0;top:0;pointer-events:none;max-width:none}
+/* Panel de la ruta: Leaflet solo quita el max-width:100% global en su panel por defecto; sin esto la línea mide 0 px. */
+.leaflet-aeriq-ruta-pane svg{max-width:none!important;max-height:none!important}
+.route-control{display:grid;gap:8px;margin-top:16px}
+.route-control[hidden]{display:none}
+.route-control .select:disabled{opacity:.55;cursor:not-allowed}
+.route-control p.help{margin-top:0}
 .legend-empty{border:1px solid var(--line-strong)}
 .radius-control{display:grid;gap:8px;margin-top:16px}
 .radius-control label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14.5px;color:var(--ink)}

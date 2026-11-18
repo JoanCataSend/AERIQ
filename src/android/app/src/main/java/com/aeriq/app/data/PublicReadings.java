@@ -69,8 +69,12 @@ public final class PublicReadings {
     public static final double MIN_SEPARATION = 5;
     /** Exponente del peso 1/d^p y suelo de distancia (m) para no dividir entre cero. */
     public static final double POWER = 2, MIN_DISTANCE = 1;
-    /** Lado de la celda de pintado (m). */
+    /** Lado (m) de la rejilla de validación de las pruebas. */
     public static final double CELL = 10;
+    /** Puntos que {@link #raster} evalúa como máximo por pintado; si se alcanza, se avisa. */
+    public static final int MAX_EVALUATIONS = 250_000;
+    /** Estado de cada punto de {@link #raster}: sin datos, datos insuficientes y nivel bajo, moderado o alto. */
+    public static final byte ZONE_NONE = 0, ZONE_INSUFFICIENT = 1, ZONE_LOW = 2, ZONE_MEDIUM = 3, ZONE_HIGH = 4;
     public static final double METERS_PER_DEGREE = 111320;
 
     public enum Reason {
@@ -182,6 +186,92 @@ public final class PublicReadings {
     /** Valor interpolado o null si el punto queda sin datos. Acepta lecturas en bruto. */
     public static Double interpolate(double latitude, double longitude, List<Reading> rows, int radius) {
         return estimate(latitude, longitude, support(rows), radius).value;
+    }
+
+    /** Resultado de {@link #raster}: un estado ZONE_* por punto, fila a fila. */
+    public static final class Raster {
+        public final int rows, columns, evaluated;
+        public final byte[] states;
+        public final boolean clipped;
+
+        Raster(int rows, int columns, byte[] states, int evaluated, boolean clipped) {
+            this.rows = rows;
+            this.columns = columns;
+            this.states = states;
+            this.evaluated = evaluated;
+            this.clipped = clipped;
+        }
+    }
+
+    /** Índices {desde, hasta} de los valores de una lista ordenada (creciente o decreciente) que caen en [min, max]. */
+    static int[] span(double[] values, double min, double max) {
+        int n = values.length;
+        boolean ascending = n < 2 || values[0] <= values[n - 1];
+        int lo = 0, hi = n;
+        while (lo < hi) { int m = (lo + hi) >>> 1; if (at(values, ascending, m) < min) lo = m + 1; else hi = m; }
+        int a = lo;
+        hi = n;
+        while (lo < hi) { int m = (lo + hi) >>> 1; if (at(values, ascending, m) <= max) lo = m + 1; else hi = m; }
+        int b = lo - 1;
+        return ascending ? new int[]{a, b} : new int[]{n - 1 - b, n - 1 - a};
+    }
+
+    private static double at(double[] values, boolean ascending, int index) {
+        return ascending ? values[index] : values[values.length - 1 - index];
+    }
+
+    /**
+     * Rejilla para pintar las zonas sin celdas cuadradas: evalúa {@link #estimate} en cada punto de una rejilla
+     * fina (la pantalla, cada pocos píxeles), así el borde de cada zona sigue el radio y sale redondo.
+     * Mismo cálculo que raster() de aeriq-domain.js. groups: posiciones de soporte por grupo; radii: radio de
+     * cada grupo; lats/lons: latitud de cada fila y longitud de cada columna (ordenadas). Solo se evalúan los
+     * puntos cercanos a alguna posición. Si varios grupos alcanzan un punto, un valor estimado gana a «datos insuficientes».
+     */
+    public static Raster raster(List<List<Reading>> groups, int[] radii, double[] lats, double[] lons, int maxEvaluations) {
+        int rows = lats.length, columns = lons.length, evaluated = 0;
+        byte[] states = new byte[rows * columns];
+        int[] seen = new int[rows * columns];
+        boolean clipped = false;
+        double bucketLat = RADIUS_MAX * 1.1 / METERS_PER_DEGREE;
+        scan:
+        for (int g = 0; g < groups.size(); g++) {
+            List<Reading> group = groups.get(g);
+            int radius = radii[g], pass = g + 1;
+            if (group.isEmpty() || radius < RADIUS_MIN || radius > RADIUS_MAX) continue;
+            Reading first = group.get(0);
+            // Cubos de ~radio máximo para comparar cada punto solo con las posiciones vecinas.
+            double bucketLon = bucketLat / Math.max(0.01, Math.cos(first.latitude * Math.PI / 180));
+            Map<String, List<Reading>> buckets = new HashMap<>();
+            for (Reading reading : group) {
+                buckets.computeIfAbsent((long) Math.floor(reading.latitude / bucketLat) + ":"
+                    + (long) Math.floor(reading.longitude / bucketLon), key -> new ArrayList<>()).add(reading);
+            }
+            double dLat = radius / METERS_PER_DEGREE;
+            for (Reading sample : group) {
+                double dLon = dLat / Math.max(0.01, Math.cos(sample.latitude * Math.PI / 180));
+                int[] r = span(lats, sample.latitude - dLat, sample.latitude + dLat);
+                int[] c = span(lons, sample.longitude - dLon, sample.longitude + dLon);
+                for (int i = r[0]; i <= r[1]; i++) for (int j = c[0]; j <= c[1]; j++) {
+                    int k = i * columns + j;
+                    if (seen[k] == pass || states[k] >= ZONE_LOW) continue;
+                    seen[k] = pass;
+                    // El tope de rendimiento se avisa: una zona recortada no debe confundirse con una zona sin datos.
+                    if (evaluated >= maxEvaluations) { clipped = true; break scan; }
+                    evaluated++;
+                    long x = (long) Math.floor(lats[i] / bucketLat), y = (long) Math.floor(lons[j] / bucketLon);
+                    List<Reading> near = new ArrayList<>();
+                    for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
+                        List<Reading> bucket = buckets.get((x + dx) + ":" + (y + dy));
+                        if (bucket != null) near.addAll(bucket);
+                    }
+                    Estimate estimate = estimate(lats[i], lons[j], near, radius);
+                    if (estimate.value != null) {
+                        states[k] = estimate.value >= first.high ? ZONE_HIGH : estimate.value >= first.medium ? ZONE_MEDIUM : ZONE_LOW;
+                    } else if (estimate.reason == Reason.INSUFFICIENT) states[k] = ZONE_INSUFFICIENT;
+                }
+            }
+        }
+        return new Raster(rows, columns, states, evaluated, clipped);
     }
 
     /**

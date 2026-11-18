@@ -229,4 +229,99 @@ public final class PublicInterpolationTest {
         text = PublicReadings.describe(PublicReadings.estimate(A[0], A[1], Collections.<Reading>emptyList(), 30), 30, "ppb", 60, 100, false);
         assertEquals("No hay mediciones publicadas. Sin datos no significa aire limpio.", text[1]);
     }
+
+    // ---- Rejilla de pintado (zonas redondas): mismos casos y recuentos que aeriq-domain.test.js ----
+
+    private static double[] gridLats() {
+        double[] lats = new double[ROWS];
+        for (int i = 0; i < ROWS; i++) lats[i] = LAT0 + (i + .5) * LAT_STEP;
+        return lats;
+    }
+
+    private static double[] gridLons() {
+        double[] lons = new double[COLS];
+        for (int j = 0; j < COLS; j++) lons[j] = LON0 + (j + .5) * LON_STEP;
+        return lons;
+    }
+
+    private static int[] tally(PublicReadings.Raster raster) {
+        int[] counts = new int[5];
+        for (byte state : raster.states) counts[state]++;
+        return counts;
+    }
+
+    private static PublicReadings.Raster raster(List<Reading> rows, int radius, double[] lats, double[] lons, int max) {
+        return PublicReadings.raster(Collections.singletonList(PublicReadings.support(rows)), new int[]{radius}, lats, lons, max);
+    }
+
+    @Test public void rasterMatchesThePointEstimateEverywhere() {
+        double[] lats = gridLats(), lons = gridLons();
+        List<Reading> rows = dense(false), support = PublicReadings.support(rows);
+        PublicReadings.Raster grid = raster(rows, 30, lats, lons, PublicReadings.MAX_EVALUATIONS);
+        assertEquals(ROWS, grid.rows);
+        assertEquals(COLS, grid.columns);
+        assertFalse(grid.clipped);
+        // 53 con valor (bajo + moderado + alto) y 23 insuficientes, como el barrido punto a punto.
+        assertArrayEquals(new int[]{302, 23, 17, 28, 8}, tally(grid));
+        for (int i = 0; i < ROWS; i++) for (int j = 0; j < COLS; j++) {
+            Estimate estimate = PublicReadings.estimate(lats[i], lons[j], support, 30);
+            byte expected = estimate.value != null
+                ? (estimate.value >= 100 ? PublicReadings.ZONE_HIGH : estimate.value >= 60 ? PublicReadings.ZONE_MEDIUM : PublicReadings.ZONE_LOW)
+                : estimate.reason == Reason.INSUFFICIENT ? PublicReadings.ZONE_INSUFFICIENT : PublicReadings.ZONE_NONE;
+            assertEquals(expected, grid.states[i * COLS + j]);
+        }
+        // Solo se evalúan los puntos cercanos a alguna posición, no toda la rejilla.
+        assertTrue(grid.evaluated < ROWS * COLS);
+        int[] radii = {20, 30, 40, 50}, expected = {30, 53, 87, 126}, triangle = {0, 3, 11, 27};
+        List<Reading> tri = Arrays.asList(reading(A[0], A[1], 50, false),
+            reading(A[0] + 0.00036, A[1], 70, false), reading(A[0] + 0.00018, A[1] + 0.0004, 90, false));
+        for (int i = 0; i < radii.length; i++) {
+            int[] t = tally(raster(rows, radii[i], lats, lons, PublicReadings.MAX_EVALUATIONS));
+            assertEquals(expected[i], t[2] + t[3] + t[4]);
+            t = tally(raster(tri, radii[i], lats, lons, PublicReadings.MAX_EVALUATIONS));
+            assertEquals(triangle[i], t[2] + t[3] + t[4]);
+        }
+    }
+
+    @Test public void rasterWorksTopDownLimitsRadiusAndReportsClipping() {
+        double[] lats = gridLats(), lons = gridLons(), topDown = new double[ROWS];
+        for (int i = 0; i < ROWS; i++) topDown[i] = lats[ROWS - 1 - i];
+        List<Reading> rows = dense(false);
+        // De arriba abajo, como la pantalla: mismo resultado.
+        assertArrayEquals(new int[]{302, 23, 17, 28, 8}, tally(raster(rows, 30, topDown, lons, PublicReadings.MAX_EVALUATIONS)));
+        // Un radio fuera de 20–50 m no pinta nada.
+        assertArrayEquals(new int[]{ROWS * COLS, 0, 0, 0, 0}, tally(raster(rows, 51, lats, lons, PublicReadings.MAX_EVALUATIONS)));
+        // Dos grupos que se tocan: donde uno estima y el otro no basta, gana el valor estimado.
+        List<Reading> other = Collections.singletonList(reading("other", "ppb", rows.get(0).latitude, rows.get(0).longitude, 50, stamp(0), false));
+        PublicReadings.Raster both = PublicReadings.raster(Arrays.asList(PublicReadings.support(other), PublicReadings.support(rows)),
+            new int[]{30, 30}, lats, lons, PublicReadings.MAX_EVALUATIONS);
+        assertArrayEquals(new int[]{302, 23, 17, 28, 8}, tally(both));
+        // Tope de evaluaciones: se marca recortado para avisarlo en el mapa.
+        PublicReadings.Raster clipped = raster(rows, 30, lats, lons, 10);
+        assertEquals(10, clipped.evaluated);
+        assertTrue(clipped.clipped);
+    }
+
+    @Test public void aSingleMeasurementPaintsACircleOfTheRadiusNotASquare() {
+        // Rejilla de ~4 m alrededor de un punto: lo pintado es un disco de 30 m (un cuadrado llegaría a ~42 m).
+        int n = 41;
+        double step = 4 / PublicReadings.METERS_PER_DEGREE, cos = Math.cos(A[0] * Math.PI / 180);
+        double[] lats = new double[n], lons = new double[n];
+        for (int i = 0; i < n; i++) {
+            lats[i] = A[0] + (i - n / 2) * step;
+            lons[i] = A[1] + (i - n / 2) * step / cos;
+        }
+        PublicReadings.Raster grid = raster(Collections.singletonList(reading(A[0], A[1], 50, false)), 30, lats, lons, PublicReadings.MAX_EVALUATIONS);
+        double farthest = 0;
+        int painted = 0;
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+            if (grid.states[i * n + j] == PublicReadings.ZONE_NONE) continue;
+            assertEquals(PublicReadings.ZONE_INSUFFICIENT, grid.states[i * n + j]);
+            farthest = Math.max(farthest, PublicReadings.distance(lats[i], lons[j], A[0], A[1]));
+            painted++;
+        }
+        assertTrue(farthest <= 30 && farthest > 28);
+        double disc = Math.PI * 30 * 30 / 16;
+        assertTrue(painted + " puntos para un disco de ~" + Math.round(disc), Math.abs(painted - disc) / disc < .05);
+    }
 }

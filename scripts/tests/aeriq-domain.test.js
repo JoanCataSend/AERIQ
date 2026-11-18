@@ -92,6 +92,39 @@ assert.equal(domain.describe(domain.estimate(A,[],30),30,info).detalle,'No hay m
 // Sin coordenadas no hay posición; sin lecturas no hay nada que estimar.
 assert.equal(domain.support([{...base,latitud:null,longitud:null,valor:50}]).length,0);
 assert.equal(domain.estimate(A,[],30).motivo,'lejos');assert.equal(domain.estimate(A,[],30).cercana,null);
+// ---- Rejilla de pintado (zonas redondas): raster() da en cada punto lo mismo que estimate() ----
+// Los mismos casos y recuentos están en PublicInterpolationTest.java.
+const lats=Array.from({length:ROWS},(_,i)=>LAT0+(i+.5)*LAT_STEP),lngs=Array.from({length:COLS},(_,j)=>LON0+(j+.5)*LON_STEP);
+const Z=domain.ZONA,group=(rows,radius)=>({samples:domain.support(rows),radius,umbral_medio:60,umbral_alto:100});
+const tally=g=>{const t=[0,0,0,0,0];for(const s of g.estados)t[s]++;return t;};
+let g=domain.raster([group(dense,30)],lats,lngs);
+assert.deepEqual([g.filas,g.columnas,g.recortado],[ROWS,COLS,false]);
+// 53 con valor (bajo + moderado + alto) y 23 insuficientes, como el barrido punto a punto.
+assert.deepEqual(tally(g),[302,23,17,28,8]);
+for(let i=0;i<ROWS;i++)for(let j=0;j<COLS;j++){
+  const e=domain.estimate([lats[i],lngs[j]],domain.support(dense),30),s=g.estados[i*COLS+j];
+  assert.equal(s,e.valor!==null?Z[domain.level(e.valor,60,100)]:e.motivo==='insuficiente'?Z.insuficiente:Z.sinDatos);
+}
+// Solo se evalúan los puntos cercanos a alguna posición, no toda la rejilla.
+assert(g.evaluadas<ROWS*COLS);
+assert.deepEqual([20,30,40,50].map(r=>{const t=tally(domain.raster([group(dense,r)],lats,lngs));return t[2]+t[3]+t[4];}),[30,53,87,126]);
+assert.deepEqual([20,30,40,50].map(r=>{const t=tally(domain.raster([group(tri,r)],lats,lngs));return t[2]+t[3]+t[4];}),[0,3,11,27]);
+// La rejilla puede ir de arriba abajo (latitud decreciente, como la pantalla): mismo resultado.
+assert.deepEqual(tally(domain.raster([group(dense,30)],[...lats].reverse(),lngs)),[302,23,17,28,8]);
+// Un radio fuera de 20–50 m no pinta nada; sin grupos tampoco.
+assert.deepEqual(tally(domain.raster([group(dense,51)],lats,lngs)),[ROWS*COLS,0,0,0,0]);
+assert.equal(domain.raster([],lats,lngs).evaluadas,0);
+// Dos grupos que se tocan: donde uno estima y el otro no basta, gana el valor estimado.
+const other=dense.slice(0,1).map(r=>({...r,campaignId:2}));
+assert.deepEqual(tally(domain.raster([group(other,30),group(dense,30)],lats,lngs)),tally(g));
+// Tope de evaluaciones: se marca recortado para avisarlo en el mapa.
+g=domain.raster([group(dense,30)],lats,lngs,{maxEvaluaciones:10});assert.deepEqual([g.evaluadas,g.recortado],[10,true]);
+// ---- Ruta de un Orb: orden de captura y tramos partidos por huecos de más de 10 minutos ----
+const at=(id,t,lat=A[0])=>({id,latitud:lat,longitud:A[1],capturada_en:`2026-11-10 ${t}:00.000`});
+const legs=domain.route([at(3,'12:09'),at(1,'12:00'),at(2,'12:05'),at(4,'12:30'),{...at(5,'12:31'),latitud:null},at(6,'12:40')]);
+assert.deepEqual(legs.map(l=>l.map(r=>r.id)),[[1,2,3],[4,6]]);
+assert.deepEqual(domain.route([at(1,'12:00'),at(2,'12:30')],60).map(l=>l.length),[2]);
+assert.deepEqual(domain.route([]),[]);
 const rows=[{...base,valor:50,capturada_en:'2026-11-02 12:00:00.000'}, {...base,valor:100,capturada_en:'2026-11-03 12:00:00.000'}];
 const stats=domain.statistics(rows);assert.equal(stats.min,50);assert.equal(stats.max,100);assert.equal(stats.mean,75);assert.equal(stats.exceedances.length,1);assert.equal(stats.series.length,2);
 const thermal=domain.statistics(rows.map((row,i)=>({...row,unidad:'°C',valor:i?100:-12})));

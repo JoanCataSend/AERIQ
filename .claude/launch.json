@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aeriq-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/tests/preview-aeriq.js"],
+      "port": 8766,
+      "url": "http://127.0.0.1:8766"
+    }
+  ]
+}

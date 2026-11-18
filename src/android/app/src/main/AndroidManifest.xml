@@ -5,8 +5,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- También se declarará para geolocalizar mediciones cuando exista esa función.
-         Para escaneo BLE se solicita solo en Android 11 e inferiores. -->
+    <!-- Geolocaliza las mediciones y el recorrido («Guardar mi recorrido»). Para el escaneo BLE
+         se solicita solo en Android 11 e inferiores. BLUETOOTH_SCAN no lleva neverForLocation:
+         con esa marca Android descarta los anuncios iBeacon del Orb. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

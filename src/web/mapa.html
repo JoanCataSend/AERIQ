@@ -60,13 +60,20 @@
         <label class="check"><input checked id="heat-toggle" type="checkbox">Zonas estimadas (interpolación)</label>
         <label class="check"><input checked id="marker-toggle" type="checkbox">Puntos de medición</label>
       </div>
+      <!-- Solo con «Mi organización»: el mapa público no lleva el Orb de cada medición (public-map.js). -->
+      <div class="route-control" id="route-control" hidden>
+        <label class="check"><input id="route-toggle" type="checkbox">Ruta del Orb</label>
+        <label class="visually-hidden" for="route-device">Orb cuya ruta se muestra</label>
+        <select class="select" id="route-device" disabled></select>
+        <p class="help" id="route-note">Une las posiciones de un Orb en orden de captura, dentro del periodo elegido.</p>
+      </div>
       <div class="radius-control">
         <label for="radius-range">Radio de interpolación <output for="radius-range" id="radius-value">30 m</output></label>
         <input aria-describedby="radius-note" id="radius-range" max="50" min="20" step="5" type="range" value="30">
         <p class="help" id="radius-note">Se aplica el radio configurado en cada campaña.</p>
         <button class="radius-reset" hidden id="radius-reset" type="button">Usar el radio de cada campaña</button>
       </div>
-      <p class="help">Una zona solo se colorea con al menos tres posiciones medidas dentro del radio (20 a 50 m). Gris: hay mediciones cerca, pero no bastan. Sin color: sin datos, no aire limpio. Pulsa el mapa para consultar un punto.</p>
+      <p class="help">Cada medición alcanza un círculo del radio elegido (20 a 50 m). Una zona solo se colorea donde se juntan al menos tres posiciones medidas. Gris: hay mediciones cerca, pero no bastan. Sin color: sin datos, no aire limpio. Pulsa el mapa para consultar un punto.</p>
     </section>
 
     <section class="side-group" aria-labelledby="g-export">
@@ -100,6 +107,7 @@
         <ul class="legend-states">
           <li><span aria-hidden="true" class="legend-swatch legend-partial"></span>Datos insuficientes</li>
           <li><span aria-hidden="true" class="legend-swatch legend-empty"></span>Sin color: sin datos</li>
+          <li hidden id="legend-route"><span aria-hidden="true" class="legend-swatch legend-route"></span>Ruta del Orb</li>
         </ul>
         <p>Umbrales fijados por cada campaña, no oficiales. Prototipo: no sustituye a las estaciones de vigilancia.</p>
       </div>
