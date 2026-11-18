@@ -60,10 +60,10 @@ y la API dejan los sensores nuevos en modo real por defecto.
 ## Archivos de entrega
 
 - Instalar el APK nuevo actualizando la app existente (misma firma).
-- Extraer `actualizar-plesk.zip` en `httpdocs/src/web/` del alojamiento,
+- Extraer `actualizar-plesk.zip` en `httpdocs/AERIQ/` del alojamiento,
   conservando la estructura `server/`. No contiene credenciales ni SQL público.
 - Importar los SQL aparte desde phpMyAdmin. **No subirlos a la carpeta pública.**
-- La URL confirmada es `https://ldiamur.upv.edu.es/src/web/`.
+- La URL confirmada es `https://jcatsen.upv.edu.es/AERIQ/`.
   `field.php` devuelve JSON 401 sin token: confirma que existe, no es un error
   de configuración cuando se abre a mano sin iniciar sesión.
 
@@ -77,9 +77,11 @@ y la API dejan los sensores nuevos en modo real por defecto.
    en informes, elegir la campaña del sensor y las fechas UTC actuales.
 5. Sin GPS las lecturas se guardan y salen en informes/historial, pero no en el
    mapa. Con GPS se ven en **Mi organización → Mediciones reales**, y la casilla
-   **Ruta del Orb** dibuja por dónde ha pasado cada Orb. Una campaña
-   privada sigue excluida del mapa público; publicar requiere configuración de
-   su organización. No se cambia ese permiso automáticamente.
+   **Ruta del Orb** dibuja por dónde ha pasado cada Orb. En el mapa público
+   salen si la campaña está publicada: la personal («Mis mediciones · <id>», la
+   que crea vincular el sensor desde el móvil) se publica con **Compartir con la
+   red** y se retira al apagarlo; una campaña de la organización la publica su
+   administrador desde el panel.
 
 Consulta de comprobación en phpMyAdmin, sin modificar datos:
 

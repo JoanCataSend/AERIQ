@@ -6,6 +6,7 @@ try {
     if ($method==='GET' && ($_GET['action']??'')==='history') auth_responder(200,['readings'=>aeriq_worker_history($a)]);
     if ($method==='GET') auth_responder(200,['assignments'=>aeriq_assignments($a)]);
     if ($method==='POST' && ($_GET['action']??'')==='battery') auth_responder(200,aeriq_battery($a,aeriq_json_body()));
+    if ($method==='POST' && ($_GET['action']??'')==='share') {require_once __DIR__.'/server/SensorLink.php';auth_responder(200,aeriq_share($a,aeriq_json_body()));}
     if ($method==='POST') auth_responder(200,aeriq_ingest($a,aeriq_json_body()));
     throw new AeriqError('Método no permitido.',405);
 } catch (Throwable $e) { aeriq_failure($e); }

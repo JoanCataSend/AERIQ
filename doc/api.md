@@ -1,6 +1,6 @@
 # Contratos API AERIQ
 
-Las rutas se publican en `https://ldiamur.upv.edu.es/src/web/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/src/web/`). El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
+Las rutas se publican en `https://jcatsen.upv.edu.es/AERIQ/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/AERIQ/`). El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
 
 ## Cuentas
 
@@ -38,6 +38,8 @@ POST incluye:
 ```
 
 POST `?action=battery` guarda la batería que anuncia el Orb (tipo BLE 16): `deviceId,address,percent` (0–100) y `capturedAt` (UTC). Exige el Orb asignado y activo, con la misma dirección BLE; un Orb simulado devuelve 422. Respuesta `ok,stored,percent`: `stored=false` cuando repite el último porcentaje en menos de 10 minutos. La app lo envía al cambiar el porcentaje o cada 10 minutos, fuera de la cola de lecturas.
+
+POST `?action=share` es el interruptor «Compartir con la red»: `deviceId,share` (`true`/`false`). Exige el Orb asignado a quien llama y activo (403 si no). Si su asignación está en la **campaña personal** de esa persona («Mis mediciones · <id>», la que crea `sensor-link.php`), pone `campanas.publicar` a `share`: sus mediciones de ozono con GPS entran o salen del mapa público. Una campaña creada por la organización no cambia. Respuesta `ok,personal,published,message`. La app lo envía con `true` cada vez que se activa el envío (también al elegir el Orb) y con `false` solo cuando la persona apaga el interruptor; cerrar sesión o cambiar de Orb no despublica.
 
 Las asignaciones del GET y los `devices` de `portal.php?action=dashboard` incluyen `bateria_pct` y `bateria_en` (última batería conocida, `null` si el Orb nunca la ha enviado).
 

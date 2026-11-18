@@ -3,7 +3,7 @@
 
 Uso:
     python scripts/tests/google-auth-live.py
-    python scripts/tests/google-auth-live.py --base https://ldiamur.upv.edu.es/src/web/
+    python scripts/tests/google-auth-live.py --base https://jcatsen.upv.edu.es/AERIQ/
 
 Solo envía un token inválido. No crea usuarios, no modifica la base de datos y
 no intenta suplantar una sesión de Google.
@@ -47,7 +47,7 @@ def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base", default="https://ldiamur.upv.edu.es/src/web/")
+    parser.add_argument("--base", default="https://jcatsen.upv.edu.es/AERIQ/")
     args = parser.parse_args()
     base = args.base.rstrip("/") + "/"
 

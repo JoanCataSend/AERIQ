@@ -434,8 +434,21 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         field.battery(assignment, address, percent, now);
     }
 
-    public void setSharing(boolean enabled) {
-        sharing = enabled && selected() != null;
+    public void setSharing(boolean enabled) { setSharing(enabled, false); }
+
+    /** Interruptor «Compartir con la red»: además de enviar las lecturas, publica o retira la campaña personal. */
+    public void toggleSharing(boolean enabled) { setSharing(enabled, true); }
+
+    private void setSharing(boolean enabled, boolean fromUser) {
+        OrbAssignment assignment = selected();
+        sharing = enabled && assignment != null;
+        // Publicar siempre que se activa (también al elegir el Orb). Retirar solo si la persona lo apaga:
+        // cerrar sesión o cambiar de Orb no despublica lo ya compartido.
+        if (assignment != null && !assignment.simulated && (sharing || fromUser)) {
+            field.share(assignment, sharing, (text, error) -> {
+                if (fromUser) message(error != null ? "No se pudo cambiar la publicación: " + error : text);
+            });
+        }
         serverStatus = sharing ? "Envío activado: esperando lecturas de campaña" : "Envío desactivado";
         if (!sharing) location.stop();
         else if (location.allowed()) {

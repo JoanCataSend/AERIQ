@@ -22,7 +22,7 @@ node scripts/tests/aeriq-domain.test.js
 python scripts/build-plesk-package.py --output .dist/aeriq-plesk
 ```
 
-Publica **solo el contenido de `src/web/`** en `httpdocs/src/web/`. En este alojamiento la web real es `https://ldiamur.upv.edu.es/src/web/login.html`, sin una carpeta adicional en la raíz. Los SQL, scripts CLI y respaldos se mantienen fuera de la raíz pública. El paquete no incluye credenciales ni dependencias instaladas. El generador rechaza sobrescribir una salida existente.
+Publica **solo el contenido de `src/web/`** en `httpdocs/AERIQ/`. En este alojamiento la web real es `https://jcatsen.upv.edu.es/AERIQ/login.html`: el contenido de `src/web/` va tal cual dentro de la carpeta `AERIQ/`. Los SQL, scripts CLI y respaldos se mantienen fuera de la raíz pública. El paquete no incluye credenciales ni dependencias instaladas. El generador rechaza sobrescribir una salida existente.
 
 Para el parche concreto de Google/Firebase:
 
@@ -63,17 +63,17 @@ Las pruebas locales verifican el destinatario, el asunto, el contenido y el `Rep
 ## Acceso con Google (Firebase)
 
 1. En Firebase Console, proyecto `airiq-e9d70`, habilita `Authentication > Sign-in method > Google`.
-2. En `Authentication > Settings > Authorized domains`, añade `ldiamur.upv.edu.es` (sin ruta) y `localhost` para pruebas. Si la API key tiene restricciones de referrer, autoriza `https://ldiamur.upv.edu.es/*`.
+2. En `Authentication > Settings > Authorized domains`, añade `jcatsen.upv.edu.es` (sin ruta) y `localhost` para pruebas. Si la API key tiene restricciones de referrer, autoriza `https://jcatsen.upv.edu.es/*`.
 3. La base debe tener el esquema v2 (`schema.sql` o `migracion-v2-catalogos.sql`): los vínculos con Google se guardan en `identidades_externas`. `anadir-firebase-google.sql` solo es para bases anteriores y no hace nada en una base v2.
 4. La configuración pública del proyecto ya está en `src/web/server/FirebaseConfig.example.php` y se usa por defecto. Si el servidor necesita otro proyecto, crea `src/web/server/FirebaseConfig.php` (ignorado por Git) a partir del ejemplo y cambia `api_key`, `app_id` y `messaging_sender_id`. El SDK web se carga desde el CDN de Firebase: no hace falta `npm install` ni compilar. No publiques claves de servicio.
 5. Invita al operador con el correo exacto de su cuenta de Google. El primer acceso con Google guarda el UID en `identidades_externas`, activa una invitación vigente y anula la contraseña temporal. Un correo que no exista en `usuarios` se rechaza: Google no crea cuentas.
-6. Comprueba `https://ldiamur.upv.edu.es/src/web/auth.php?action=firebase-config` y que `configured` sea `true`.
+6. Comprueba `https://jcatsen.upv.edu.es/AERIQ/auth.php?action=firebase-config` y que `configured` sea `true`.
 
 La verificación del token se hace en PHP con los certificados públicos de Google; no se necesita clave de servicio ni Firebase Admin. El servidor debe permitir conexiones HTTPS salientes y tener OpenSSL. Si Google rota sus certificados, se refrescan automáticamente.
 
 ## App y demostración
 
-La app mantiene `com.aeriq.app` y la identidad AERIQ. `data/ApiRoutes.java` centraliza el servidor en `https://ldiamur.upv.edu.es/src/web/`. Compila el APK después de fijar ese origen si usas otro alojamiento.
+La app mantiene `com.aeriq.app` y la identidad AERIQ. `data/ApiRoutes.java` centraliza el servidor en `https://jcatsen.upv.edu.es/AERIQ/`. Compila el APK después de fijar ese origen si usas otro alojamiento.
 
 1. Administrador: crear/consultar campaña, registrar Orb y asignar trabajador.
 2. Trabajador: entrar, sustituir temporal, actualizar asignaciones y seleccionar anuncios del Orb autorizado.

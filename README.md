@@ -56,6 +56,6 @@ node scripts/tests/aeriq-domain.test.js
 python scripts/tests/integration-aeriq.py
 ```
 
-Android: abre `src/android/` y ejecuta sus tareas Gradle. Los scripts usan Python 3.9+; la integración aislada necesita PHP y MariaDB locales. La aplicación utiliza el origen `https://ldiamur.upv.edu.es/src/web/` para cuentas, captura y mapas, centralizado en `ApiRoutes.java`.
+Android: abre `src/android/` y ejecuta sus tareas Gradle. Los scripts usan Python 3.9+; la integración aislada necesita PHP y MariaDB locales. La aplicación utiliza el origen `https://jcatsen.upv.edu.es/AERIQ/` para cuentas, captura y mapas, centralizado en `ApiRoutes.java`.
 
 No se ha borrado, migrado ni publicado nada en Plesk. La batería/LED del Orb necesita hardware y firmware que no están incluidos. Las pruebas de radio/GPS en móvil y la revisión visual final se registran aparte de la compilación y de las pruebas automatizadas.

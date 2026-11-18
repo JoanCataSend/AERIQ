@@ -167,13 +167,13 @@ public final class WorkScreens {
         LinearLayout shareTexts = ui.column();
         shareTexts.setPadding(ui.dp(14), 0, ui.dp(10), 0);
         shareTexts.addView(ui.text(sending ? "Compartiendo con la red" : "Compartir con la red", 17, true, INK));
-        shareTexts.addView(ui.text("Opcional. Solo ozono y zona aproximada.", 13, false, MUTED));
+        shareTexts.addView(ui.text("Opcional. Tu ozono, con posición y hora, sale en el mapa público.", 13, false, MUTED));
         share.addView(shareTexts, new LinearLayout.LayoutParams(0, -2, 1));
         Switch shareToggle = ui.toggle(sending);
         shareToggle.setEnabled(selected != null);
         shareToggle.setContentDescription("Compartir mediciones con la red");
         shareToggle.setOnCheckedChangeListener((button, checked) -> {
-            activity.setSharing(checked);
+            activity.toggleSharing(checked);
             ((TextView) shareTexts.getChildAt(0)).setText(checked ? "Compartiendo con la red" : "Compartir con la red");
         });
         share.addView(shareToggle);

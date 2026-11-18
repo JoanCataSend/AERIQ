@@ -58,7 +58,7 @@ Reglas del dominio que el código hace cumplir:
 - Rol y organización se leen siempre en servidor, nunca del JSON del cliente.
 - Las únicas escrituras de mediciones van por `field.php`; no hay inserción anónima.
 - Ingesta idempotente por `eventId` (reintento con datos distintos → 409).
-- Datos reales y simulados separados; enviar al servidor ≠ publicar en el mapa público.
+- Datos reales y simulados separados; enviar al servidor ≠ publicar en el mapa público. Solo publica una campaña marcada `publicar`: la de la organización la marca su administrador; la personal («Mis mediciones · <id>») la marca el interruptor «Compartir con la red» de Android (`field.php?action=share`).
 - Ozono en ppb, temperatura en °C, fechas UTC; no se convierten unidades.
 - Cambiar de trabajador cierra la asignación anterior; las lecturas conservan su asignación histórica.
 
@@ -72,7 +72,7 @@ Esquema único en `schema.sql` (26 tablas, vistas `vista_mediciones`, `vista_flo
 
 ### Android (`src/android/`)
 
-Java 11 con **Android Views** (no Compose, aunque `src/README.md` diga Kotlin/Compose). Paquete `com.aeriq.app`, minSdk 24, targetSdk 36. `MainActivity` coordina navegación y permisos; `ui/` pantallas; `ble/` parser iBeacon y deduplicación; `data/` clientes HTTP, token cifrado, cola de reintentos (`ReadingOutbox`). `data/ApiRoutes.java` es el único lugar con el origen del servidor (`https://ldiamur.upv.edu.es/src/web/`).
+Java 11 con **Android Views** (no Compose, aunque `src/README.md` diga Kotlin/Compose). Paquete `com.aeriq.app`, minSdk 24, targetSdk 36. `MainActivity` coordina navegación y permisos; `ui/` pantallas; `ble/` parser iBeacon y deduplicación; `data/` clientes HTTP, token cifrado, cola de reintentos (`ReadingOutbox`). `data/ApiRoutes.java` es el único lugar con el origen del servidor (`https://jcatsen.upv.edu.es/AERIQ/`).
 
 ### Firmware (`src/firmware/NodoO3/`)
 

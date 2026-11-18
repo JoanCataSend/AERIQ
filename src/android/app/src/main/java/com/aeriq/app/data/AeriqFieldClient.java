@@ -128,6 +128,25 @@ public final class AeriqFieldClient implements AutoCloseable {
     }
 
     /**
+     * «Compartir con la red»: publica (true) o retira (false) del mapa público la campaña personal del Orb.
+     * Una campaña de la organización no cambia. done recibe el mensaje del servidor o un error.
+     */
+    public void share(OrbAssignment assignment, boolean share, BiConsumer<String, String> done) {
+        String credential = token.get();
+        if (credential == null) { done.accept(null, "Inicia sesión"); return; }
+        worker.execute(() -> {
+            String text = null, error = null;
+            try {
+                text = request(credential, "share", JsonHttp.object("deviceId", assignment.id, "share", share)).optString("message");
+            } catch (Exception failure) { error = failure.getMessage(); }
+            String message = text, failure = error;
+            main.post(() -> {
+                if (!closed && credential.equals(token.get())) done.accept(message, failure);
+            });
+        });
+    }
+
+    /**
      * Envía la batería del Orb asignado. No pasa por la cola de lecturas: si falla, el Orb
      * la vuelve a anunciar en el siguiente ciclo y se reintenta más tarde.
      */

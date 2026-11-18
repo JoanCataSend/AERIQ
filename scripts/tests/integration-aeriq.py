@@ -420,6 +420,29 @@ class PHPMailer {
         private_real=expect(200,'portal.php?action=map&mode=real',identity='a')['measurements']
         assert any(int(row['campaignId'])==int(own['campana_id']) for row in private_real)
         assert not any(int(row['campaignId'])==int(own['campana_id']) for row in expect(200,'public.php?action=map&mode=real')['measurements'])
+        # «Compartir con la red» publica y retira la campaña personal, sin exponer el Orb en el mapa público.
+        public_own=lambda:[row for row in expect(200,'public.php?action=map&mode=real')['measurements'] if int(row['campaignId'])==int(own['campana_id'])]
+        expect(401,'field.php?action=share',{'deviceId':own['id'],'share':True})
+        expect(422,'field.php?action=share',{'deviceId':own['id'],'share':'si'},token=token)
+        expect(403,'field.php?action=share',{'deviceId':999999,'share':True},token=token)
+        shared=expect(200,'field.php?action=share',{'deviceId':own['id'],'share':True},token=token)
+        assert shared['personal'] is True and shared['published'] is True
+        assert public_own() and not any('dispositivo_id' in row or 'dispositivo' in row for row in public_own())
+        # Volver a vincular reutiliza la campaña personal aunque ya esté publicada.
+        again=expect(200,'sensor-link.php',{'address':'AA:BB:CC:DD:EE:71','name':'Mi Orb real'},token=token)
+        assert next(row for row in again['assignments'] if row['id']==own['id'])['campana_id']==own['campana_id']
+        hidden=expect(200,'field.php?action=share',{'deviceId':own['id'],'share':False},token=token)
+        assert hidden['personal'] is True and hidden['published'] is False and public_own()==[]
+        # Una campaña creada por la organización no cambia: su publicación la decide quien la administra.
+        sql(f"USE aeriq_test; INSERT INTO campanas(organizacion_id,zona_id,nombre,inicio,fin,activa,publicar) SELECT 1,zona_id,'Campaña de la organización',UTC_DATE(),UTC_DATE(),1,0 FROM campanas WHERE id={own['campana_id']};"
+            f" INSERT INTO dispositivos(organizacion_id,nombre,direccion_ble,simulado) VALUES(1,'Orb de campaña','AA:BB:CC:DD:EE:75',0);"
+            f" INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) SELECT 1,d.id,{worker['id']},c.id FROM dispositivos d,campanas c WHERE d.direccion_ble='AA:BB:CC:DD:EE:75' AND c.nombre='Campaña de la organización';")
+        org_device=int(sql("USE aeriq_test; SELECT id FROM dispositivos WHERE direccion_ble='AA:BB:CC:DD:EE:75'"))
+        org_share=expect(200,'field.php?action=share',{'deviceId':org_device,'share':True},token=token)
+        assert org_share['personal'] is False and org_share['published'] is False
+        assert sql("USE aeriq_test; SELECT publicar FROM campanas WHERE nombre='Campaña de la organización'")=='0'
+        # Fuera del resto de la prueba: un Orb dado de baja no aparece en las asignaciones.
+        sql("USE aeriq_test; UPDATE dispositivos SET activo=0 WHERE direccion_ble='AA:BB:CC:DD:EE:75'")
         sql("USE aeriq_test; INSERT INTO dispositivos(organizacion_id,nombre,direccion_ble,simulado) VALUES(2,'Otra organización','AA:BB:CC:DD:EE:72',0),(1,'Ocupado','AA:BB:CC:DD:EE:73',0);")
         sql(f"USE aeriq_test; INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) SELECT 1,id,50,{own['campana_id']} FROM dispositivos WHERE direccion_ble='AA:BB:CC:DD:EE:73'")
         for address in ['AA:BB:CC:DD:EE:72','AA:BB:CC:DD:EE:73']:

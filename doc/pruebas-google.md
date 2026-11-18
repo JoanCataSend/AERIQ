@@ -1,6 +1,6 @@
 # Pruebas de Google Authentication
 
-Base real: `https://ldiamur.upv.edu.es/src/web/`. El despliegue no debe crear una carpeta adicional en la raíz web.
+Base real: `https://jcatsen.upv.edu.es/AERIQ/`: el contenido de `src/web/` va tal cual dentro de la carpeta `AERIQ/`.
 
 ## Automáticas (sin cuenta de Google)
 
@@ -43,15 +43,15 @@ Prepara una cuenta de Google por caso y usa el correo exacto de `usuarios.email`
 | Token caducado | Usar un token con `exp` vencido | HTTP 401; no se vincula |
 | Repetición | Reenviar el mismo `idToken` ya consumido | HTTP 409; el frontend debe pedir un token nuevo |
 | Login tradicional | Cuenta con contraseña verificada | Entra igual que antes; no se altera `identidades_externas` |
-| Ruta real | Abrir `https://ldiamur.upv.edu.es/src/web/login.html` | El botón carga y el POST va a `/src/web/auth.php` |
+| Ruta real | Abrir `https://jcatsen.upv.edu.es/AERIQ/login.html` | El botón carga y el POST va a `/AERIQ/auth.php` |
 
 Para observar los códigos HTTP, abre las herramientas de red del navegador o revisa el registro de Plesk. No publiques tokens completos en capturas o incidencias.
 
 ## Comprobación del endpoint
 
 ```text
-https://ldiamur.upv.edu.es/src/web/auth.php?action=session
-https://ldiamur.upv.edu.es/src/web/auth.php?action=firebase-config
+https://jcatsen.upv.edu.es/AERIQ/auth.php?action=session
+https://jcatsen.upv.edu.es/AERIQ/auth.php?action=firebase-config
 ```
 
 La segunda debe devolver un JSON con `"configured":true` y `"projectId":"airiq-e9d70"`. Si devuelve 405 o no existe `google-auth.js`, el servidor sigue ejecutando la versión anterior.

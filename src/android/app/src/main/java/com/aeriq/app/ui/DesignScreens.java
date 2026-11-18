@@ -544,11 +544,13 @@ public final class DesignScreens {
         shareHead.addView(shareTexts, new LinearLayout.LayoutParams(0, -2, 1));
         Switch shareToggle = ui.toggle(sharing);
         shareToggle.setEnabled(sensor != null);
-        shareToggle.setOnCheckedChangeListener((button, checked) -> activity.setSharing(checked));
+        shareToggle.setOnCheckedChangeListener((button, checked) -> activity.toggleSharing(checked));
         shareHead.addView(shareToggle);
         share.addView(shareHead, new LinearLayout.LayoutParams(-1, -2));
-        TextView explain = text(share, "Tus mediciones ayudan a mejorar el mapa público. Compartes ozono, fecha y zona "
-            + "aproximada. Nunca tu recorrido exacto.", 14, false, MUTED, 14);
+        // Texto fiel a lo que hace el servidor: el mapa público muestra cada lectura con su posición y hora,
+        // pero no quién la tomó ni con qué Orb. En una campaña de la organización, publicar lo decide ella.
+        TextView explain = text(share, "Tus mediciones de ozono salen en el mapa público con su posición y hora, "
+            + "sin tu nombre ni tu sensor. Si tu organización te asignó la campaña, ella decide si se publica.", 14, false, MUTED, 14);
         explain.setLineSpacing(ui.dp(2), 1);
         addDivider(share, 14, 12);
         LinearLayout route = ui.row();

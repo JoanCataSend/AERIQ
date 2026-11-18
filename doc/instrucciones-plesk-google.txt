@@ -1,16 +1,16 @@
 AERIQ - Google Authentication con Firebase para Plesk
 =====================================================
 
-Dominio real: https://ldiamur.upv.edu.es
-Ruta web:     httpdocs/src/web/
-Entrada:      https://ldiamur.upv.edu.es/src/web/login.html
+Dominio real: https://jcatsen.upv.edu.es
+Ruta web:     httpdocs/AERIQ/
+Entrada:      https://jcatsen.upv.edu.es/AERIQ/login.html
 
 No se debe crear una carpeta adicional en httpdocs/. El ZIP ya contiene la
 ruta src/web/... y se extrae sobre httpdocs/.
 
 1. ANTES DE SUBIR
 -----------------
-- Haz una copia de seguridad de la base de datos y de httpdocs/src/web/.
+- Haz una copia de seguridad de la base de datos y de httpdocs/AERIQ/.
 - Comprueba que el hosting usa PHP 8.1 o superior (el servidor comprobado usa
   PHP 8.3.36). FirebaseAuth.php necesita OpenSSL y conexiones HTTPS salientes.
 - No borres ni sobrescribas estas configuraciones privadas del servidor:
@@ -25,18 +25,18 @@ ruta src/web/... y se extrae sobre httpdocs/.
 Extrae el ZIP sobre httpdocs/. Quedará:
 
     httpdocs/INSTRUCCIONES-PLESK.txt          (puedes borrarlo después)
-    httpdocs/src/web/login.html
-    httpdocs/src/web/app.js
-    httpdocs/src/web/auth-client.js
-    httpdocs/src/web/auth.php
-    httpdocs/src/web/mobile-auth.php
-    httpdocs/src/web/styles.css
-    httpdocs/src/web/google-auth.js
-    httpdocs/src/web/server/FirebaseAuth.php
-    httpdocs/src/web/server/FirebaseConfig.example.php
-    httpdocs/src/web/server/AuthCore.php
-    httpdocs/src/web/server/AeriqCore.php
-    httpdocs/src/web/server/.htaccess
+    httpdocs/AERIQ/login.html
+    httpdocs/AERIQ/app.js
+    httpdocs/AERIQ/auth-client.js
+    httpdocs/AERIQ/auth.php
+    httpdocs/AERIQ/mobile-auth.php
+    httpdocs/AERIQ/styles.css
+    httpdocs/AERIQ/google-auth.js
+    httpdocs/AERIQ/server/FirebaseAuth.php
+    httpdocs/AERIQ/server/FirebaseConfig.example.php
+    httpdocs/AERIQ/server/AuthCore.php
+    httpdocs/AERIQ/server/AeriqCore.php
+    httpdocs/AERIQ/server/.htaccess
 
 El autoregistro está eliminado: no existen las acciones register/resend/verify.
 Las cuentas deben crearse antes desde el portal de administración.
@@ -53,12 +53,12 @@ y rechaza el acceso directo.
 Proyecto: airiq-e9d70
 - Authentication > Sign-in method > Google: habilitado.
 - Authentication > Settings > Authorized domains: añade exactamente
-  ldiamur.upv.edu.es (sin https:// y sin ruta). Mantén localhost solo si lo usas.
+  jcatsen.upv.edu.es (sin https:// y sin ruta). Mantén localhost solo si lo usas.
 - Google OAuth consent screen: si está en Testing, añade como test users los
   correos de los operadores; si está en Production, revisa que el cliente OAuth
   permita el dominio.
 - Si la API key de Firebase tiene restricciones de referrer, añade
-  https://ldiamur.upv.edu.es/* (y localhost solo para pruebas).
+  https://jcatsen.upv.edu.es/* (y localhost solo para pruebas).
 - No hace falta clave de servicio ni Firebase Admin. El backend verifica la
   firma RS256 con los certificados públicos de Google.
 
@@ -108,8 +108,8 @@ No ejecutes este SQL desde la web ni desde un script automático de producción.
 -------------------------------------
 Abre en el navegador:
 
-  https://ldiamur.upv.edu.es/src/web/auth.php?action=session
-  https://ldiamur.upv.edu.es/src/web/auth.php?action=firebase-config
+  https://jcatsen.upv.edu.es/AERIQ/auth.php?action=session
+  https://jcatsen.upv.edu.es/AERIQ/auth.php?action=firebase-config
 
 La primera debe devolver JSON con ok y csrf. La segunda debe devolver
 "configured":true y "projectId":"airiq-e9d70".
@@ -123,7 +123,7 @@ del navegador (Ctrl+F5) para descartar una copia antigua.
 -------------------------------
 1. El administrador invita a un operador con el correo exacto de su cuenta de
    Google. No crees la cuenta desde Google: Google nunca registra usuarios.
-2. Abre https://ldiamur.upv.edu.es/src/web/login.html
+2. Abre https://jcatsen.upv.edu.es/AERIQ/login.html
 3. Pulsa "Iniciar sesión con Google" y elige la cuenta invitada.
 4. Si la invitación está vigente, entra, se guarda firebase_uid, se activa la
    cuenta y la contraseña temporal deja de servir.
@@ -145,7 +145,7 @@ La matriz manual completa está en doc/pruebas-google.md.
 7. ANDROID
 ----------
 El ZIP es solo para la web de Plesk. En el repositorio, ApiRoutes.java ya apunta
-a https://ldiamur.upv.edu.es/src/web/. Para usar Google en Android hay que
+a https://jcatsen.upv.edu.es/AERIQ/. Para usar Google en Android hay que
 recompilar el APK e implementar el envío de un idToken real de Firebase; el
 antiguo social-login falso responde 410 y no acepta correos sin verificar.
 

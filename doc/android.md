@@ -6,7 +6,7 @@
 - Mi sensor: tarjeta del sensor PBIO con foto, estado de recepción con antigüedad (s, min, h, días), Bluetooth azul/gris y batería (“—” mientras el firmware no la transmita), O₃ ahora con calidad y gráfica de área del día, Tu día (distancia por GPS, O₃ medio, barra de calidad por tramos), accesos a Estado del sensor (diagnóstico, servidor, reintentos) y Configurar sensor, e interruptor Compartiendo con la red.
 - Vincular: imagen del sensor PBIO, interruptores Bluetooth (búsqueda) y Ubicación (permiso), lista de sensores cercanos con señal; el más fuerte o el vinculado se destaca con el botón Vincular. Al abrir la pantalla empieza a buscar.
 - Historial: pestañas Día/Semana/Mes/Año, valor actual, media, barras por tramo coloreadas por calidad (tramos futuros en gris), máximo/mínimo/media/mediciones y exportación CSV o PDF (PdfDocument nativo). Engranaje → Configurar sensor.
-- Configurar sensor: estado en directo (conexión, batería, señal, última sincronización, SPEC O₃), nombre del sensor guardado en el móvil, Compartir con la red, Guardar mi recorrido y distancia (sin él las lecturas se envían sin GPS), Reconectar y Desvincular.
+- Configurar sensor: estado en directo (conexión, batería, señal, última sincronización, SPEC O₃), nombre del sensor guardado en el móvil, Compartir con la red (envía las lecturas y, en la campaña personal «Mis mediciones», las publica en el mapa público con posición y hora, sin nombre ni sensor; apagarlo las retira: `field.php?action=share`), Guardar mi recorrido y distancia (sin él las lecturas se envían sin GPS), Reconectar y Desvincular.
 - Aprende: tarjeta verde, pestañas Ozono/Salud/Normativa, tarjetas con icono, enlace a la Directiva 2008/50/CE y otros contaminantes.
 - Cuenta: perfil, Hazte Premium, datos personales, Mi sensor, contraseña, acceso con huella, avisos de ozono, compartir, exportar, privacidad, pedidos (web), ayuda y cerrar sesión.
 - Comparar zonas (24 h/7 días/30 días con mediciones públicas reales; solo zonas con ≥3 puntos) y Premium (planes anual/mensual; el pago se abre en la web).
@@ -14,7 +14,7 @@
 
 ## Red
 
-`data/ApiRoutes.java` centraliza `https://ldiamur.upv.edu.es/src/web/`. `AeriqAuthManager` reutiliza login, recuperación y token cifrado. La contraseña temporal bloquea la app hasta activar/cambiarla; una invitación caducada requiere recuperar acceso. Las cuentas solo las crea un administrador.
+`data/ApiRoutes.java` centraliza `https://jcatsen.upv.edu.es/AERIQ/`. `AeriqAuthManager` reutiliza login, recuperación y token cifrado. La contraseña temporal bloquea la app hasta activar/cambiarla; una invitación caducada requiere recuperar acceso. Las cuentas solo las crea un administrador.
 
 `AeriqFieldClient` obtiene asignaciones e historial privados. Los POST incluyen evento estable, dispositivo, asignación, campaña, unidad, fecha UTC y GPS opcional. Reintenta una vez un fallo de transporte usando el mismo evento. La cola es de 30 lecturas, no persistente tras cerrar la app; no se promete conservación offline. Una actualización fallida de asignaciones no borra de pantalla el Orb previamente conocido y no se confunde con pérdida de Bluetooth; el servidor sigue validando cada envío.
 

@@ -34,7 +34,7 @@ Lo que la distingue: un sensor que cabe en un llavero y viaja con quien mide, en
 - Mediciones de ejemplo y pruebas en la zona de Gandia (campus UPV, playa, Grau).
 - Las organizaciones gestionan trabajadores, campañas y dispositivos Orb desde el portal web; los trabajadores capturan con la app Android.
 - Las solicitudes de kits o estudios llegan a un panel comercial privado de Código Norte.
-- Despliegue en Plesk (`https://ldiamur.upv.edu.es/src/web/`). Web sin framework ni build: HTML, CSS y JS planos, PHP sin framework.
+- Despliegue en Plesk (`https://jcatsen.upv.edu.es/AERIQ/`). Web sin framework ni build: HTML, CSS y JS planos, PHP sin framework.
 
 ## Capabilities and Constraints
 
