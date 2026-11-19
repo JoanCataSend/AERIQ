@@ -95,13 +95,20 @@ function initSensorProduct(){
 }
 function initMap(){ if(typeof initAeriqMap==='function')initAeriqMap(); }
 function initModelViewer(){
- // Cada visor muestra su foto provisional (poster) hasta cargar; el aviso pequeño se apaga al terminar.
  for(const model of document.querySelectorAll('.sensor-model-viewer')){
   const label=model.parentElement.querySelector('.mv-loading');
+   const showError=message=>{if(label){label.textContent=message;label.classList.remove('is-ready');}};
   const ready=()=>{model.closest('.sensor-3d-shell')?.classList.add('is-ready');label?.classList.add('is-ready');};
+   if(location.protocol==='file:'){
+    showError('Abre la página desde un servidor web para ver el modelo 3D.');
+    continue;
+   }
+   if(!window.customElements?.get('model-viewer')){
+    showError('No se ha podido cargar el visor 3D.');
+    continue;
+   }
   model.addEventListener('load',ready,{once:true});
-  model.addEventListener('progress',e=>{if(e.detail?.totalProgress>=1)ready();});
-  model.addEventListener('error',()=>{if(label)label.textContent='Modelo 3D no disponible';});
+   model.addEventListener('error',()=>showError('No se ha podido cargar el archivo del modelo 3D.'));
   if(model.loaded)ready();
   if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)model.removeAttribute('auto-rotate');
  }

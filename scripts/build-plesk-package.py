@@ -22,6 +22,7 @@ def deploy_files():
             ".png", ".jpg", ".jpeg", ".webp", ".svg", ".glb", ".ico",
         }:
             yield path
+    yield WEB / "assets" / "model-viewer-LICENSE.txt"
     for name in (
         "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "SensorLink.php", "SDBaseDatos.example.php",
         "SMTPConfig.example.php", "MailConfig.example.php", "FirebaseAuth.php", "FirebaseConfig.example.php", ".htaccess",
