@@ -15,6 +15,14 @@ JOIN campanas c ON c.organizacion_id=u.organizacion_id AND c.nombre='Simulación
 SET u.campana_id=c.id
 WHERE u.email='operadora.simulacion@aeriq.example';
 
+-- Cualquier otro operador que siga sin campaña -> «Simulación · paseo por el campus».
+-- Sin campaña, un operador no ve «Mi campaña» ni puede recibir un Orb.
+UPDATE usuarios u
+JOIN roles r ON r.id=u.rol_id AND r.codigo='trabajador'
+JOIN campanas c ON c.organizacion_id=u.organizacion_id AND c.nombre='Simulación · paseo por el campus'
+SET u.campana_id=c.id
+WHERE u.campana_id IS NULL;
+
 -- Resumen: cada cuenta con su rol y su campaña. El admin principal no tiene campaña (ve todas).
 SELECT u.email, r.nombre AS rol, COALESCE(c.nombre,'— (todas)') AS campana
 FROM usuarios u JOIN roles r ON r.id=u.rol_id LEFT JOIN campanas c ON c.id=u.campana_id
