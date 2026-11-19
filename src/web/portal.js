@@ -90,6 +90,15 @@ document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>
   try{const r=await Aeriq.portal('worker-edit',payload(f));document.querySelector('#worker-modal').close();portalFeedback.textContent=r.message;await refresh();}
   catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
 });
+async function myCampaign(){
+  const d=await Aeriq.portal('my-campaign'),c=d.campaign,set=(id,text)=>{document.getElementById(id).textContent=text;};
+  set('op-campaign-name',c.nombre);set('op-campaign-state',Number(c.activa)?'Campaña activa':'Campaña inactiva');
+  set('op-campaign-meta',`${c.zona} · del ${c.inicio} al ${c.fin}`);
+  set('op-orb',d.orb?d.orb.nombre:'Sin Orb');set('op-battery',d.orb&&d.orb.bateria_pct!=null?d.orb.bateria_pct+' %':'—');
+  set('op-thresholds',`${Number(c.umbral_medio)} / ${Number(c.umbral_alto)}`);
+  set('op-admins',d.admins.length?'Tu admin de campaña: '+d.admins.map(x=>`${x.nombre} ${x.apellidos} (${x.email})`).join(', '):'Tu campaña aún no tiene admin asignado.');
+  table(document.querySelector('#op-readings'),['Fecha (UTC)','Magnitud','Valor'],d.readings.map(r=>({cells:[String(r.capturada_en).slice(0,16),r.magnitud,`${r.valor} ${r.unidad}`]})));
+}
 function catalogs(){
   // El servidor decide qué rol crea esta cuenta: admin de campaña u operador.
   const title=document.querySelector('#worker-title');if(title&&dashboard.roles?.length)title.textContent='Añadir '+dashboard.roles[0].nombre.toLowerCase();
@@ -140,12 +149,15 @@ async function commercial(){
 (async()=>{try{
   const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}
   me=user;document.querySelector('#portal-title').textContent=user.organization||'Código Norte';
-  if(!can(user,'informes.ver'))throw new Error('Esta cuenta no tiene acceso al panel. Utiliza la aplicación Android para gestionar el Orb que tienes asignado.');
+  // Operador: solo «Mi campaña», de consulta.
+  const operator=!can(user,'informes.ver')&&can(user,'mediciones.registrar');
+  if(!can(user,'informes.ver')&&!operator)throw new Error('Esta cuenta no tiene acceso al panel.');
   document.querySelector('#organization-panel').hidden=false;
   for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
-  await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
+  if(operator){document.querySelector('.workspace-nav').hidden=true;await myCampaign();}
+  else {await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
   // La flota (sección «Dispositivos Orb») se carga aparte; al guardar un Orb se refrescan los contadores.
-  if(typeof initFleet==='function'){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}
+  if(typeof initFleet==='function'){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}}
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
   showWorkspace(location.hash.slice(1));
 }catch(e){portalFeedback.textContent=e.message;}})();
@@ -160,8 +172,3 @@ function showWorkspace(view){
 }
 for(const a of document.querySelectorAll('[data-workspace-view]'))a.addEventListener('click',()=>showWorkspace(a.dataset.workspaceView));
 window.addEventListener('hashchange',()=>showWorkspace(location.hash.slice(1)));
-document.querySelector('#logout').onclick=async e=>{
-  const b=e.currentTarget;b.disabled=true;
-  try{await AeriqAuth.post('logout');location.href='index.html';}
-  catch(err){b.disabled=false;portalFeedback.textContent=err.message;}
-};

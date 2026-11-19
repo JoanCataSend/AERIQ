@@ -10,6 +10,8 @@ try {
     if ($action==='request-status' && $method==='POST') {
         $c=aeriq_ready($u,'solicitudes.gestionar');auth_responder(200,aeriq_request_status($c,aeriq_json_body()));
     }
+    // El operador consulta su campaña (solo lectura); el resto del panel exige informes.
+    if ($action==='my-campaign' && $method==='GET') auth_responder(200,aeriq_my_campaign(aeriq_ready($u,'mediciones.registrar')));
     $a=aeriq_ready($u,'informes.ver');
     if ($method==='GET' && $action==='dashboard') auth_responder(200,aeriq_dashboard($a));
     if ($method==='GET' && $action==='readings') {

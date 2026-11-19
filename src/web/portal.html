@@ -20,7 +20,7 @@
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a>
-    <nav class="main-nav" id="primary-navigation" aria-label="Principal"><a href="mapa.html">Mapa</a><a href="sensor.html">El Orb</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
+    <nav class="main-nav" id="primary-navigation" aria-label="Principal"><a href="sensor.html">El AERIQ</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
     <div class="header-actions">
       <a href="login.html" class="link-login" id="account-link">Iniciar sesión</a>
       <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
@@ -32,7 +32,7 @@
   <div class="container">
     <div class="page-head"><h1 id="portal-title">Tu organización</h1><p id="portal-feedback" class="status" role="status" aria-live="polite">Comprobando acceso…</p></div>
     <div class="workspace-layout">
-      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#campaign" data-workspace-view="campaign" data-perm="equipo.gestionar">Mi campaña</a><a href="#overview" data-workspace-view="overview" data-perm="campanas.gestionar">Resumen</a><a href="#workers" data-workspace-view="workers">Equipo</a><a href="#campaigns" data-workspace-view="campaigns" data-perm="campanas.gestionar">Campañas</a><a href="#devices" data-workspace-view="devices">Dispositivos Orb</a><a href="#reports" data-workspace-view="reports">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a><a href="perfil.html">Mi cuenta</a><button id="logout" class="danger" type="button">Cerrar sesión</button></aside>
+      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#campaign" data-workspace-view="campaign" data-perm="equipo.gestionar">Mi campaña</a><a href="#overview" data-workspace-view="overview" data-perm="campanas.gestionar">Resumen</a><a href="#workers" data-workspace-view="workers">Equipo</a><a href="#campaigns" data-workspace-view="campaigns" data-perm="campanas.gestionar">Campañas</a><a href="#devices" data-workspace-view="devices">Dispositivos Orb</a><a href="#reports" data-workspace-view="reports">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a></aside>
       <div>
         <div id="organization-panel" hidden>
           <section data-view="campaign" data-perm="equipo.gestionar">
@@ -53,6 +53,20 @@
               <form id="campaign-settings-form" class="form-grid"><label>Umbral moderado (ppb)<input name="medium" type="number" min="0" step="any" required></label><label>Umbral alto (ppb)<input name="high" type="number" min="0" step="any" required></label><label>Distancia de interpolación (m)<input name="radius" type="number" min="20" max="50" required></label><label><input name="public" type="checkbox"> Mostrar las mediciones en el mapa público</label><button type="submit" class="btn btn-primary">Guardar ajustes</button></form>
               <p class="note">Las fechas, el nombre y la zona los cambia el administrador principal.</p>
             </div>
+          </section>
+          <section data-view="campaign" data-perm="mediciones.registrar" id="operator-campaign">
+            <div class="panel portal-section campaign-card">
+              <p class="plan-badge" id="op-campaign-state">—</p>
+              <h2 id="op-campaign-name">Mi campaña</h2>
+              <p id="op-campaign-meta" class="campaign-meta"></p>
+              <div class="stats-grid">
+                <article class="stat"><strong id="op-orb">—</strong><small>Tu Orb</small></article>
+                <article class="stat"><strong id="op-battery">—</strong><small>Batería del Orb</small></article>
+                <article class="stat"><strong id="op-thresholds">—</strong><small>Umbrales de ozono (ppb)</small></article>
+              </div>
+              <p class="note" id="op-admins"></p>
+            </div>
+            <div class="panel portal-section"><h2>Tus últimas mediciones</h2><div id="op-readings" class="table-scroll"></div><p class="note">Solo consulta: los datos de la campaña y la asignación del Orb los gestiona tu admin de campaña.</p></div>
           </section>
           <section data-view="overview" data-perm="campanas.gestionar">
             <div class="stats-grid">
