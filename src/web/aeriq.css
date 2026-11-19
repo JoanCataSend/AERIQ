@@ -541,6 +541,19 @@ body[data-page="mapa"]{overflow-x:hidden}
 #fleet .devices-table td:first-child{white-space:normal;min-width:160px}
 .campaign-meta{margin:0 0 20px;color:var(--ink-3)}
 .campaign-card .stats-grid{margin-bottom:20px}
+.section-gap{margin-top:32px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.4;white-space:nowrap}
+.pill-on{background:var(--brand-tint);color:var(--brand-ink)}
+.pill-off{background:var(--alt);color:var(--ink-3)}
+a.stat-link{color:inherit;text-decoration:none;transition:background .2s}
+a.stat-link strong,a.stat-link small{display:block}
+a.stat-link:hover{background:var(--brand-tint)}
+a.stat-link small{color:var(--brand-ink)}
+.check-row{display:flex;align-items:center;gap:8px;grid-column:1/-1}
+#campaign-form .button-row{grid-column:1/-1;margin-top:4px}
+.orb-group+.orb-group{margin-top:28px}
+.orb-group h3{margin:0 0 2px}
+.orb-group>p{margin:0 0 12px;color:var(--ink-3)}
 #op-orb{font-size:clamp(20px,2.2vw,26px);line-height:1.25}
 .text-link{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--brand);font-weight:550;font-size:inherit;cursor:pointer;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:rgba(14,107,94,.35)}
 .text-link:hover{text-decoration-color:currentColor}
@@ -738,6 +751,7 @@ form .field-check{margin-top:20px}
 .row-link strong{display:block;font-weight:600}
 .row-link p{margin-top:2px;font-size:14.5px;color:var(--ink-3)}
 .stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stats-grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
 .stat{display:grid;gap:4px;background:var(--alt);border:0;border-radius:24px;padding:24px 26px}
 .stat strong{font-size:clamp(34px,3.4vw,44px);font-weight:750;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
 .stat small{font-size:14px;color:var(--ink-3)}
@@ -789,7 +803,7 @@ form .field-check{margin-top:20px}
   .account-id{display:none}
 }
 @media (max-width:640px){
-  .form-grid,.spec-sheet,.stats-grid{grid-template-columns:1fr}
+  .form-grid,.spec-sheet,.stats-grid,.stats-grid.four{grid-template-columns:1fr}
   .tech-specs div{grid-template-columns:1fr;gap:6px}
   .thumb{width:72px}
   .product-stage-3d{aspect-ratio:4/5}

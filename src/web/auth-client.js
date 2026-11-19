@@ -31,7 +31,7 @@ const AeriqAuth = (() => {
     if(user.mustChangePassword)return 'cambiar-clave.html';
     const p=user.permissions||[];
     // Panel: admins (informes o solicitudes) y operadores con campaña («Mi campaña», de consulta).
-    return ['informes.ver','solicitudes.gestionar'].some(x=>p.includes(x))||(p.includes('mediciones.registrar')&&user.campaign)?'portal.html':'perfil.html';
+    return ['informes.ver','solicitudes.gestionar','campanas.gestionar'].some(x=>p.includes(x))||(p.includes('mediciones.registrar')&&user.campaign)?'portal.html':'perfil.html';
   }
   /*
    * Header sin parpadeo. Este script se carga en <head> sin defer: antes de pintar nada mira la

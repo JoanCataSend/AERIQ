@@ -35,7 +35,7 @@ DELETE FROM roles WHERE codigo='comercial';
 DELETE FROM rol_permisos;
 INSERT INTO rol_permisos (rol_id,permiso_id)
 SELECT r.id,p.id FROM roles r JOIN permisos p ON
-     (r.codigo='admin'         AND p.codigo IN ('mapa.organizacion','informes.ver','campanas.gestionar','solicitudes.gestionar'))
+     (r.codigo='admin'         AND p.codigo IN ('campanas.gestionar','solicitudes.gestionar'))
   OR (r.codigo='admin_campana' AND p.codigo IN ('mapa.organizacion','informes.ver','equipo.gestionar','datos.exportar'))
   OR (r.codigo='trabajador'    AND p.codigo IN ('mapa.organizacion','mediciones.registrar'));
 DELETE FROM permisos WHERE codigo='organizacion.gestionar';

@@ -12,9 +12,12 @@ try {
     }
     // El operador consulta su campaña (solo lectura); el resto del panel exige informes.
     if ($action==='my-campaign' && $method==='GET') auth_responder(200,aeriq_my_campaign(aeriq_ready($u,'mediciones.registrar')));
-    $a=aeriq_ready($u,'informes.ver');
+    $a=aeriq_ready($u);
+    if (!aeriq_can($a,'informes.ver') && !aeriq_can($a,'campanas.gestionar')) throw new AeriqError('Tu función no permite esta operación.',403);
     if ($method==='GET' && $action==='dashboard') auth_responder(200,aeriq_dashboard($a));
     if ($method==='GET' && $action==='readings') {
+        // El admin principal no hace informes: las lecturas detalladas son del admin de campaña.
+        aeriq_ready($u,'informes.ver');
         // El CSV se pide con export=1: solo el admin de campaña puede exportar.
         if (!empty($_GET['export'])) aeriq_ready($u,'datos.exportar');
         auth_responder(200,['readings'=>aeriq_readings($a,$_GET)]);

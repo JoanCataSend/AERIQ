@@ -7,7 +7,8 @@ const can=(user,permission)=>(user.permissions||[]).includes(permission);
 // data-perm="a b": el elemento se muestra si la cuenta tiene alguno de esos permisos.
 const allowed=n=>!n.dataset.perm||n.dataset.perm.split(' ').some(p=>can(me,p));
 const levelOf=r=>r.umbral_medio===null||r.umbral_medio===undefined?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
-const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text??'—');return n;};
+const el=(tag,text)=>{const n=document.createElement(tag);if(text instanceof Node)n.append(text);else if(text!==undefined)n.textContent=String(text??'—');return n;};
+const pill=(text,on)=>{const s=document.createElement('span');s.className='pill '+(on?'pill-on':'pill-off');s.textContent=text;return s;};
 function table(host,headers,rows,action){
   host.replaceChildren();const t=el('table');t.className='devices-table';const head=el('tr');for(const h of headers)head.append(el('th',h));
   if(action)head.append(el('th','Acciones'));t.append(head);
@@ -21,7 +22,11 @@ async function refresh(){
   dashboard=await Aeriq.portal('dashboard');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
   renderWorkers();
   catalogs();
-  for(const id of ['worker-campaign','report-campaign'])options(id,dashboard.campaigns,c=>c.nombre);
+  options('report-campaign',dashboard.campaigns,c=>c.nombre);
+  // Un admin por campaña: solo se ofrecen las campañas que aún no tienen.
+  const free=dashboard.campaigns.filter(c=>!c.admin_nombre),sel=document.querySelector('#worker-campaign');
+  if(sel){options('worker-campaign',free,c=>c.nombre);if(!free.length)sel.replaceChildren(new Option('Todas las campañas tienen admin',''));}
+  if(can(me,'campanas.gestionar'))summary();
   // «Mi campaña» (admin de campaña): el servidor solo devuelve su campaña.
   const mine=can(me,'equipo.gestionar')?dashboard.campaigns[0]:null;
   if(mine){
@@ -34,7 +39,7 @@ async function refresh(){
     fill(document.querySelector('#campaign-settings-form'),{medium:mine.umbral_medio,high:mine.umbral_alto,radius:mine.radio_m,public:mine.publicar});
   }
   options('report-device',dashboard.devices,d=>d.nombre);
-  table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,Number(c.publicar)?'Autorizada':'Privada'],source:c})),can(me,'campanas.gestionar')?c=>fill(document.querySelector('#campaign-form'),{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,medium:c.umbral_medio,high:c.umbral_alto,radius:c.radio_m,active:c.activa,public:c.publicar}):null);
+  table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Admin','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,c.admin_nombre||'Sin admin',Number(c.publicar)?'Autorizada':'Privada'],source:c})),can(me,'campanas.gestionar')?c=>{const f=document.querySelector('#campaign-form');f.reset();fill(f,{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,active:c.activa});campaignMode(c);f.scrollIntoView({behavior:'smooth',block:'center'});}:null);
 }
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
   if(!document.getElementById(id))continue;
@@ -52,12 +57,12 @@ function accessText(w){
 function renderWorkers(){
   const host=document.querySelector('#workers-list');host.replaceChildren();
   const manages=can(me,'campanas.gestionar')?'admin_campana':can(me,'equipo.gestionar')?'trabajador':null;
-  document.querySelector('#workers-title').textContent=manages==='trabajador'?'Operadores de tu campaña':'Personas de la organización';
+  document.querySelector('#workers-title').textContent=manages==='trabajador'?'Operadores de tu campaña':'Admins de campaña';
   const t=el('table');t.className='devices-table';const head=el('tr');
-  for(const h of ['Nombre','Correo',...(manages==='trabajador'?['Orb']:['Función']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
+  for(const h of ['Nombre','Correo',...(manages==='trabajador'?['Orb']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
   // El admin de campaña ve solo a sus operadores (no a sí mismo).
-  for(const w of dashboard.workers.filter(w=>manages!=='trabajador'||w.rol==='trabajador')){
-    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,w.email,...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.rol_nombre||w.rol]),accessText(w)])tr.append(el('td',v));
+  for(const w of dashboard.workers.filter(w=>!manages||w.rol===manages)){
+    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,w.email,...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
     if(manages){
       const td=el('td');td.className='row-actions';
       if(w.rol===manages){
@@ -99,14 +104,38 @@ async function myCampaign(){
   set('op-admins',d.admins.length?'Tu admin de campaña: '+d.admins.map(x=>`${x.nombre} ${x.apellidos} (${x.email})`).join(', '):'Tu campaña aún no tiene admin asignado.');
   table(document.querySelector('#op-readings'),['Fecha (UTC)','Magnitud','Valor'],d.readings.map(r=>({cells:[String(r.capturada_en).slice(0,16),r.magnitud,`${r.valor} ${r.unidad}`]})));
 }
+// Admin principal: resumen de campañas y Orb por campaña (solo consulta).
+function summary(){
+  const set=(id,text)=>{const n=document.getElementById(id);if(n)n.textContent=text;};
+  set('sum-campaigns',dashboard.campaigns.filter(c=>Number(c.activa)).length);
+  set('sum-admins',dashboard.workers.filter(w=>w.rol==='admin_campana'&&Number(w.activo)).length);
+  set('sum-orbs',dashboard.campaigns.reduce((n,c)=>n+Number(c.orbs_en_uso||0),0));
+  table(document.querySelector('#campaigns-summary'),['Campaña','Admin','Operadores','Orb en uso','Estado'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.admin_nombre||'Sin admin',String(c.operadores),String(c.orbs_en_uso),pill(Number(c.activa)?'Activa':'Inactiva',Number(c.activa))]})));
+  const host=document.querySelector('#orbs-by-campaign');if(!host)return;host.replaceChildren();
+  const groups=[...dashboard.campaigns.map(c=>({title:c.nombre,sub:'Admin: '+(c.admin_nombre||'sin asignar'),devices:dashboard.devices.filter(d=>Number(d.campana_id)===Number(c.id))})),
+    {title:'Sin asignar',sub:'Orb registrados que ahora no lleva nadie',devices:dashboard.devices.filter(d=>!d.campana_id)}];
+  for(const g of groups){
+    if(g.title==='Sin asignar'&&!g.devices.length)continue;
+    const box=el('div');box.className='orb-group';box.append(el('h3',`${g.title} · ${g.devices.length} Orb`),el('p',g.sub));
+    const list=el('div');list.className='table-scroll';box.append(list);host.append(box);
+    table(list,['Orb','Operador','Estado','Batería','Última medición'],g.devices.map(d=>({cells:[d.nombre,d.trabajador||'—',Number(d.activo)?'Alta':'Baja',d.bateria_pct!=null?d.bateria_pct+' %':'—',d.ultima_medicion?String(d.ultima_medicion).slice(0,16)+' UTC':'Sin datos']})));
+  }
+}
+// Formulario de campaña: «Crear campaña» o «Editar campaña: …» con su botón de cancelar.
+function campaignMode(c){
+  const title=document.querySelector('#campaign-form-title'),submit=document.querySelector('#campaign-submit'),cancel=document.querySelector('#campaign-cancel');
+  if(!title)return;title.textContent=c?'Editar campaña: '+c.nombre:'Crear campaña';submit.textContent=c?'Guardar cambios':'Crear campaña';cancel.hidden=!c;
+}
+// Un input oculto no se vacía con reset(): sin esto, «Crear campaña» tras editar sobrescribiría la editada.
+document.querySelector('#campaign-form')?.addEventListener('reset',e=>{e.currentTarget.elements.id.value='';setTimeout(()=>campaignMode(null));});
+document.querySelector('#campaign-cancel')?.addEventListener('click',()=>document.querySelector('#campaign-form').reset());
 function catalogs(){
   // El servidor decide qué rol crea esta cuenta: admin de campaña u operador.
-  const title=document.querySelector('#worker-title');if(title&&dashboard.roles?.length)title.textContent='Añadir '+dashboard.roles[0].nombre.toLowerCase();
+  const title=document.querySelector('#worker-title');if(title)title.textContent=can(me,'campanas.gestionar')?'Asignar admin de campaña':'Añadir operador';
+  const link=document.querySelector('#workers-link');if(link&&can(me,'campanas.gestionar'))link.textContent='Admins de campaña';
   const list=document.querySelector('#zone-options');if(list)list.replaceChildren(...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));
   const zone=document.querySelector('#report-zone');
   if(zone){const value=zone.value;zone.replaceChildren(new Option('Todas las zonas',''),...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));zone.value=[...zone.options].some(o=>o.value===value)?value:'';}
-  const form=document.querySelector('#campaign-form');
-  if(form&&dashboard.thresholds){form.elements.medium.defaultValue=dashboard.thresholds.umbral_medio;form.elements.high.defaultValue=dashboard.thresholds.umbral_alto;if(!form.elements.id.value){form.elements.medium.value=dashboard.thresholds.umbral_medio;form.elements.high.value=dashboard.thresholds.umbral_alto;}}
 }
 function renderReport(rows,group){
   const host=document.querySelector('#report-results');host.replaceChildren();
@@ -130,7 +159,8 @@ document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();con
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
 document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.portal('readings',undefined,{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
 async function commercial(){
-  const {requests,states=[]}=await Aeriq.portal('requests');const host=document.querySelector('#requests-list');host.replaceChildren();
+  const {requests,states=[]}=await Aeriq.portal('requests');
+  const pending=document.getElementById('sum-requests');if(pending)pending.textContent=requests.filter(r=>r.estado==='pendiente').length;const host=document.querySelector('#requests-list');host.replaceChildren();
   for(const r of requests){const box=el('article');box.className='portal-section';box.append(el('h3',`#${r.id} · ${r.entidad}`));
     box.append(el('p',`${r.contacto} · ${r.email}${r.telefono?' · '+r.telefono:''} · ${r.recibida_en} UTC`));
     const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
@@ -151,13 +181,13 @@ async function commercial(){
   me=user;document.querySelector('#portal-title').textContent=user.organization||'Código Norte';
   // Operador: solo «Mi campaña», de consulta.
   const operator=!can(user,'informes.ver')&&can(user,'mediciones.registrar');
-  if(!can(user,'informes.ver')&&!operator)throw new Error('Esta cuenta no tiene acceso al panel.');
+  if(!can(user,'informes.ver')&&!can(user,'campanas.gestionar')&&!operator)throw new Error('Esta cuenta no tiene acceso al panel.');
   document.querySelector('#organization-panel').hidden=false;
   for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
   if(operator){document.querySelector('.workspace-nav').hidden=true;await myCampaign();}
   else {await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
   // La flota (sección «Dispositivos Orb») se carga aparte; al guardar un Orb se refrescan los contadores.
-  if(typeof initFleet==='function'){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}}
+  if(typeof initFleet==='function'&&can(user,'equipo.gestionar')){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}}
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
   showWorkspace(location.hash.slice(1));
 }catch(e){portalFeedback.textContent=e.message;}})();
