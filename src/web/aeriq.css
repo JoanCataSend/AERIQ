@@ -908,3 +908,39 @@ form .field-check{margin-top:20px}
 .check-pill.check-pill{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font-size:14.5px;font-weight:450;cursor:pointer}
 .check-pill.check-pill input{width:16px;height:16px;margin:0}
 .check-pill:has(input:checked){border-color:var(--brand);background:var(--brand-tint);color:var(--brand-ink)}
+/* Operador · «Mi campaña» de solo consulta */
+.hero-badges{display:flex;flex-wrap:wrap;gap:8px}
+.op-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+.op-grid .panel+.panel{margin-top:0}
+.op-card h3{margin:0 0 12px;font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.op-device{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.op-status{display:flex;align-items:center;gap:8px;margin:6px 0 16px;font-size:14px;color:var(--ink-3)}
+.op-status::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--line-strong)}
+.op-status.on{color:var(--brand-ink)}
+.op-status.on::before{background:var(--low);box-shadow:0 0 0 4px rgba(33,156,114,.18)}
+.op-battery{display:grid;gap:6px}
+.op-battery-bar{height:10px;border-radius:999px;background:var(--alt);overflow:hidden}
+.op-battery-bar span{display:block;height:100%;width:0;border-radius:inherit;background:var(--line-strong)}
+.op-battery-bar span.high{background:var(--low)}.op-battery-bar span.mid{background:var(--mid)}.op-battery-bar span.low{background:var(--high)}
+.op-battery small{color:var(--ink-3);font-size:13px}
+.op-facts{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:16px 0 0;font-size:14px}
+.op-facts dt{color:var(--ink-3)}.op-facts dd{margin:0;text-align:right;color:var(--ink)}
+.op-scale{display:grid;grid-template-columns:1fr 1fr 1fr;height:10px;border-radius:999px;overflow:hidden;margin:14px 0}
+.op-scale .low,.dot.low{background:var(--low)}.op-scale .mid,.dot.mid{background:var(--mid)}.op-scale .high,.dot.high{background:var(--high)}
+.op-levels{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14.5px}
+.op-levels li{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+.op-levels b{font-weight:550;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+.op-admins{display:grid;gap:12px;margin-bottom:12px}
+.op-admin{display:flex;align-items:center;gap:12px;min-width:0}
+.op-admin strong{display:block}
+.op-admin a{color:var(--brand);font-size:14px;overflow-wrap:anywhere}
+.op-avatar{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--brand-tint);color:var(--brand-ink);font-weight:700;font-size:14px;text-transform:uppercase}
+.level-tag{display:inline-flex;align-items:center;gap:6px;font-weight:550}
+.level-tag::before{content:'';width:8px;height:8px;border-radius:50%}
+.level-tag.bajo::before{background:var(--low)}.level-tag.moderado::before{background:var(--mid)}.level-tag.alto::before{background:var(--high)}
+@media (max-width:980px){.op-grid{grid-template-columns:1fr}}
+.op-card .op-device{color:var(--ink)}
+.op-grid+.panel{margin-top:16px}
+#operator-campaign .campaign-progress{margin-bottom:0}
+.op-battery-bar{background:var(--surface);border:1px solid var(--line)}

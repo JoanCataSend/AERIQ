@@ -37,10 +37,7 @@ async function refresh(){
     const set=(id,text)=>{document.getElementById(id).textContent=text;};
     set('my-campaign-name',mine.nombre);set('my-campaign-state',stateText(mine));
     set('my-campaign-meta',`${mine.zona} · del ${AeriqDomain.when(mine.inicio,{hour:false})} al ${AeriqDomain.when(mine.fin,{hour:false})}`);
-    const day=864e5,start=Date.parse(mine.inicio+'T00:00:00Z'),end=Date.parse(mine.fin+'T00:00:00Z')+day,now=Date.now(),total=Math.max(1,Math.round((end-start)/day));
-    const done=Math.min(total,Math.max(0,Math.floor((now-start)/day)+1)),left=Math.max(0,Math.ceil((end-now)/day));
-    const bar=document.querySelector('#my-campaign-progress span');if(bar)bar.style.width=(now<start?0:Math.round(done/total*100))+'%';
-    set('my-campaign-days',now<start?`Empieza en ${Math.ceil((start-now)/day)} días · dura ${total} días`:now>=end?`Terminada · duró ${total} días`:`Día ${done} de ${total} · quedan ${left} días`);
+    progress(mine,'my-campaign');
     set('my-campaign-workers',dashboard.workers.filter(w=>Number(w.puede_medir)).length);
     set('my-campaign-devices',dashboard.devices.filter(d=>Number(d.activo)&&d.trabajador_id).length);
     set('my-campaign-public',Number(mine.publicar)?'Sí':'No');
@@ -109,14 +106,36 @@ document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>
   try{const r=await Aeriq.portal('worker-edit',payload(f));document.querySelector('#worker-modal').close();portalFeedback.textContent=r.message;await refresh();}
   catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
 });
+// Barra de tiempo de una campaña: «Día 8 de 68 · quedan 61 días».
+function progress(c,prefix){
+  const day=864e5,start=Date.parse(c.inicio+'T00:00:00Z'),end=Date.parse(c.fin+'T00:00:00Z')+day,now=Date.now(),total=Math.max(1,Math.round((end-start)/day));
+  const done=Math.min(total,Math.max(0,Math.floor((now-start)/day)+1)),left=Math.max(0,Math.ceil((end-now)/day));
+  const bar=document.querySelector(`#${prefix}-progress span`);if(bar)bar.style.width=(now<start?0:Math.round(done/total*100))+'%';
+  const text=document.getElementById(prefix+'-days');if(text)text.textContent=now<start?`Empieza en ${Math.ceil((start-now)/day)} días · dura ${total} días`:now>=end?`Terminada · duró ${total} días`:`Día ${done} de ${total} · quedan ${left} días`;
+}
 async function myCampaign(){
   const d=await Aeriq.portal('my-campaign'),c=d.campaign,set=(id,text)=>{document.getElementById(id).textContent=text;};
   set('op-campaign-name',c.nombre);set('op-campaign-state',stateText(c));
-  set('op-campaign-meta',`${c.zona} · del ${c.inicio} al ${c.fin}`);
-  set('op-orb',d.orb?d.orb.nombre:'Sin AERIQ');set('op-battery',d.orb&&d.orb.bateria_pct!=null?d.orb.bateria_pct+' %':'—');
-  set('op-thresholds',`${Number(c.umbral_medio)} / ${Number(c.umbral_alto)}`);
-  set('op-admins',d.admins.length?'Tu admin de campaña: '+d.admins.map(x=>`${x.nombre} ${x.apellidos} (${x.email})`).join(', '):'Tu campaña aún no tiene admin asignado.');
-  table(document.querySelector('#op-readings'),['Fecha','Magnitud','Valor'],d.readings.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.magnitud,`${r.valor} ${r.unidad}`]})));
+  set('op-campaign-meta',`${c.zona} · del ${AeriqDomain.when(c.inicio,{hour:false})} al ${AeriqDomain.when(c.fin,{hour:false})}`);progress(c,'op-campaign');
+  // Tu AERIQ: nombre, si está enviando, batería y fechas.
+  const o=d.orb,last=d.readings[0]?.capturada_en,recent=last&&Date.now()-Date.parse(String(last).replace(' ','T')+'Z')<9e5;
+  set('op-orb',o?o.nombre:'Sin AERIQ asignado');
+  const status=document.getElementById('op-status');status.textContent=!o?'Tu admin de campaña te lo asignará.':recent?'Enviando lecturas':'Sin lecturas en los últimos 15 minutos';status.className='op-status'+(o&&recent?' on':'');
+  const pct=o&&o.bateria_pct!=null?Number(o.bateria_pct):null,fill=document.getElementById('op-battery-fill');
+  fill.style.width=(pct??0)+'%';fill.className=pct==null?'':pct>60?'high':pct>=20?'mid':'low';
+  set('op-battery',o?'Batería: '+AeriqDomain.battery(o.bateria_pct,o.bateria_en):'Batería: —');
+  set('op-since',o?.iniciada_en?AeriqDomain.when(o.iniciada_en):'—');set('op-last',last?AeriqDomain.when(last,{seconds:true}):'Todavía ninguna');
+  // Escala de niveles con los umbrales de la campaña.
+  const mid=Number(c.umbral_medio),high=Number(c.umbral_alto);
+  set('op-level-low',`menos de ${mid} ppb`);set('op-level-mid',`${mid} – ${high} ppb`);set('op-level-high',`${high} ppb o más`);
+  // Admin: nombre y correo pulsable.
+  const box=document.getElementById('op-admins');box.replaceChildren();
+  for(const x of d.admins){const row=el('div');row.className='op-admin';const av=el('span',((x.nombre||'')[0]||'')+((x.apellidos||'')[0]||''));av.className='op-avatar';const t=el('div');const m=el('a',x.email);m.href='mailto:'+x.email;t.append(el('strong',`${x.nombre} ${x.apellidos}`),m);row.append(av,t);box.append(row);}
+  if(!d.admins.length)box.append(el('p','Tu campaña aún no tiene admin asignado.'));
+  // Lecturas: el ozono lleva su nivel con color.
+  const lvl=r=>{if(r.unidad!=='ppb')return '—';const k=AeriqDomain.level(Number(r.valor),mid,high),s=el('span',k[0].toUpperCase()+k.slice(1));s.className='level-tag '+k;return s;};
+  table(document.querySelector('#op-readings'),['Fecha','Magnitud','Valor','Nivel'],d.readings.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.magnitud,`${r.valor} ${r.unidad}`,lvl(r)]})));
+  if(!d.readings.length)document.querySelector('#op-readings').replaceChildren(el('p','Todavía no hay lecturas de tu AERIQ en esta campaña.'));
 }
 // Admin principal: resumen de campañas y AERIQ por campaña (solo consulta).
 function summary(){

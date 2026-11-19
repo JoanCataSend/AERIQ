@@ -56,18 +56,33 @@
             </div>
           </section>
           <section data-view="campaign" data-perm="mediciones.registrar" id="operator-campaign">
-            <div class="panel portal-section campaign-card">
-              <p class="plan-badge" id="op-campaign-state">—</p>
+            <div class="panel portal-section campaign-card campaign-hero">
+              <div class="hero-badges"><p class="plan-badge" id="op-campaign-state">—</p><p class="plan-badge">Solo consulta</p></div>
               <h2 id="op-campaign-name">Mi campaña</h2>
               <p id="op-campaign-meta" class="campaign-meta"></p>
-              <div class="stats-grid">
-                <article class="stat"><strong id="op-orb">—</strong><small>Tu AERIQ</small></article>
-                <article class="stat"><strong id="op-battery">—</strong><small>Batería del AERIQ</small></article>
-                <article class="stat"><strong id="op-thresholds">—</strong><small>Umbrales de ozono (ppb)</small></article>
-              </div>
-              <p class="note" id="op-admins"></p>
+              <div class="campaign-progress" id="op-campaign-progress"><div class="campaign-progress-bar"><span></span></div><small id="op-campaign-days"></small></div>
             </div>
-            <div class="panel portal-section"><h2>Tus últimas mediciones</h2><div id="op-readings" class="table-scroll"></div><p class="note">Solo consulta: los datos de la campaña y la asignación del AERIQ los gestiona tu admin de campaña.</p></div>
+            <div class="op-grid">
+              <article class="panel portal-section op-card">
+                <h3>Tu AERIQ</h3>
+                <p class="op-device" id="op-orb">—</p>
+                <p class="op-status" id="op-status"></p>
+                <div class="op-battery"><div class="op-battery-bar"><span id="op-battery-fill"></span></div><small id="op-battery">—</small></div>
+                <dl class="op-facts"><dt>Asignado desde</dt><dd id="op-since">—</dd><dt>Última lectura</dt><dd id="op-last">—</dd></dl>
+              </article>
+              <article class="panel portal-section op-card">
+                <h3>Cómo leer el ozono</h3>
+                <p class="text-muted">Los colores del mapa y de tus lecturas siguen los umbrales de tu campaña.</p>
+                <div class="op-scale" aria-hidden="true"><span class="low"></span><span class="mid"></span><span class="high"></span></div>
+                <ul class="op-levels"><li><i class="dot low"></i><span>Bajo</span><b id="op-level-low">—</b></li><li><i class="dot mid"></i><span>Moderado</span><b id="op-level-mid">—</b></li><li><i class="dot high"></i><span>Alto</span><b id="op-level-high">—</b></li></ul>
+              </article>
+              <article class="panel portal-section op-card">
+                <h3>Tu admin de campaña</h3>
+                <div id="op-admins" class="op-admins"></div>
+                <p class="text-muted">Para cambiar de AERIQ, de campaña o cualquier dato, habla con tu admin.</p>
+              </article>
+            </div>
+            <div class="panel portal-section"><div class="fleet-head"><div><h2>Tus últimas mediciones</h2><p>Las 20 más recientes de tu AERIQ en esta campaña.</p></div><a class="btn btn-outline" href="mapa.html">Ver en el mapa</a></div><div id="op-readings" class="table-scroll"></div></div>
           </section>
           <section data-view="overview" data-perm="campanas.gestionar">
             <div class="stats-grid">
