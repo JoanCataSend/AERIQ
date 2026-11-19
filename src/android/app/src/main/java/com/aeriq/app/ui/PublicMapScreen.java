@@ -83,6 +83,10 @@ public final class PublicMapScreen {
     private List<List<Reading>> groups = Collections.emptyList();
     /** Radio de prueba elegido en «Capas»; 0 = el de cada campaña. Solo afecta a esta vista. */
     private int radiusOverride;
+    /** Periodo del mapa: 24 (último día), 168 (última semana) o 0 (histórico). Como en la web. */
+    private int hours = 24;
+    /** «Ver historial» es de quien tiene sensor: sin sesión se oculta en vez de llevar al inicio de sesión. */
+    private View historyAction, historyGap;
     /** Último punto consultado al tocar el mapa, para recalcularlo si cambian los datos o el radio. */
     private GeoPoint queried;
     private int request, searchRequest;
@@ -194,6 +198,28 @@ public final class PublicMapScreen {
         // ---------- Capas ----------
         layers = ui.column();
         layers.setPadding(ui.dp(20), ui.dp(8), ui.dp(20), 0);
+        TextView periodLabel = ui.text("Periodo", 14, true, INK);
+        periodLabel.setPadding(ui.dp(6), ui.dp(4), 0, ui.dp(2));
+        layers.addView(periodLabel);
+        RadioGroup period = new RadioGroup(activity);
+        String[] periodNames = {"Últimas 24 h", "Últimos 7 días", "Todo el histórico"};
+        int[] periodHours = {24, 168, 0};
+        for (int i = 0; i < periodNames.length; i++) {
+            RadioButton option = new RadioButton(activity);
+            option.setId(View.generateViewId());
+            option.setText(periodNames[i]);
+            option.setTextSize(15);
+            option.setMinHeight(ui.dp(48));
+            option.setButtonTintList(android.content.res.ColorStateList.valueOf(GREEN));
+            option.setChecked(periodHours[i] == hours);
+            int chosen = periodHours[i];
+            option.setOnCheckedChangeListener((button, checked) -> { if (checked && hours != chosen) { hours = chosen; load(); } });
+            period.addView(option);
+        }
+        layers.addView(period);
+        TextView showLabel = ui.text("Mostrar en el mapa", 14, true, INK);
+        showLabel.setPadding(ui.dp(6), ui.dp(12), 0, ui.dp(2));
+        layers.addView(showLabel);
         zones = toggle(layers, "Zonas estimadas (interpolación)", true);
         markers = toggle(layers, "Puntos de medición", true);
         CheckBox dark = toggle(layers, "Mapa oscuro", false);
@@ -258,7 +284,7 @@ public final class PublicMapScreen {
         top.addView(zoneDot, dotParams);
         LinearLayout names = ui.column();
         zoneTitle = ui.text("Cargando mediciones…", 20, true, INK);
-        zoneSubtitle = ui.text("Red colaborativa", 14, false, MUTED);
+        zoneSubtitle = ui.text("Mediciones publicadas por cada campaña", 14, false, MUTED);
         names.addView(zoneTitle);
         names.addView(zoneSubtitle);
         top.addView(names, new LinearLayout.LayoutParams(0, -2, 1));
@@ -299,20 +325,19 @@ public final class PublicMapScreen {
         history.addView(historyLabel);
         history.setOnClickListener(view -> activity.go(Screen.HISTORY));
         actions.addView(history, new LinearLayout.LayoutParams(0, ui.dp(54), 1));
-        actions.addView(new View(activity), new LinearLayout.LayoutParams(ui.dp(10), 1));
+        View gap = new View(activity);
+        actions.addView(gap, new LinearLayout.LayoutParams(ui.dp(10), 1));
+        historyAction = history;
+        historyGap = gap;
         LinearLayout compare = ui.row();
         compare.setGravity(Gravity.CENTER);
         compare.setBackground(ui.shape(DARK, 18, 0));
-        ImageView sparkles = ui.image(R.drawable.ic_sparkles, 20, 20);
-        sparkles.setColorFilter(WHITE);
-        compare.addView(sparkles, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
-        TextView compareLabel = ui.text("Comparar", 15, true, WHITE);
-        compareLabel.setPadding(ui.dp(8), 0, ui.dp(8), 0);
+        ImageView scale = ui.image(R.drawable.ic_scale, 20, 20);
+        scale.setColorFilter(WHITE);
+        compare.addView(scale, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
+        TextView compareLabel = ui.text("Comparar zonas", 15, true, WHITE);
+        compareLabel.setPadding(ui.dp(10), 0, 0, 0);
         compare.addView(compareLabel);
-        TextView premium = ui.text("Premium", 11, true, INK);
-        premium.setPadding(ui.dp(8), ui.dp(3), ui.dp(8), ui.dp(3));
-        premium.setBackground(ui.shape(WHITE, 12, 0));
-        compare.addView(premium);
         compare.setOnClickListener(view -> activity.go(Screen.COMPARE));
         actions.addView(compare, new LinearLayout.LayoutParams(0, ui.dp(54), 1));
         sheet.addView(actions, new LinearLayout.LayoutParams(-1, -2));
@@ -543,7 +568,7 @@ public final class PublicMapScreen {
         int generation = ++request;
         worker.execute(() -> {
             try {
-                PublicReadings.Result result = PublicReadings.fetch(false);
+                PublicReadings.Result result = PublicReadings.fetch(false, hours);
                 activity.runOnUiThread(() -> {
                     if (closed || generation != request) return;
                     readings = result.rows;
@@ -577,6 +602,7 @@ public final class PublicMapScreen {
     }
 
     private void draw() {
+        updateHistoryAction();
         map.getOverlays().clear();
         // Debajo de todo: recoge los toques que no caen en un marcador y consulta ese punto.
         map.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
@@ -688,7 +714,7 @@ public final class PublicMapScreen {
         if (rows.isEmpty()) {
             zoneDot.setBackground(dot(Quality.NONE));
             zoneTitle.setText(placeName != null ? placeName : readings.isEmpty() ? "Sin mediciones publicadas" : "Elige una zona");
-            zoneSubtitle.setText(placeName != null ? "Aún no hay sensores publicados aquí" : "Red colaborativa");
+            zoneSubtitle.setText(placeName != null ? "Aún no hay mediciones publicadas aquí" : "Mediciones publicadas por cada campaña");
             zoneValue.setText("—");
             zoneUnit.setText("");
             zoneChip.setText("Calidad: —");
@@ -714,7 +740,7 @@ public final class PublicMapScreen {
         int level = Quality.level(value, sample.medium, sample.high);
         zoneDot.setBackground(dot(Quality.color(level)));
         zoneTitle.setText(placeName != null && !placeName.equalsIgnoreCase(zone) ? placeName + " · " + zone : zone);
-        zoneSubtitle.setText("Red colaborativa · " + count + (count == 1 ? " medición" : " mediciones")
+        zoneSubtitle.setText(count + (count == 1 ? " medición" : " mediciones")
             + (points.size() > 1 ? " en " + points.size() + " puntos" : ""));
         zoneValue.setText(Quality.number(value));
         zoneUnit.setText(sample.unit);
@@ -866,7 +892,14 @@ public final class PublicMapScreen {
         draw();
     }
 
-    public void resume() { map.onResume(); }
+    public void resume() { map.onResume(); updateHistoryAction(); }
+
+    private void updateHistoryAction() {
+        if (historyAction == null) return;
+        int visibility = activity.signedIn() ? View.VISIBLE : View.GONE;
+        historyAction.setVisibility(visibility);
+        historyGap.setVisibility(visibility);
+    }
     public void pause() { location.stop(); map.onPause(); }
     public void close() {
         closed = true;

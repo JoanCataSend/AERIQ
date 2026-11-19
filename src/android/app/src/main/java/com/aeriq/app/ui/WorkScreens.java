@@ -167,13 +167,13 @@ public final class WorkScreens {
         LinearLayout shareTexts = ui.column();
         shareTexts.setPadding(ui.dp(14), 0, ui.dp(10), 0);
         shareTexts.addView(ui.text(sending ? "Compartiendo con la red" : "Compartir con la red", 17, true, INK));
-        shareTexts.addView(ui.text("Opcional. Tu ozono, con posición y hora, sale en el mapa público.", 13, false, MUTED));
+        shareTexts.addView(ui.text("Envía tus lecturas a tu campaña. Su administrador decide si se publican.", 13, false, MUTED));
         share.addView(shareTexts, new LinearLayout.LayoutParams(0, -2, 1));
         Switch shareToggle = ui.toggle(sending);
         shareToggle.setEnabled(selected != null);
         shareToggle.setContentDescription("Compartir mediciones con la red");
         shareToggle.setOnCheckedChangeListener((button, checked) -> {
-            activity.toggleSharing(checked);
+            activity.setSharing(checked);
             ((TextView) shareTexts.getChildAt(0)).setText(checked ? "Compartiendo con la red" : "Compartir con la red");
         });
         share.addView(shareToggle);
@@ -388,15 +388,16 @@ public final class WorkScreens {
         shop.addView(bag, new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
         LinearLayout shopTexts = ui.column();
         shopTexts.setPadding(ui.dp(16), 0, ui.dp(12), 0);
-        shopTexts.addView(ui.text("¿Aún no tienes sensor?", 17, true, INK));
-        TextView shopText = ui.text("Puedes comprarlo en la web de AERIQ. El mapa público sigue siendo gratis.", 14, false, MUTED);
+        shopTexts.addView(ui.text("¿Tu organización aún no tiene Orb?", 17, true, INK));
+        TextView shopText = ui.text("Los Orb se venden en kits para ayuntamientos y empresas, con cuentas para su equipo. "
+            + "Solicita información en la web.", 14, false, MUTED);
         shopText.setPadding(0, ui.dp(4), 0, 0);
         shopTexts.addView(shopText);
         shop.addView(shopTexts, new LinearLayout.LayoutParams(0, -2, 1));
         ImageView external = ui.image(R.drawable.ic_external, 24, 24);
         external.setColorFilter(GREEN);
         shop.addView(external, new LinearLayout.LayoutParams(ui.dp(24), ui.dp(24)));
-        shop.setOnClickListener(view -> activity.open(ApiRoutes.BASE));
+        shop.setOnClickListener(view -> activity.open(ApiRoutes.BASE + "solicitar.html"));
         LinearLayout.LayoutParams shopParams = new LinearLayout.LayoutParams(-1, -2);
         shopParams.topMargin = ui.dp(4);
         body.addView(shop, shopParams);
@@ -491,17 +492,12 @@ public final class WorkScreens {
         Runnable action = () -> {
             if (selected) { activity.go(Screen.SENSOR); return; }
             if (assigned != null) { activity.selectOrb(device.address); return; }
-            EditText label = new EditText(activity);
-            label.setSingleLine(true);
-            label.setText("Sensor PBIO · " + device.address.substring(Math.max(0, device.address.length() - 5)));
-            new android.app.AlertDialog.Builder(activity).setTitle("Vincula tu sensor")
-                .setMessage("Ponle un nombre. Quedará guardado en tu cuenta y las nuevas lecturas serán privadas.")
-                .setView(label).setNegativeButton("Cancelar", null)
-                .setPositiveButton("Vincular", (dialog, which) -> {
-                    String text = label.getText().toString().trim();
-                    if (text.isEmpty() || text.length() > 80) { activity.message("Usa un nombre de entre 1 y 80 caracteres."); return; }
-                    activity.assignSensor(device.address, text);
-                }).show();
+            // La app no se asigna Orb: lo hace el administrador de campaña desde el panel web (sensor-link.php responde 403).
+            new android.app.AlertDialog.Builder(activity).setTitle("Este Orb no está asignado a tu cuenta")
+                .setMessage("Los Orb los asigna el administrador de tu campaña desde el panel web de AERIQ. "
+                    + "Pídeselo indicando este identificador: " + device.address + ". Cuando lo asigne, aparecerá aquí.")
+                .setNegativeButton("Cerrar", null)
+                .setPositiveButton("Actualizar", (dialog, which) -> activity.refreshAssignments()).show();
         };
         if (highlighted) {
             TextView button = ui.text(selected ? "Vinculado" : "Vincular", 16, true, WHITE);
@@ -531,7 +527,7 @@ public final class WorkScreens {
 
     private void service(LinearLayout body, String title, String description, String kind) {
         LinearLayout card = section(body, title, description);
-        ui.button(card, "Solicitar información ↗", () -> activity.open(ApiRoutes.BASE + "solicitar.html?service=" + kind));
+        ui.button(card, "Solicitar información", () -> activity.open(ApiRoutes.BASE + "solicitar.html?service=" + kind));
     }
 
     private LinearLayout section(LinearLayout body, String title, String description) {
