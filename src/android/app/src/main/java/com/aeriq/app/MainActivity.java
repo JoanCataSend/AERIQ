@@ -45,11 +45,11 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     public enum Screen {
         LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
-        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PREMIUM
+        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD
     }
 
     private static final EnumSet<Screen> PUBLIC = EnumSet.of(
-        Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN);
+        Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN, Screen.COMPARE);
     private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5, EXPORT_PDF = 6;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService maps = Executors.newSingleThreadExecutor();
@@ -66,7 +66,6 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private FrameLayout stage; // contenedor a pantalla completa (mapa)
     private ScrollView scroll;
     private boolean sharing, started, restoring = true;
-    private boolean linkingSensor;
     private long lastSyncAt;
     private List<OrbAssignment> assignments = Collections.emptyList();
     private List<StoredReading> history = Collections.emptyList();
@@ -108,7 +107,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         ble = new AeriqBleController(this, this::receive);
         ble.onBattery = this::receiveBattery;
         if (state != null) {
-            current = Screen.valueOf(state.getString("screen", Screen.LOGIN.name()));
+            // Una pantalla guardada que ya no existe (por ejemplo, la antigua Premium) vuelve al inicio de sesión.
+            try { current = Screen.valueOf(state.getString("screen", Screen.LOGIN.name())); }
+            catch (IllegalArgumentException removed) { current = Screen.LOGIN; }
         }
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.shell);
@@ -171,7 +172,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         if (auth.user != null && auth.user.mustChangePassword) destination = Screen.CHANGE_PASSWORD;
         else if (auth.user == null && !PUBLIC.contains(destination)) {
             destination = Screen.LOGIN;
-            message("Inicia sesión para acceder a tus datos y al sensor.");
+            message("Inicia sesión con la cuenta de tu organización para acceder al sensor.");
         }
         if (current != destination || body.getChildCount() == 0 || mapScreen == null) {
             boolean enteringLink = destination == Screen.LINK && current != Screen.LINK;
@@ -209,7 +210,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         DesignScreens design = new DesignScreens(this, ui);
         switch (current) {
             case MAP:
-                title("Mapa de ozono", null, R.drawable.ic_bell, () -> message("No tienes avisos nuevos."));
+                title("Mapa de ozono", null);
                 scroll.setVisibility(View.GONE);
                 stage.setVisibility(View.VISIBLE);
                 mapScreen = new PublicMapScreen(this, ui, stage, maps);
@@ -246,10 +247,6 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             case ACCOUNT:
                 title("Cuenta", null);
                 design.account(body, auth.user, selected(), sharing, prefs);
-                break;
-            case PREMIUM:
-                title("Premium", Screen.ACCOUNT);
-                design.premium(body);
                 break;
             default:
                 throw new IllegalStateException(current.name());
@@ -288,7 +285,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         Screen active = current;
         if (EnumSet.of(Screen.LINK, Screen.CONFIG, Screen.HISTORY).contains(current)) active = Screen.SENSOR;
         if (current == Screen.COMPARE) active = Screen.MAP;
-        if (current == Screen.SERVICES || current == Screen.PREMIUM) active = Screen.ACCOUNT;
+        if (current == Screen.SERVICES) active = Screen.ACCOUNT;
         for (int index = 0; index < routes.length; index++) {
             Screen route = routes[index];
             boolean selected = active == route;
@@ -354,7 +351,6 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     private void clearWorker() {
-        linkingSensor = false;
         setSharing(false);
         ble.stopScan();
         ble.unlink();
@@ -434,21 +430,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         field.battery(assignment, address, percent, now);
     }
 
-    public void setSharing(boolean enabled) { setSharing(enabled, false); }
-
-    /** Interruptor «Compartir con la red»: además de enviar las lecturas, publica o retira la campaña personal. */
-    public void toggleSharing(boolean enabled) { setSharing(enabled, true); }
-
-    private void setSharing(boolean enabled, boolean fromUser) {
-        OrbAssignment assignment = selected();
-        sharing = enabled && assignment != null;
-        // Publicar siempre que se activa (también al elegir el Orb). Retirar solo si la persona lo apaga:
-        // cerrar sesión o cambiar de Orb no despublica lo ya compartido.
-        if (assignment != null && !assignment.simulated && (sharing || fromUser)) {
-            field.share(assignment, sharing, (text, error) -> {
-                if (fromUser) message(error != null ? "No se pudo cambiar la publicación: " + error : text);
-            });
-        }
+    /**
+     * «Compartir con la red»: envía las lecturas del Orb seleccionado a su campaña. Publicarlas en el mapa
+     * público lo decide el administrador de la campaña desde el panel web, no la app.
+     */
+    public void setSharing(boolean enabled) {
+        sharing = enabled && selected() != null;
         serverStatus = sharing ? "Envío activado: esperando lecturas de campaña" : "Envío desactivado";
         if (!sharing) location.stop();
         else if (location.allowed()) {
@@ -465,26 +452,6 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         ble.select(address);
         setSharing(!assigned(address).simulated);
         go(Screen.SENSOR);
-    }
-
-    public void assignSensor(String address, String name) {
-        if (linkingSensor) { message("Se está guardando la asignación…"); return; }
-        if (!workerAccount()) { message("Necesitas una cuenta de trabajador o administrador de tu organización."); return; }
-        linkingSensor = true;
-        message("Asignando sensor a tu cuenta…");
-        field.linkSensor(address, name, (rows, error) -> {
-            linkingSensor = false;
-            if (error != null) {
-                new android.app.AlertDialog.Builder(this).setTitle("No se pudo asignar el sensor")
-                    .setMessage(error + "\n\nSi aparece HTTP 404, falta publicar la API sensor-link.php en el servidor.")
-                    .setPositiveButton("Entendido", null).show();
-                return;
-            }
-            assignments = rows;
-            assignmentStatus = rows.size() + " sensores asignados a tu cuenta";
-            selectOrb(address);
-            message("Sensor asignado a tu cuenta");
-        });
     }
 
     public void unlink() {
@@ -863,6 +830,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         catch (android.content.ActivityNotFoundException error) { message("No hay navegador disponible."); }
     }
 
+    public boolean signedIn() { return auth.user != null; }
+
     public void message(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
 
     @Override protected void onStart() {
@@ -901,7 +870,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             case FORGOT: go(Screen.LOGIN); break;
             case RESET: go(Screen.FORGOT); break;
             case CONFIG: case HISTORY: case LINK: go(Screen.SENSOR); break;
-            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: case PREMIUM: go(Screen.ACCOUNT); break;
+            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: go(Screen.ACCOUNT); break;
             case MAP: case LOGIN: finish(); break;
             default: go(Screen.MAP);
         }
