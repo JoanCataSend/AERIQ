@@ -163,24 +163,99 @@ document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();con
 };
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
 document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.portal('readings',undefined,{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
+// Solicitudes: bandeja. Lista a la izquierda (filtro por estado y buscador) y ficha completa a la derecha.
+const REQ_PILL={pendiente:'pill-soon',en_revision:'pill-info',respondida:'pill-on',cerrada:'pill-off'};
+const REQ_HELP={pendiente:'Ha llegado y nadie la ha mirado todavía.',en_revision:'La estáis estudiando (presupuesto, disponibilidad…).',respondida:'Ya habéis contestado y esperáis respuesta del cliente.',cerrada:'Terminada: aceptada y convertida en campaña, o descartada.'};
+// keep: solicitudes cambiadas aquí; siguen en la lista hasta que cambias de filtro o de búsqueda.
+const req={list:[],states:[],filter:'pendiente',q:'',keep:new Set(),sel:null,note:''};
+// Fechas del servidor en UTC → hora local, sin la etiqueta UTC.
+const when=(s,hour)=>s?new Date(String(s).replace(' ','T')+'Z').toLocaleString('es-ES',hour?{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}:{day:'numeric',month:'short',year:'numeric'}):'';
+const link=(href,text)=>{const a=el('a',text);a.href=href;return a;};
+const reqPill=r=>{const p=el('span',r.estado_nombre);p.className='pill '+(REQ_PILL[r.estado]||'pill-off');return p;};
 async function commercial(){
-  const {requests,states=[]}=await Aeriq.portal('requests');
-  const pending=document.getElementById('sum-requests');if(pending)pending.textContent=requests.filter(r=>r.estado==='pendiente').length;const host=document.querySelector('#requests-list');host.replaceChildren();
-  for(const r of requests){const box=el('article');box.className='portal-section';box.append(el('h3',`#${r.id} · ${r.entidad}`));
-    box.append(el('p',`${r.contacto} · ${r.email}${r.telefono?' · '+r.telefono:''} · ${r.recibida_en} UTC`));
-    const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
-    box.append(el('p',`${r.servicio_nombre||r.servicio} · ${r.tipo_organizacion_nombre||'Tipo de organización sin indicar'}${place?' · '+place:''} · Zona: ${r.zona}`));
-    if(r.objetivos?.length)box.append(el('p',`Objetivos: ${r.objetivos.join(', ')}`));
-    // Datos de estudio: solo cuando la solicitud los tiene (duración obligatoria en estudios).
-    if(r.duracion||r.superficie!=null||r.inicio_deseado)box.append(el('p',`Superficie: ${r.superficie!=null?r.superficie+' m²':'por estimar'} · Duración: ${r.duracion||'—'} · Inicio orientativo: ${r.inicio_deseado?r.inicio_deseado.slice(0,7):'sin indicar'}`));
-    box.append(el('p',r.necesidades));
-    if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);for(const h of r.historial)log.append(el('li',`${h.estado_nombre} · ${h.cambiado_en} UTC${h.usuario?' · '+h.usuario:' · Formulario público'}`));box.append(log);}
-    const select=el('select');select.setAttribute('aria-label',`Estado solicitud ${r.id}`);for(const state of states)select.add(new Option(state.nombre,state.codigo));select.value=r.estado;
-    const save=el('button','Guardar estado');save.className='btn btn-outline';save.onclick=async()=>{save.disabled=true;try{await Aeriq.portal('request-status',{id:r.id,status:select.value});portalFeedback.textContent='Estado guardado.';await commercial();}catch(e){portalFeedback.textContent=e.message;}finally{save.disabled=false;}};
-    box.append(select,save);host.append(box);
-  }
-  if(!requests.length)host.append(el('p','Todavía no hay solicitudes.'));
+  const {requests,states=[]}=await Aeriq.portal('requests');req.list=requests;req.states=states;
+  renderRequests();
 }
+function reqMatches(r){
+  const q=req.q.trim().toLowerCase().replace(/^#/,'');
+  return (!req.filter||r.estado===req.filter||req.keep.has(r.id))&&(!q||String(r.id)===q||[r.entidad,r.email,r.contacto,r.municipio].some(v=>String(v||'').toLowerCase().includes(q)));
+}
+function renderRequests(){
+  const pending=document.getElementById('sum-requests');if(pending)pending.textContent=req.list.filter(r=>r.estado==='pendiente').length;
+  const tabs=document.querySelector('#requests-filter'),host=document.querySelector('#requests-list');if(!host)return;
+  tabs.replaceChildren();
+  for(const s of [...req.states,{codigo:'',nombre:'Todas'}]){
+    const n=s.codigo?req.list.filter(r=>r.estado===s.codigo).length:req.list.length;
+    const b=el('button');b.type='button';b.append(s.nombre+' ',el('b',String(n)));b.className=req.filter===s.codigo?'selected':'';b.setAttribute('aria-pressed',String(req.filter===s.codigo));
+    if(REQ_HELP[s.codigo])b.title=REQ_HELP[s.codigo];b.onclick=()=>{req.filter=s.codigo;req.keep.clear();renderRequests();};tabs.append(b);
+  }
+  const shown=req.list.filter(reqMatches);
+  if(!shown.some(r=>r.id===req.sel))req.sel=shown[0]?.id??null;
+  host.replaceChildren();
+  for(const r of shown){
+    const row=el('button');row.type='button';row.className='inbox-row'+(r.id===req.sel?' selected':'');row.setAttribute('aria-current',String(r.id===req.sel));
+    const bottom=el('span');bottom.className='inbox-row-top';bottom.append(el('small',when(r.recibida_en)),reqPill(r));
+    row.title=r.entidad;row.append(el('strong',`#${r.id} · ${r.entidad}`),bottom);row.onclick=()=>{req.sel=r.id;req.note='';renderRequests();};host.append(row);
+  }
+  if(!shown.length)host.append(el('p',req.list.length?'No hay solicitudes con este filtro.':'Todavía no hay solicitudes.'));
+  renderRequestDetail(req.list.find(r=>r.id===req.sel));
+}
+async function setRequestState(r,code){
+  const name=req.states.find(s=>s.codigo===code)?.nombre||code;
+  try{await Aeriq.portal('request-status',{id:r.id,status:code});
+    Object.assign(r,{estado:code,estado_nombre:name});
+    (r.historial||=[]).push({estado_nombre:name,cambiado_en:new Date().toISOString().slice(0,19).replace('T',' '),usuario:[me.name,me.last].filter(Boolean).join(' ')});
+    req.keep.add(r.id);req.note=`Guardado ✓ · ahora está en «${name}»`;}
+  catch(e){req.note='';portalFeedback.textContent=e.message;}
+  renderRequests();
+}
+function renderRequestDetail(r){
+  const host=document.querySelector('#request-detail');host.replaceChildren();
+  if(!r){host.append(el('p','Elige una solicitud de la lista.'));return;}
+  // Cabecera: quién, cuándo y responder.
+  const head=el('header');head.className='request-detail-head';
+  const who=el('div');const h=el('h3',r.entidad);h.append(' ',reqPill(r));who.append(h,el('small',`Solicitud #${r.id} · recibida el ${when(r.recibida_en,true)}`));
+  head.append(who,replyMenu(r));host.append(head);
+  // Pasos del estado: el actual marcado; pulsar un paso lo cambia. Botón principal = siguiente paso.
+  const steps=el('ol');steps.className='request-steps';steps.setAttribute('aria-label','Estado de la solicitud');
+  const at=req.states.findIndex(s=>s.codigo===r.estado);
+  req.states.forEach((s,i)=>{const li=el('li');li.className=i<at?'done':i===at?'current':'';
+    const b=el('button',s.nombre);b.type='button';b.title=REQ_HELP[s.codigo]||'';b.disabled=i===at;if(i===at)b.setAttribute('aria-current','step');b.onclick=()=>setRequestState(r,s.codigo);li.append(b);steps.append(li);});
+  host.append(steps);
+  const actions=el('div');actions.className='request-actions';
+  const next=req.states[at+1];
+  if(next){const b=el('button',next.codigo==='cerrada'?'Cerrar solicitud':`Pasar a ${next.nombre}`);b.type='button';b.className='btn btn-primary';b.onclick=()=>{b.disabled=true;setRequestState(r,next.codigo);};actions.append(b);}
+  if(next&&next.codigo!=='cerrada'&&r.estado!=='cerrada'){const c=el('button','Cerrar solicitud');c.type='button';c.className='btn btn-outline';c.onclick=()=>{c.disabled=true;setRequestState(r,'cerrada');};actions.append(c);}
+  if(!next){const o=el('button','Reabrir');o.type='button';o.className='btn btn-outline';o.onclick=()=>{o.disabled=true;setRequestState(r,'en_revision');};actions.append(o);}
+  const note=el('small',req.note);note.className='request-saved';note.setAttribute('role','status');actions.append(note);
+  host.append(actions,el('p',REQ_HELP[r.estado]||''));host.lastChild.className='note';
+  // Ficha: etiqueta a la izquierda, dato a la derecha.
+  const info=el('dl');info.className='request-sheet';
+  const add=(label,value)=>{if(value==null||value==='')return;const dt=el('dt',label),dd=el('dd');dd.append(value);info.append(dt,dd);};
+  const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
+  add('Servicio',r.servicio_nombre||r.servicio);add('Organización',r.tipo_organizacion_nombre||'Sin indicar');
+  add('Lugar',place);add('Zona',r.zona);add('Contacto',r.contacto);
+  add('Correo',link('mailto:'+r.email,r.email));if(r.telefono)add('Teléfono',link('tel:'+r.telefono,r.telefono));
+  if(r.objetivos?.length)add('Objetivos',r.objetivos.join(', '));
+  if(r.duracion||r.superficie!=null||r.inicio_deseado)add('Estudio',`${r.superficie!=null?r.superficie+' m²':'Superficie por estimar'} · ${r.duracion||'Duración sin indicar'} · Inicio ${r.inicio_deseado?r.inicio_deseado.slice(0,7):'sin indicar'}`);
+  const needs=el('p',r.necesidades);needs.className='request-needs';add('Necesita',needs);
+  if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);r.historial.forEach((x,i)=>log.append(el('li',[x.estado_nombre,when(x.cambiado_en,true),x.usuario||(i?'':'Formulario público')].filter(Boolean).join(' · '))));add('Historial',log);}
+  host.append(info);
+}
+// Responder: el enlace mailto no hace nada si el ordenador no tiene app de correo, así que se ofrecen Gmail, Outlook y copiar.
+function replyMenu(r){
+  const subject=`AERIQ · Tu solicitud #${r.id}`,body=`Hola ${r.contacto},\n\n`,enc=encodeURIComponent;
+  const menu=el('details');menu.className='reply-menu';const sum=el('summary','Responder');sum.className='btn btn-outline';menu.append(sum);
+  const list=el('div');list.className='reply-list';
+  const go=(text,href)=>{const a=link(href,text);a.target='_blank';a.rel='noopener';a.onclick=()=>{menu.open=false;};list.append(a);};
+  go('Abrir en Gmail',`https://mail.google.com/mail/?view=cm&fs=1&to=${enc(r.email)}&su=${enc(subject)}&body=${enc(body)}`);
+  go('Abrir en Outlook',`https://outlook.office.com/mail/deeplink/compose?to=${enc(r.email)}&subject=${enc(subject)}&body=${enc(body)}`);
+  const app=link(`mailto:${r.email}?subject=${enc(subject)}&body=${enc(body)}`,'App de correo del ordenador');app.onclick=()=>{menu.open=false;};list.append(app);
+  const copy=el('button','Copiar correo');copy.type='button';copy.onclick=async()=>{try{await navigator.clipboard.writeText(r.email);copy.textContent='Copiado ✓';}catch{copy.textContent=r.email;}setTimeout(()=>{copy.textContent='Copiar correo';menu.open=false;},1200);};
+  list.append(copy);menu.append(list);return menu;
+}
+document.querySelector('#requests-search')?.addEventListener('input',e=>{req.q=e.target.value;req.keep.clear();renderRequests();});
+document.addEventListener('click',e=>{for(const m of document.querySelectorAll('.reply-menu[open]'))if(!m.contains(e.target))m.open=false;});
 (async()=>{try{
   const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}
   me=user;document.querySelector('#portal-title').textContent=user.organization||'Código Norte';
