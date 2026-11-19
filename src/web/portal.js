@@ -108,25 +108,168 @@ function catalogs(){
   const form=document.querySelector('#campaign-form');
   if(form&&dashboard.thresholds){form.elements.medium.defaultValue=dashboard.thresholds.umbral_medio;form.elements.high.defaultValue=dashboard.thresholds.umbral_alto;if(!form.elements.id.value){form.elements.medium.value=dashboard.thresholds.umbral_medio;form.elements.high.value=dashboard.thresholds.umbral_alto;}}
 }
-function renderReport(rows,group){
-  const host=document.querySelector('#report-results');host.replaceChildren();
-  const sets=new Map();for(const r of rows){const key=`${Number(r.simulado)?'Simulado':'Real'} · ${r.unidad}`;if(!sets.has(key))sets.set(key,[]);sets.get(key).push(r);}
-  for(const [name,set] of sets){
-    const thermal=set[0].unidad==='°C';const stats=AeriqDomain.statistics(set,group);host.append(el('h3',name));host.append(el('p',`${stats.count} lecturas válidas · mínimo ${stats.min} · máximo ${stats.max} · media ${stats.mean.toFixed(2)}`));
-    const canvas=el('canvas');canvas.width=900;canvas.height=220;canvas.style.width='100%';canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Evolución de valores medios; datos disponibles en la tabla siguiente');host.append(canvas);
-    const ctx=canvas.getContext('2d'),min=Math.min(0,...stats.series.map(s=>s.mean)),max=Math.max(min+1,...stats.series.map(s=>s.mean));ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();
-    stats.series.forEach((s,i)=>{const x=20+i*850/Math.max(1,stats.series.length-1),y=200-(s.mean-min)/(max-min)*180;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);ctx.fillStyle='#0e6b5e';ctx.fillRect(x-2,y-2,4,4);});ctx.stroke();
-    const summary=el('div');host.append(summary);table(summary,['Periodo (UTC)','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[s.date,s.min,s.max,s.mean.toFixed(2)]})));
-    host.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
-    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso (UTC)','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[r.capturada_en,r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
-    const detail=el('div');detail.className='table-scroll';host.append(detail);
-    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
+const originOf=r=>Number(r.simulado)?'Simulado':'Real';
+// Gráfica de medias por periodo con ejes, fechas extremas y, si el grupo comparte umbrales, sus líneas.
+// Los puntos en rojo son periodos con alguna lectura que alcanza el umbral medio.
+function drawChart(canvas,series,limits){
+  const ctx=canvas.getContext?.('2d');if(!ctx||!series.length)return;
+  const W=canvas.width,H=canvas.height,L=56,R=16,T=18,B=30;
+  const values=series.flatMap(s=>[s.mean,s.max]);if(limits)values.push(limits.medium,limits.high);
+  const min=Math.min(0,...values),top=Math.max(min+1,...values),max=top+(top-min)*.08;
+  const x=i=>L+(series.length>1?i*(W-L-R)/(series.length-1):(W-L-R)/2),y=v=>H-B-(v-min)/(max-min)*(H-T-B);
+  ctx.clearRect(0,0,W,H);ctx.font='12px sans-serif';ctx.lineWidth=1;ctx.strokeStyle='#8a8f8d';ctx.fillStyle='#3d4442';
+  ctx.beginPath();ctx.moveTo(L,T);ctx.lineTo(L,H-B);ctx.lineTo(W-R,H-B);ctx.stroke();
+  ctx.textAlign='right';ctx.textBaseline='middle';for(const v of [min,(min+max)/2,max])ctx.fillText(v.toFixed(1),L-6,y(v));
+  ctx.textBaseline='top';ctx.textAlign='left';ctx.fillText(series[0].date,L,H-B+8);
+  if(series.length>1){ctx.textAlign='right';ctx.fillText(series.at(-1).date,W-R,H-B+8);}
+  if(limits)for(const [v,color,label] of [[limits.medium,'#b26a00','Umbral medio'],[limits.high,'#b3261e','Umbral alto']]){
+    ctx.strokeStyle=color;ctx.fillStyle=color;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(v));ctx.lineTo(W-R,y(v));ctx.stroke();ctx.setLineDash([]);
+    ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`${label} · ${v}`,W-R,y(v)-2);
   }
+  ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();series.forEach((s,i)=>i?ctx.lineTo(x(i),y(s.mean)):ctx.moveTo(x(i),y(s.mean)));ctx.stroke();
+  for(const [i,s] of series.entries()){const over=limits&&s.max>=limits.medium,r=over?4:2;ctx.fillStyle=over?'#b3261e':'#0e6b5e';ctx.fillRect(x(i)-r,y(s.mean)-r,2*r,2*r);}
 }
-document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#report-results').replaceChildren();
-  try{const filters=payload(f);filters.devices=[...f.querySelector('#report-device').selectedOptions].map(o=>o.value).filter(Boolean).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
+// Cabecera compacta con los filtros aplicados (el PDF tiene la suya en printReport).
+function reportHeader(report){
+  const info=report.info,p=reportPeriod(report),box=el('div');box.className='report-header';
+  const top=el('div');top.className='report-header-top';
+  const title=el('div');title.append(el('h3','Informe ambiental'),el('p',`${me.organization||''}${me.organization?' · ':''}generado el ${fmtDate(report.generated.slice(0,10))} a las ${report.generated.slice(11)} UTC`));
+  const count=el('div');count.className='report-count';count.append(el('strong',report.count),el('span',report.count===1?'lectura válida':'lecturas válidas'));
+  top.append(title,count);box.append(top);
+  const list=el('dl');
+  for(const [k,v] of [['Magnitud',info.type],['Campaña',info.campaign],['Zona',info.zone],['Dispositivos',info.devices],['Periodo (UTC)',`${p.from} – ${p.to}`],['Agrupación',info.group]]){const d=el('div');d.append(el('dt',k),el('dd',v));list.append(d);}
+  box.append(list);return box;
+}
+// Cifras clave de una serie en fichas pequeñas.
+function reportKpis(stats,unit,thermal){
+  const row=el('div');row.className='report-kpis';const n=v=>Number(v).toLocaleString('es-ES',{maximumFractionDigits:2});
+  for(const [k,v,alert] of [['Lecturas',stats.count],['Mínimo',`${n(stats.min)} ${unit}`],['Máximo',`${n(stats.max)} ${unit}`],['Media',`${n(stats.mean)} ${unit}`],['Superaciones',thermal?'—':stats.exceedances.length,!thermal&&stats.exceedances.length>0]]){
+    const d=el('div');d.className='report-kpi'+(alert?' is-alert':'');d.append(el('strong',v),el('span',k));row.append(d);
+  }
+  return row;
+}
+let lastReport=null;
+function renderReport(rows,group,info){
+  const host=document.querySelector('#report-results');host.replaceChildren();
+  lastReport={info,count:rows.length,generated:new Date().toISOString().slice(0,16).replace('T',' '),sets:[]};
+  const sets=new Map();for(const r of rows){const key=`${originOf(r)} · ${r.unidad}`;if(!sets.has(key))sets.set(key,[]);sets.get(key).push(r);}
+  for(const [name,set] of sets){
+    const thermal=set[0].unidad==='°C',simulated=Boolean(Number(set[0].simulado));const stats=AeriqDomain.statistics(set,group);
+    const model={name,set,thermal,simulated,stats,limits:null,canvas:null};lastReport.sets.push(model);
+    const block=el('section');block.className='report-block';host.append(block);
+    const head=el('h3',name+' ');const badge=el('span',simulated?'Dato simulado':'Dato real');badge.className='report-badge'+(simulated?' is-simulated':'');head.append(badge);block.append(head);
+    if(simulated){const warn=el('p','Datos simulados: no representan mediciones reales.');warn.className='report-simulated';block.append(warn);}
+    block.append(reportKpis(stats,set[0].unidad,thermal));
+    const limits=thermal?null:AeriqDomain.sharedThresholds(set);
+    const canvas=el('canvas');canvas.width=900;canvas.height=240;canvas.style.width='100%';canvas.setAttribute('role','img');
+    canvas.setAttribute('aria-label','Evolución de valores medios'+(limits?` con umbral medio ${limits.medium} y alto ${limits.high}`:'')+'; datos disponibles en la tabla siguiente');
+    block.append(canvas);drawChart(canvas,stats.series,limits);model.limits=limits;model.canvas=canvas;
+    if(!thermal)block.append(el('p',limits?'Línea discontinua: umbrales de la campaña. Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.':'Las lecturas tienen umbrales distintos según su campaña; consulta el nivel en la tabla de superaciones.'));
+    const summary=el('div');block.append(summary);table(summary,['Periodo (UTC)','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[s.date,s.min,s.max,s.mean.toFixed(2)]})));
+    block.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
+    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll report-exceedances';block.append(exceed);table(exceed,['Fecha del suceso (UTC)','Origen','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[String(r.capturada_en).slice(0,19),originOf(r),r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
+    const detail=el('div');detail.className='table-scroll';block.append(detail);
+    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Origen','Coordenadas'],set.map(r=>({cells:[String(r.capturada_en).slice(0,19),r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),originOf(r),r.latitud===null?'Sin ubicación':Number(r.latitud).toFixed(5)+', '+Number(r.longitud).toFixed(5)]})));
+  }
+  if(info)host.prepend(reportHeader(lastReport));
+}
+// Textos legibles de los filtros elegidos, para la cabecera del informe.
+function reportInfo(f,filters,group){
+  const text=name=>{const s=f.elements.namedItem(name);return s.selectedOptions?.[0]?.textContent||'';};
+  const devices=[...f.querySelector('#report-device').selectedOptions].filter(o=>o.value).map(o=>o.textContent);
+  return {type:text('type'),campaign:filters.campaign?text('campaign'):'Todas las autorizadas',zone:filters.zone||'Todas las zonas',devices:devices.length?devices.join(', '):'Todos',
+    period:`${filters.from||'desde el inicio'} — ${filters.to||'hasta hoy'}`,group:group==='week'?'Semanas':'Días',from:filters.from||'',to:filters.to||'',campaignSet:Boolean(filters.campaign),zoneSet:Boolean(filters.zone)};
+}
+const fmtDate=d=>d?`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(0,4)}`:'';
+// Periodo legible: el del filtro o, si falta un extremo, el de los propios datos.
+function reportPeriod(report){
+  const all=report.sets.flatMap(s=>s.set.map(r=>String(r.capturada_en).slice(0,10))).sort();
+  const from=report.info.from||all[0]||'',to=report.info.to||all.at(-1)||'';
+  return {from:fmtDate(from),to:fmtDate(to),fromData:!report.info.from,toData:!report.info.to};
+}
+function reportDescription(report){
+  const i=report.info,p=reportPeriod(report),simulated=report.sets.some(s=>s.simulated),real=report.sets.some(s=>!s.simulated);
+  const what=i.type.split(' · ')[0].replace(/\s*\(.*\)$/,'').toLowerCase();
+  return `Este informe recoge las mediciones válidas de ${what} registradas por los dispositivos Orb `+
+    `${i.campaignSet?`de la campaña «${i.campaign}»`:'de todas las campañas autorizadas'}`+
+    `${i.zoneSet?` en la zona «${i.zone}»`:' en todas las zonas'}`+
+    `${i.devices!=='Todos'?` (dispositivos: ${i.devices})`:''}, entre el ${p.from} y el ${p.to} (UTC), agrupadas por ${i.group.toLowerCase()}. `+
+    `Incluye ${report.count} ${report.count===1?"lectura válida":"lecturas válidas"}. Las lecturas no válidas se descartan antes de calcular mínimos, máximos y medias, y `+
+    `las superaciones se evalúan respecto a los umbrales de ozono definidos para cada campaña. `+
+    (simulated&&real?'Los datos reales y los simulados se presentan y calculan por separado.':simulated?'Todos los datos de este informe son simulados y no representan mediciones reales.':'Todos los datos de este informe proceden de mediciones reales.');
+}
+const PRINT_CSS=`@page{size:A4;margin:16mm 14mm}*{box-sizing:border-box}
+body{margin:0;font:10pt/1.45 "Segoe UI",Roboto,Arial,sans-serif;color:#1d2522;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cover{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0e6b5e;padding-bottom:10px;margin-bottom:16px}
+.cover img{height:34px}.cover .org{text-align:right;color:#56635e;font-size:9pt}
+h1{font-size:22pt;margin:0 0 4px;color:#0e3d36}.subtitle{margin:0 0 14px;color:#56635e;font-size:11pt}
+.desc{background:#f2f7f5;border-left:4px solid #0e6b5e;padding:10px 14px;margin:0 0 16px;text-align:justify}
+.filters{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid #d5ddda;border-radius:6px;margin-bottom:20px;overflow:hidden}
+.filters div{padding:7px 10px;border-right:1px solid #d5ddda;border-bottom:1px solid #d5ddda}.filters div:nth-child(3n){border-right:0}
+.filters dt{font-size:7pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7a74}.filters dd{margin:2px 0 0;font-weight:600}
+section{break-before:page}section.first{break-before:auto}
+h2{font-size:14pt;margin:0 0 8px;color:#0e3d36;display:flex;align-items:center;gap:10px}
+.badge{font-size:8pt;font-weight:700;padding:3px 8px;border-radius:10px;background:#e3f1ec;color:#0e6b5e}.badge.sim{background:#fff1cc;color:#7a4b00;border:1px solid #e0b450}
+.simwarn{background:#fff7e0;border:1px solid #e0b450;color:#7a4b00;padding:6px 10px;border-radius:6px;font-weight:600;margin:0 0 10px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:0 0 12px}.kpi{border:1px solid #d5ddda;border-radius:6px;padding:8px;text-align:center}
+.kpi b{display:block;font-size:15pt;color:#0e3d36}.kpi small{font-size:7.5pt;color:#6b7a74;text-transform:uppercase;letter-spacing:.06em}.kpi.alert b{color:#b3261e}
+figure{margin:0 0 6px;break-inside:avoid}figure img{width:100%;border:1px solid #e3e8e6;border-radius:6px}figcaption{font-size:8pt;color:#6b7a74;margin-top:4px}
+h3{font-size:11pt;margin:16px 0 6px;color:#0e3d36}
+table{width:100%;border-collapse:collapse;font-size:8.5pt}thead{display:table-header-group}tr{break-inside:avoid}
+th{background:#0e6b5e;color:#fff;text-align:left;padding:5px 7px;font-weight:600}td{padding:4px 7px;border-bottom:1px solid #e3e8e6}tbody tr:nth-child(even) td{background:#f7faf9}
+td.alto{color:#b3261e;font-weight:700}td.moderado{color:#b26a00;font-weight:700}td.sim{color:#7a4b00;font-weight:700}
+.note{font-size:8pt;color:#6b7a74}.footer{margin-top:24px;padding-top:8px;border-top:1px solid #d5ddda;font-size:8pt;color:#6b7a74}`;
+const ANNEX_MAX=500;
+// Documento de informe independiente en un iframe oculto: se imprime solo el informe, sin la página del portal.
+function printReport(){
+  const report=lastReport;if(!report)return;
+  const frame=document.createElement('iframe');frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;
+  Object.assign(frame.style,{position:'fixed',right:'0',bottom:'0',width:'0',height:'0',border:'0',visibility:'hidden'});document.body.append(frame);
+  const doc=frame.contentDocument,title='Informe ambiental AERIQ',file='AERIQ-informe-'+report.generated.slice(0,10);
+  doc.open();doc.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title></title><style></style></head><body></body></html>');doc.close();
+  doc.title=file;doc.querySelector('style').textContent=PRINT_CSS;
+  const h=(tag,props={},...kids)=>{const n=doc.createElement(tag);for(const [k,v] of Object.entries(props))if(v!==undefined&&v!==null)(k==='class'?n.className=v:n.setAttribute(k,v));for(const k of kids)n.append(k instanceof doc.defaultView.Node?k:String(k??'—'));return n;};
+  const tableOf=(headers,rows,cls)=>h('table',{},h('thead',{},h('tr',{},...headers.map(x=>h('th',{},x)))),h('tbody',{},...rows.map(r=>h('tr',{},...r.map((c,i)=>h('td',{class:cls?.(c,i)},c))))));
+  const p=reportPeriod(report),i=report.info,body=doc.body;
+  const logo=h('img',{src:new URL('assets/aeriq_logo.png',location.href).href,alt:'AERIQ'});
+  body.append(h('div',{class:'cover'},logo,h('div',{class:'org'},me.organization||'',h('br'),`Generado el ${fmtDate(report.generated.slice(0,10))} a las ${report.generated.slice(11)} UTC`)));
+  body.append(h('h1',{},title),h('p',{class:'subtitle'},`${i.type} · ${i.campaignSet?i.campaign:'Todas las campañas'} · del ${p.from} al ${p.to}`));
+  body.append(h('p',{class:'desc'},reportDescription(report)));
+  const filters=h('dl',{class:'filters'});
+  for(const [k,v] of [['Magnitud',i.type],['Campaña',i.campaign],['Zona',i.zone],['Dispositivos',i.devices],['Desde (UTC)',p.from+(p.fromData?' · según los datos':'')],['Hasta (UTC)',p.to+(p.toData?' · según los datos':'')],['Agrupación',i.group],['Lecturas válidas',report.count],['Series',report.sets.map(s=>s.name).join(' / ')]])filters.append(h('div',{},h('dt',{},k),h('dd',{},v)));
+  body.append(filters);
+  report.sets.forEach((s,n)=>{
+    const st=s.stats,unit=s.set[0].unidad,sec=h('section',{class:n?'':'first'});body.append(sec);
+    sec.append(h('h2',{},s.name,h('span',{class:'badge'+(s.simulated?' sim':'')},s.simulated?'Dato simulado':'Dato real')));
+    if(s.simulated)sec.append(h('p',{class:'simwarn'},'Datos simulados: no representan mediciones reales y no deben usarse como evidencia ambiental.'));
+    const kpis=h('div',{class:'kpis'});
+    for(const [k,v,alert] of [['Lecturas',st.count],['Mínimo',`${st.min} ${unit}`],['Máximo',`${st.max} ${unit}`],['Media',`${st.mean.toLocaleString('es-ES',{maximumFractionDigits:2})} ${unit}`],['Superaciones',s.thermal?'—':st.exceedances.length,!s.thermal&&st.exceedances.length]])kpis.append(h('div',{class:'kpi'+(alert?' alert':'')},h('b',{},v),h('small',{},k)));
+    sec.append(kpis);
+    let src=null;try{src=s.canvas?.toDataURL('image/png');}catch{src=null;}
+    if(src&&src.startsWith('data:image'))sec.append(h('figure',{},h('img',{src,alt:'Evolución de valores medios'}),h('figcaption',{},s.thermal?'Media por periodo (°C). No se aplican umbrales de ozono.':s.limits?`Media por periodo. Líneas discontinuas: umbral medio (${s.limits.medium} ${unit}) y alto (${s.limits.high} ${unit}). Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.`:'Media por periodo. Las lecturas tienen umbrales distintos según su campaña; ver tabla de superaciones.')));
+    sec.append(h('h3',{},'Evolución temporal'),tableOf(['Periodo (UTC)',`Mínimo (${unit})`,`Máximo (${unit})`,`Media (${unit})`],st.series.map(x=>[x.date,x.min,x.max,x.mean.toFixed(2)])));
+    if(!s.thermal){
+      sec.append(h('h3',{},'Superaciones de umbral'));
+      if(st.exceedances.length)sec.append(tableOf(['Fecha (UTC)','Orb','Origen','Valor','Umbral medio','Umbral alto','Nivel'],st.exceedances.map(r=>[String(r.capturada_en).slice(0,19),r.dispositivo,s.simulated?'Simulado':'Real',`${r.valor} ${r.unidad}`,r.umbral_medio,r.umbral_alto,levelOf(r)]),(c,col)=>col===6?String(c):col===2&&c==='Simulado'?'sim':undefined));
+      else sec.append(h('p',{class:'note'},'Ninguna lectura alcanza el umbral medio de su campaña en este periodo.'));
+    }
+    sec.append(h('h3',{},'Anexo: lecturas'));
+    const rows=s.set.slice(0,ANNEX_MAX).map(r=>[String(r.capturada_en).slice(0,19),r.dispositivo,`${r.campana} / ${r.zona}`,`${r.valor} ${r.unidad}`,s.thermal?'—':levelOf(r),s.simulated?'Simulado':'Real']);
+    sec.append(tableOf(['Fecha (UTC)','Orb','Campaña / zona','Valor','Nivel','Origen'],rows,(c,col)=>col===4&&['alto','moderado'].includes(c)?c:col===5&&c==='Simulado'?'sim':undefined));
+    if(s.set.length>ANNEX_MAX)sec.append(h('p',{class:'note'},`Se muestran las primeras ${ANNEX_MAX} de ${s.set.length} lecturas. El listado completo está en «Descargar CSV».`));
+  });
+  body.append(h('p',{class:'footer'},'AERIQ · Código Norte. Ozono en ppb, temperatura en °C y fechas en UTC. Solo se incluyen lecturas válidas autorizadas para esta cuenta; los datos simulados se identifican como tales.'));
+  const win=frame.contentWindow,cleanup=()=>setTimeout(()=>frame.remove(),1000);
+  const ready=logo.complete?Promise.resolve():new Promise(r=>{logo.onload=logo.onerror=r;setTimeout(r,2000);});
+  const old=document.title;
+  ready.then(()=>{document.title=file;win.addEventListener('afterprint',()=>{document.title=old;cleanup();},{once:true});win.focus();win.print();setTimeout(()=>{document.title=old;},5000);});
+}
+document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#print-report').disabled=true;document.querySelector('#report-results').replaceChildren();
+  try{const filters=payload(f);filters.devices=[...f.querySelector('#report-device').selectedOptions].map(o=>o.value).filter(Boolean).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group,reportInfo(f,filters,group));document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;document.querySelector('#print-report').disabled=!currentRows.length;}
   catch(error){document.querySelector('#report-summary').textContent=error.message;}finally{b.disabled=false;}
 };
+// PDF sin librerías: printReport() maqueta el informe aparte y el navegador ofrece «Guardar como PDF».
+document.querySelector('#print-report').onclick=printReport;
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
 document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.portal('readings',undefined,{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
 async function commercial(){

@@ -19,6 +19,12 @@
       series:[...buckets].sort(([a],[b])=>a.localeCompare(b)).map(([date,v])=>({date,mean:v.reduce((a,b)=>a+b,0)/v.length,min:Math.min(...v),max:Math.max(...v)})),
       exceedances:rows.filter(r=>r.unidad!=='°C'&&r.umbral_medio!==null&&r.umbral_medio!==undefined&&Number(r.valor)>=Number(r.umbral_medio))};
   }
+  // Umbrales comunes de un grupo de lecturas: solo si todas tienen el mismo umbral medio y alto; si no, null.
+  function sharedThresholds(rows){
+    if(!rows.length||rows.some(r=>r.umbral_medio===null||r.umbral_medio===undefined||r.umbral_alto===null||r.umbral_alto===undefined))return null;
+    const medium=Number(rows[0].umbral_medio),high=Number(rows[0].umbral_alto);
+    return rows.every(r=>Number(r.umbral_medio)===medium&&Number(r.umbral_alto)===high)?{medium,high}:null;
+  }
   function distance(a,b){const rad=Math.PI/180;const dlat=(a[0]-b[0])*rad,dlon=(a[1]-b[1])*rad;const h=Math.sin(dlat/2)**2+Math.cos(a[0]*rad)*Math.cos(b[0]*rad)*Math.sin(dlon/2)**2;return 6371000*2*Math.asin(Math.min(1,Math.sqrt(h)));}
   // Interpolación IDW local acotada (T25/HU28). Mismos parámetros y pasos que PublicReadings.java; ver doc/interpolacion.md.
   const INTERPOLACION=Object.freeze({
@@ -155,6 +161,6 @@
     }
     return out;
   }
-  const api={level,csv,statistics,distance,INTERPOLACION,groupKey,support,estimate,describe,interpolate,ZONA,raster,route,battery};
+  const api={level,csv,statistics,sharedThresholds,distance,INTERPOLACION,groupKey,support,estimate,describe,interpolate,ZONA,raster,route,battery};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AeriqDomain=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

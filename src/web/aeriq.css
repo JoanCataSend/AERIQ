@@ -750,6 +750,32 @@ form .field-check{margin-top:20px}
 #report-results canvas{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 #report-results p{margin-top:8px;font-size:14.5px;color:var(--ink-2)}
 #export-report{margin-top:12px}
+/* Informe ambiental: cabecera compacta, fichas de cifras y botón PDF. El PDF se maqueta aparte (printReport en portal.js). */
+.report-header{margin-top:24px;padding:20px 22px;border-radius:var(--r);background:var(--brand-tint)}
+.report-header-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.report-header h3{margin:0;font-size:19px;color:var(--brand-ink)}
+#report-results .report-header-top p{margin-top:2px;font-size:13px;color:var(--ink-3)}
+.report-count{text-align:right;line-height:1.1}
+.report-count strong{display:block;font-size:28px;font-weight:750;color:var(--brand-ink);font-variant-numeric:tabular-nums}
+.report-count span{font-size:12px;color:var(--ink-3)}
+.report-header dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0 0}
+.report-header dl>div{padding:8px 12px;border-radius:var(--r-sm);background:var(--surface)}
+.report-header dt{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.report-header dd{margin:2px 0 0;font-size:14px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.report-block{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.report-block>h3{display:flex;align-items:center;gap:10px;margin-top:0}
+.report-badge{font-size:12px;font-weight:650;padding:3px 10px;border-radius:999px;background:var(--brand-tint);color:var(--brand-ink)}
+.report-badge.is-simulated{background:#fff3d6;color:#7a4b00}
+#report-results .report-simulated{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:var(--r-sm);background:#fff3d6;color:#7a4b00;font-weight:600;font-size:13.5px}
+.report-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}
+.report-kpi{padding:10px 14px;border-radius:var(--r-sm);background:var(--surface);border:1px solid var(--line)}
+.report-kpi strong{display:block;font-size:20px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.report-kpi span{font-size:12px;color:var(--ink-3)}
+.report-kpi.is-alert{background:var(--danger-tint);border-color:#f3c4c1}
+.report-kpi.is-alert strong{color:var(--danger)}
+.report-print{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
+.report-print .note{margin:0;font-size:13.5px}
+@media(max-width:700px){.report-header dl{grid-template-columns:repeat(2,minmax(0,1fr))}.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.report-header-top{flex-direction:column}.report-count{text-align:left}}
 
 /* Tablas */
 .table-scroll{overflow-x:auto;margin-top:20px;border:0;border-radius:16px;background:var(--surface)}
@@ -796,3 +822,6 @@ form .field-check{margin-top:20px}
   .stats-grid{gap:8px}
   .devices-controls .segmented{width:100%;grid-template-columns:repeat(3,1fr)}
 }
+#report-results .devices-table{font-size:13.5px}
+#report-results .devices-table th,#report-results .devices-table td{padding:9px 14px;white-space:nowrap;overflow-wrap:normal}
+#report-results .table-scroll{margin-top:12px}

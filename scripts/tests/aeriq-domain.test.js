@@ -137,3 +137,7 @@ assert.equal(domain.level(100,60,100),'alto');assert.equal(domain.level(60,60,10
 assert.equal(domain.battery(null),'Sin datos');assert.equal(domain.battery(61),'61 % · alta');assert.equal(domain.battery(60),'60 % · media');
 assert.equal(domain.battery(20),'20 % · media');assert.equal(domain.battery(19,'2026-11-11 10:05:00.000'),'19 % · baja · 2026-11-11 10:05 UTC');assert.equal(domain.battery(0),'0 % · baja');
 console.log('AERIQ: interpolación acotada (casos densos, dispersos, simulados, límites de radio y deriva GPS), estadísticas, series, CSV y batería correctos.');
+assert.deepEqual(domain.sharedThresholds([{umbral_medio:'60',umbral_alto:'100'},{umbral_medio:60,umbral_alto:100}]),{medium:60,high:100});
+assert.equal(domain.sharedThresholds([{umbral_medio:60,umbral_alto:100},{umbral_medio:70,umbral_alto:100}]),null);
+assert.equal(domain.sharedThresholds([{umbral_medio:null,umbral_alto:null}]),null);assert.equal(domain.sharedThresholds([]),null);
+console.log('AERIQ: umbrales comunes del informe correctos.');
