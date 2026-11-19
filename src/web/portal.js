@@ -8,6 +8,10 @@ const can=(user,permission)=>(user.permissions||[]).includes(permission);
 const allowed=n=>!n.dataset.perm||n.dataset.perm.split(' ').some(p=>can(me,p));
 const levelOf=r=>r.umbral_medio===null||r.umbral_medio===undefined?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
 const el=(tag,text)=>{const n=document.createElement(tag);if(text instanceof Node)n.append(text);else if(text!==undefined)n.textContent=String(text??'—');return n;};
+// Estado de una campaña según sus fechas (lo calcula el servidor).
+const STATE={activa:['Activa','pill-on'],programada:['Programada','pill-soon'],finalizada:['Finalizada','pill-off']};
+const statePill=c=>{const [t,k]=STATE[c.estado]||STATE.activa;const s=document.createElement('span');s.className='pill '+k;s.textContent=t;return s;};
+const stateText=c=>c.estado==='programada'?'Programada · empieza el '+c.inicio:c.estado==='finalizada'?'Campaña finalizada':'Campaña activa';
 const pill=(text,on)=>{const s=document.createElement('span');s.className='pill '+(on?'pill-on':'pill-off');s.textContent=text;return s;};
 function table(host,headers,rows,action){
   host.replaceChildren();const t=el('table');t.className='devices-table';const head=el('tr');for(const h of headers)head.append(el('th',h));
@@ -31,7 +35,7 @@ async function refresh(){
   const mine=can(me,'equipo.gestionar')?dashboard.campaigns[0]:null;
   if(mine){
     const set=(id,text)=>{document.getElementById(id).textContent=text;};
-    set('my-campaign-name',mine.nombre);set('my-campaign-state',Number(mine.activa)?'Campaña activa':'Campaña inactiva');
+    set('my-campaign-name',mine.nombre);set('my-campaign-state',stateText(mine));
     set('my-campaign-meta',`${mine.zona} · del ${mine.inicio} al ${mine.fin}`);
     set('my-campaign-workers',dashboard.workers.filter(w=>Number(w.puede_medir)).length);
     set('my-campaign-devices',dashboard.devices.filter(d=>Number(d.activo)&&d.trabajador_id).length);
@@ -39,7 +43,7 @@ async function refresh(){
     fill(document.querySelector('#campaign-settings-form'),{medium:mine.umbral_medio,high:mine.umbral_alto,radius:mine.radio_m,public:mine.publicar});
   }
   options('report-device',dashboard.devices,d=>d.nombre);
-  table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Admin','Publicación'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,c.admin_nombre||'Sin admin',Number(c.publicar)?'Autorizada':'Privada'],source:c})),can(me,'campanas.gestionar')?c=>{const f=document.querySelector('#campaign-form');f.reset();fill(f,{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin,active:c.activa});campaignMode(c);f.scrollIntoView({behavior:'smooth',block:'center'});}:null);
+  table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Estado','Admin','Mapa público'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,statePill(c),c.admin_nombre||'Sin admin',Number(c.publicar)?'Sí':'No'],source:c})),can(me,'campanas.gestionar')?c=>{const f=document.querySelector('#campaign-form');f.reset();fill(f,{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin});campaignMode(c);f.scrollIntoView({behavior:'smooth',block:'center'});}:null);
 }
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
   if(!document.getElementById(id))continue;
@@ -54,15 +58,16 @@ function accessText(w){
   if(Number(w.cambiar_clave))return (w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':'Invitación pendiente';
   return Number(w.activo)?'Activo':(Number(w.verificado)?'Desactivado':'Sin activar');
 }
+function contact(w){const box=document.createElement('div');box.append(w.email);if(w.telefono){const t=document.createElement('small');t.className='cell-sub';t.textContent=w.telefono;box.append(t);}return box;}
 function renderWorkers(){
   const host=document.querySelector('#workers-list');host.replaceChildren();
   const manages=can(me,'campanas.gestionar')?'admin_campana':can(me,'equipo.gestionar')?'trabajador':null;
   document.querySelector('#workers-title').textContent=manages==='trabajador'?'Operadores de tu campaña':'Admins de campaña';
   const t=el('table');t.className='devices-table';const head=el('tr');
-  for(const h of ['Nombre','Correo',...(manages==='trabajador'?['Orb']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
+  for(const h of ['Nombre','Contacto',...(manages==='trabajador'?['Orb']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
   // El admin de campaña ve solo a sus operadores (no a sí mismo).
   for(const w of dashboard.workers.filter(w=>!manages||w.rol===manages)){
-    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,w.email,...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
+    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,contact(w),...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
     if(manages){
       const td=el('td');td.className='row-actions';
       if(w.rol===manages){
@@ -86,7 +91,7 @@ function renderWorkers(){
 function editWorker(w){
   const f=document.querySelector('#worker-edit-form');f.reset();
   fill(f,{id:w.id,name:w.nombre,last:w.apellidos,phone:w.telefono||''});
-  document.querySelector('#worker-edit-email').textContent=w.email+' · el correo no se puede cambiar';
+  document.querySelector('#worker-edit-email').value=w.email;document.querySelector('#worker-edit-title').textContent='Editar datos de '+w.nombre;
   document.querySelector('#worker-modal').showModal();
 }
 document.querySelector('#worker-modal-close')?.addEventListener('click',()=>document.querySelector('#worker-modal').close());
@@ -97,34 +102,34 @@ document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>
 });
 async function myCampaign(){
   const d=await Aeriq.portal('my-campaign'),c=d.campaign,set=(id,text)=>{document.getElementById(id).textContent=text;};
-  set('op-campaign-name',c.nombre);set('op-campaign-state',Number(c.activa)?'Campaña activa':'Campaña inactiva');
+  set('op-campaign-name',c.nombre);set('op-campaign-state',stateText(c));
   set('op-campaign-meta',`${c.zona} · del ${c.inicio} al ${c.fin}`);
   set('op-orb',d.orb?d.orb.nombre:'Sin Orb');set('op-battery',d.orb&&d.orb.bateria_pct!=null?d.orb.bateria_pct+' %':'—');
   set('op-thresholds',`${Number(c.umbral_medio)} / ${Number(c.umbral_alto)}`);
   set('op-admins',d.admins.length?'Tu admin de campaña: '+d.admins.map(x=>`${x.nombre} ${x.apellidos} (${x.email})`).join(', '):'Tu campaña aún no tiene admin asignado.');
   table(document.querySelector('#op-readings'),['Fecha (UTC)','Magnitud','Valor'],d.readings.map(r=>({cells:[String(r.capturada_en).slice(0,16),r.magnitud,`${r.valor} ${r.unidad}`]})));
 }
-// Admin principal: resumen de campañas y Orb por campaña (solo consulta).
+// Admin principal: resumen de campañas y AERIQ por campaña (solo consulta).
 function summary(){
   const set=(id,text)=>{const n=document.getElementById(id);if(n)n.textContent=text;};
-  set('sum-campaigns',dashboard.campaigns.filter(c=>Number(c.activa)).length);
+  set('sum-campaigns',dashboard.campaigns.filter(c=>c.estado==='activa').length);
   set('sum-admins',dashboard.workers.filter(w=>w.rol==='admin_campana'&&Number(w.activo)).length);
   set('sum-orbs',dashboard.campaigns.reduce((n,c)=>n+Number(c.orbs_en_uso||0),0));
-  table(document.querySelector('#campaigns-summary'),['Campaña','Admin','Operadores','Orb en uso','Estado'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.admin_nombre||'Sin admin',String(c.operadores),String(c.orbs_en_uso),pill(Number(c.activa)?'Activa':'Inactiva',Number(c.activa))]})));
+  table(document.querySelector('#campaigns-summary'),['Campaña','Admin','Operadores','AERIQ en uso','Estado'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.admin_nombre||'Sin admin',String(c.operadores),String(c.orbs_en_uso),statePill(c)]})));
   const host=document.querySelector('#orbs-by-campaign');if(!host)return;host.replaceChildren();
   const groups=[...dashboard.campaigns.map(c=>({title:c.nombre,sub:'Admin: '+(c.admin_nombre||'sin asignar'),devices:dashboard.devices.filter(d=>Number(d.campana_id)===Number(c.id))})),
-    {title:'Sin asignar',sub:'Orb registrados que ahora no lleva nadie',devices:dashboard.devices.filter(d=>!d.campana_id)}];
+    {title:'Sin asignar',sub:'AERIQ registrados que ahora no lleva nadie',devices:dashboard.devices.filter(d=>!d.campana_id)}];
   for(const g of groups){
     if(g.title==='Sin asignar'&&!g.devices.length)continue;
-    const box=el('div');box.className='orb-group';box.append(el('h3',`${g.title} · ${g.devices.length} Orb`),el('p',g.sub));
+    const box=el('div');box.className='orb-group';box.append(el('h3',`${g.title} · ${g.devices.length} AERIQ`),el('p',g.sub));
     const list=el('div');list.className='table-scroll';box.append(list);host.append(box);
-    table(list,['Orb','Operador','Estado','Batería','Última medición'],g.devices.map(d=>({cells:[d.nombre,d.trabajador||'—',Number(d.activo)?'Alta':'Baja',d.bateria_pct!=null?d.bateria_pct+' %':'—',d.ultima_medicion?String(d.ultima_medicion).slice(0,16)+' UTC':'Sin datos']})));
+    table(list,['AERIQ','Operador','Estado','Batería','Última medición'],g.devices.map(d=>({cells:[d.nombre,d.trabajador||'—',Number(d.activo)?'Alta':'Baja',d.bateria_pct!=null?d.bateria_pct+' %':'—',d.ultima_medicion?String(d.ultima_medicion).slice(0,16):'Sin datos']})));
   }
 }
 // Formulario de campaña: «Crear campaña» o «Editar campaña: …» con su botón de cancelar.
 function campaignMode(c){
   const title=document.querySelector('#campaign-form-title'),submit=document.querySelector('#campaign-submit'),cancel=document.querySelector('#campaign-cancel');
-  if(!title)return;title.textContent=c?'Editar campaña: '+c.nombre:'Crear campaña';submit.textContent=c?'Guardar cambios':'Crear campaña';cancel.hidden=!c;
+  if(!title)return;title.textContent=c?'Editar campaña: '+c.nombre:'Crear campaña';submit.textContent=c?'Editar campaña':'Crear campaña';cancel.hidden=!c;
 }
 // Un input oculto no se vacía con reset(): sin esto, «Crear campaña» tras editar sobrescribiría la editada.
 document.querySelector('#campaign-form')?.addEventListener('reset',e=>{e.currentTarget.elements.id.value='';setTimeout(()=>campaignMode(null));});

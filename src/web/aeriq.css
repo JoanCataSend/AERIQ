@@ -534,7 +534,7 @@ body[data-page="mapa"]{overflow-x:hidden}
 .fleet-head h2{margin:0 0 4px}
 .fleet-head p{margin:0;color:var(--ink-3)}
 #fleet .stats-grid{margin-bottom:16px}
-.row-actions{display:flex;gap:14px;flex-wrap:wrap;white-space:nowrap}
+.row-actions{display:flex;flex-direction:column;align-items:flex-start;gap:6px;white-space:nowrap}
 .text-link.danger-link{color:#a3372f}
 .text-link.danger-link:hover{color:var(--danger)}
 #fleet .devices-table th,#fleet .devices-table td{white-space:nowrap}
@@ -545,6 +545,12 @@ body[data-page="mapa"]{overflow-x:hidden}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.4;white-space:nowrap}
 .pill-on{background:var(--brand-tint);color:var(--brand-ink)}
 .pill-off{background:var(--alt);color:var(--ink-3)}
+.pill-soon{background:#fdf1d9;color:#7a5410}
+.form-grid .full{grid-column:1/-1}
+form .pill-select select{border-radius:999px;padding-left:20px;padding-right:44px;background-position:right 18px center}
+.readonly-input{background:var(--alt)!important;color:var(--ink-3);cursor:default;pointer-events:none}
+.field-hint{display:block;margin-top:6px;font-size:12.5px;font-weight:400;color:var(--ink-3)}
+.cell-sub{display:block;margin-top:2px;font-size:12.5px;color:var(--ink-3)}
 a.stat-link{color:inherit;text-decoration:none;transition:background .2s}
 a.stat-link strong,a.stat-link small{display:block}
 a.stat-link:hover{background:var(--brand-tint)}
