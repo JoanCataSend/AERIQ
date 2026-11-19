@@ -107,6 +107,45 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    /** Admin de campaña: operadores y Orb de su campaña (mobile-team.php, mismas reglas que el panel web). */
+    public void team(BiConsumer<CampaignTeam, String> done) {
+        String credential = token.get();
+        if (credential == null) { done.accept(CampaignTeam.empty(), "Inicia sesión"); return; }
+        worker.execute(() -> {
+            CampaignTeam team = CampaignTeam.empty();
+            String error = null;
+            try {
+                JsonHttp.Response response = JsonHttp.request(ApiRoutes.TEAM, null, credential);
+                if (!response.ok()) throw new IllegalStateException(response.message());
+                team = new CampaignTeam(response.json);
+            } catch (Exception failure) { error = failure.getMessage(); }
+            CampaignTeam result = team;
+            String message = error;
+            main.post(() -> { if (!closed && credential.equals(token.get())) done.accept(result, message); });
+        });
+    }
+
+    /**
+     * Admin de campaña: registra el Orb (deviceId null) o lo reasigna, siempre a un operador de su campaña.
+     * El servidor aplica las reglas del panel web: un Orb por operador y la asignación anterior se cierra.
+     */
+    public void assignOrb(Long deviceId, String name, String address, long workerId, boolean simulated, Consumer<String> done) {
+        String credential = token.get();
+        if (credential == null) { done.accept("Inicia sesión"); return; }
+        worker.execute(() -> {
+            String error = null;
+            try {
+                JSONObject body = JsonHttp.object("name", name, "address", address, "worker", workerId,
+                    "active", true, "simulated", simulated);
+                if (deviceId != null) body.put("id", deviceId);
+                JsonHttp.Response response = JsonHttp.request(ApiRoutes.TEAM, body, credential);
+                if (!response.ok()) throw new IllegalStateException(response.message());
+            } catch (Exception failure) { error = failure.getMessage(); }
+            String message = error;
+            main.post(() -> { if (!closed && credential.equals(token.get())) done.accept(message); });
+        });
+    }
+
     /**
      * Envía la batería del Orb asignado. No pasa por la cola de lecturas: si falla, el Orb
      * la vuelve a anunciar en el siguiente ciclo y se reintenta más tarde.

@@ -49,6 +49,7 @@ HTML/CSS/JS sin framework ni build; PHP sin framework. `styles.css` es el CSS co
 | `mobile-auth.php` | Cuentas Android | `X-AERIQ-Token` (hash en `sesiones_moviles`) |
 | `portal.php?action=…` | Panel de organización, flota, informes, solicitudes | sesión + rol + CSRF en POST |
 | `field.php` | Asignaciones, historial e ingesta de lecturas desde Android | token móvil, rol trabajador/admin |
+| `mobile-team.php` | Admin de campaña en Android: listar operadores y Orb, registrar/asignar Orb (reutiliza `aeriq_device_save`) | token móvil + `equipo.gestionar` |
 | `public.php` | Mapa público y formularios de solicitud | anónimo |
 | `api.php?accion=…` | Adaptador de compatibilidad (solo lectura) | admin/analista para datos privados |
 

@@ -433,27 +433,7 @@ public final class DesignScreens {
         content.addView(first, rowParams);
         content.addView(second, new LinearLayout.LayoutParams(rowParams));
 
-        LinearLayout export = ui.row();
-        export.setGravity(Gravity.CENTER);
-        export.setBackground(ui.shape(GREEN, 18, 0));
-        ImageView download = ui.image(R.drawable.ic_download, 22, 22);
-        download.setColorFilter(WHITE);
-        export.addView(download, new LinearLayout.LayoutParams(ui.dp(22), ui.dp(22)));
-        TextView exportLabel = ui.text("Exportar datos (CSV o PDF)", 16, true, WHITE);
-        exportLabel.setPadding(ui.dp(10), 0, 0, 0);
-        export.addView(exportLabel);
-        export.setAlpha(rows.isEmpty() ? .5f : 1f);
-        export.setOnClickListener(view -> {
-            if (rows.isEmpty()) { activity.message("No hay mediciones que exportar en este periodo."); return; }
-            new android.app.AlertDialog.Builder(activity).setTitle("Exportar datos")
-                .setItems(new String[]{"CSV (hoja de cálculo)", "PDF (informe)"}, (dialog, which) -> {
-                    if (which == 0) activity.export(rows); else activity.exportPdf(rows, header);
-                }).show();
-        });
-        LinearLayout.LayoutParams exportParams = new LinearLayout.LayoutParams(-1, ui.dp(56));
-        exportParams.topMargin = ui.dp(4);
-        exportParams.bottomMargin = ui.dp(14);
-        content.addView(export, exportParams);
+        // Sin exportación: en la web el operador consulta sus lecturas pero no las descarga; exporta el admin de campaña.
         darkPromo(content, "Compara tu zona con el resto de la red", "Media de ozono de cada zona del mapa público",
             () -> activity.go(Screen.COMPARE));
     }
@@ -486,9 +466,13 @@ public final class DesignScreens {
         row.addView(tile, params);
     }
 
-    // ================================================================= Configurar sensor
+    // ================================================================= Detalles del sensor
 
-    public void settings(LinearLayout body, AeriqBleController ble, OrbAssignment sensor, boolean sharing, AppPrefs prefs) {
+    /**
+     * Detalles del sensor para el operador: solo consulta. El nombre del Orb, su campaña y si se publica los
+     * gestiona el admin de campaña en el panel web; el envío y la posición van siempre. Reconectar sí se ofrece.
+     */
+    public void details(LinearLayout body, AeriqBleController ble, OrbAssignment sensor, boolean locationAllowed) {
         LinearLayout state = panel(body, 18);
         LinearLayout head = ui.row();
         head.addView(ui.text("Estado del sensor", 18, true, INK), new LinearLayout.LayoutParams(0, -2, 1));
@@ -498,90 +482,35 @@ public final class DesignScreens {
         TextView connection = infoRow(state, "Conexión", "Bluetooth LE", true);
         TextView battery = infoRow(state, "Batería", "—", true);
         TextView signal = infoRow(state, "Señal", "—", true);
-        TextView sync = infoRow(state, "Última sincronización", "—", true);
+        TextView sync = infoRow(state, "Última lectura", "—", true);
         infoRow(state, "Sensor", "SPEC O₃", false);
 
-        LinearLayout naming = panel(body, 18);
-        text(naming, "Nombre del sensor", 18, true, INK, 0);
-        text(naming, "Nombre", 13, true, INK, 14);
-        EditText name = new EditText(activity);
-        name.setSingleLine(true);
-        name.setTextSize(15);
-        name.setTextColor(INK);
-        name.setHintTextColor(0xff8a9792);
-        name.setHint(sensor == null ? "Vincula un sensor primero" : "Sensor PBIO");
-        name.setText(sensor == null ? "" : activity.sensorName(sensor));
-        name.setEnabled(sensor != null);
-        name.setBackground(ui.shape(FIELD, 14, LINE));
-        name.setPadding(ui.dp(14), 0, ui.dp(14), 0);
-        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(-1, ui.dp(52));
-        nameParams.topMargin = ui.dp(8);
-        naming.addView(name, nameParams);
-        TextView save = ui.text("Guardar nombre", 15, true, INK);
-        save.setGravity(Gravity.CENTER);
-        save.setBackground(ui.shape(WHITE, 16, 0xffd5dcd9));
-        save.setAlpha(sensor == null ? .5f : 1f);
-        save.setOnClickListener(view -> {
-            if (sensor == null) { activity.message("Vincula un sensor primero."); return; }
-            String value = name.getText().toString().trim();
-            if (value.isEmpty() || value.length() > 80) { activity.message("Usa un nombre de entre 1 y 80 caracteres."); return; }
-            prefs.setAlias(sensor.address, value);
-            activity.message("Nombre guardado en este móvil.");
-        });
-        LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(-1, ui.dp(48));
-        saveParams.topMargin = ui.dp(12);
-        naming.addView(save, saveParams);
+        LinearLayout assignment = panel(body, 18);
+        text(assignment, "Tu asignación", 18, true, INK, 0);
+        infoRow(assignment, "Orb", sensor == null ? "Sin Orb asignado" : activity.sensorName(sensor), true);
+        infoRow(assignment, "Campaña", sensor == null ? "—" : sensor.campaign, false);
+        text(assignment, "El nombre del Orb, su campaña y si sale en el mapa público los gestiona el admin de tu campaña "
+            + "desde el panel web.", 13, false, MUTED, 10);
 
-        LinearLayout share = panel(body, 18);
-        LinearLayout shareHead = ui.row();
-        shareHead.setGravity(Gravity.TOP);
-        LinearLayout shareTexts = ui.column();
-        shareTexts.addView(ui.text("Compartir con la red", 18, true, INK));
-        TextView optional = chip("Opcional", CHIP, MUTED);
-        LinearLayout.LayoutParams optionalParams = new LinearLayout.LayoutParams(-2, -2);
-        optionalParams.topMargin = ui.dp(8);
-        shareTexts.addView(optional, optionalParams);
-        shareHead.addView(shareTexts, new LinearLayout.LayoutParams(0, -2, 1));
-        Switch shareToggle = ui.toggle(sharing);
-        shareToggle.setEnabled(sensor != null);
-        shareToggle.setOnCheckedChangeListener((button, checked) -> activity.setSharing(checked));
-        shareHead.addView(shareToggle);
-        share.addView(shareHead, new LinearLayout.LayoutParams(-1, -2));
-        // Texto fiel al modelo: la app envía; publicar es decisión del administrador de la campaña (panel web).
-        // Si se publica, el mapa muestra cada lectura con su posición y hora, pero no quién la tomó ni con qué Orb.
-        TextView explain = text(share, "Tus mediciones de ozono, con su posición y hora, se envían a la campaña que te "
-            + "asignó tu organización. Su administrador decide si salen en el mapa público, sin tu nombre ni tu sensor.", 14, false, MUTED, 14);
-        explain.setLineSpacing(ui.dp(2), 1);
-        addDivider(share, 14, 12);
-        LinearLayout route = ui.row();
-        LinearLayout routeTexts = ui.column();
-        routeTexts.addView(ui.text("Guardar mi recorrido y distancia", 15, true, INK));
-        routeTexts.addView(ui.text("Solo lo ves tú. No se publica.", 12, false, MUTED));
-        route.addView(routeTexts, new LinearLayout.LayoutParams(0, -2, 1));
-        Switch routeToggle = ui.toggle(prefs.saveRoute());
-        routeToggle.setOnCheckedChangeListener((button, checked) -> prefs.setSaveRoute(checked));
-        route.addView(routeToggle);
-        share.addView(route, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout capture = panel(body, 18);
+        text(capture, "Envío y ubicación", 18, true, INK, 0);
+        text(capture, "Con la app abierta, cada lectura del Orb se envía sola a tu campaña con su posición y hora. "
+            + "Sin ubicación la lectura se guarda, pero no puede salir en el mapa.", 14, false, MUTED, 8);
+        infoRow(capture, "Permiso de ubicación", locationAllowed ? "Permitido" : "Falta", false);
+        if (!locationAllowed) {
+            LinearLayout allow = wideButton(R.drawable.aeriq_location, "Permitir ubicación", WHITE, GREEN, 0);
+            allow.setOnClickListener(view -> activity.requestCaptureLocation());
+            LinearLayout.LayoutParams allowParams = new LinearLayout.LayoutParams(-1, ui.dp(52));
+            allowParams.topMargin = ui.dp(8);
+            capture.addView(allow, allowParams);
+        }
 
         LinearLayout reconnect = wideButton(R.drawable.ic_refresh, "Reconectar sensor", INK, WHITE, 0xffd5dcd9);
         reconnect.setOnClickListener(view -> activity.reconnectSensor());
         LinearLayout.LayoutParams reconnectParams = new LinearLayout.LayoutParams(-1, ui.dp(54));
         reconnectParams.bottomMargin = ui.dp(12);
         body.addView(reconnect, reconnectParams);
-        LinearLayout unlink = wideButton(R.drawable.ic_unlink, "Desvincular sensor", RED, 0xfffff7f6, 0xffefc3c0);
-        unlink.setOnClickListener(view -> {
-            if (sensor == null) { activity.message("No hay ningún sensor vinculado."); return; }
-            new android.app.AlertDialog.Builder(activity).setTitle("Desvincular sensor")
-                .setMessage("Este móvil dejará de recibir las mediciones de " + activity.sensorName(sensor)
-                    + ". Podrás volver a vincularlo cuando quieras.")
-                .setNegativeButton("Cancelar", null)
-                .setPositiveButton("Desvincular", (dialog, which) -> { activity.unlink(); activity.go(Screen.LINK); })
-                .show();
-        });
-        LinearLayout.LayoutParams unlinkParams = new LinearLayout.LayoutParams(-1, ui.dp(54));
-        unlinkParams.bottomMargin = ui.dp(12);
-        body.addView(unlink, unlinkParams);
-        footer(body, "Puedes cambiar estas opciones cuando quieras. Las funciones esenciales del sensor no se bloquean.");
+        footer(body, "Si el Orb no aparece, acércalo al móvil, comprueba que el Bluetooth está activado y pulsa Reconectar.");
 
         activity.updateLive(() -> {
             long age = System.currentTimeMillis() - ble.lastAdvertisementAt;
@@ -788,7 +717,9 @@ public final class DesignScreens {
         TextView email = ui.text(user.email, 13, false, MUTED);
         email.setPadding(0, ui.dp(2), 0, ui.dp(6));
         details.addView(email);
-        details.addView(chip(user.organization.isEmpty() ? "Sin organización" : user.organization, CHIP, MUTED),
+        // Función y ámbito, como en el panel web: «Operador · Campaña X», «Admin de campaña · Campaña X»…
+        String scope = !user.campaign.isEmpty() ? user.campaign : user.organization;
+        details.addView(chip(user.roleName + (scope.isEmpty() ? "" : " · " + scope), CHIP, MUTED),
             new LinearLayout.LayoutParams(-2, -2));
         identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         profile.addView(identity, new LinearLayout.LayoutParams(-1, -2));
@@ -796,10 +727,16 @@ public final class DesignScreens {
         LinearLayout data = panel(body, 16);
         menuRow(data, R.drawable.figma_nav_user, GREEN, PANEL_SOFT, "Datos personales", INK, null, chevron(),
             () -> activity.go(Screen.EDIT_PROFILE));
-        data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        menuRow(data, R.drawable.figma_nav_chip, GREEN, PANEL_SOFT, "Mi sensor",
-            INK, sensor == null ? "Sin sensor vinculado" : activity.sensorName(sensor) + " · Vinculado", chevron(),
-            () -> activity.go(Screen.SENSOR));
+        if (user.collects()) {
+            data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
+            menuRow(data, R.drawable.figma_nav_chip, GREEN, PANEL_SOFT, "Mi sensor",
+                INK, sensor == null ? "Sin Orb conectado" : activity.sensorName(sensor) + " · Conectado", chevron(),
+                () -> activity.go(Screen.SENSOR));
+        } else if (user.manages()) {
+            data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
+            menuRow(data, R.drawable.ic_sliders, GREEN, PANEL_SOFT, "Panel", INK, "La gestión se hace en la web", chevron(),
+                () -> activity.go(Screen.PANEL));
+        }
 
         LinearLayout security = panel(body, 16);
         menuRow(security, R.drawable.ic_lock, GREEN, PANEL_SOFT, "Cambiar contraseña", INK, null, chevron(),
@@ -828,16 +765,6 @@ public final class DesignScreens {
             });
         });
         menuRow(security, R.drawable.ic_fingerprint, GREEN, PANEL_SOFT, "Acceso con huella", INK, null, fingerprint, null);
-
-        LinearLayout privacy = panel(body, 16);
-        menuRow(privacy, R.drawable.ic_users, GREEN, PANEL_SOFT, "Compartir con la red", INK,
-            "Opcional · " + (sharing ? "Activado" : "Desactivado"), chevron(), () -> activity.go(Screen.CONFIG));
-        privacy.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        menuRow(privacy, R.drawable.ic_download, GREEN, PANEL_SOFT, "Exportar mis datos", INK, null, chevron(),
-            () -> activity.go(Screen.HISTORY));
-        privacy.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        menuRow(privacy, R.drawable.ic_shield, GREEN, PANEL_SOFT, "Privacidad y ubicación", INK, null, chevron(),
-            () -> activity.go(Screen.CONFIG));
 
         LinearLayout help = panel(body, 16);
         menuRow(help, R.drawable.ic_help, GREEN, PANEL_SOFT, "Ayuda y contacto", INK, null, chevron(),

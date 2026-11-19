@@ -47,6 +47,16 @@ GPS es opcional como conjunto. El servidor consulta el rango/unidad de `magnitud
 
 El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta: `ok,id,eventId,duplicate`. Reutilizar el evento con datos diferentes devuelve 409; cambiar de asignación no reasigna lecturas históricas.
 
+## Orb de la campaña desde Android: `mobile-team.php`
+
+Para el admin de campaña (permiso `equipo.gestionar`) con el token del móvil (`X-AERIQ-Token`). Es otra puerta a la misma lógica que el panel web: no añade reglas ni permisos.
+
+- GET devuelve `campaign` (`id,nombre`), `operators` (quienes pueden medir en su campaña: `id,nombre,orb,activo,pendiente`, sin correo ni teléfono) y `devices` (Orb de su campaña: `id,nombre,direccion_ble,trabajador_id,trabajador,activo,simulado,ultima_medicion`). Sale de `aeriq_dashboard()`.
+- POST registra o reasigna un Orb con `aeriq_device_save()`, igual que `portal.php?action=device`: `id?` (para un Orb ya registrado), `name,address,worker,active,simulated`. Solo a operadores de su campaña; un Orb por operador (si el operador llevaba otro, ese queda libre) y la asignación anterior del Orb se cierra.
+- Errores: 401 sin sesión, 403 sin `equipo.gestionar` (operador o admin principal), 404/409 si el Orb no es de su campaña o ya existe, 422 si la MAC o los campos no son válidos.
+
+La app Android lo usa en Panel → «Asignar un Orb con el móvil»: busca los Orb por Bluetooth para no teclear la MAC. El operador recibe la asignación en `GET field.php` al abrir su app.
+
 ## Público: `public.php`
 
 GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 2.000 lecturas recientes del filtro, sin identidad del trabajador ni del Orb: con el mapa público no se puede reconstruir el recorrido de nadie.

@@ -17,8 +17,12 @@ public final class AeriqAuthManager implements AutoCloseable {
     public static final class User {
         /** Permiso que concede recibir asignaciones, vincular Orb y enviar lecturas. */
         public static final String PERMISSION_COLLECT = "mediciones.registrar";
+        /** Admin de campaña: crea operadores, registra y asigna Orb, ajusta y publica su campaña (panel web). */
+        public static final String PERMISSION_TEAM = "equipo.gestionar";
+        /** Admin principal: crea campañas y sus admins y atiende solicitudes (panel web). */
+        public static final String PERMISSION_CAMPAIGNS = "campanas.gestionar";
         public final long id;
-        public final String name, last, email, phone, role, roleName, organization;
+        public final String name, last, email, phone, role, roleName, organization, campaign;
         /** Permisos que el servidor calcula a partir del rol (tabla rol_permisos). */
         public final Set<String> permissions;
         public final boolean mustChangePassword;
@@ -38,10 +42,17 @@ public final class AeriqAuthManager implements AutoCloseable {
             permissions = Collections.unmodifiableSet(list);
             permissionsFromServer = granted != null;
             organization = data.optString("organization");
+            campaign = data.isNull("campaign") ? "" : data.optString("campaign");
             mustChangePassword = data.optBoolean("mustChangePassword");
         }
 
         public String fullName() { return (name + " " + last).trim(); }
+
+        /** Mide con un Orb: Mi sensor, historial y envío de lecturas (operador). */
+        public boolean collects() { return can(PERMISSION_COLLECT); }
+
+        /** Gestiona desde el panel web (admin de campaña o admin principal). En la app ve la pestaña Panel. */
+        public boolean manages() { return can(PERMISSION_TEAM) || can(PERMISSION_CAMPAIGNS); }
 
         /** La app no decide por el nombre del rol: pregunta si la cuenta tiene el permiso. */
         public boolean can(String permission) { return can(permissionsFromServer, permissions, role, permission); }
