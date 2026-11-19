@@ -314,24 +314,51 @@ public final class WorkScreens {
         return button;
     }
 
-    /** Detalle técnico (antes en la pantalla principal): recepción, diagnóstico, temperatura y envío. */
+    /** Detalle técnico en una hoja de la app: resumen, Bluetooth, diagnóstico, temperatura y envío. */
     private void sensorStatus(AeriqBleController ble, OrbAssignment selected) {
         int flags = ble.sensorDiagnostic;
-        String diagnostic = flags < 0 ? "Sin diagnóstico recibido."
+        // 0 = sin datos, 1 = correcto, 2 = a revisar, 3 = fallo.
+        int severity = flags < 0 ? 0 : (flags & 128) != 0 || (flags & 8) != 0 || (flags & 1) == 0 ? 3
+            : (flags & 2) != 0 || (flags & 32) != 0 ? 2 : 1;
+        String diagnostic = flags < 0 ? "Aún no ha llegado ningún diagnóstico del Orb."
             : (flags & 128) != 0 ? "Señal fuera de rango (VGAS y VREF difieren más de 60 mV): revisa el cableado del sensor."
             : (flags & 8) != 0 ? "VREF no está cerca de la mitad de la alimentación: revisa el cable de VREF y el buffer."
             : (flags & 1) == 0 ? "Lectura inválida. Comprueba alimentación y cableado."
             : (flags & 2) != 0 ? "El cálculo de O₃ es negativo y se limita a 0. Revisa cero, VREF y estabilización."
             : (flags & 32) != 0 ? "Temperatura fuera del rango de compensación."
-            : "Cálculo válido · la calibración física debe verificarse.";
-        String message = "Sensor: " + (selected == null ? "ninguno seleccionado" : activity.sensorName(selected) + " · " + selected.campaign)
-            + "\n\nBluetooth: " + ble.status
-            + "\n\nDiagnóstico: " + diagnostic
-            + "\n\nTemperatura del módulo: " + (ble.lastTemperature == null ? "—" : ble.lastTemperature.reading.value + " °C")
-            + "\n\nServidor: " + activity.serverStatus();
-        new android.app.AlertDialog.Builder(activity).setTitle("Estado del sensor").setMessage(message)
-            .setNegativeButton("Reintentar envíos", (dialog, which) -> activity.retryUploads())
-            .setPositiveButton("Cerrar", null).show();
+            : "Cálculo válido. La calibración física debe verificarse.";
+        int[] tones = {MUTED, Quality.LOW, Quality.MEDIUM, Quality.HIGH};
+        int[] softs = {0xffeff3f1, Quality.soft(0), Quality.soft(1), Quality.soft(2)};
+        String[] headlines = {"Sin datos del sensor", "Funciona correctamente", "Revisa el sensor", "El sensor tiene un fallo"};
+
+        AppSheet sheet = new AppSheet(activity, ui, "Estado del sensor",
+            selected == null ? "Ningún sensor seleccionado" : activity.sensorName(selected) + " · " + selected.campaign);
+
+        LinearLayout summary = ui.row();
+        summary.setBackground(ui.shape(softs[severity], 20, 0));
+        summary.setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14));
+        android.view.View dot = new android.view.View(activity);
+        android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+        circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        circle.setColor(severity == 0 ? Quality.NONE : tones[severity]);
+        dot.setBackground(circle);
+        summary.addView(dot, new LinearLayout.LayoutParams(ui.dp(12), ui.dp(12)));
+        TextView headline = ui.text(headlines[severity], 16, true, severity == 0 ? INK : Quality.text(severity - 1));
+        headline.setPadding(ui.dp(12), 0, 0, 0);
+        summary.addView(headline, new LinearLayout.LayoutParams(0, -2, 1));
+        sheet.content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+
+        sheet.section("Detalle");
+        LinearLayout details = sheet.group();
+        sheet.info(details, R.drawable.ic_bluetooth, "Bluetooth", ble.status, 0xff2f80ed);
+        sheet.info(details, R.drawable.ic_pulse, "Diagnóstico", diagnostic, severity == 0 ? MUTED : tones[severity]);
+        sheet.info(details, R.drawable.aeriq_temperature, "Temperatura del módulo",
+            ble.lastTemperature == null ? "—" : ble.lastTemperature.reading.value + " °C", GREEN);
+        sheet.info(details, R.drawable.ic_globe, "Envío al servidor", activity.serverStatus(), GREEN);
+
+        sheet.secondary("Reintentar envíos", activity::retryUploads);
+        sheet.primary("Cerrar", null);
+        sheet.show();
     }
 
     // ===================================================================== Vincular sensor
