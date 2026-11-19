@@ -29,7 +29,9 @@ const AeriqAuth = (() => {
   function home(user){
     if(!user)return 'login.html';
     if(user.mustChangePassword)return 'cambiar-clave.html';
-    return ['informes.ver','solicitudes.gestionar'].some(p=>(user.permissions||[]).includes(p))?'portal.html':'perfil.html';
+    const p=user.permissions||[];
+    // Panel: admins (informes o solicitudes) y operadores con campaña («Mi campaña», de consulta).
+    return ['informes.ver','solicitudes.gestionar'].some(x=>p.includes(x))||(p.includes('mediciones.registrar')&&user.campaign)?'portal.html':'perfil.html';
   }
   /*
    * Header sin parpadeo. Este script se carga en <head> sin defer: antes de pintar nada mira la
@@ -55,8 +57,10 @@ const AeriqAuth = (() => {
       const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
       const panel=home(user)==='portal.html',page=location.pathname.split('/').pop()||'index.html';
       // El admin de campaña administra una sola campaña: su acceso se llama «Mi campaña».
-      const campaignAdmin=(user.permissions||[]).includes('equipo.gestionar'),panelText=campaignAdmin?'Mi campaña':'Mi panel',panelHref=campaignAdmin?'portal.html#campaign':'portal.html';
-      const items=[['Inicio','index.html'],['Mapa','mapa.html'],...(panel?[[panelText,panelHref]]:[]),['Mi cuenta','perfil.html']];
+      // Admin principal: «Mi panel». Admin de campaña y operador: «Mi campaña». «Mi cuenta» va solo en la burbuja.
+      const perms=user.permissions||[],ownCampaign=perms.includes('equipo.gestionar')||(perms.includes('mediciones.registrar')&&!perms.includes('informes.ver'));
+      const panelText=ownCampaign?'Mi campaña':'Mi panel',panelHref=ownCampaign?'portal.html#campaign':'portal.html';
+      const items=[['Inicio','index.html'],['Mapa','mapa.html'],...(panel?[[panelText,panelHref]]:[])];
       if(nav)nav.append(...items.map(([text,href])=>{const a=el('a','',text);a.href=href;if(page===href.split('#')[0])a.setAttribute('aria-current','page');return a;}));
       const menu=el('details','account-menu'),summary=el('summary'),list=el('div','account-menu-list');
       summary.append(el('span','account-avatar',((user.name||'')[0]||'')+((user.last||'')[0]||'')),el('span','account-name',user.name||user.email));
@@ -66,7 +70,7 @@ const AeriqAuth = (() => {
       const go=(text,href)=>{const a=el('a','',text);a.href=href;if(page===href.split('#')[0])a.setAttribute('aria-current','page');return a;};
       const out=el('button','danger','Cerrar sesión');out.type='button';
       out.onclick=async()=>{out.disabled=true;try{await post('logout');location.href='index.html';}catch(e){out.disabled=false;out.textContent=e.message;}};
-      list.append(who,el('div','account-menu-sep'),...(panel?[go(panelText,panelHref)]:[]),go('Mi cuenta','perfil.html'),el('div','account-menu-sep'),out);menu.append(summary,list);link.after(menu);
+      list.append(who,el('div','account-menu-sep'),go('Mi cuenta','perfil.html'),el('div','account-menu-sep'),out);menu.append(summary,list);link.after(menu);
     }
     document.documentElement.dataset.session=priv?'user':'guest';header.dataset.ready='';
   }

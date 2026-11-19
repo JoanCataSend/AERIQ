@@ -185,6 +185,17 @@ function aeriq_campaign_save(array $a,array $d): array {
     } catch (Throwable $e) {$db->rollback();throw $e;}
     return ['ok'=>true,'id'=>$id];
 }
+/** «Mi campaña» del operador: su campaña, su admin, su Orb y sus últimas lecturas. Solo lectura y sin descarga. */
+function aeriq_my_campaign(array $a): array {
+    $org=aeriq_org($a);$id=aeriq_campaign($a);$uid=(int)$a['usuario_id'];
+    if (!$id) throw new AeriqError('Todavía no perteneces a ninguna campaña: tu admin de campaña te añadirá.',404);
+    return [
+        'campaign'=>aeriq_one('SELECT c.id,c.nombre,z.nombre AS zona,c.inicio,c.fin,c.activa,c.publicar,c.radio_m,'.AERIQ_UMBRALES_O3.' FROM campanas c JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE c.id=? AND c.organizacion_id=?',[$id,$org]),
+        'admins'=>aeriq_rows("SELECT u.nombre,u.apellidos,u.email FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.campana_id=? AND r.codigo='admin_campana' AND u.activo=1 ORDER BY u.nombre",[$id]),
+        'orb'=>aeriq_one('SELECT d.id,d.nombre,d.simulado,a.iniciada_en,'.AERIQ_BATERIA.' FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id WHERE a.trabajador_id=? AND a.finalizada_en IS NULL LIMIT 1',[$uid]),
+        'readings'=>aeriq_rows('SELECT m.capturada_en,t.nombre AS magnitud,m.valor,t.unidad FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN magnitudes t ON t.id=m.magnitud_id WHERE a.trabajador_id=? AND a.campana_id=? AND m.valida=1 ORDER BY m.capturada_en DESC LIMIT 20',[$uid,$id]),
+    ];
+}
 /** El admin de campaña ajusta SU campaña: umbrales de ozono, distancia de interpolación y si sale en el mapa público. */
 function aeriq_campaign_settings(array $a,array $d): array {
     $id=aeriq_campaign($a);if (!$id) throw new AeriqError('Tu cuenta no tiene campaña asignada.',403);

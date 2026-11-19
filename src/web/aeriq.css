@@ -541,6 +541,7 @@ body[data-page="mapa"]{overflow-x:hidden}
 #fleet .devices-table td:first-child{white-space:normal;min-width:160px}
 .campaign-meta{margin:0 0 20px;color:var(--ink-3)}
 .campaign-card .stats-grid{margin-bottom:20px}
+#op-orb{font-size:clamp(20px,2.2vw,26px);line-height:1.25}
 .text-link{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--brand);font-weight:550;font-size:inherit;cursor:pointer;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:rgba(14,107,94,.35)}
 .text-link:hover{text-decoration-color:currentColor}
 .btn-outline{background:var(--surface);border-color:var(--line-strong);color:var(--ink)}
@@ -717,6 +718,8 @@ form .field-check{margin-top:20px}
 /* Cuenta y organización */
 .account-grid,.workspace-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:start}
 .account-grid>*,.workspace-layout>*,.split>*{min-width:0}
+/* Sin menú lateral (operador): el contenido ocupa todo el ancho. */
+.workspace-layout:has(>.workspace-nav[hidden]){grid-template-columns:minmax(0,1fr)}
 .side-nav,.workspace-nav{position:sticky;top:calc(var(--header-h) + 24px);display:grid;gap:2px}
 .side-nav a,.side-nav button,.workspace-nav a,.workspace-nav button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:10px;background:none;text-decoration:none;font-size:15px;font-weight:500;color:var(--ink-2);cursor:pointer}
 .side-nav a:hover,.side-nav button:hover,.workspace-nav a:hover,.workspace-nav button:hover{background:var(--alt);color:var(--ink)}
