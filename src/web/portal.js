@@ -36,13 +36,22 @@ async function refresh(){
   if(mine){
     const set=(id,text)=>{document.getElementById(id).textContent=text;};
     set('my-campaign-name',mine.nombre);set('my-campaign-state',stateText(mine));
-    set('my-campaign-meta',`${mine.zona} · del ${mine.inicio} al ${mine.fin}`);
+    set('my-campaign-meta',`${mine.zona} · del ${AeriqDomain.when(mine.inicio,{hour:false})} al ${AeriqDomain.when(mine.fin,{hour:false})}`);
+    const day=864e5,start=Date.parse(mine.inicio+'T00:00:00Z'),end=Date.parse(mine.fin+'T00:00:00Z')+day,now=Date.now(),total=Math.max(1,Math.round((end-start)/day));
+    const done=Math.min(total,Math.max(0,Math.floor((now-start)/day)+1)),left=Math.max(0,Math.ceil((end-now)/day));
+    const bar=document.querySelector('#my-campaign-progress span');if(bar)bar.style.width=(now<start?0:Math.round(done/total*100))+'%';
+    set('my-campaign-days',now<start?`Empieza en ${Math.ceil((start-now)/day)} días · dura ${total} días`:now>=end?`Terminada · duró ${total} días`:`Día ${done} de ${total} · quedan ${left} días`);
     set('my-campaign-workers',dashboard.workers.filter(w=>Number(w.puede_medir)).length);
     set('my-campaign-devices',dashboard.devices.filter(d=>Number(d.activo)&&d.trabajador_id).length);
     set('my-campaign-public',Number(mine.publicar)?'Sí':'No');
     fill(document.querySelector('#campaign-settings-form'),{medium:mine.umbral_medio,high:mine.umbral_alto,radius:mine.radio_m,public:mine.publicar});
   }
-  options('report-device',dashboard.devices,d=>d.nombre);
+  const pick=document.querySelector('#report-device');
+  if(pick){const keep=new Set([...pick.querySelectorAll('input:checked')].map(i=>i.value));pick.replaceChildren();
+    for(const d of dashboard.devices){const l=el('label');l.className='check-pill';const i=el('input');i.type='checkbox';i.value=d.id;i.checked=keep.has(String(d.id));l.append(i,el('span',d.nombre));pick.append(l);}
+    if(!dashboard.devices.length)pick.append(el('small','Todavía no hay AERIQ registrados.'));}
+  // Una sola campaña o zona: el selector no aporta nada y se oculta.
+  for(const [id,n] of [['report-campaign',dashboard.campaigns.length],['report-zone',(dashboard.zones||[]).length]]){const l=document.getElementById(id)?.closest('label');if(l)l.hidden=n<=1;}
   table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Estado','Admin','Mapa público'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,statePill(c),c.admin_nombre||'Sin admin',Number(c.publicar)?'Sí':'No'],source:c})),can(me,'campanas.gestionar')?c=>{const f=document.querySelector('#campaign-form');f.reset();fill(f,{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin});campaignMode(c);f.scrollIntoView({behavior:'smooth',block:'center'});}:null);
 }
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
@@ -64,10 +73,10 @@ function renderWorkers(){
   const manages=can(me,'campanas.gestionar')?'admin_campana':can(me,'equipo.gestionar')?'trabajador':null;
   document.querySelector('#workers-title').textContent=manages==='trabajador'?'Operadores de tu campaña':'Admins de campaña';
   const t=el('table');t.className='devices-table';const head=el('tr');
-  for(const h of ['Nombre','Contacto',...(manages==='trabajador'?['Orb']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
+  for(const h of ['Nombre','Contacto',...(manages==='trabajador'?['AERIQ']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
   // El admin de campaña ve solo a sus operadores (no a sí mismo).
   for(const w of dashboard.workers.filter(w=>!manages||w.rol===manages)){
-    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,contact(w),...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
+    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,contact(w),...(manages==='trabajador'?[w.orb||'Sin AERIQ']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
     if(manages){
       const td=el('td');td.className='row-actions';
       if(w.rol===manages){
@@ -104,10 +113,10 @@ async function myCampaign(){
   const d=await Aeriq.portal('my-campaign'),c=d.campaign,set=(id,text)=>{document.getElementById(id).textContent=text;};
   set('op-campaign-name',c.nombre);set('op-campaign-state',stateText(c));
   set('op-campaign-meta',`${c.zona} · del ${c.inicio} al ${c.fin}`);
-  set('op-orb',d.orb?d.orb.nombre:'Sin Orb');set('op-battery',d.orb&&d.orb.bateria_pct!=null?d.orb.bateria_pct+' %':'—');
+  set('op-orb',d.orb?d.orb.nombre:'Sin AERIQ');set('op-battery',d.orb&&d.orb.bateria_pct!=null?d.orb.bateria_pct+' %':'—');
   set('op-thresholds',`${Number(c.umbral_medio)} / ${Number(c.umbral_alto)}`);
   set('op-admins',d.admins.length?'Tu admin de campaña: '+d.admins.map(x=>`${x.nombre} ${x.apellidos} (${x.email})`).join(', '):'Tu campaña aún no tiene admin asignado.');
-  table(document.querySelector('#op-readings'),['Fecha (UTC)','Magnitud','Valor'],d.readings.map(r=>({cells:[String(r.capturada_en).slice(0,16),r.magnitud,`${r.valor} ${r.unidad}`]})));
+  table(document.querySelector('#op-readings'),['Fecha','Magnitud','Valor'],d.readings.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.magnitud,`${r.valor} ${r.unidad}`]})));
 }
 // Admin principal: resumen de campañas y AERIQ por campaña (solo consulta).
 function summary(){
@@ -150,15 +159,15 @@ function renderReport(rows,group){
     const canvas=el('canvas');canvas.width=900;canvas.height=220;canvas.style.width='100%';canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Evolución de valores medios; datos disponibles en la tabla siguiente');host.append(canvas);
     const ctx=canvas.getContext('2d'),min=Math.min(0,...stats.series.map(s=>s.mean)),max=Math.max(min+1,...stats.series.map(s=>s.mean));ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();
     stats.series.forEach((s,i)=>{const x=20+i*850/Math.max(1,stats.series.length-1),y=200-(s.mean-min)/(max-min)*180;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);ctx.fillStyle='#0e6b5e';ctx.fillRect(x-2,y-2,4,4);});ctx.stroke();
-    const summary=el('div');host.append(summary);table(summary,['Periodo (UTC)','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[s.date,s.min,s.max,s.mean.toFixed(2)]})));
+    const summary=el('div');host.append(summary);table(summary,['Periodo','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[AeriqDomain.when(s.date,{hour:false}),s.min,s.max,s.mean.toFixed(2)]})));
     host.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
-    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso (UTC)','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[r.capturada_en,r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
+    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
     const detail=el('div');detail.className='table-scroll';host.append(detail);
-    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
+    table(detail,['Fecha','AERIQ','Zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
   }
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#report-results').replaceChildren();
-  try{const filters=payload(f);filters.devices=[...f.querySelector('#report-device').selectedOptions].map(o=>o.value).filter(Boolean).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
+  try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
   catch(error){document.querySelector('#report-summary').textContent=error.message;}finally{b.disabled=false;}
 };
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
@@ -169,7 +178,7 @@ const REQ_HELP={pendiente:'Ha llegado y nadie la ha mirado todavía.',en_revisio
 // keep: solicitudes cambiadas aquí; siguen en la lista hasta que cambias de filtro o de búsqueda.
 const req={list:[],states:[],filter:'pendiente',q:'',keep:new Set(),sel:null,note:''};
 // Fechas del servidor en UTC → hora local, sin la etiqueta UTC.
-const when=(s,hour)=>s?new Date(String(s).replace(' ','T')+'Z').toLocaleString('es-ES',hour?{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}:{day:'numeric',month:'short',year:'numeric'}):'';
+const when=(s,hour)=>AeriqDomain.when(s,{hour:Boolean(hour)});
 const link=(href,text)=>{const a=el('a',text);a.href=href;return a;};
 const reqPill=r=>{const p=el('span',r.estado_nombre);p.className='pill '+(REQ_PILL[r.estado]||'pill-off');return p;};
 async function commercial(){
@@ -266,7 +275,7 @@ document.addEventListener('click',e=>{for(const m of document.querySelectorAll('
   for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
   if(operator){document.querySelector('.workspace-nav').hidden=true;await myCampaign();}
   else {await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
-  // La flota (sección «Dispositivos Orb») se carga aparte; al guardar un Orb se refrescan los contadores.
+  // La flota (sección «Dispositivos AERIQ») se carga aparte; al guardar un AERIQ se refrescan los contadores.
   if(typeof initFleet==='function'&&can(user,'equipo.gestionar')){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}}
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
   showWorkspace(location.hash.slice(1));

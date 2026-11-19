@@ -1,4 +1,4 @@
-/* AERIQ · Vista explosionada del Orb en la portada · anime.js v4 sincronizado con el scroll.
+/* AERIQ · Vista explosionada del AERIQ en la portada · anime.js v4 sincronizado con el scroll.
    Sin anime.js, sin la sección o con movimiento reducido se queda la vista abierta estática del CSS. */
 'use strict';
 (function(){
