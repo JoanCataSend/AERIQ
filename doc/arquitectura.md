@@ -20,7 +20,7 @@ Las cuentas web (`auth.php`, cookie/CSRF) y móviles (`mobile-auth.php`, token c
 - `src/web/`: HTML y CSS compartidos; conserva galería, visor 3D, mockups y navegación originales. Los scripts especializados conectan flota, informes, mapas y solicitudes.
 - `aeriq-client.js`: clientes nuevos; `auth-client.js`: sesión existente; `aeriq-domain.js`: cálculos de informes, CSV e IDW sin DOM.
 - `server/AuthCore.php`: identidad y correo reutilizados. `AeriqCore.php`: dominio y permisos. `AeriqHttp.php`: adaptación HTTP y errores.
-- `src/database/schema.sql`: entidades, claves, índices y vistas de lectura.
+- `src/database/1-instalar.sql`: entidades, claves, índices y vistas de lectura.
 - `scripts/`: empaquetado, auditoría, recreación respaldada, importación no destructiva y pruebas aisladas.
 
 ## Conservar lo que funciona

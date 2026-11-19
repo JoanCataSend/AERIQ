@@ -36,13 +36,19 @@ async function refresh(){
   if(mine){
     const set=(id,text)=>{document.getElementById(id).textContent=text;};
     set('my-campaign-name',mine.nombre);set('my-campaign-state',stateText(mine));
-    set('my-campaign-meta',`${mine.zona} · del ${mine.inicio} al ${mine.fin}`);
+    set('my-campaign-meta',`${mine.zona} · del ${AeriqDomain.when(mine.inicio,{hour:false})} al ${AeriqDomain.when(mine.fin,{hour:false})}`);
+    progress(mine,'my-campaign');
     set('my-campaign-workers',dashboard.workers.filter(w=>Number(w.puede_medir)).length);
     set('my-campaign-devices',dashboard.devices.filter(d=>Number(d.activo)&&d.trabajador_id).length);
     set('my-campaign-public',Number(mine.publicar)?'Sí':'No');
     fill(document.querySelector('#campaign-settings-form'),{medium:mine.umbral_medio,high:mine.umbral_alto,radius:mine.radio_m,public:mine.publicar});
   }
-  options('report-device',dashboard.devices,d=>d.nombre);
+  const pick=document.querySelector('#report-device');
+  if(pick){const keep=new Set([...pick.querySelectorAll('input:checked')].map(i=>i.value));pick.replaceChildren();
+    for(const d of dashboard.devices){const l=el('label');l.className='check-pill';const i=el('input');i.type='checkbox';i.value=d.id;i.checked=keep.has(String(d.id));l.append(i,el('span',d.nombre));pick.append(l);}
+    if(!dashboard.devices.length)pick.append(el('small','Todavía no hay AERIQ registrados.'));}
+  // Una sola campaña o zona: el selector no aporta nada y se oculta.
+  for(const [id,n] of [['report-campaign',dashboard.campaigns.length],['report-zone',(dashboard.zones||[]).length]]){const l=document.getElementById(id)?.closest('label');if(l)l.hidden=n<=1;}
   table(document.querySelector('#campaigns-list'),['Campaña','Zona','Fechas','Estado','Admin','Mapa público'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.zona,c.inicio+' — '+c.fin,statePill(c),c.admin_nombre||'Sin admin',Number(c.publicar)?'Sí':'No'],source:c})),can(me,'campanas.gestionar')?c=>{const f=document.querySelector('#campaign-form');f.reset();fill(f,{id:c.id,name:c.nombre,zone:c.zona,start:c.inicio,end:c.fin});campaignMode(c);f.scrollIntoView({behavior:'smooth',block:'center'});}:null);
 }
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
@@ -64,10 +70,10 @@ function renderWorkers(){
   const manages=can(me,'campanas.gestionar')?'admin_campana':can(me,'equipo.gestionar')?'trabajador':null;
   document.querySelector('#workers-title').textContent=manages==='trabajador'?'Operadores de tu campaña':'Admins de campaña';
   const t=el('table');t.className='devices-table';const head=el('tr');
-  for(const h of ['Nombre','Contacto',...(manages==='trabajador'?['Orb']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
+  for(const h of ['Nombre','Contacto',...(manages==='trabajador'?['AERIQ']:['Campaña']),'Acceso',...(manages?['Acciones']:[])])head.append(el('th',h));t.append(head);
   // El admin de campaña ve solo a sus operadores (no a sí mismo).
   for(const w of dashboard.workers.filter(w=>!manages||w.rol===manages)){
-    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,contact(w),...(manages==='trabajador'?[w.orb||'Sin Orb']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
+    const tr=el('tr');for(const v of [w.nombre+' '+w.apellidos,contact(w),...(manages==='trabajador'?[w.orb||'Sin AERIQ']:[w.campana||'Sin campaña']),accessText(w)])tr.append(el('td',v));
     if(manages){
       const td=el('td');td.className='row-actions';
       if(w.rol===manages){
@@ -100,14 +106,36 @@ document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>
   try{const r=await Aeriq.portal('worker-edit',payload(f));document.querySelector('#worker-modal').close();portalFeedback.textContent=r.message;await refresh();}
   catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
 });
+// Barra de tiempo de una campaña: «Día 8 de 68 · quedan 61 días».
+function progress(c,prefix){
+  const day=864e5,start=Date.parse(c.inicio+'T00:00:00Z'),end=Date.parse(c.fin+'T00:00:00Z')+day,now=Date.now(),total=Math.max(1,Math.round((end-start)/day));
+  const done=Math.min(total,Math.max(0,Math.floor((now-start)/day)+1)),left=Math.max(0,Math.ceil((end-now)/day));
+  const bar=document.querySelector(`#${prefix}-progress span`);if(bar)bar.style.width=(now<start?0:Math.round(done/total*100))+'%';
+  const text=document.getElementById(prefix+'-days');if(text)text.textContent=now<start?`Empieza en ${Math.ceil((start-now)/day)} días · dura ${total} días`:now>=end?`Terminada · duró ${total} días`:`Día ${done} de ${total} · quedan ${left} días`;
+}
 async function myCampaign(){
   const d=await Aeriq.portal('my-campaign'),c=d.campaign,set=(id,text)=>{document.getElementById(id).textContent=text;};
   set('op-campaign-name',c.nombre);set('op-campaign-state',stateText(c));
-  set('op-campaign-meta',`${c.zona} · del ${c.inicio} al ${c.fin}`);
-  set('op-orb',d.orb?d.orb.nombre:'Sin Orb');set('op-battery',d.orb&&d.orb.bateria_pct!=null?d.orb.bateria_pct+' %':'—');
-  set('op-thresholds',`${Number(c.umbral_medio)} / ${Number(c.umbral_alto)}`);
-  set('op-admins',d.admins.length?'Tu admin de campaña: '+d.admins.map(x=>`${x.nombre} ${x.apellidos} (${x.email})`).join(', '):'Tu campaña aún no tiene admin asignado.');
-  table(document.querySelector('#op-readings'),['Fecha (UTC)','Magnitud','Valor'],d.readings.map(r=>({cells:[String(r.capturada_en).slice(0,16),r.magnitud,`${r.valor} ${r.unidad}`]})));
+  set('op-campaign-meta',`${c.zona} · del ${AeriqDomain.when(c.inicio,{hour:false})} al ${AeriqDomain.when(c.fin,{hour:false})}`);progress(c,'op-campaign');
+  // Tu AERIQ: nombre, si está enviando, batería y fechas.
+  const o=d.orb,last=d.readings[0]?.capturada_en,recent=last&&Date.now()-Date.parse(String(last).replace(' ','T')+'Z')<9e5;
+  set('op-orb',o?o.nombre:'Sin AERIQ asignado');
+  const status=document.getElementById('op-status');status.textContent=!o?'Tu admin de campaña te lo asignará.':recent?'Enviando lecturas':'Sin lecturas en los últimos 15 minutos';status.className='op-status'+(o&&recent?' on':'');
+  const pct=o&&o.bateria_pct!=null?Number(o.bateria_pct):null,fill=document.getElementById('op-battery-fill');
+  fill.style.width=(pct??0)+'%';fill.className=pct==null?'':pct>60?'high':pct>=20?'mid':'low';
+  set('op-battery',o?'Batería: '+AeriqDomain.battery(o.bateria_pct,o.bateria_en):'Batería: —');
+  set('op-since',o?.iniciada_en?AeriqDomain.when(o.iniciada_en):'—');set('op-last',last?AeriqDomain.when(last,{seconds:true}):'Todavía ninguna');
+  // Escala de niveles con los umbrales de la campaña.
+  const mid=Number(c.umbral_medio),high=Number(c.umbral_alto);
+  set('op-level-low',`menos de ${mid} ppb`);set('op-level-mid',`${mid} – ${high} ppb`);set('op-level-high',`${high} ppb o más`);
+  // Admin: nombre y correo pulsable.
+  const box=document.getElementById('op-admins');box.replaceChildren();
+  for(const x of d.admins){const row=el('div');row.className='op-admin';const av=el('span',((x.nombre||'')[0]||'')+((x.apellidos||'')[0]||''));av.className='op-avatar';const t=el('div');const m=el('a',x.email);m.href='mailto:'+x.email;t.append(el('strong',`${x.nombre} ${x.apellidos}`),m);row.append(av,t);box.append(row);}
+  if(!d.admins.length)box.append(el('p','Tu campaña aún no tiene admin asignado.'));
+  // Lecturas: el ozono lleva su nivel con color.
+  const lvl=r=>{if(r.unidad!=='ppb')return '—';const k=AeriqDomain.level(Number(r.valor),mid,high),s=el('span',k[0].toUpperCase()+k.slice(1));s.className='level-tag '+k;return s;};
+  table(document.querySelector('#op-readings'),['Fecha','Magnitud','Valor','Nivel'],d.readings.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.magnitud,`${r.valor} ${r.unidad}`,lvl(r)]})));
+  if(!d.readings.length)document.querySelector('#op-readings').replaceChildren(el('p','Todavía no hay lecturas de tu AERIQ en esta campaña.'));
 }
 // Admin principal: resumen de campañas y AERIQ por campaña (solo consulta).
 function summary(){
@@ -150,37 +178,112 @@ function renderReport(rows,group){
     const canvas=el('canvas');canvas.width=900;canvas.height=220;canvas.style.width='100%';canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Evolución de valores medios; datos disponibles en la tabla siguiente');host.append(canvas);
     const ctx=canvas.getContext('2d'),min=Math.min(0,...stats.series.map(s=>s.mean)),max=Math.max(min+1,...stats.series.map(s=>s.mean));ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();
     stats.series.forEach((s,i)=>{const x=20+i*850/Math.max(1,stats.series.length-1),y=200-(s.mean-min)/(max-min)*180;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);ctx.fillStyle='#0e6b5e';ctx.fillRect(x-2,y-2,4,4);});ctx.stroke();
-    const summary=el('div');host.append(summary);table(summary,['Periodo (UTC)','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[s.date,s.min,s.max,s.mean.toFixed(2)]})));
+    const summary=el('div');host.append(summary);table(summary,['Periodo','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[AeriqDomain.when(s.date,{hour:false}),s.min,s.max,s.mean.toFixed(2)]})));
     host.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
-    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso (UTC)','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[r.capturada_en,r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
+    if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll';host.append(exceed);table(exceed,['Fecha del suceso','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
     const detail=el('div');detail.className='table-scroll';host.append(detail);
-    table(detail,['Fecha UTC','Orb','Campaña / zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[r.capturada_en,r.dispositivo,r.campana+' / '+r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
+    table(detail,['Fecha','AERIQ','Zona','Valor','Unidad','Nivel','Coordenadas'],set.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),r.latitud===null?'Sin ubicación':r.latitud+', '+r.longitud]})));
   }
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#report-results').replaceChildren();
-  try{const filters=payload(f);filters.devices=[...f.querySelector('#report-device').selectedOptions].map(o=>o.value).filter(Boolean).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
+  try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;}
   catch(error){document.querySelector('#report-summary').textContent=error.message;}finally{b.disabled=false;}
 };
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
 document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.portal('readings',undefined,{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
+// Solicitudes: bandeja. Lista a la izquierda (filtro por estado y buscador) y ficha completa a la derecha.
+const REQ_PILL={pendiente:'pill-soon',en_revision:'pill-info',respondida:'pill-on',cerrada:'pill-off'};
+const REQ_HELP={pendiente:'Ha llegado y nadie la ha mirado todavía.',en_revision:'La estáis estudiando (presupuesto, disponibilidad…).',respondida:'Ya habéis contestado y esperáis respuesta del cliente.',cerrada:'Terminada: aceptada y convertida en campaña, o descartada.'};
+// keep: solicitudes cambiadas aquí; siguen en la lista hasta que cambias de filtro o de búsqueda.
+const req={list:[],states:[],filter:'pendiente',q:'',keep:new Set(),sel:null,note:''};
+// Fechas del servidor en UTC → hora local, sin la etiqueta UTC.
+const when=(s,hour)=>AeriqDomain.when(s,{hour:Boolean(hour)});
+const link=(href,text)=>{const a=el('a',text);a.href=href;return a;};
+const reqPill=r=>{const p=el('span',r.estado_nombre);p.className='pill '+(REQ_PILL[r.estado]||'pill-off');return p;};
 async function commercial(){
-  const {requests,states=[]}=await Aeriq.portal('requests');
-  const pending=document.getElementById('sum-requests');if(pending)pending.textContent=requests.filter(r=>r.estado==='pendiente').length;const host=document.querySelector('#requests-list');host.replaceChildren();
-  for(const r of requests){const box=el('article');box.className='portal-section';box.append(el('h3',`#${r.id} · ${r.entidad}`));
-    box.append(el('p',`${r.contacto} · ${r.email}${r.telefono?' · '+r.telefono:''} · ${r.recibida_en} UTC`));
-    const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
-    box.append(el('p',`${r.servicio_nombre||r.servicio} · ${r.tipo_organizacion_nombre||'Tipo de organización sin indicar'}${place?' · '+place:''} · Zona: ${r.zona}`));
-    if(r.objetivos?.length)box.append(el('p',`Objetivos: ${r.objetivos.join(', ')}`));
-    // Datos de estudio: solo cuando la solicitud los tiene (duración obligatoria en estudios).
-    if(r.duracion||r.superficie!=null||r.inicio_deseado)box.append(el('p',`Superficie: ${r.superficie!=null?r.superficie+' m²':'por estimar'} · Duración: ${r.duracion||'—'} · Inicio orientativo: ${r.inicio_deseado?r.inicio_deseado.slice(0,7):'sin indicar'}`));
-    box.append(el('p',r.necesidades));
-    if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);for(const h of r.historial)log.append(el('li',`${h.estado_nombre} · ${h.cambiado_en} UTC${h.usuario?' · '+h.usuario:' · Formulario público'}`));box.append(log);}
-    const select=el('select');select.setAttribute('aria-label',`Estado solicitud ${r.id}`);for(const state of states)select.add(new Option(state.nombre,state.codigo));select.value=r.estado;
-    const save=el('button','Guardar estado');save.className='btn btn-outline';save.onclick=async()=>{save.disabled=true;try{await Aeriq.portal('request-status',{id:r.id,status:select.value});portalFeedback.textContent='Estado guardado.';await commercial();}catch(e){portalFeedback.textContent=e.message;}finally{save.disabled=false;}};
-    box.append(select,save);host.append(box);
-  }
-  if(!requests.length)host.append(el('p','Todavía no hay solicitudes.'));
+  const {requests,states=[]}=await Aeriq.portal('requests');req.list=requests;req.states=states;
+  renderRequests();
 }
+function reqMatches(r){
+  const q=req.q.trim().toLowerCase().replace(/^#/,'');
+  return (!req.filter||r.estado===req.filter||req.keep.has(r.id))&&(!q||String(r.id)===q||[r.entidad,r.email,r.contacto,r.municipio].some(v=>String(v||'').toLowerCase().includes(q)));
+}
+function renderRequests(){
+  const pending=document.getElementById('sum-requests');if(pending)pending.textContent=req.list.filter(r=>r.estado==='pendiente').length;
+  const tabs=document.querySelector('#requests-filter'),host=document.querySelector('#requests-list');if(!host)return;
+  tabs.replaceChildren();
+  for(const s of [...req.states,{codigo:'',nombre:'Todas'}]){
+    const n=s.codigo?req.list.filter(r=>r.estado===s.codigo).length:req.list.length;
+    const b=el('button');b.type='button';b.append(s.nombre+' ',el('b',String(n)));b.className=req.filter===s.codigo?'selected':'';b.setAttribute('aria-pressed',String(req.filter===s.codigo));
+    if(REQ_HELP[s.codigo])b.title=REQ_HELP[s.codigo];b.onclick=()=>{req.filter=s.codigo;req.keep.clear();renderRequests();};tabs.append(b);
+  }
+  const shown=req.list.filter(reqMatches);
+  if(!shown.some(r=>r.id===req.sel))req.sel=shown[0]?.id??null;
+  host.replaceChildren();
+  for(const r of shown){
+    const row=el('button');row.type='button';row.className='inbox-row'+(r.id===req.sel?' selected':'');row.setAttribute('aria-current',String(r.id===req.sel));
+    const bottom=el('span');bottom.className='inbox-row-top';bottom.append(el('small',when(r.recibida_en)),reqPill(r));
+    row.title=r.entidad;row.append(el('strong',`#${r.id} · ${r.entidad}`),bottom);row.onclick=()=>{req.sel=r.id;req.note='';renderRequests();};host.append(row);
+  }
+  if(!shown.length)host.append(el('p',req.list.length?'No hay solicitudes con este filtro.':'Todavía no hay solicitudes.'));
+  renderRequestDetail(req.list.find(r=>r.id===req.sel));
+}
+async function setRequestState(r,code){
+  const name=req.states.find(s=>s.codigo===code)?.nombre||code;
+  try{await Aeriq.portal('request-status',{id:r.id,status:code});
+    Object.assign(r,{estado:code,estado_nombre:name});
+    (r.historial||=[]).push({estado_nombre:name,cambiado_en:new Date().toISOString().slice(0,19).replace('T',' '),usuario:[me.name,me.last].filter(Boolean).join(' ')});
+    req.keep.add(r.id);req.note=`Guardado ✓ · ahora está en «${name}»`;}
+  catch(e){req.note='';portalFeedback.textContent=e.message;}
+  renderRequests();
+}
+function renderRequestDetail(r){
+  const host=document.querySelector('#request-detail');host.replaceChildren();
+  if(!r){host.append(el('p','Elige una solicitud de la lista.'));return;}
+  // Cabecera: quién, cuándo y responder.
+  const head=el('header');head.className='request-detail-head';
+  const who=el('div');const h=el('h3',r.entidad);h.append(' ',reqPill(r));who.append(h,el('small',`Solicitud #${r.id} · recibida el ${when(r.recibida_en,true)}`));
+  head.append(who,replyMenu(r));host.append(head);
+  // Pasos del estado: el actual marcado; pulsar un paso lo cambia. Botón principal = siguiente paso.
+  const steps=el('ol');steps.className='request-steps';steps.setAttribute('aria-label','Estado de la solicitud');
+  const at=req.states.findIndex(s=>s.codigo===r.estado);
+  req.states.forEach((s,i)=>{const li=el('li');li.className=i<at?'done':i===at?'current':'';
+    const b=el('button',s.nombre);b.type='button';b.title=REQ_HELP[s.codigo]||'';b.disabled=i===at;if(i===at)b.setAttribute('aria-current','step');b.onclick=()=>setRequestState(r,s.codigo);li.append(b);steps.append(li);});
+  host.append(steps);
+  const actions=el('div');actions.className='request-actions';
+  const next=req.states[at+1];
+  if(next){const b=el('button',next.codigo==='cerrada'?'Cerrar solicitud':`Pasar a ${next.nombre}`);b.type='button';b.className='btn btn-primary';b.onclick=()=>{b.disabled=true;setRequestState(r,next.codigo);};actions.append(b);}
+  if(next&&next.codigo!=='cerrada'&&r.estado!=='cerrada'){const c=el('button','Cerrar solicitud');c.type='button';c.className='btn btn-outline';c.onclick=()=>{c.disabled=true;setRequestState(r,'cerrada');};actions.append(c);}
+  if(!next){const o=el('button','Reabrir');o.type='button';o.className='btn btn-outline';o.onclick=()=>{o.disabled=true;setRequestState(r,'en_revision');};actions.append(o);}
+  const note=el('small',req.note);note.className='request-saved';note.setAttribute('role','status');actions.append(note);
+  host.append(actions,el('p',REQ_HELP[r.estado]||''));host.lastChild.className='note';
+  // Ficha: etiqueta a la izquierda, dato a la derecha.
+  const info=el('dl');info.className='request-sheet';
+  const add=(label,value)=>{if(value==null||value==='')return;const dt=el('dt',label),dd=el('dd');dd.append(value);info.append(dt,dd);};
+  const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
+  add('Servicio',r.servicio_nombre||r.servicio);add('Organización',r.tipo_organizacion_nombre||'Sin indicar');
+  add('Lugar',place);add('Zona',r.zona);add('Contacto',r.contacto);
+  add('Correo',link('mailto:'+r.email,r.email));if(r.telefono)add('Teléfono',link('tel:'+r.telefono,r.telefono));
+  if(r.objetivos?.length)add('Objetivos',r.objetivos.join(', '));
+  if(r.duracion||r.superficie!=null||r.inicio_deseado)add('Estudio',`${r.superficie!=null?r.superficie+' m²':'Superficie por estimar'} · ${r.duracion||'Duración sin indicar'} · Inicio ${r.inicio_deseado?r.inicio_deseado.slice(0,7):'sin indicar'}`);
+  const needs=el('p',r.necesidades);needs.className='request-needs';add('Necesita',needs);
+  if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);r.historial.forEach((x,i)=>log.append(el('li',[x.estado_nombre,when(x.cambiado_en,true),x.usuario||(i?'':'Formulario público')].filter(Boolean).join(' · '))));add('Historial',log);}
+  host.append(info);
+}
+// Responder: el enlace mailto no hace nada si el ordenador no tiene app de correo, así que se ofrecen Gmail, Outlook y copiar.
+function replyMenu(r){
+  const subject=`AERIQ · Tu solicitud #${r.id}`,body=`Hola ${r.contacto},\n\n`,enc=encodeURIComponent;
+  const menu=el('details');menu.className='reply-menu';const sum=el('summary','Responder');sum.className='btn btn-outline';menu.append(sum);
+  const list=el('div');list.className='reply-list';
+  const go=(text,href)=>{const a=link(href,text);a.target='_blank';a.rel='noopener';a.onclick=()=>{menu.open=false;};list.append(a);};
+  go('Abrir en Gmail',`https://mail.google.com/mail/?view=cm&fs=1&to=${enc(r.email)}&su=${enc(subject)}&body=${enc(body)}`);
+  go('Abrir en Outlook',`https://outlook.office.com/mail/deeplink/compose?to=${enc(r.email)}&subject=${enc(subject)}&body=${enc(body)}`);
+  const app=link(`mailto:${r.email}?subject=${enc(subject)}&body=${enc(body)}`,'App de correo del ordenador');app.onclick=()=>{menu.open=false;};list.append(app);
+  const copy=el('button','Copiar correo');copy.type='button';copy.onclick=async()=>{try{await navigator.clipboard.writeText(r.email);copy.textContent='Copiado ✓';}catch{copy.textContent=r.email;}setTimeout(()=>{copy.textContent='Copiar correo';menu.open=false;},1200);};
+  list.append(copy);menu.append(list);return menu;
+}
+document.querySelector('#requests-search')?.addEventListener('input',e=>{req.q=e.target.value;req.keep.clear();renderRequests();});
+document.addEventListener('click',e=>{for(const m of document.querySelectorAll('.reply-menu[open]'))if(!m.contains(e.target))m.open=false;});
 (async()=>{try{
   const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}
   me=user;document.querySelector('#portal-title').textContent=user.organization||'Código Norte';
@@ -191,7 +294,7 @@ async function commercial(){
   for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
   if(operator){document.querySelector('.workspace-nav').hidden=true;await myCampaign();}
   else {await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
-  // La flota (sección «Dispositivos Orb») se carga aparte; al guardar un Orb se refrescan los contadores.
+  // La flota (sección «Dispositivos AERIQ») se carga aparte; al guardar un AERIQ se refrescan los contadores.
   if(typeof initFleet==='function'&&can(user,'equipo.gestionar')){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}}
   portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
   showWorkspace(location.hash.slice(1));

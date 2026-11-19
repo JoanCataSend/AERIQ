@@ -60,7 +60,7 @@ Lo que la distingue: un sensor que cabe en un llavero y viaja con quien mide, en
 - Modelo 3D del sensor: `src/web/assets/aeriq_sensor_3d.glb`.
 - Maquetas del mapa en ordenador y móvil: `src/web/assets/mapa_web_mockup.webp`, `mapa_movil_mockup.webp`.
 - Componentes reales del Orb: sensor SPEC ULPSM-O3, SparkFun Pro nRF52840 Mini, batería LiPo 3,7 V 500 mAh, tres LEDs de batería y un LED RGB bajo el logotipo.
-- **Pendiente:** el usuario tiene mediciones reales y los nombres del equipo, pero todavía no los ha aportado. Las mediciones de `src/database/anadir-mediciones-playa-gandia.sql` son simuladas.
+- **Pendiente:** el usuario tiene mediciones reales y los nombres del equipo, pero todavía no los ha aportado. Las mediciones de `src/database/2-simulacion.sql` son simuladas.
 - No existen testimonios, clientes, cifras de impacto ni precios. No se inventan.
 
 ## Product Principles

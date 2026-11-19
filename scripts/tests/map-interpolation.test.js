@@ -1,3 +1,4 @@
+process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* T25 · Prueba DOM del mapa: zonas estimadas (círculos del radio, no cuadrados), datos insuficientes, sin datos,
    radio configurable, consulta de un punto y ruta del Orb en «Mi organización».
    Ejecuta public-map.js en jsdom con un doble de Leaflet (proyección lineal de 1 m por píxel) y un lienzo falso
@@ -157,7 +158,7 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   assert.deepEqual(plain(p.routes[0].points),[[dense[0].latitud,dense[0].longitud],[dense[2].latitud,dense[2].longitud],[dense[4].latitud,dense[4].longitud]]);
   assert.deepEqual(plain(p.routes[1].points),[[dense[14].latitud,dense[14].longitud],[dense[13].latitud,dense[13].longitud]]);
   assert(p.routes.every(r=>r.options.pane==='aeriq-ruta'&&r.options.interactive===false));
-  assert.equal(p.ends.length,2);assert(p.ends[0].tooltip.startsWith('Inicio · 10 nov 2026, 12:00 UTC'));assert(p.ends[1].tooltip.startsWith('Última posición · 10 nov 2026, 12:41 UTC'));
+  assert.equal(p.ends.length,2);assert(p.ends[0].tooltip.startsWith('Inicio · 10 nov 2026, 12:00'));assert(p.ends[1].tooltip.startsWith('Última posición · 10 nov 2026, 12:41'));
   assert(p.q('#route-note').textContent.startsWith('5 posiciones en 2 tramos.'));assert(!p.q('#legend-route').hidden);
   // Otro Orb: su ruta sustituye a la anterior. Con una sola posición no hay línea, solo el punto de inicio.
   p.q('#route-device').value='3';p.change('#route-device');

@@ -14,9 +14,8 @@ function initAeriqMap(){
   let rows=[],selected=null,requestId=0,source='all',hasFit=false,truncated=false;
   const colors={bajo:'#219c72',moderado:'#eea22d',alto:'#e35b5d'};
   const level=r=>AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
-  // Solo formato de presentación: la fecha sigue en UTC y las coordenadas no se alteran salvo el redondeo visible.
-  const months=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  const utcLabel=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(v||''));return m?`${Number(m[3])} ${months[Number(m[2])-1]} ${m[1]}, ${m[4]}:${m[5]} UTC`:`${v} UTC`;};
+  // Solo formato de presentación: hora local y coordenadas con el redondeo visible.
+  const utcLabel=v=>AeriqDomain.when(v);
   const coord=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):String(v);
   // Interpolación acotada (T25): parámetros y cálculo en aeriq-domain.js; aquí solo se agrupa, se pinta y se consulta.
   const P=AeriqDomain.INTERPOLACION,Z=AeriqDomain.ZONA;
@@ -51,7 +50,7 @@ function initAeriqMap(){
   }
   function choose(r,pan=true){selected=r;queried=null;const info=q('#map-info');info.hidden=false;info.replaceChildren();
     const lines=[['strong',r.zona],['p',`${r.valor} ${r.unidad} · ${level(r)}`],['p',utcLabel(r.capturada_en)],['p',`${coord(r.latitud)}, ${coord(r.longitud)}`],['p',r.simulado?'Datos simulados':'Medición real · no sustituye a estaciones oficiales']];
-    // El nombre del Orb solo llega en el mapa de la organización, nunca en el público.
+    // El nombre del AERIQ solo llega en el mapa de la organización, nunca en el público.
     if(r.dispositivo)lines.splice(1,0,['p',r.dispositivo]);
     for(const [tag,text] of lines){const n=document.createElement(tag);n.textContent=text;info.append(n);}
     if(pan)map.panTo([r.latitud,r.longitud]);q('#selected-id').textContent=r.id;
@@ -78,17 +77,17 @@ function initAeriqMap(){
     }
     if(baseStatus)status.textContent=baseStatus+(clipped?' Zonas recortadas por rendimiento: acerca el mapa para verlas completas.':'');
   }
-  // Ruta del Orb (solo «Mi organización»): sus posiciones en orden de captura, partidas cuando hay un hueco largo.
+  // Ruta del AERIQ (solo «Mi organización»): sus posiciones en orden de captura, partidas cuando hay un hueco largo.
   function drawRoute(fit=false){
     trail.clearLayers();
     const devices=new Map();
-    if(source==='mine')for(const r of rows)if(r.dispositivo_id!==undefined&&r.dispositivo_id!==null&&!devices.has(String(r.dispositivo_id)))devices.set(String(r.dispositivo_id),r.dispositivo||`Orb #${r.dispositivo_id}`);
+    if(source==='mine')for(const r of rows)if(r.dispositivo_id!==undefined&&r.dispositivo_id!==null&&!devices.has(String(r.dispositivo_id)))devices.set(String(r.dispositivo_id),r.dispositivo||`AERIQ #${r.dispositivo_id}`);
     const box=q('#route-control'),toggle=q('#route-toggle'),select=q('#route-device'),note=q('#route-note'),current=select.value;
     box.hidden=!devices.size;q('#legend-route').hidden=true;
     select.replaceChildren(...[...devices].sort((a,b)=>a[1].localeCompare(b[1],'es')).map(([id,name])=>new Option(name,id)));
     if(devices.has(current))select.value=current;
     select.disabled=!toggle.checked;
-    if(!devices.size||!toggle.checked){note.textContent='Une las posiciones de un Orb en orden de captura, dentro del periodo elegido.';return;}
+    if(!devices.size||!toggle.checked){note.textContent='Une las posiciones de un AERIQ en orden de captura, dentro del periodo elegido.';return;}
     const segments=AeriqDomain.route(rows.filter(r=>String(r.dispositivo_id)===select.value)),points=segments.flat();
     for(const segment of segments)if(segment.length>1)L.polyline(segment.map(r=>[r.latitud,r.longitud]),{pane:'aeriq-ruta',color:routeColor,weight:3.5,opacity:.9,lineJoin:'round',lineCap:'round',interactive:false}).addTo(trail);
     if(points.length){

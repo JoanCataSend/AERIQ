@@ -1,7 +1,6 @@
 """Genera .dist/airiq-google-plesk.zip para extraer sobre httpdocs/."""
 
 from pathlib import Path
-import shutil
 import zipfile
 
 
@@ -44,14 +43,9 @@ def main() -> None:
             source = WEB / relative
             package.write(source, f"src/web/{relative}")
 
-    # Copia separada para phpMyAdmin, fuera de la raíz pública.
-    sql_source = ROOT / "src" / "database" / "anadir-firebase-google.sql"
-    sql_target = ROOT / ".dist" / "anadir-firebase-google.sql"
-    shutil.copy2(sql_source, sql_target)
-
     print(f"ZIP generado: {OUTPUT}")
     print(f"Archivos web: {len(FILES)} + INSTRUCCIONES-PLESK.txt")
-    print(f"SQL separado: {sql_target}")
+    print("Base de datos: src/database/1-instalar.sql ya incluye identidades_externas (no hace falta SQL aparte).")
     print("Extraer sobre httpdocs/. No incluye FirebaseConfig.php ni credenciales privadas.")
 
 

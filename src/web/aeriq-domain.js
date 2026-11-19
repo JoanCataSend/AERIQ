@@ -132,15 +132,26 @@
     }
     return {filas:R,columnas:C,estados:states,evaluadas:evaluated,recortado:clipped};
   }
-  // Batería del Orb (mismos tramos que sus LED): alta > 60 %, media 20–60 %, baja < 20 %.
-  // Sin dato no se inventa nada: «Sin datos» hasta que el Orb con medidor la envíe.
+  // Batería del AERIQ (mismos tramos que sus LED): alta > 60 %, media 20–60 %, baja < 20 %.
+  // Sin dato no se inventa nada: «Sin datos» hasta que el AERIQ con medidor la envíe.
+  // Fechas del servidor (UTC, «YYYY-MM-DD HH:MM:SS[.mmm]») → hora local legible, sin milisegundos ni «UTC».
+  // hour:false → solo el día; seconds:true → hasta el segundo.
+  const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  function when(v,{hour=true,seconds=false}={}){
+    if(!v)return '';const text=String(v).trim().replace(' ','T');
+    const d=new Date(/^\d{4}-\d{2}-\d{2}$/.test(text)?text+'T12:00:00Z':/(Z|[+-]\d{2}:?\d{2})$/.test(text)?text:text+'Z');
+    if(Number.isNaN(d.getTime()))return String(v);
+    const p=n=>String(n).padStart(2,'0');let out=`${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    if(hour&&!/^\d{4}-\d{2}-\d{2}$/.test(text))out+=`, ${p(d.getHours())}:${p(d.getMinutes())}`+(seconds?':'+p(d.getSeconds()):'');
+    return out;
+  }
   function battery(percent,at){
     if(percent===null||percent===undefined||percent===''||!Number.isFinite(Number(percent)))return 'Sin datos';
     const p=Number(percent),tier=p>60?'alta':p>=20?'media':'baja';
-    return `${p} % · ${tier}`+(at?` · ${String(at).slice(0,16)} UTC`:'');
+    return `${p} % · ${tier}`+(at?` · ${when(at)}`:'');
   }
   /**
-   * Ruta de un Orb: sus posiciones en orden de captura, partida en tramos cuando pasan más de
+   * Ruta de un AERIQ: sus posiciones en orden de captura, partida en tramos cuando pasan más de
    * maxHueco minutos entre dos lecturas (un descanso o un día distinto no se une con una línea recta).
    * rows: lecturas con latitud, longitud y capturada_en (UTC). Devuelve una lista de tramos de lecturas.
    */
@@ -155,6 +166,6 @@
     }
     return out;
   }
-  const api={level,csv,statistics,distance,INTERPOLACION,groupKey,support,estimate,describe,interpolate,ZONA,raster,route,battery};
+  const api={level,csv,statistics,distance,INTERPOLACION,groupKey,support,estimate,describe,interpolate,ZONA,raster,route,battery,when};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AeriqDomain=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

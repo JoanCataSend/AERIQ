@@ -33,29 +33,7 @@ desinstalar ni borrar datos de la app si hay pendientes.
 
 ## Limpiar la base existente en Plesk
 
-No usar los scripts `recrear-*` ni los seeds: borrarían cuentas o volverían a
-introducir ejemplos. La limpieza nueva **no reconstruye el esquema**.
-
-1. Detener captura y altas durante la limpieza y exportar una copia SQL desde
-   phpMyAdmin. Seleccionar la base de AERIQ, no `information_schema`.
-2. Ejecutar `src/database/previsualizar-limpieza-sensores.sql`: sólo cuenta filas.
-3. Importar `src/database/limpiar-simulados-y-sensores.sql`.
-4. Verificar: `dispositivos`, `asignaciones` y `mediciones` quedan vacías; cuentas,
-   organizaciones, campañas, sesiones y solicitudes permanecen.
-
-La limpieza borra las lecturas simuladas y retira **todos** los sensores y sus
-asignaciones. Si había lecturas reales, antes copia sus filas y sus referencias a
-`archivo_sensores_mediciones`, `archivo_sensores_asignaciones` y
-`archivo_sensores_dispositivos`. Esas tablas son un archivo, no la lista de sensores
-activos ni la fuente de los informes actuales. Nunca se eliminan datos reales sin
-conservar esta copia. Las campañas se mantienen, aunque queden sin lecturas.
-No se reinician IDs ni se desactivan claves foráneas. El script se ha probado dos
-veces consecutivas: no duplica el archivo ni modifica cuentas/organizaciones.
-
-Después, volver a detectar/asignar el sensor desde Android. Esto genera una nueva
-asignación; las pendientes antiguas de un sensor retirado no se reasignan a ella.
-El nuevo alta utiliza `simulado=0`. Tanto el esquema como los formularios de alta
-y la API dejan los sensores nuevos en modo real por defecto.
+Antes de cualquier cambio, exporta una copia SQL desde phpMyAdmin (**Exportar**). Para empezar de cero, importa `src/database/1-instalar.sql`: borra **todo** (cuentas, campañas y lecturas). Si hay lecturas reales que conservar, no lo uses: quita los datos simulados borrando los dispositivos con `simulado = 1` y sus asignaciones y lecturas, después de revisar la copia.
 
 ## Archivos de entrega
 
