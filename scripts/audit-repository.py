@@ -73,8 +73,7 @@ def main():
         "src/web/server/AuthCore.php", "src/web/server/.htaccess", "src/web/vendor/.htaccess",
         "src/web/server/AeriqCore.php", "src/web/server/AeriqHttp.php",
         "src/web/server/FirebaseAuth.php", "src/web/server/FirebaseConfig.example.php",
-        "src/web/google-auth.js", "src/database/anadir-firebase-google.sql",
-        "src/database/schema.sql", "src/database/seed-demo.sql", "scripts/reset-database.py",
+        "src/web/google-auth.js", "src/database/1-instalar.sql", "src/database/2-simulacion.sql",
         "scripts/migrate-legacy.php", "doc/tareas-sprint.md",
     ]
     for name in required:
@@ -101,7 +100,7 @@ def main():
             check_reference(doc, ref)
 
     pages = sorted(WEB.glob("*.html"))
-    check(len(pages) == 10, f"Se esperaban 10 páginas; encontradas {len(pages)}")
+    check(len(pages) == 9, f"Se esperaban 9 páginas; encontradas {len(pages)}")
     for page in pages:
         parser = References()
         parser.feed(page.read_text(encoding="utf-8-sig"))

@@ -1,39 +1,44 @@
--- AERIQ: RECREACION COMPLETA CON DATOS DEMO PARA PHPMYADMIN / PLESK.
--- ATENCION: elimina TODAS las tablas y vistas de la base seleccionada.
--- Exporta una copia SQL antes de importar. No se puede deshacer con ROLLBACK.
--- Selecciona exclusivamente la base de AERIQ en phpMyAdmin antes de importar.
--- Conserva la base, sus usuarios y permisos: no necesita DROP DATABASE.
--- No elimina procedimientos ni eventos programados ajenos a AERIQ.
--- Generado a partir de schema.sql y seed-demo.sql; no editar a mano.
+-- =====================================================================
+-- AERIQ · 1-instalar.sql
+-- Instala la base de datos completa de AERIQ en la base que tengas
+-- seleccionada (phpMyAdmin → elige la base → pestaña Importar).
+-- No lleva el nombre de la base dentro: sirve igual para mcalgar2_pbio,
+-- jcatsen_pbio o cualquier otra.
+--
+-- ⚠ BORRA todas las tablas y vistas de esa base antes de instalar.
+--
+-- Crea: 26 tablas, 4 vistas, los catálogos (roles, permisos, magnitudes,
+-- servicios…), la organización «AERIQ Gandia» y el admin principal
+--   gandia@gmail.com / 1234  (cámbiala tras el primer acceso).
+-- Después, si quieres datos de prueba, importa 2-simulacion.sql.
+-- =====================================================================
 SET NAMES utf8mb4;
+SET time_zone = '+00:00';
+
+-- ------------------------------------------------------------ 1. Vaciar la base
+-- Los IDs de cuenta siguen creciendo entre reinstalaciones: así una sesión
+-- antigua del navegador o del móvil nunca coincide con una cuenta nueva.
+SELECT GREATEST(UNIX_TIMESTAMP(), COALESCE(MAX(AUTO_INCREMENT), 1)) INTO @aeriq_next_user
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('usuarios', 'AeriqUsuario', '_reinicio_aeriq');
+
 SET @aeriq_old_fk = @@FOREIGN_KEY_CHECKS;
 SET @aeriq_old_concat = @@SESSION.group_concat_max_len;
 SET SESSION group_concat_max_len = 16777216;
 SET FOREIGN_KEY_CHECKS = 0;
-
--- Primero todas las vistas, incluidas las de versiones anteriores.
-SELECT GROUP_CONCAT(CONCAT('`', REPLACE(TABLE_SCHEMA,'`','``'), '`.`',
- REPLACE(TABLE_NAME,'`','``'), '`') SEPARATOR ',') INTO @aeriq_objects
-FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'VIEW';
+-- Primero las vistas y después las tablas (con sus triggers), también las de versiones anteriores.
+SELECT GROUP_CONCAT(CONCAT('`', REPLACE(TABLE_NAME,'`','``'), '`') SEPARATOR ',') INTO @aeriq_objects
+FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'VIEW';
 SET @aeriq_sql = IF(@aeriq_objects IS NULL, 'DO 0', CONCAT('DROP VIEW IF EXISTS ', @aeriq_objects));
-PREPARE aeriq_reset_stmt FROM @aeriq_sql;
-EXECUTE aeriq_reset_stmt;
-DEALLOCATE PREPARE aeriq_reset_stmt;
-
--- Despues todas las tablas. Sus triggers se eliminan junto con ellas.
-SELECT GROUP_CONCAT(CONCAT('`', REPLACE(TABLE_SCHEMA,'`','``'), '`.`',
- REPLACE(TABLE_NAME,'`','``'), '`') SEPARATOR ',') INTO @aeriq_objects
-FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE';
+PREPARE aeriq_stmt FROM @aeriq_sql; EXECUTE aeriq_stmt; DEALLOCATE PREPARE aeriq_stmt;
+SELECT GROUP_CONCAT(CONCAT('`', REPLACE(TABLE_NAME,'`','``'), '`') SEPARATOR ',') INTO @aeriq_objects
+FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE';
 SET @aeriq_sql = IF(@aeriq_objects IS NULL, 'DO 0', CONCAT('DROP TABLE IF EXISTS ', @aeriq_objects));
-PREPARE aeriq_reset_stmt FROM @aeriq_sql;
-EXECUTE aeriq_reset_stmt;
-DEALLOCATE PREPARE aeriq_reset_stmt;
+PREPARE aeriq_stmt FROM @aeriq_sql; EXECUTE aeriq_stmt; DEALLOCATE PREPARE aeriq_stmt;
 SET FOREIGN_KEY_CHECKS = @aeriq_old_fk;
 SET SESSION group_concat_max_len = @aeriq_old_concat;
 
--- Esquema actual.
+-- ------------------------------------------------------------ 2. Estructura y catálogos
 -- AERIQ · Esquema único para instalaciones nuevas (MariaDB 10.4+).
 -- No contiene DROP DATABASE, cuentas reales ni datos de producción.
 -- Las decisiones de diseño están explicadas en doc/base-de-datos.md.
@@ -52,24 +57,29 @@ CREATE TABLE roles (
  requiere_organizacion BOOLEAN NOT NULL DEFAULT TRUE,
  asignable BOOLEAN NOT NULL DEFAULT FALSE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Admin principal: crea campañas y nombra a su admin, sigue su estado y atiende las solicitudes.
+-- Admin de campaña: una sola campaña; crea operadores, registra y asigna los AERIQ y exporta CSV.
+-- Operador (código «trabajador»): pertenece a una campaña y mide con la app.
 INSERT INTO roles (id,codigo,nombre,descripcion,requiere_organizacion,asignable) VALUES
  (1,'visitante','Visitante','Cuenta sin organización. Solo consulta pública.',0,0),
- (2,'trabajador','Trabajador','Recoge mediciones con los Orb que tiene asignados.',1,1),
- (3,'analista','Analista','Consulta informes y exporta los datos de su organización.',1,1),
- (4,'admin','Administrador','Gestiona cuentas, campañas y Orb de su organización.',1,0),
- (5,'comercial','Comercial','Atiende las solicitudes de presupuesto de Código Norte.',0,0);
+ (2,'trabajador','Operador','Mide con los AERIQ que tiene asignados en su campaña.',1,1),
+ (3,'admin_campana','Admin de campaña','Gestiona una campaña: crea operadores, registra los AERIQ y exporta CSV.',1,1),
+ (4,'admin','Administrador principal','Crea campañas y nombra a su admin, sigue su estado y atiende las solicitudes.',1,0);
 
 CREATE TABLE permisos (
  id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  codigo VARCHAR(60) NOT NULL UNIQUE,
  descripcion VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- El id 3 (organizacion.gestionar) ya no existe: se sustituyó por campanas.gestionar y equipo.gestionar.
 INSERT INTO permisos (id,codigo,descripcion) VALUES
  (1,'mapa.organizacion','Ver el mapa privado de su organización.'),
  (2,'informes.ver','Ver el panel, los informes y exportar los datos de toda la organización.'),
- (3,'organizacion.gestionar','Dar de alta cuentas, campañas y Orb de su organización.'),
- (4,'mediciones.registrar','Recibir asignaciones, vincular Orb propios y enviar lecturas desde Android.'),
- (5,'solicitudes.gestionar','Ver las solicitudes comerciales y cambiar su estado.');
+ (4,'mediciones.registrar','Recibir el AERIQ que le asigna su admin y enviar lecturas desde Android.'),
+ (5,'solicitudes.gestionar','Ver las solicitudes comerciales y cambiar su estado.'),
+ (6,'campanas.gestionar','Crear campañas y los administradores de cada campaña.'),
+ (7,'equipo.gestionar','Crear operadores y registrar y asignar los AERIQ de su campaña.'),
+ (8,'datos.exportar','Exportar a CSV las lecturas de su campaña.');
 
 CREATE TABLE rol_permisos (
  rol_id TINYINT UNSIGNED NOT NULL,
@@ -80,11 +90,10 @@ CREATE TABLE rol_permisos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO rol_permisos (rol_id,permiso_id) VALUES
  (2,1),(2,4),
- (3,1),(3,2),
- (4,1),(4,2),(4,3),(4,4),
- (5,5);
+ (3,1),(3,2),(3,7),(3,8),
+ (4,5),(4,6);
 
--- El id coincide con el código de tipo del anuncio BLE del Orb (14 = O3, 12 = temperatura):
+-- El id coincide con el código de tipo del anuncio BLE del AERIQ (14 = O3, 12 = temperatura):
 -- es una clave natural fijada por el firmware, por eso no es AUTO_INCREMENT.
 CREATE TABLE magnitudes (
  id INT PRIMARY KEY, nombre VARCHAR(60) NOT NULL, unidad VARCHAR(16) NOT NULL,
@@ -104,7 +113,7 @@ CREATE TABLE modelos_dispositivo (
  nombre VARCHAR(120) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO modelos_dispositivo (id,codigo,nombre) VALUES
- (1,'orb-v1','Orb v1 · nRF52840 (ozono y temperatura)');
+ (1,'orb-v1','AERIQ v1 · nRF52840 (ozono y temperatura)');
 
 -- Qué magnitudes puede enviar cada modelo; la ingesta lo comprueba.
 CREATE TABLE modelo_magnitudes (
@@ -125,9 +134,9 @@ CREATE TABLE servicios (
  orden TINYINT UNSIGNED NOT NULL DEFAULT 0,
  activo BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
--- Qué le interesa al cliente. El número de Orb lo recomienda Código Norte.
+-- Qué le interesa al cliente. El número de AERIQ lo recomienda Código Norte.
 INSERT INTO servicios (id,codigo,nombre,descripcion,mide_superficie,orden) VALUES
- (1,'kits','Comprar Orb para mi organización','Sensores propios con app y panel. Te recomendamos cuántos necesitas.',0,1),
+ (1,'kits','Comprar AERIQ para mi organización','Sensores propios con app y panel. Te recomendamos cuántos necesitas.',0,1),
  (2,'estudio','Contratar un estudio de ozono','Medimos nosotros la zona durante un tiempo, sin comprar sensores, y entregamos un informe.',1,2),
  (3,'asesoramiento','No lo tengo claro, aconsejadme','Cuéntanos tu caso y te proponemos la opción que mejor encaja.',0,3);
 
@@ -187,6 +196,7 @@ CREATE TABLE usuarios (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  organizacion_id BIGINT UNSIGNED NULL,
  rol_id TINYINT UNSIGNED NOT NULL DEFAULT 1,
+ campana_id BIGINT UNSIGNED NULL,
  nombre VARCHAR(90) NOT NULL, apellidos VARCHAR(120) NOT NULL,
  email VARCHAR(254) NOT NULL UNIQUE, telefono VARCHAR(40) NOT NULL DEFAULT '',
  password_hash VARCHAR(255) NOT NULL,
@@ -236,6 +246,8 @@ CREATE TABLE campanas (
  FOREIGN KEY (zona_id,organizacion_id) REFERENCES zonas(id,organizacion_id),
  CHECK (fin >= inicio), CHECK (radio_m BETWEEN 20 AND 50)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Cada cuenta pertenece a una campaña de SU organización (NULL = admin principal, que ve todas).
+ALTER TABLE usuarios ADD CONSTRAINT usuario_campana FOREIGN KEY (campana_id,organizacion_id) REFERENCES campanas(id,organizacion_id);
 
 -- Umbrales propios de una campaña. Sin fila, se usan los de referencia de la magnitud.
 CREATE TABLE campana_umbrales (
@@ -274,8 +286,8 @@ CREATE TABLE asignaciones (
  INDEX (trabajador_id,finalizada_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Nivel de batería que informa el propio Orb (medidor MAX17048) a través de la app.
--- No es una medición ambiental: pertenece al Orb, no a una campaña, por eso no va en mediciones.
+-- Nivel de batería que informa el propio AERIQ (medidor MAX17048) a través de la app.
+-- No es una medición ambiental: pertenece al AERIQ, no a una campaña, por eso no va en mediciones.
 CREATE TABLE lecturas_bateria (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  dispositivo_id BIGINT UNSIGNED NOT NULL,
@@ -313,7 +325,7 @@ CREATE TABLE mediciones (
 -- ============================================================ Solicitudes comerciales
 
 -- Qué pide (servicio), quién lo pide (tipo de organización) y dónde.
--- No se pide cantidad de Orb: la recomienda Código Norte. Superficie, duración e
+-- No se pide cantidad de AERIQ: la recomienda Código Norte. Superficie, duración e
 -- inicio solo aplican a estudios (servicios.mide_superficie); la superficie es
 -- opcional porque el cliente no suele saberla. tipo_organizacion_id NULL = solicitud
 -- anterior a v3 en la que no se preguntaba.
@@ -425,61 +437,19 @@ CREATE VIEW vista_solicitudes AS
  LEFT JOIN tipos_organizacion t ON t.id=s.tipo_organizacion_id
  JOIN estados_solicitud e ON e.id=s.estado_id;
 
--- Datos de ejemplo.
--- SOLO DEMOSTRACIÓN. Correos .example, MAC ficticias y mediciones simuladas.
--- Todas las cuentas: AeriqDemo-2026! (sustituirlas en un entorno real).
--- Roles (roles.id): 2 trabajador, 3 analista, 4 admin, 5 comercial.
-SET time_zone = '+00:00';
-START TRANSACTION;
-INSERT INTO organizaciones(id,nombre) VALUES
- (1,'Ayuntamiento de Gandía · demostración'),
- (2,'Empresa Verde · demostración'),
- (3,'Código Norte · equipo comercial');
-INSERT INTO usuarios(id,organizacion_id,rol_id,nombre,apellidos,email,password_hash,activo,debe_cambiar_clave,verificado_en,invitacion_expira_en) VALUES
- (1,1,4,'Ana','Administradora','admin@gandia.example','$2y$10$0Laxah.mivUKaWLxvpqdeO4Ukkyn2absN8vvGZgBIsBP.QL4WzTMK',1,0,UTC_TIMESTAMP(),NULL),
- (2,1,2,'Pau','Operador','operador@gandia.example','$2y$10$0Laxah.mivUKaWLxvpqdeO4Ukkyn2absN8vvGZgBIsBP.QL4WzTMK',0,1,NULL,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 24 HOUR)),
- (3,1,3,'Marta','Analista','analista@gandia.example','$2y$10$0Laxah.mivUKaWLxvpqdeO4Ukkyn2absN8vvGZgBIsBP.QL4WzTMK',1,0,UTC_TIMESTAMP(),NULL),
- (4,3,5,'Joan','Comercial','comercial@codigonorte.example','$2y$10$0Laxah.mivUKaWLxvpqdeO4Ukkyn2absN8vvGZgBIsBP.QL4WzTMK',1,0,UTC_TIMESTAMP(),NULL),
- (5,2,4,'Elena','Administradora','admin@empresaverde.example','$2y$10$0Laxah.mivUKaWLxvpqdeO4Ukkyn2absN8vvGZgBIsBP.QL4WzTMK',1,0,UTC_TIMESTAMP(),NULL),
- (6,2,2,'Luis','Operador','operador@empresaverde.example','$2y$10$0Laxah.mivUKaWLxvpqdeO4Ukkyn2absN8vvGZgBIsBP.QL4WzTMK',1,0,UTC_TIMESTAMP(),NULL);
-INSERT INTO zonas(id,organizacion_id,nombre) VALUES
- (1,1,'Campus UPV Gandía'),
- (2,2,'Instalaciones Empresa Verde');
-INSERT INTO campanas(id,organizacion_id,zona_id,nombre,inicio,fin,publicar) VALUES
- (1,1,1,'Paseo por el campus · simulación',DATE_SUB(UTC_DATE(),INTERVAL 7 DAY),DATE_ADD(UTC_DATE(),INTERVAL 30 DAY),1),
- (2,2,2,'Estudio interno · simulación',DATE_SUB(UTC_DATE(),INTERVAL 7 DAY),DATE_ADD(UTC_DATE(),INTERVAL 30 DAY),0);
--- La campaña 1 usa los umbrales de referencia del ozono; la 2 define los suyos.
-INSERT INTO campana_umbrales(campana_id,magnitud_id,umbral_medio,umbral_alto) VALUES (2,14,50,90);
-INSERT INTO dispositivos(id,organizacion_id,modelo_id,nombre,direccion_ble,simulado) VALUES
- (1,1,1,'Orb Campus 01','D0:00:00:00:00:01',1),
- (2,1,1,'Orb de reserva 02','D0:00:00:00:00:02',1),
- (3,2,1,'Orb Empresa 01','D0:00:00:00:00:03',1);
-INSERT INTO asignaciones(id,organizacion_id,dispositivo_id,trabajador_id,campana_id,iniciada_en) VALUES
- (1,1,1,2,1,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 7 DAY)),
- (2,2,3,6,2,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 7 DAY));
-INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado) VALUES
- ('00000000-0000-4000-8000-000000000001',1,14,42,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY),38.996651,-0.166009,5,1,-60,1),
- ('00000000-0000-4000-8000-000000000002',1,14,55,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY),38.996711,-0.166009,5,2,-61,1),
- ('00000000-0000-4000-8000-000000000003',1,14,68,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 6 HOUR),38.996651,-0.165929,5,3,-59,1),
- ('00000000-0000-4000-8000-000000000004',1,14,78,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 HOUR),38.996681,-0.165969,5,4,-58,1),
- ('00000000-0000-4000-8000-000000000005',1,14,104,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 HOUR),38.996691,-0.165939,5,5,-62,1),
- ('00000000-0000-4000-8000-000000000006',1,14,85,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.996671,-0.165989,5,6,-60,1),
- ('00000000-0000-4000-8000-000000000007',1,12,22,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.996671,-0.165989,5,7,-60,1),
- ('00000000-0000-4000-8000-000000000008',2,14,49,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 HOUR),38.998000,-0.162500,8,1,-65,1),
- ('00000000-0000-4000-8000-000000000009',2,14,57,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 MINUTE),38.998060,-0.162500,8,2,-63,1);
--- Servicios: 1 kits, 2 estudio, 3 asesoramiento. Tipos: 1 administración, 2 empresa, 3 otra.
--- Estados: 1 pendiente, 2 en revisión, 3 respondida. Objetivos: ver objetivos_medicion.
-INSERT INTO solicitudes(id,servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,telefono,municipio,provincia,zona,superficie,duracion,inicio_deseado,necesidades,recibida_en) VALUES
- (1,1,1,1,'Ayuntamiento de ejemplo','Responsable municipal','municipio@example.test','600000001','Gandia','Valencia','Parques del municipio',NULL,'',NULL,'Kits para una campaña de movilidad.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
- (2,1,2,2,'Empresa de ejemplo','Responsable ambiental','empresa@example.test','','Oliva','Valencia','Recinto industrial',NULL,'',NULL,'Comparar turnos y zonas de acceso.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),
- (3,2,3,3,'Centro educativo de ejemplo','Coordinación del centro','centro@example.test','','Tavernes de la Valldigna','Valencia','Entorno del centro',2500,'2 semanas',NULL,'Estudio con informe y evolución diaria.',DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY));
-INSERT INTO solicitud_objetivos(solicitud_id,objetivo_id) VALUES (1,1),(2,2),(3,1),(3,4);
-INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id,cambiado_en) VALUES
- (1,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 3 DAY)),
- (2,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 DAY)),
- (2,2,4,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY)),
- (3,1,NULL,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY)),
- (3,3,4,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 2 HOUR));
-COMMIT;
+SET @aeriq_sql = CONCAT('ALTER TABLE usuarios AUTO_INCREMENT = ', @aeriq_next_user);
+PREPARE aeriq_stmt FROM @aeriq_sql; EXECUTE aeriq_stmt; DEALLOCATE PREPARE aeriq_stmt;
 
-SELECT 'AERIQ recreada con datos demo' AS resultado;
+-- ------------------------------------------------------------ 3. Organización y admin principal
+INSERT INTO organizaciones (nombre) VALUES ('AERIQ Gandia');
+-- Contraseña inicial: 1234 (hash bcrypt).
+INSERT INTO usuarios (organizacion_id, rol_id, nombre, apellidos, email, password_hash, verificado_en)
+SELECT o.id, r.id, 'Marina', 'Ferrer', 'gandia@gmail.com', '$2y$10$/MrmCv/SRn0c1d9JG47pJuozOWhX7bR6KfEGG6iZO2oB.NtFstlY2', UTC_TIMESTAMP()
+FROM organizaciones o JOIN roles r ON r.codigo = 'admin' WHERE o.nombre = 'AERIQ Gandia';
+
+-- ------------------------------------------------------------ Resumen
+SELECT DATABASE() AS base_instalada, (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS tablas_y_vistas;
+SELECT r.nombre AS rol, GROUP_CONCAT(p.codigo ORDER BY p.id SEPARATOR ', ') AS permisos
+FROM roles r LEFT JOIN rol_permisos rp ON rp.rol_id = r.id LEFT JOIN permisos p ON p.id = rp.permiso_id
+GROUP BY r.id ORDER BY r.id;
+SELECT email, nombre, apellidos FROM usuarios;

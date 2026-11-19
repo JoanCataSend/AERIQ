@@ -7,12 +7,10 @@ Python 3.9+ y biblioteca estándar, salvo la prueba DOM opcional. Se resuelve la
 | `audit-repository.py` | Estructura, referencias, exclusión de secretos y sintaxis JS/PHP disponible |
 | `build-plesk-package.py` | Raíz web sin secretos/dependencias instaladas; salida nueva dentro de `.dist/` |
 | `build-google-plesk-zip.py` | ZIP de cambios Google/Firebase para extraer sobre `httpdocs/`, con instrucciones |
-| `reset-database.py` | Recreación de una base explícita con copia previa, confirmación y `--dry-run` |
-| `build-database-scripts.py` | Regenera los `recrear-*.sql` y el esquema de `reinicio/01-instalar.sql` desde `schema.sql` y `seed-demo.sql`; no conecta con ninguna base |
 | `migrate-legacy.php` | Inventario/importación a otra base vacía; no borra el origen |
 | `bootstrap-organization.php` | Primer administrador/comercial, únicamente por CLI sobre visitante verificado |
 
-El [README de datos](../src/database/README.md) contiene comandos de recreación y migración. No ejecutes los scripts destructivos como paso rutinario de compilación ni desde un endpoint web. Los respaldos y configuraciones temporales están en `.local-backups/` e ignorados por Git.
+La base se instala importando `src/database/1-instalar.sql` en phpMyAdmin (ver el [README de datos](../src/database/README.md)); ningún script la borra. Los respaldos y configuraciones temporales están en `.local-backups/` e ignorados por Git.
 
 ## Comprobaciones
 

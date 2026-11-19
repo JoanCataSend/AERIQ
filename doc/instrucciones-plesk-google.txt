@@ -62,47 +62,12 @@ Proyecto: airiq-e9d70
 - No hace falta clave de servicio ni Firebase Admin. El backend verifica la
   firma RS256 con los certificados públicos de Google.
 
-4. SQL QUE DEBES EJECUTAR
--------------------------
-En phpMyAdmin selecciona la base de datos real de AERIQ (la misma que usa
-SDBaseDatos.php), abre la pestaña Importar y ejecuta este SQL. Es repetible:
-si firebase_uid o el índice ya existen, no cambia nada y no borra datos.
-
--- INICIO SQL
-SET NAMES utf8mb4;
-
-SET @add_column := (
-  SELECT IF(
-    COUNT(*) = 0,
-    'ALTER TABLE usuarios ADD COLUMN firebase_uid VARCHAR(128) NULL AFTER password_hash',
-    'SELECT ''firebase_uid ya existe'' AS aviso'
-  )
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'usuarios'
-    AND COLUMN_NAME = 'firebase_uid'
-);
-PREPARE stmt FROM @add_column;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @add_index := (
-  SELECT IF(
-    COUNT(*) = 0,
-    'ALTER TABLE usuarios ADD UNIQUE KEY usuario_firebase_uid (firebase_uid)',
-    'SELECT ''usuario_firebase_uid ya existe'' AS aviso'
-  )
-  FROM information_schema.STATISTICS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'usuarios'
-    AND INDEX_NAME = 'usuario_firebase_uid'
-);
-PREPARE stmt FROM @add_index;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
--- FIN SQL
-
-No ejecutes este SQL desde la web ni desde un script automático de producción.
+4. BASE DE DATOS: NO HAY QUE EJECUTAR NADA
+------------------------------------------
+La base instalada con src/database/1-instalar.sql ya tiene la tabla
+identidades_externas, donde se guarda el vínculo de cada cuenta con Google
+(proveedor 'firebase' y su UID). No añadas la antigua columna firebase_uid a
+usuarios: el código actual no la usa.
 
 5. COMPROBAR QUE EL ENDPOINT FUNCIONA
 -------------------------------------
@@ -125,7 +90,7 @@ del navegador (Ctrl+F5) para descartar una copia antigua.
    Google. No crees la cuenta desde Google: Google nunca registra usuarios.
 2. Abre https://jcatsen.upv.edu.es/AERIQ/login.html
 3. Pulsa "Iniciar sesión con Google" y elige la cuenta invitada.
-4. Si la invitación está vigente, entra, se guarda firebase_uid, se activa la
+4. Si la invitación está vigente, entra, se guarda su UID en identidades_externas, se activa la
    cuenta y la contraseña temporal deja de servir.
 5. Prueba también:
    - correo no registrado: error 403 y ninguna cuenta nueva;

@@ -47,123 +47,36 @@ def main():
             except RuntimeError:
                 if time.monotonic()>deadline:raise RuntimeError('MariaDB aislada no ha arrancado')
                 time.sleep(.2)
-        sql('CREATE DATABASE aeriq_test CHARACTER SET utf8mb4; USE aeriq_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8'))
+        # Base de la instalación (src/database/1-instalar.sql) sin su organización ni su admin, para las pruebas de API.
+        install=(ROOT/'src/database/1-instalar.sql').read_text(encoding='utf-8')
+        simulation=(ROOT/'src/database/2-simulacion.sql').read_text(encoding='utf-8')
+        schema=install+'\nDELETE FROM usuarios; DELETE FROM organizaciones;\n'
+        sql('CREATE DATABASE aeriq_test CHARACTER SET utf8mb4; USE aeriq_test;'+schema)
         password='Integration-Only-2026!'
         hashed=subprocess.check_output([opt.php,'-r',f'echo password_hash("{password}", PASSWORD_DEFAULT);'],text=True).strip()
         sql(f"USE aeriq_test; INSERT INTO organizaciones(nombre) VALUES('Org A'),('Org B'); INSERT INTO usuarios(nombre,apellidos,email,password_hash,verificado_en) VALUES('Admin','A','admin-a@example.test','{hashed}',NOW()),('Admin','B','admin-b@example.test','{hashed}',NOW()),('Comercial','CN','sales@example.test','{hashed}',NOW()); UPDATE usuarios SET organizacion_id=1,rol_id=(SELECT id FROM roles WHERE codigo='admin') WHERE id=1; UPDATE usuarios SET organizacion_id=2,rol_id=(SELECT id FROM roles WHERE codigo='admin') WHERE id=2; UPDATE usuarios SET rol_id=(SELECT id FROM roles WHERE codigo='comercial') WHERE id=3;")
-        # Una instalación nueva puede recrearse sin depender de las tablas de Plesk.
-        sql('CREATE DATABASE aeriq_demo_test; USE aeriq_demo_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8')+(ROOT/'src/database/seed-demo.sql').read_text(encoding='utf-8'))
-        assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM usuarios')=='6'
-        assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
-        assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones WHERE simulado=0')=='0'
-        # Migración v1 -> v2 -> v3: conserva los datos, es repetible y deja la misma estructura que schema.sql.
-        sql('CREATE DATABASE aeriq_v1_test CHARACTER SET utf8mb4; USE aeriq_v1_test;'+(ROOT/'scripts/tests/fixtures/esquema-v1-con-demo.sql').read_text(encoding='utf-8'))
-        sql("USE aeriq_v1_test; INSERT INTO organizaciones(id,nombre) VALUES(9,'Empresa Verde · demostración'); UPDATE usuarios SET firebase_uid='uid-demo' WHERE id=1; UPDATE campanas SET umbral_medio=55 WHERE id=2; UPDATE solicitudes SET estado='en revision' WHERE id=2;")
+        # 1-instalar.sql: sin nombre de base, borra tablas y vistas anteriores, se puede repetir y los IDs de cuenta no se reutilizan.
+        sql('CREATE DATABASE aeriq_install_test CHARACTER SET utf8mb4; USE aeriq_install_test; CREATE TABLE tabla_antigua(id INT); CREATE VIEW vista_antigua AS SELECT * FROM tabla_antigua;')
+        previous_admin=0
         for _ in range(2):
-            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v2-catalogos.sql').read_text(encoding='utf-8'))
-            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v3-solicitudes.sql').read_text(encoding='utf-8'))
-            sql('USE aeriq_v1_test;'+(ROOT/'src/database/migracion-v4-bateria.sql').read_text(encoding='utf-8'))
-            assert sql('USE aeriq_v1_test; SELECT COUNT(*) FROM mediciones')=='9'
-            assert sql("USE aeriq_v1_test; SELECT r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id ORDER BY u.id")=='admin\ntrabajador\nanalista\ncomercial\nadmin\ntrabajador'
-            assert sql("USE aeriq_v1_test; SELECT nombre FROM organizaciones WHERE id=9")=='Empresa Verde · demostración (#9)'
-            assert sql("USE aeriq_v1_test; SELECT usuario_id,proveedor,uid_externo FROM identidades_externas")=='1\tfirebase\tuid-demo'
-            assert sql("USE aeriq_v1_test; SELECT umbral_medio FROM campana_umbrales WHERE campana_id=2 AND magnitud_id=14")=='55'
-            assert sql("USE aeriq_v1_test; SELECT e.codigo FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=2")=='en_revision'
-            assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM solicitudes_historial")=='3'
-            assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM vista_mediciones")=='9'
-            # Las solicitudes de los antiguos servicios administracion/empresa pasan a 'kits' con su tipo de organización.
-            assert sql("USE aeriq_v1_test; SELECT s.id,v.codigo,COALESCE(t.codigo,'-'),COALESCE(s.superficie,'-') FROM solicitudes s JOIN servicios v ON v.id=s.servicio_id LEFT JOIN tipos_organizacion t ON t.id=s.tipo_organizacion_id ORDER BY s.id")=='1\tkits\tadministracion\t-\n2\tkits\tempresa\t-\n3\testudio\t-\t2500'
-            assert sql("USE aeriq_v1_test; SELECT codigo FROM servicios ORDER BY orden")=='kits\nestudio\nasesoramiento'
-            assert sql("USE aeriq_v1_test; SELECT COUNT(*) FROM vista_solicitudes")=='3'
-        structure="SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,COALESCE(COLUMN_DEFAULT,'-') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='{}' ORDER BY 1,2"
-        foreign="SELECT TABLE_NAME,REFERENCED_TABLE_NAME,GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='{}' AND REFERENCED_TABLE_NAME IS NOT NULL GROUP BY CONSTRAINT_NAME,TABLE_NAME,REFERENCED_TABLE_NAME ORDER BY 1,2,3"
-        checks="SELECT TABLE_NAME,CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='{}' ORDER BY 1,2"
-        for query in [structure,foreign,checks]:
-            assert sql(query.format('aeriq_v1_test'))==sql(query.format('aeriq_demo_test')),query
-        # SQL completo de phpMyAdmin: elimina incluso tablas/vistas heredadas y se puede repetir.
-        sql('USE aeriq_demo_test; CREATE TABLE tabla_antigua(id INT); CREATE VIEW vista_antigua AS SELECT * FROM tabla_antigua;')
-        for _ in range(2):
-            sql('USE aeriq_demo_test;'+(ROOT/'src/database/recrear-demo-plesk.sql').read_text(encoding='utf-8'))
-            assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM usuarios')=='6'
-            assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_demo_test' AND TABLE_NAME IN ('tabla_antigua','vista_antigua')")=='0'
-        reset=[os.sys.executable,'-X','utf8',str(ROOT/'scripts/reset-database.py'),'--database','aeriq_demo_test','--host','127.0.0.1','--port',str(dbport),'--user','root','--mysql-bin',str(binary),'--demo']
-        assert subprocess.run(reset+['--dry-run'],capture_output=True).returncode==0
-        assert subprocess.run(reset,capture_output=True).returncode!=0
-        assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
-        recreated=subprocess.run(reset+['--confirm','RECREAR:aeriq_demo_test'],env={**os.environ,'AERIQ_DB_PASSWORD':''},capture_output=True,text=True)
-        assert recreated.returncode==0,recreated.stderr
-        assert 'Copia previa:' in recreated.stdout,(recreated.stdout,recreated.stderr)
-        assert sql('USE aeriq_demo_test; SELECT COUNT(*) FROM mediciones')=='9'
-        # Migración de un Sprint 0 mínimo: conserva valores y no inventa GPS ni MAC.
-        sql('CREATE DATABASE aeriq_cleanup_test; USE aeriq_cleanup_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8')+(ROOT/'src/database/seed-demo.sql').read_text(encoding='utf-8'))
-        sql(f"USE aeriq_cleanup_test; INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,simulado) SELECT '{uuid.uuid4()}',id,14,73,UTC_TIMESTAMP(3),0 FROM asignaciones ORDER BY id LIMIT 1")
-        accounts_before=sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
-        orgs_before=sql('USE aeriq_cleanup_test; SELECT * FROM organizaciones ORDER BY id')
-        for _ in range(2):
-            cleanup_out=sql('USE aeriq_cleanup_test;'+(ROOT/'src/database/limpiar-simulados-y-sensores.sql').read_text(encoding='utf-8'))
-            n=sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM mediciones');assert n=='0',('mediciones',n,cleanup_out)
-            n=sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM dispositivos');assert n=='0',('dispositivos',n,cleanup_out)
-            n=sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM asignaciones');assert n=='0',('asignaciones',n,cleanup_out)
-            assert sql('USE aeriq_cleanup_test; SELECT COUNT(*) FROM archivo_sensores_mediciones WHERE simulado=0 AND valor=73')=='1'
-            after=sql('USE aeriq_cleanup_test; SELECT id,email,password_hash,organizacion_id FROM usuarios ORDER BY id')
-            assert accounts_before==after,(accounts_before,after)
-            assert orgs_before==sql('USE aeriq_cleanup_test; SELECT * FROM organizaciones ORDER BY id')
-        sql('CREATE DATABASE jcatsen_pbio; USE jcatsen_pbio; CREATE TABLE AeriqUsuario(id INT PRIMARY KEY); CREATE TABLE AeriqCodigoEmail(id INT, FOREIGN KEY(id) REFERENCES AeriqUsuario(id)); CREATE TABLE AeriqSesionMovil(id INT, FOREIGN KEY(id) REFERENCES AeriqUsuario(id)); CREATE TABLE Dispositivo(id INT PRIMARY KEY); CREATE TABLE TipoMedida(id INT PRIMARY KEY); CREATE TABLE Medida(id INT, dispositivo_id INT, tipo INT, FOREIGN KEY(dispositivo_id) REFERENCES Dispositivo(id), FOREIGN KEY(tipo) REFERENCES TipoMedida(id)); INSERT INTO Medida(id) VALUES(1);')
-        for _ in range(2):
-            sql((ROOT/'src/database/recrear-jcatsen-pbio.sql').read_text(encoding='utf-8'))
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='6'
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='9'
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_NAME='Medida'")=='0'
-        for _ in range(2):
-            sql((ROOT/'src/database/anadir-mediciones-publicas-privadas.sql').read_text(encoding='utf-8'))
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='45'
-            assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae100000-%' AND c.publicar=1")=='12'
-            assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae100000-%' AND c.publicar=0")=='24'
-        for _ in range(2):
-            sql((ROOT/'src/database/anadir-mediciones-playa-gandia.sql').read_text(encoding='utf-8'))
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='99'
-            assert sql("USE jcatsen_pbio; SELECT SUM(valor<60),SUM(valor>=60 AND valor<100),SUM(valor>=100) FROM mediciones WHERE evento LIKE 'ae200000-%'")=='18\t18\t18'
-            assert sql("USE jcatsen_pbio; SELECT COUNT(*) FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN campanas c ON c.id=a.campana_id WHERE m.evento LIKE 'ae200000-%' AND c.publicar=1 AND m.simulado=1")=='54'
-        reset_dir=ROOT/'src/database/reinicio'
-        format_sql=(reset_dir/'00-formatear.sql').read_text(encoding='utf-8')
-        install_sql=(reset_dir/'01-instalar.sql').read_text(encoding='utf-8')
-        unqualified_install=re.sub(r'`jcatsen_pbio`\.`(\w+)`',r'\1',install_sql)
-        assert (ROOT/'src/database/schema.sql').read_text(encoding='utf-8') in unqualified_install
-        # Simula el cambio de base activa de phpMyAdmin al consultar metadatos.
-        format_sql=format_sql.replace("-- Este marcador vacío", "USE information_schema;\n-- Este marcador vacío")
-        install_sql=install_sql.replace("-- AERIQ · Esquema único", "USE information_schema;\n-- AERIQ · Esquema único")
-        admin_seed=(reset_dir/'02-admin.sql').read_text(encoding='utf-8')
-        sql('USE jcatsen_pbio; CREATE TABLE tokens_consumidos(id INT PRIMARY KEY); CREATE VIEW vista_anterior AS SELECT id FROM tokens_consumidos;')
-        sql('ALTER TABLE jcatsen_pbio.usuarios AUTO_INCREMENT=2000000000')
-        previous_admin=1999999999
-        for _ in range(2):
-            sql('USE aeriq_test;'+format_sql)
-            assert sql("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio'")=='_reinicio_aeriq'
-            sql(install_sql)
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='BASE TABLE'")=='26'
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='jcatsen_pbio' AND TABLE_TYPE='VIEW'")=='4'
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones')=='0'
-            assert sql('SELECT id FROM jcatsen_pbio.magnitudes ORDER BY id')=='12\n14'
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='0'
-            if previous_admin == 1999999999:
-                sql("INSERT INTO jcatsen_pbio.organizaciones(nombre) VALUES ('AERIQ Gandia')")
-            # phpMyAdmin puede ejecutar consultas intermedias entre sentencias del importador.
-            sql(admin_seed.replace("INSERT INTO `jcatsen_pbio`.`usuarios`", "SELECT 1;\nINSERT INTO `jcatsen_pbio`.`usuarios`"))
-            sql(admin_seed)
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.organizaciones')=='1'
-            admin_id,role=sql('SELECT u.id,r.codigo FROM jcatsen_pbio.usuarios u JOIN jcatsen_pbio.roles r ON r.id=u.rol_id').split('\t')
-            assert role=='admin' and int(admin_id)>previous_admin
+            sql('USE aeriq_install_test;'+install)
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_install_test' AND TABLE_TYPE='BASE TABLE'")=='26'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_install_test' AND TABLE_TYPE='VIEW'")=='4'
+            assert sql('USE aeriq_install_test; SELECT id FROM magnitudes ORDER BY id')=='12\n14'
+            admin_id,email,role=sql('USE aeriq_install_test; SELECT u.id,u.email,r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id').split('\t')
+            assert email=='gandia@gmail.com' and role=='admin' and int(admin_id)>previous_admin
             previous_admin=int(admin_id)
-        # Datos simulados opcionales sobre la instalación por fases: repetibles y sin duplicados.
-        for _ in range(2):
-            sql((reset_dir/'03-simulacion.sql').read_text(encoding='utf-8'))
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.mediciones WHERE simulado=1')=='54'
-            assert sql("SELECT COUNT(*) FROM jcatsen_pbio.mediciones m JOIN jcatsen_pbio.asignaciones a ON a.id=m.asignacion_id JOIN jcatsen_pbio.campanas c ON c.id=a.campana_id WHERE c.publicar=1 AND m.magnitud_id=14")=='30'
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.usuarios')=='5'
-            assert sql('SELECT COUNT(*) FROM jcatsen_pbio.solicitudes_historial')=='6'
+            # 2-simulacion.sql: repetible, sin duplicados, una campaña por cuenta y un AERIQ por operador.
+            for _ in range(2):
+                sql('USE aeriq_install_test;'+simulation)
+                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM mediciones WHERE simulado=1')=='54'
+                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM usuarios')=='5'
+                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM solicitudes_historial')=='6'
+                assert sql("USE aeriq_install_test; SELECT COUNT(*) FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE r.codigo<>'admin' AND u.campana_id IS NULL")=='0'
+                assert sql('USE aeriq_install_test; SELECT MAX(n) FROM (SELECT COUNT(*) n FROM asignaciones WHERE finalizada_en IS NULL GROUP BY trabajador_id) t')=='1'
+        assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_install_test' AND TABLE_NAME IN ('tabla_antigua','vista_antigua')")=='0'
         sql("CREATE DATABASE aeriq_old_test; USE aeriq_old_test; CREATE TABLE AeriqUsuario(id BIGINT PRIMARY KEY,nombre VARCHAR(90),apellidos VARCHAR(120),email VARCHAR(254),telefono VARCHAR(40),password_hash VARCHAR(255),verificado_en DATETIME); CREATE TABLE Dispositivo(dispositivoId VARCHAR(16),nombre VARCHAR(100)); CREATE TABLE TipoMedida(tipoMedidaId INT,nombre VARCHAR(30),unidad VARCHAR(16)); CREATE TABLE Medida(id INT,dispositivoId VARCHAR(16),tipoMedidaId INT,valor INT,fechaHora DATETIME); INSERT INTO Dispositivo VALUES('EPSG-GTI-PROY-3A','Orb de Sprint 0'); INSERT INTO TipoMedida VALUES(14,'Ozono','ppb'),(12,'Temperatura','°C'); INSERT INTO Medida VALUES(1,'EPSG-GTI-PROY-3A',14,123,UTC_TIMESTAMP()),(2,'EPSG-GTI-PROY-3A',12,-12,UTC_TIMESTAMP());")
-        sql('CREATE DATABASE aeriq_import_test; USE aeriq_import_test;'+(ROOT/'src/database/schema.sql').read_text(encoding='utf-8'))
+        sql('CREATE DATABASE aeriq_import_test; USE aeriq_import_test;'+schema)
         configs=[]
         for database in ['aeriq_old_test','aeriq_import_test']:
             cfg=folder/(database+'.php');cfg.write_text(f"<?php return ['host'=>'127.0.0.1','port'=>{dbport},'user'=>'root','password'=>'','database'=>'{database}'];")

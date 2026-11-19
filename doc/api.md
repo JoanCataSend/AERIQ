@@ -1,6 +1,6 @@
 # Contratos API AERIQ
 
-Las rutas se publican en `https://jcatsen.upv.edu.es/AERIQ/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/AERIQ/`). El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
+Las rutas se publican en `https://jcatsen.upv.edu.es/AERIQ/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/AERIQ/`). El esquema completo está en [1-instalar.sql](../src/database/1-instalar.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
 
 ## Cuentas
 
