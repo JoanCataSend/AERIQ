@@ -1,4 +1,5 @@
 'use strict';
+process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 const assert=require('node:assert/strict');
 const domain=require('../../src/web/aeriq-domain.js');
 const base={campaignId:1,unidad:'ppb',simulado:false,umbral_medio:60,umbral_alto:100};
@@ -35,7 +36,7 @@ function sweep(rows,radius,options){
   }
   return c;
 }
-// Denso: la rejilla 5 × 3 de la simulación (src/database/reinicio/03-simulacion.sql), posiciones a ~11 m.
+// Denso: la rejilla 5 × 3 de la simulación (src/database/2-simulacion.sql), posiciones a ~11 m.
 const O3=[38,42,47,51,56,61,66,72,78,84,91,97,103,108,114],dense=[];
 for(let i=0;i<3;i++)for(let j=0;j<5;j++)dense.push({...base,latitud:38.996651+i*0.0001,longitud:-0.166009+j*0.00013,valor:O3[i*5+j],capturada_en:stamp((i*5+j)*20)});
 assert.equal(domain.support(dense).length,15);
@@ -135,7 +136,7 @@ assert(csv.includes('"\'=HYPERLINK(""bad"")"'));assert(csv.includes('"Zona; ""no
 assert(domain.csv([{longitud:'-0.166'}]).includes('"-0.166"'));
 assert.equal(domain.level(100,60,100),'alto');assert.equal(domain.level(60,60,100),'moderado');
 assert.equal(domain.battery(null),'Sin datos');assert.equal(domain.battery(61),'61 % · alta');assert.equal(domain.battery(60),'60 % · media');
-assert.equal(domain.battery(20),'20 % · media');assert.equal(domain.battery(19,'2026-11-11 10:05:00.000'),'19 % · baja · 2026-11-11 10:05 UTC');assert.equal(domain.battery(0),'0 % · baja');
+assert.equal(domain.battery(20),'20 % · media');assert.equal(domain.battery(19,'2026-11-11 10:05:00.000'),'19 % · baja · 11 nov 2026, 10:05');assert.equal(domain.battery(0),'0 % · baja');
 console.log('AERIQ: interpolación acotada (casos densos, dispersos, simulados, límites de radio y deriva GPS), estadísticas, series, CSV y batería correctos.');
 assert.deepEqual(domain.sharedThresholds([{umbral_medio:'60',umbral_alto:'100'},{umbral_medio:60,umbral_alto:100}]),{medium:60,high:100});
 assert.equal(domain.sharedThresholds([{umbral_medio:60,umbral_alto:100},{umbral_medio:70,umbral_alto:100}]),null);

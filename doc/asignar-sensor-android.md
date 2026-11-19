@@ -1,5 +1,7 @@
 # Asignar un sensor desde Android
 
+> **Estado actual (19-11-2026):** la app ya no se asigna Orb. `sensor-link.php` responde 403 («Tu admin de campaña es quien te asigna el Orb…») y el Orb lo asigna el administrador de campaña desde el panel web. En Android, un Orb detectado que no está asignado a la cuenta muestra ese aviso y un botón para actualizar las asignaciones. El resto de este documento describe el comportamiento anterior y se conserva como referencia.
+
 En **Cuenta → Buscar y asignar sensor**, activar búsqueda y encender Orb.
 Se muestran todos los emisores con tramas válidas del proyecto, incluidos los que
 informan de errores físicos. Cada tarjeta muestra señal, MAC y diagnóstico.

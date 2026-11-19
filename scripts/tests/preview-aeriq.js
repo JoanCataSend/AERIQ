@@ -15,7 +15,7 @@ const rows=[38,42,47,51,56,61,66,72,78,84,91,97,103,108,114].map((valor,n)=>fake
 const zigzag=[0,1,2,3,4,9,8,7,6,5,10,11,12,13,14];
 const at=minutes=>`2026-11-02 ${String(12+Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}:00.000`;
 const mine=rows.map((r,n)=>({...r,dispositivo_id:device.id,dispositivo:device.nombre,capturada_en:at(n<15?zigzag.indexOf(n):45+n-15)}));
-// Catálogos del formulario comercial (mismos códigos que schema.sql).
+// Catálogos del formulario comercial (mismos códigos que src/database/1-instalar.sql).
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios con app y panel. Te recomendamos cuántos necesitas.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros la zona durante un tiempo, sin comprar sensores, y entregamos un informe.',mide_superficie:true},{codigo:'asesoramiento',nombre:'No lo tengo claro, aconsejadme',descripcion:'Cuéntanos tu caso y te proponemos la opción que mejor encaja.',mide_superficie:false}],
  orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad (centro educativo, asociación…)'}],
  objectives:[{codigo:'espacios_publicos',nombre:'Calidad del aire en espacios públicos'},{codigo:'salud_laboral',nombre:'Salud y seguridad laboral'},{codigo:'normativa',nombre:'Informe técnico o normativa'},{codigo:'investigacion',nombre:'Investigación o divulgación'},{codigo:'otro',nombre:'Otro'}],

@@ -2,7 +2,7 @@
 
 ## Component Design
 
-La definición ejecutable es [`src/database/schema.sql`](../src/database/schema.sql); el modelo y sus decisiones están ampliados en [base de datos](base-de-datos.md). Este documento indexa las entidades por responsabilidad y remite al esquema canónico para la lista exacta de columnas, tipos, claves y restricciones, evitando mantener una segunda definición que pueda divergir.
+La definición ejecutable es [`src/database/1-instalar.sql`](../src/database/1-instalar.sql); el modelo y sus decisiones están ampliados en [base de datos](base-de-datos.md). Este documento indexa las entidades por responsabilidad y remite al esquema canónico para la lista exacta de columnas, tipos, claves y restricciones, evitando mantener una segunda definición que pueda divergir.
 
 | Grupo | Tablas | Propósito y vínculos principales |
 |---|---|---|
@@ -77,7 +77,7 @@ FOREIGN KEYS:
 + permiso_id -> permisos(id)
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 
@@ -139,7 +139,7 @@ FOREIGN KEYS:
 + magnitud_id -> magnitudes(id)
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 
@@ -528,7 +528,7 @@ FOREIGN KEYS:
 + objetivo_id -> objetivos_medicion(id)
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 
@@ -551,7 +551,7 @@ FOREIGN KEYS:
 + usuario_id -> usuarios(id)
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 
@@ -573,7 +573,7 @@ FOREIGN KEYS:
 + usuario_id -> usuarios(id)
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 
@@ -592,7 +592,7 @@ FOREIGN KEYS:
 + usuario_id -> usuarios(id)
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 
@@ -611,12 +611,12 @@ FOREIGN KEYS:
 + Ninguna
 
 CONSTRAINTS:
-+ Unicidad e índices según schema.sql.
++ Unicidad e índices según 1-instalar.sql.
 ====================================================================================
 
 ## Design Clarifications
 
-- `schema.sql` es la especificación física completa y única. No editar esta tabla de resumen como sustituto del esquema.
+- `1-instalar.sql` es la especificación física completa y única. No editar esta tabla de resumen como sustituto del esquema.
 - La base usa MariaDB y las fechas operativas se almacenan en UTC. Ozono se expresa en ppb y temperatura en °C.
 - La interpolación y los informes se calculan sobre datos autorizados; la publicación pública se controla por campaña.
 

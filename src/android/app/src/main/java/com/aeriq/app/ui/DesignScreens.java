@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 
 import static com.aeriq.app.ui.Views.*;
 
-/** Pantallas del diseño Android de Figma: Aprende, Historial, Configurar, Comparar, Premium y Cuenta. */
+/** Pantallas del diseño Android de Figma: Aprende, Historial, Configurar, Comparar y Cuenta. */
 public final class DesignScreens {
     private static final Locale ES = new Locale("es", "ES");
     private static final int FIELD = 0xfff1f4f3, PANEL_SOFT = 0xffe6efec, CHIP = 0xffeef1f0;
@@ -95,7 +95,7 @@ public final class DesignScreens {
             TextView item = ui.text(labels[i], 14, true, MUTED);
             item.setGravity(Gravity.CENTER);
             items[i] = item;
-            strip.addView(item, new LinearLayout.LayoutParams(0, ui.dp(40), 1));
+            strip.addView(item, new LinearLayout.LayoutParams(0, ui.dp(44), 1));
             item.setOnClickListener(view -> {
                 select(items, option);
                 selected.accept(option);
@@ -110,6 +110,7 @@ public final class DesignScreens {
 
     private void select(TextView[] items, int active) {
         for (int i = 0; i < items.length; i++) {
+            items[i].setSelected(i == active);
             items[i].setTextColor(i == active ? INK : MUTED);
             items[i].setBackground(i == active ? ui.shape(WHITE, 12, 0) : null);
             items[i].setElevation(i == active ? ui.dp(1) : 0);
@@ -151,7 +152,7 @@ public final class DesignScreens {
         LinearLayout card = ui.row();
         card.setBackground(ui.shape(DARK, 22, 0));
         card.setPadding(ui.dp(14), ui.dp(16), ui.dp(18), ui.dp(16));
-        card.addView(tile(R.drawable.ic_sparkles, 40, 0xff36403c, WHITE), new LinearLayout.LayoutParams(ui.dp(40), ui.dp(40)));
+        card.addView(tile(R.drawable.ic_scale, 40, 0xff36403c, WHITE), new LinearLayout.LayoutParams(ui.dp(40), ui.dp(40)));
         LinearLayout texts = ui.column();
         texts.setPadding(ui.dp(14), 0, ui.dp(8), 0);
         texts.addView(ui.text(title, 15, true, WHITE));
@@ -182,8 +183,7 @@ public final class DesignScreens {
         LinearLayout hero = ui.column();
         hero.setBackground(ui.shape(GREEN, 26, 0));
         hero.setPadding(ui.dp(20), ui.dp(22), ui.dp(20), ui.dp(22));
-        text(hero, "Aprende", 13, false, 0xccffffff, 0);
-        TextView title = text(hero, "Un aire limpio empieza por conocerlo.", 28, true, WHITE, 8);
+        TextView title = text(hero, "Un aire limpio empieza por conocerlo.", 28, true, WHITE, 0);
         title.setLineSpacing(0, .95f);
         text(hero, "Qué contamina, cómo afecta a tu salud y qué dice la normativa.", 14, false, 0xe6ffffff, 8);
         LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
@@ -211,7 +211,7 @@ public final class DesignScreens {
             "La Directiva europea 2008/50/CE fija umbrales de información y de alerta para el ozono. "
                 + "Consulta los valores vigentes en las fuentes oficiales.", null);
         TextView law = ui.text("", 14, true, GREEN);
-        law.setText(underline("Ver la normativa ↗"));
+        law.setText(underline("Ver la normativa en la web"));
         law.setPadding(0, ui.dp(10), 0, 0);
         law.setOnClickListener(view -> activity.open("https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32008L0050"));
         anchors[2].addView(law);
@@ -433,28 +433,8 @@ public final class DesignScreens {
         content.addView(first, rowParams);
         content.addView(second, new LinearLayout.LayoutParams(rowParams));
 
-        LinearLayout export = ui.row();
-        export.setGravity(Gravity.CENTER);
-        export.setBackground(ui.shape(GREEN, 18, 0));
-        ImageView download = ui.image(R.drawable.ic_download, 22, 22);
-        download.setColorFilter(WHITE);
-        export.addView(download, new LinearLayout.LayoutParams(ui.dp(22), ui.dp(22)));
-        TextView exportLabel = ui.text("Exportar datos (CSV o PDF)", 16, true, WHITE);
-        exportLabel.setPadding(ui.dp(10), 0, 0, 0);
-        export.addView(exportLabel);
-        export.setAlpha(rows.isEmpty() ? .5f : 1f);
-        export.setOnClickListener(view -> {
-            if (rows.isEmpty()) { activity.message("No hay mediciones que exportar en este periodo."); return; }
-            new android.app.AlertDialog.Builder(activity).setTitle("Exportar datos")
-                .setItems(new String[]{"CSV (hoja de cálculo)", "PDF (informe)"}, (dialog, which) -> {
-                    if (which == 0) activity.export(rows); else activity.exportPdf(rows, header);
-                }).show();
-        });
-        LinearLayout.LayoutParams exportParams = new LinearLayout.LayoutParams(-1, ui.dp(56));
-        exportParams.topMargin = ui.dp(4);
-        exportParams.bottomMargin = ui.dp(14);
-        content.addView(export, exportParams);
-        darkPromo(content, "Compara tu zona con el resto de la red", "Históricos ampliados con Premium",
+        // Sin exportación: en la web el operador consulta sus lecturas pero no las descarga; exporta el admin de campaña.
+        darkPromo(content, "Compara tu zona con el resto de la red", "Media de ozono de cada zona del mapa público",
             () -> activity.go(Screen.COMPARE));
     }
 
@@ -486,9 +466,13 @@ public final class DesignScreens {
         row.addView(tile, params);
     }
 
-    // ================================================================= Configurar sensor
+    // ================================================================= Detalles del sensor
 
-    public void settings(LinearLayout body, AeriqBleController ble, OrbAssignment sensor, boolean sharing, AppPrefs prefs) {
+    /**
+     * Detalles del sensor para el operador: solo consulta. El nombre del Orb, su campaña y si se publica los
+     * gestiona el admin de campaña en el panel web; el envío y la posición van siempre. Reconectar sí se ofrece.
+     */
+    public void details(LinearLayout body, AeriqBleController ble, OrbAssignment sensor, boolean locationAllowed) {
         LinearLayout state = panel(body, 18);
         LinearLayout head = ui.row();
         head.addView(ui.text("Estado del sensor", 18, true, INK), new LinearLayout.LayoutParams(0, -2, 1));
@@ -498,90 +482,35 @@ public final class DesignScreens {
         TextView connection = infoRow(state, "Conexión", "Bluetooth LE", true);
         TextView battery = infoRow(state, "Batería", "—", true);
         TextView signal = infoRow(state, "Señal", "—", true);
-        TextView sync = infoRow(state, "Última sincronización", "—", true);
+        TextView sync = infoRow(state, "Última lectura", "—", true);
         infoRow(state, "Sensor", "SPEC O₃", false);
 
-        LinearLayout naming = panel(body, 18);
-        text(naming, "Nombre del sensor", 18, true, INK, 0);
-        text(naming, "Nombre", 13, true, INK, 14);
-        EditText name = new EditText(activity);
-        name.setSingleLine(true);
-        name.setTextSize(15);
-        name.setTextColor(INK);
-        name.setHintTextColor(0xff8a9792);
-        name.setHint(sensor == null ? "Vincula un sensor primero" : "Sensor PBIO");
-        name.setText(sensor == null ? "" : activity.sensorName(sensor));
-        name.setEnabled(sensor != null);
-        name.setBackground(ui.shape(FIELD, 14, LINE));
-        name.setPadding(ui.dp(14), 0, ui.dp(14), 0);
-        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(-1, ui.dp(52));
-        nameParams.topMargin = ui.dp(8);
-        naming.addView(name, nameParams);
-        TextView save = ui.text("Guardar nombre", 15, true, INK);
-        save.setGravity(Gravity.CENTER);
-        save.setBackground(ui.shape(WHITE, 16, 0xffd5dcd9));
-        save.setAlpha(sensor == null ? .5f : 1f);
-        save.setOnClickListener(view -> {
-            if (sensor == null) { activity.message("Vincula un sensor primero."); return; }
-            String value = name.getText().toString().trim();
-            if (value.isEmpty() || value.length() > 80) { activity.message("Usa un nombre de entre 1 y 80 caracteres."); return; }
-            prefs.setAlias(sensor.address, value);
-            activity.message("Nombre guardado en este móvil.");
-        });
-        LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(-1, ui.dp(48));
-        saveParams.topMargin = ui.dp(12);
-        naming.addView(save, saveParams);
+        LinearLayout assignment = panel(body, 18);
+        text(assignment, "Tu asignación", 18, true, INK, 0);
+        infoRow(assignment, "Orb", sensor == null ? "Sin Orb asignado" : activity.sensorName(sensor), true);
+        infoRow(assignment, "Campaña", sensor == null ? "—" : sensor.campaign, false);
+        text(assignment, "El nombre del Orb, su campaña y si sale en el mapa público los gestiona el admin de tu campaña "
+            + "desde el panel web.", 13, false, MUTED, 10);
 
-        LinearLayout share = panel(body, 18);
-        LinearLayout shareHead = ui.row();
-        shareHead.setGravity(Gravity.TOP);
-        LinearLayout shareTexts = ui.column();
-        shareTexts.addView(ui.text("Compartir con la red", 18, true, INK));
-        TextView optional = chip("Opcional", CHIP, MUTED);
-        LinearLayout.LayoutParams optionalParams = new LinearLayout.LayoutParams(-2, -2);
-        optionalParams.topMargin = ui.dp(8);
-        shareTexts.addView(optional, optionalParams);
-        shareHead.addView(shareTexts, new LinearLayout.LayoutParams(0, -2, 1));
-        Switch shareToggle = ui.toggle(sharing);
-        shareToggle.setEnabled(sensor != null);
-        shareToggle.setOnCheckedChangeListener((button, checked) -> activity.toggleSharing(checked));
-        shareHead.addView(shareToggle);
-        share.addView(shareHead, new LinearLayout.LayoutParams(-1, -2));
-        // Texto fiel a lo que hace el servidor: el mapa público muestra cada lectura con su posición y hora,
-        // pero no quién la tomó ni con qué Orb. En una campaña de la organización, publicar lo decide ella.
-        TextView explain = text(share, "Tus mediciones de ozono salen en el mapa público con su posición y hora, "
-            + "sin tu nombre ni tu sensor. Si tu organización te asignó la campaña, ella decide si se publica.", 14, false, MUTED, 14);
-        explain.setLineSpacing(ui.dp(2), 1);
-        addDivider(share, 14, 12);
-        LinearLayout route = ui.row();
-        LinearLayout routeTexts = ui.column();
-        routeTexts.addView(ui.text("Guardar mi recorrido y distancia", 15, true, INK));
-        routeTexts.addView(ui.text("Solo lo ves tú. No se publica.", 12, false, MUTED));
-        route.addView(routeTexts, new LinearLayout.LayoutParams(0, -2, 1));
-        Switch routeToggle = ui.toggle(prefs.saveRoute());
-        routeToggle.setOnCheckedChangeListener((button, checked) -> prefs.setSaveRoute(checked));
-        route.addView(routeToggle);
-        share.addView(route, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout capture = panel(body, 18);
+        text(capture, "Envío y ubicación", 18, true, INK, 0);
+        text(capture, "Con la app abierta, cada lectura del Orb se envía sola a tu campaña con su posición y hora. "
+            + "Sin ubicación la lectura se guarda, pero no puede salir en el mapa.", 14, false, MUTED, 8);
+        infoRow(capture, "Permiso de ubicación", locationAllowed ? "Permitido" : "Falta", false);
+        if (!locationAllowed) {
+            LinearLayout allow = wideButton(R.drawable.aeriq_location, "Permitir ubicación", WHITE, GREEN, 0);
+            allow.setOnClickListener(view -> activity.requestCaptureLocation());
+            LinearLayout.LayoutParams allowParams = new LinearLayout.LayoutParams(-1, ui.dp(52));
+            allowParams.topMargin = ui.dp(8);
+            capture.addView(allow, allowParams);
+        }
 
         LinearLayout reconnect = wideButton(R.drawable.ic_refresh, "Reconectar sensor", INK, WHITE, 0xffd5dcd9);
         reconnect.setOnClickListener(view -> activity.reconnectSensor());
         LinearLayout.LayoutParams reconnectParams = new LinearLayout.LayoutParams(-1, ui.dp(54));
         reconnectParams.bottomMargin = ui.dp(12);
         body.addView(reconnect, reconnectParams);
-        LinearLayout unlink = wideButton(R.drawable.ic_unlink, "Desvincular sensor", RED, 0xfffff7f6, 0xffefc3c0);
-        unlink.setOnClickListener(view -> {
-            if (sensor == null) { activity.message("No hay ningún sensor vinculado."); return; }
-            new android.app.AlertDialog.Builder(activity).setTitle("Desvincular sensor")
-                .setMessage("Este móvil dejará de recibir las mediciones de " + activity.sensorName(sensor)
-                    + ". Podrás volver a vincularlo cuando quieras.")
-                .setNegativeButton("Cancelar", null)
-                .setPositiveButton("Desvincular", (dialog, which) -> { activity.unlink(); activity.go(Screen.LINK); })
-                .show();
-        });
-        LinearLayout.LayoutParams unlinkParams = new LinearLayout.LayoutParams(-1, ui.dp(54));
-        unlinkParams.bottomMargin = ui.dp(12);
-        body.addView(unlink, unlinkParams);
-        footer(body, "Puedes cambiar estas opciones cuando quieras. Las funciones esenciales del sensor no se bloquean.");
+        footer(body, "Si el Orb no aparece, acércalo al móvil, comprueba que el Bluetooth está activado y pulsa Reconectar.");
 
         activity.updateLive(() -> {
             long age = System.currentTimeMillis() - ble.lastAdvertisementAt;
@@ -628,22 +557,10 @@ public final class DesignScreens {
     // ================================================================= Comparar zonas
 
     public void compare(LinearLayout body, ExecutorService worker) {
-        LinearLayout badge = ui.row();
-        badge.setPadding(0, 0, 0, ui.dp(14));
-        LinearLayout premium = ui.row();
-        premium.setBackground(ui.shape(DARK, 16, 0));
-        premium.setPadding(ui.dp(10), ui.dp(6), ui.dp(12), ui.dp(6));
-        ImageView sparkles = ui.image(R.drawable.ic_sparkles, 16, 16);
-        sparkles.setColorFilter(WHITE);
-        premium.addView(sparkles, new LinearLayout.LayoutParams(ui.dp(16), ui.dp(16)));
-        TextView premiumLabel = ui.text("Premium", 13, true, WHITE);
-        premiumLabel.setPadding(ui.dp(6), 0, 0, 0);
-        premium.addView(premiumLabel);
-        badge.addView(premium);
-        TextView subtitle = ui.text("Análisis ampliado de la red", 13, false, MUTED);
-        subtitle.setPadding(ui.dp(10), 0, 0, 0);
-        badge.addView(subtitle);
-        body.addView(badge, new LinearLayout.LayoutParams(-1, -2));
+        // Función libre: usa las mismas mediciones públicas que el mapa, sin cuenta.
+        TextView subtitle = ui.text("Media de ozono de cada zona con mediciones publicadas.", 13, false, MUTED);
+        subtitle.setPadding(0, 0, 0, ui.dp(14));
+        body.addView(subtitle, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout results = ui.column();
         int[] request = {0};
@@ -656,7 +573,8 @@ public final class DesignScreens {
         int generation = ++request[0];
         worker.execute(() -> {
             try {
-                List<PublicReadings.Reading> rows = PublicReadings.fetch(false).rows;
+                // Histórico (hasta 2.000 lecturas recientes): las pestañas de 7 y 30 días necesitan más que las últimas 24 h.
+                List<PublicReadings.Reading> rows = PublicReadings.fetch(false, 0).rows;
                 activity.runOnUiThread(() -> {
                     if (!results.isAttachedToWindow() || generation != request[0]) return;
                     cache[0] = rows;
@@ -701,6 +619,12 @@ public final class DesignScreens {
         }
         List<Zone> ordered = new ArrayList<>(zones.values());
         ordered.sort((a, b) -> a.enough() != b.enough() ? (a.enough() ? -1 : 1) : Integer.compare(b.rows.size(), a.rows.size()));
+        if (ordered.isEmpty()) {
+            LinearLayout empty = panel(results, 18);
+            text(empty, "Sin zonas que comparar", 19, true, INK, 0);
+            text(empty, "No hay mediciones publicadas en este periodo. Prueba con un periodo más largo.", 14, false, MUTED, 8);
+            return;
+        }
 
         LinearLayout chartCard = panel(results, 18);
         LinearLayout legend = ui.row();
@@ -774,125 +698,6 @@ public final class DesignScreens {
         return value.isEmpty() ? value : value.substring(0, 1).toUpperCase(ES) + value.substring(1);
     }
 
-    // ================================================================= Premium
-
-    public void premium(LinearLayout body) {
-        LinearLayout hero = ui.column();
-        hero.setBackground(ui.shape(DARK, 26, 0));
-        hero.setPadding(ui.dp(20), ui.dp(20), ui.dp(20), ui.dp(22));
-        LinearLayout badge = ui.row();
-        badge.setBackground(ui.shape(0xff36403c, 14, 0));
-        badge.setPadding(ui.dp(10), ui.dp(5), ui.dp(12), ui.dp(5));
-        ImageView sparkles = ui.image(R.drawable.ic_sparkles, 16, 16);
-        sparkles.setColorFilter(WHITE);
-        badge.addView(sparkles, new LinearLayout.LayoutParams(ui.dp(16), ui.dp(16)));
-        TextView badgeLabel = ui.text("Premium", 13, true, WHITE);
-        badgeLabel.setPadding(ui.dp(6), 0, 0, 0);
-        badge.addView(badgeLabel);
-        hero.addView(badge, new LinearLayout.LayoutParams(-2, -2));
-        TextView title = text(hero, "Entiende el ozono de toda tu ciudad.", 28, true, WHITE, 14);
-        title.setLineSpacing(0, .95f);
-        text(hero, "Funciones de análisis para quien quiere ir más allá de sus propias mediciones.", 14, false, 0xffb7c2be, 10);
-        LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
-        heroParams.bottomMargin = ui.dp(14);
-        body.addView(hero, heroParams);
-
-        LinearLayout features = panel(body, 18);
-        for (String feature : new String[]{"Comparación de zonas de la red", "Históricos ampliados de la red",
-            "Informes automáticos", "Una cuenta para la app y la web"}) {
-            LinearLayout row = ui.row();
-            row.setPadding(0, ui.dp(6), 0, ui.dp(6));
-            row.addView(tile(R.drawable.ic_tick, 22, PANEL_SOFT, GREEN), new LinearLayout.LayoutParams(ui.dp(22), ui.dp(22)));
-            TextView label = ui.text(feature, 15, false, INK);
-            label.setPadding(ui.dp(12), 0, 0, 0);
-            row.addView(label);
-            features.addView(row, new LinearLayout.LayoutParams(-1, -2));
-        }
-
-        String[] plan = {"anual"};
-        LinearLayout annual = planCard(body, "Anual", "Equivale a 10 mensualidades", "39,90 €", "/año");
-        LinearLayout monthly = planCard(body, "Mensual", "Cancela cuando quieras", "3,99 €", "/mes");
-        Runnable refresh = () -> {
-            stylePlan(annual, "anual".equals(plan[0]));
-            stylePlan(monthly, "mensual".equals(plan[0]));
-        };
-        annual.setOnClickListener(view -> { plan[0] = "anual"; refresh.run(); });
-        monthly.setOnClickListener(view -> { plan[0] = "mensual"; refresh.run(); });
-        refresh.run();
-
-        LinearLayout terms = panel(body, 16);
-        terms.addView(boldLead("Renovación y cancelación.", " Se cobra al inicio de cada periodo. Si cancelas, Premium "
-            + "sigue activo hasta el final del periodo pagado."));
-        TextView secure = boldLead("Pago seguro.", " Lo gestiona un proveedor de pagos externo: AERIQ no guarda los datos de tu tarjeta.");
-        secure.setPadding(0, ui.dp(10), 0, 0);
-        terms.addView(secure);
-
-        TextView pay = ui.text("Continuar al pago seguro", 16, true, WHITE);
-        pay.setGravity(Gravity.CENTER);
-        pay.setBackground(ui.shape(GREEN, 18, 0));
-        pay.setOnClickListener(view -> activity.open(ApiRoutes.BASE + "checkout.html?service=premium&plan=" + plan[0]));
-        LinearLayout.LayoutParams payParams = new LinearLayout.LayoutParams(-1, ui.dp(56));
-        payParams.bottomMargin = ui.dp(14);
-        body.addView(pay, payParams);
-        footer(body, "El mapa público, los avisos y las funciones esenciales de tu sensor siguen gratis, con o sin Premium.");
-    }
-
-    private TextView boldLead(String lead, String rest) {
-        android.text.SpannableStringBuilder value = new android.text.SpannableStringBuilder(lead + rest);
-        value.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), 0, lead.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        value.setSpan(new android.text.style.ForegroundColorSpan(INK), 0, lead.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        TextView view = ui.text("", 13, false, 0xff3b4642);
-        view.setText(value);
-        view.setLineSpacing(ui.dp(2), 1);
-        return view;
-    }
-
-    private LinearLayout planCard(LinearLayout body, String name, String detail, String price, String period) {
-        LinearLayout card = ui.row();
-        card.setPadding(ui.dp(16), ui.dp(18), ui.dp(18), ui.dp(18));
-        View radio = new View(activity);
-        card.addView(radio, new LinearLayout.LayoutParams(ui.dp(22), ui.dp(22)));
-        LinearLayout texts = ui.column();
-        texts.setPadding(ui.dp(14), 0, ui.dp(8), 0);
-        texts.addView(ui.text(name, 17, true, INK));
-        texts.addView(ui.text(detail, 12, false, MUTED));
-        card.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView amount = ui.text(price, 22, true, INK);
-        card.addView(amount);
-        TextView per = ui.text(period, 13, false, MUTED);
-        per.setPadding(ui.dp(2), ui.dp(6), 0, 0);
-        card.addView(per);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.bottomMargin = ui.dp(12);
-        body.addView(card, params);
-        return card;
-    }
-
-    private void stylePlan(LinearLayout card, boolean selected) {
-        GradientDrawable background = ui.shape(selected ? PANEL_SOFT : WHITE, 22, 0);
-        background.setStroke(ui.dp(selected ? 2 : 1), selected ? GREEN : LINE);
-        card.setBackground(background);
-        GradientDrawable radio = new GradientDrawable();
-        radio.setShape(GradientDrawable.OVAL);
-        radio.setColor(selected ? GREEN : WHITE);
-        radio.setStroke(ui.dp(selected ? 5 : 2), selected ? WHITE : 0xffb9c3bf);
-        View dot = card.getChildAt(0);
-        if (selected) {
-            android.graphics.drawable.LayerDrawable ring = new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                oval(GREEN), oval(WHITE), oval(GREEN)});
-            ring.setLayerInset(1, ui.dp(2), ui.dp(2), ui.dp(2), ui.dp(2));
-            ring.setLayerInset(2, ui.dp(6), ui.dp(6), ui.dp(6), ui.dp(6));
-            dot.setBackground(ring);
-        } else dot.setBackground(radio);
-    }
-
-    private GradientDrawable oval(int color) {
-        GradientDrawable shape = new GradientDrawable();
-        shape.setShape(GradientDrawable.OVAL);
-        shape.setColor(color);
-        return shape;
-    }
-
     // ================================================================= Cuenta
 
     public void account(LinearLayout body, AeriqAuthManager.User user, OrbAssignment sensor, boolean sharing, AppPrefs prefs) {
@@ -912,20 +717,26 @@ public final class DesignScreens {
         TextView email = ui.text(user.email, 13, false, MUTED);
         email.setPadding(0, ui.dp(2), 0, ui.dp(6));
         details.addView(email);
-        details.addView(chip(user.organization.isEmpty() ? "Plan gratuito" : user.organization, CHIP, MUTED),
+        // Función y ámbito, como en el panel web: «Operador · Campaña X», «Admin de campaña · Campaña X»…
+        String scope = !user.campaign.isEmpty() ? user.campaign : user.organization;
+        details.addView(chip(user.roleName + (scope.isEmpty() ? "" : " · " + scope), CHIP, MUTED),
             new LinearLayout.LayoutParams(-2, -2));
         identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         profile.addView(identity, new LinearLayout.LayoutParams(-1, -2));
 
-        darkPromo(body, "Hazte Premium", "Compara zonas y consulta históricos de la red", () -> activity.go(Screen.PREMIUM));
-
         LinearLayout data = panel(body, 16);
         menuRow(data, R.drawable.figma_nav_user, GREEN, PANEL_SOFT, "Datos personales", INK, null, chevron(),
             () -> activity.go(Screen.EDIT_PROFILE));
-        data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        menuRow(data, R.drawable.figma_nav_chip, GREEN, PANEL_SOFT, "Mi sensor",
-            INK, sensor == null ? "Sin sensor vinculado" : activity.sensorName(sensor) + " · Vinculado", chevron(),
-            () -> activity.go(Screen.SENSOR));
+        if (user.collects()) {
+            data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
+            menuRow(data, R.drawable.figma_nav_chip, GREEN, PANEL_SOFT, "Mi sensor",
+                INK, sensor == null ? "Sin Orb conectado" : activity.sensorName(sensor) + " · Conectado", chevron(),
+                () -> activity.go(Screen.SENSOR));
+        } else if (user.manages()) {
+            data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
+            menuRow(data, R.drawable.ic_sliders, GREEN, PANEL_SOFT, "Panel", INK, "La gestión se hace en la web", chevron(),
+                () -> activity.go(Screen.PANEL));
+        }
 
         LinearLayout security = panel(body, 16);
         menuRow(security, R.drawable.ic_lock, GREEN, PANEL_SOFT, "Cambiar contraseña", INK, null, chevron(),
@@ -954,29 +765,8 @@ public final class DesignScreens {
             });
         });
         menuRow(security, R.drawable.ic_fingerprint, GREEN, PANEL_SOFT, "Acceso con huella", INK, null, fingerprint, null);
-        security.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        Switch alerts = ui.toggle(prefs.ozoneAlerts());
-        alerts.setOnCheckedChangeListener((button, checked) -> prefs.setOzoneAlerts(checked));
-        menuRow(security, R.drawable.ic_bell, GREEN, PANEL_SOFT, "Avisos de ozono", INK,
-            "Cuando suba el nivel en tu zona", alerts, null);
-
-        LinearLayout privacy = panel(body, 16);
-        menuRow(privacy, R.drawable.ic_users, GREEN, PANEL_SOFT, "Compartir con la red", INK,
-            "Opcional · " + (sharing ? "Activado" : "Desactivado"), chevron(), () -> activity.go(Screen.CONFIG));
-        privacy.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        menuRow(privacy, R.drawable.ic_download, GREEN, PANEL_SOFT, "Exportar mis datos", INK, null, chevron(),
-            () -> activity.go(Screen.HISTORY));
-        privacy.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
-        menuRow(privacy, R.drawable.ic_shield, GREEN, PANEL_SOFT, "Privacidad y ubicación", INK, null, chevron(),
-            () -> activity.go(Screen.CONFIG));
 
         LinearLayout help = panel(body, 16);
-        ImageView external = ui.image(R.drawable.ic_external, 20, 20);
-        external.setColorFilter(MUTED);
-        external.setLayoutParams(new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
-        menuRow(help, R.drawable.ic_package, GREEN, PANEL_SOFT, "Mis pedidos", INK, "Se gestionan en la web", external,
-            () -> activity.open(ApiRoutes.BASE + "perfil.html"));
-        help.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
         menuRow(help, R.drawable.ic_help, GREEN, PANEL_SOFT, "Ayuda y contacto", INK, null, chevron(),
             () -> activity.go(Screen.SERVICES));
 

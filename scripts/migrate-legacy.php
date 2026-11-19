@@ -28,7 +28,7 @@ try {
         echo $name.': '.count($data[$name])." registro(s)\n";
     }
     if (!array_intersect(array_map('strtolower',$names),array_keys($available))) throw new RuntimeException('No se reconoce un esquema de origen antiguo compatible. No se importará nada.');
-    if (!isset($opt['apply'])) {echo "Inventario de solo lectura. Prepara schema.sql en el destino vacío y repite con --apply para importar.\n";exit;}
+    if (!isset($opt['apply'])) {echo "Inventario de solo lectura. Instala src/database/1-instalar.sql en el destino y vacía usuarios y organizaciones y repite con --apply para importar.\n";exit;}
     foreach (['usuarios','organizaciones','mediciones','solicitudes'] as $table) if ((int)$target->query("SELECT COUNT(*) n FROM `$table`")->fetch_assoc()['n']) throw new RuntimeException('El destino debe estar vacío, sin seed-demo. No se sobrescribirán datos.');
     $target->begin_transaction();$total=0;
     try {

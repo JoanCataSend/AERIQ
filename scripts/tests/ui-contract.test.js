@@ -1,12 +1,15 @@
+process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* Prueba de lógica DOM aislada: no controla Chrome ni transmite formularios reales. */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {JSDOM,VirtualConsole}=require(path.resolve(process.argv[2]||'.local-backups/test-tools/node_modules/jsdom'));
 const root=path.resolve(__dirname,'../../src/web');
 const wait=()=>new Promise(r=>setTimeout(r,35));
-const user={id:1,name:'Ana',last:'Administradora',role:'admin',roleName:'Administrador',permissions:['informes.ver','mapa.organizacion','mediciones.registrar','organizacion.gestionar'],organization:'Organización de prueba',email:'admin@example.test',mustChangePassword:false};
+// Admin principal por defecto; las pruebas del panel cambian user.permissions para el admin de campaña.
+const ADMIN=['campanas.gestionar','solicitudes.gestionar'],ADMIN_CAMPANA=['datos.exportar','equipo.gestionar','informes.ver','mapa.organizacion'];
+const user={id:1,name:'Ana',last:'Administradora',role:'admin',roleName:'Administrador principal',permissions:[...ADMIN],organization:'Organización de prueba',campaign:'Campaña de prueba',email:'admin@example.test',mustChangePassword:false};
 const worker={id:2,nombre:'Pau',apellidos:'Operador',email:'worker@example.test',rol:'trabajador',rol_nombre:'Trabajador',puede_medir:1,activo:0,cambiar_clave:1};
-const campaign={id:1,nombre:'Campaña de prueba',zona:'Campus',inicio:'2026-11-01',fin:'2026-12-01',activa:1,publicar:1,radio_m:30,umbral_medio:60,umbral_alto:100};
+const campaign={id:1,nombre:'Campaña de prueba',zona:'Campus',inicio:'2026-11-01',fin:'2026-12-01',activa:1,estado:'activa',publicar:1,radio_m:30,umbral_medio:60,umbral_alto:100};
 const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',bateria_pct:57,bateria_en:'2026-11-03 08:00:00.000',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-03 08:00:00'};
 // Catálogos del formulario comercial: incluye un servicio nuevo con datos de estudio para comprobar que manda la base de datos.
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros.',mide_superficie:true},{codigo:'auditoria',nombre:'Servicio nuevo de prueba',descripcion:'',mide_superficie:true}],orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad'}],objectives:[{codigo:'espacios_publicos',nombre:'Calidad del aire en espacios públicos'},{codigo:'otro',nombre:'Otro'}],provinces:['Madrid','Valencia'],durations:['1 semana','2 semanas','A definir con Código Norte']};
@@ -25,16 +28,18 @@ async function page(name,search=''){
   w.fetch=async(url,options={})=>{
     const u=new URL(url,'http://localhost/');const body=options.body?JSON.parse(options.body):null;calls.push({path:u.pathname,action:u.searchParams.get('action'),body});
     let data;
-    if(u.pathname==='/auth.php')data={ok:true,csrf:'test',user};
+    if(u.pathname==='/auth.php')data={ok:true,csrf:'test',user:globalThis.noSession?null:user};
+    else if(u.pathname==='/portal.php'&&u.searchParams.get('action')==='requests')data={requests:[{id:7,entidad:'Ayto. Prueba',contacto:'Ana',email:'ana@x.es',telefono:'600000000',recibida_en:'2026-11-18 10:00:00',estado:'pendiente',estado_nombre:'Pendiente',servicio_nombre:'Estudio',municipio:'Gandia',zona:'Centro',necesidades:'Medir',objetivos:[],historial:[]},{id:8,entidad:'Colegio',contacto:'Bea',email:'bea@x.es',recibida_en:'2026-11-17 10:00:00',estado:'cerrada',estado_nombre:'Cerrada',zona:'Playa',necesidades:'—',objetivos:[],historial:[]}],states:[{codigo:'pendiente',nombre:'Pendiente'},{codigo:'cerrada',nombre:'Cerrada'}]};
+    else if(u.pathname==='/portal.php'&&u.searchParams.get('action')==='my-campaign')data={campaign:{nombre:'Campaña de prueba',zona:'Gandia',inicio:'2026-01-01',fin:'2026-12-31',activa:1,publicar:1,umbral_medio:60,umbral_alto:100},admins:[{nombre:'Marta',apellidos:'Admin',email:'marta@example.test'}],orb:{nombre:'Orb original',bateria_pct:57},readings:[{capturada_en:'2026-05-15 10:00:00',magnitud:'Ozono',valor:42,unidad:'ppb'}]};
     else if(u.pathname==='/portal.php'){
       if(body){if(u.searchParams.get('action')==='device')device.nombre=body.name;data={ok:true,id:1};}
-      else data=u.searchParams.get('action')==='readings'?{readings:[measurement]}:u.searchParams.get('action')==='map'?{measurements:[measurement]}:{workers:[worker],campaigns:[campaign],devices:[device],zones:[{id:1,nombre:'Campus'}],roles:[{codigo:'trabajador',nombre:'Trabajador',descripcion:'Recoge mediciones'},{codigo:'analista',nombre:'Analista',descripcion:'Informes'}],thresholds:{umbral_medio:60,umbral_alto:100}};
+      else data=u.searchParams.get('action')==='readings'?{readings:[measurement]}:u.searchParams.get('action')==='map'?{measurements:[measurement]}:{workers:[worker],campaigns:[campaign],devices:[device],zones:[{id:1,nombre:'Campus'}],roles:user.permissions.includes('campanas.gestionar')?[{codigo:'admin_campana',nombre:'Admin de campaña'}]:[{codigo:'trabajador',nombre:'Operador'}],thresholds:{umbral_medio:60,umbral_alto:100}};
     }else if(u.pathname==='/public.php')data=body?{ok:true,id:7,message:'Solicitud registrada.'}:u.searchParams.get('action')==='services'?catalogs:{measurements:[measurement],truncated:false};
     else data=[];
     return {ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>data};
   };
   for(const script of w.document.querySelectorAll('script[src]')){
-    const src=script.getAttribute('src');if(src.startsWith('http'))continue;
+    const src=script.getAttribute('src');if(src.startsWith('http')||script.type==='module')continue; // los módulos (visor 3D) no corren en vm
     vm.runInContext(fs.readFileSync(path.join(root,src),'utf8'),dom.getInternalVMContext(),{filename:src});
   }
   await wait();return {dom,w,document:w.document,calls,errors,close:()=>w.close()};
@@ -48,9 +53,83 @@ async function page(name,search=''){
   assert([...explode.querySelectorAll('img')].every(img=>img.hasAttribute('alt')));assert(!explode.classList.contains('is-animated'));
   assert(!/Plan personal|Premium|3,99/.test(p.document.body.textContent));assert(p.document.querySelectorAll('#planes a[href*="solicitar"]').length===3);assert(!/Ya tengo cuenta/.test(p.document.querySelector('#contacto').textContent));assert(p.document.querySelector('#contacto a[href="solicitar.html"]'));assert.deepEqual(p.errors,[]);p.close();
   p=await page('sensor.html');assert(p.document.querySelector('model-viewer[camera-controls]'));assert(!p.document.querySelector('[data-qty-plus]'));assert.equal(p.document.querySelector('.purchase-actions a[href="solicitar.html?interes=kits"]').textContent,'Solicitar este kit');assert.deepEqual(p.errors,[]);p.close();
-  p=await page('perfil.html');assert(p.document.querySelector('#account-link').href.endsWith('/portal.html'));assert(!p.document.querySelector('[data-logout]'));assert(p.document.querySelector('#logout'));p.document.querySelector('#logout').click();await wait();assert(p.calls.some(c=>c.path==='/auth.php'&&c.action==='logout'));assert.deepEqual(p.errors,[]);p.close();
-  p=await page('sensores.html');assert(p.document.querySelector('.devices-table').textContent.includes('Orb original'));assert(p.document.querySelector('.devices-table').textContent.includes('57 % · media'));p.document.querySelector('.devices-table .text-link').click();assert(p.document.querySelector('#device-modal').open);assert(p.document.querySelector('select[name=worker] option[value="2"]'));p.document.querySelector('#device-new-name').value='Orb actualizado';p.document.querySelector('#device-edit-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();assert(p.calls.some(c=>c.action==='device'&&c.body.name==='Orb actualizado'));assert.deepEqual(p.errors,[]);p.close();
-  p=await page('portal.html');assert(!p.document.querySelector('[data-view="overview"]').hidden);p.document.querySelector('[data-workspace-view="workers"]').click();assert(!p.document.querySelector('#worker-form').closest('section').hidden);assert.deepEqual([...p.document.querySelectorAll('#worker-form [name=role] option')].map(o=>o.value),['trabajador','analista']);assert(p.document.querySelector('#report-zone option[value="Campus"]'));assert(p.document.querySelector('#zone-options option[value="Campus"]'));p.document.querySelector('[data-workspace-view="reports"]').click();p.document.querySelector('#report-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();assert(p.document.querySelector('#report-results').textContent.includes('68'));assert(!p.document.querySelector('#export-report').disabled);{const d=p.document,pdf=d.querySelector('#print-report'),res=d.querySelector('#report-results');assert(!pdf.disabled&&!pdf.hidden);assert(res.querySelector('.report-header').textContent.includes('Todas las zonas'));assert(res.querySelector('.report-simulated'));const ex=res.querySelector('.report-exceedances table');assert.deepEqual([...ex.rows[0].cells].map(c=>c.textContent).slice(0,2),['Fecha del suceso (UTC)','Origen']);assert.equal(ex.rows[1].cells[1].textContent,'Simulado');p.w.HTMLCanvasElement.prototype.toDataURL=()=>'data:image/png;base64,AAAA';pdf.click();await wait();const doc=d.querySelector('iframe').contentDocument;assert.equal(doc.querySelector('h1').textContent,'Informe ambiental AERIQ');assert(doc.querySelector('.desc').textContent.includes('03/11/2026'));assert(doc.querySelector('.simwarn'));assert(!doc.querySelector('form,nav'));}assert.deepEqual(p.errors,[]);p.close();
+  p=await page('perfil.html');assert(p.document.querySelector('.main-nav a[href="portal.html"]'));assert(!p.document.querySelector('[data-logout]'));assert(!p.document.querySelector('#logout'),'Cerrar sesión solo en la burbuja');assert.deepEqual(p.errors,[]);p.close();
+  p=await page('portal.html');assert(!p.document.querySelector('.workspace-nav #logout'),'el panel no tiene su propio Cerrar sesión');assert.deepEqual(p.errors,[]);p.close();
+  user.permissions=[...ADMIN_CAMPANA];// La flota la edita el admin de campaña.
+  // Flota de Orb dentro del panel («Dispositivos Orb»): tabla, filtros y edición; el Orb va a un operador de la campaña.
+  p=await page('portal.html');p.document.querySelector('[data-workspace-view="devices"]').click();await wait();const fleet=p.document.querySelector('#fleet');assert(!fleet.hidden);
+  assert(fleet.querySelector('.devices-table').textContent.includes('Orb original'));assert(fleet.querySelector('.devices-table').textContent.includes('57 % · media'));assert.equal(fleet.querySelector('.stat strong').textContent,'1');
+  assert(!p.document.querySelector('#add-device').hidden);fleet.querySelector('.devices-table .text-link').click();assert(p.document.querySelector('#device-modal').open);assert(fleet.querySelector('select[name=worker] option[value="2"]'));assert(!fleet.querySelector('select[name=campaign]'));
+  p.document.querySelector('#device-new-name').value='Orb actualizado';p.document.querySelector('#device-edit-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+  const sent=p.calls.find(c=>c.action==='device'&&c.body);assert.equal(sent.body.name,'Orb actualizado');assert(!('campaign' in sent.body));assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
+  // El admin principal consulta la flota pero no registra ni edita Orb.
+  p=await page('portal.html');p.document.querySelector('[data-workspace-view="devices"]').click();await wait();assert(p.document.querySelector('#add-device').hidden);assert(!p.document.querySelector('#fleet .devices-table .text-link'));assert.deepEqual(p.errors,[]);p.close();
+  p=await page('portal.html');assert(!p.document.querySelector('[data-view="overview"]').hidden);p.document.querySelector('[data-workspace-view="workers"]').click();assert(!p.document.querySelector('#worker-form').closest('section').hidden);const shown=sel=>!p.document.querySelector(sel).hidden&&!p.document.querySelector(sel).closest('[hidden]');
+  // Admin principal: Resumen, Campañas, Admins de campaña, AERIQ por campaña y Solicitudes. Sin informes, CSV ni registro de Orb.
+  const navShown=[...p.document.querySelectorAll('.workspace-nav a')].filter(a=>!a.hidden).map(a=>a.textContent);
+  assert.deepEqual(navShown,['Resumen','Campañas','Admins de campaña','AERIQ por campaña','Solicitudes']);
+  assert.equal(p.document.querySelector('#worker-title').textContent,'Asignar admin de campaña');assert(shown('#worker-campaign'));assert(p.document.querySelector('#worker-campaign option[value="1"]'));
+  assert.equal(p.document.querySelector('#worker-form').firstElementChild.querySelector('select').name,'campaign','la campaña va primero');
+  p.document.querySelector('[data-workspace-view="overview"]').click();assert(p.document.querySelector('#campaigns-summary').textContent.includes('Campaña de prueba'));assert.equal(p.document.querySelector('#sum-campaigns').textContent,'1');
+  p.document.querySelector('[data-workspace-view="orbs"]').click();assert(!p.document.querySelector('[data-view="orbs"]').hidden);assert(p.document.querySelector('#orbs-by-campaign').textContent.includes('Campaña de prueba · 1 AERIQ'));
+  p.document.querySelector('[data-workspace-view="reports"]').click();assert(p.document.querySelector('[data-view="reports"]').hidden,'sin informes');assert(!p.calls.some(c=>c.action==='readings'));
+  p.document.querySelector('[data-workspace-view="campaigns"]').click();assert(shown('#campaign-form'));
+  // Crear campaña: solo nombre, zona (texto libre), fechas y activa. Umbrales, distancia y publicación son del admin de campaña.
+  const cf=p.document.querySelector('#campaign-form');assert.deepEqual([...cf.elements].filter(e=>e.name).map(e=>e.name),['id','name','zone','start','end']);assert(!cf.elements.zone.getAttribute('list'));
+  assert.equal(p.document.querySelector('#campaign-submit').textContent,'Crear campaña');assert(p.document.querySelector('#campaign-cancel').hidden);
+  p.document.querySelector('#campaigns-list .text-link').click();assert.equal(p.document.querySelector('#campaign-form-title').textContent,'Editar campaña: Campaña de prueba');assert.equal(p.document.querySelector('#campaign-submit').textContent,'Editar campaña');
+  assert.equal(cf.elements.id.value,'1');p.document.querySelector('#campaign-cancel').click();await wait();assert.equal(cf.elements.id.value,'');assert.equal(p.document.querySelector('#campaign-form-title').textContent,'Crear campaña');
+  p.document.querySelector('#campaigns-list .text-link').click();cf.elements.name.value='Campaña renombrada';cf.dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+  assert.deepEqual(p.calls.find(c=>c.action==='campaign').body,{id:'1',name:'Campaña renombrada',zone:'Campus',start:'2026-11-01',end:'2026-12-01'});
+  // Resumen: 3 números y el estado como pastilla.
+  p.document.querySelector('[data-workspace-view="overview"]').click();assert.equal(p.document.querySelectorAll('[data-view="overview"] .stat').length,3);assert(p.document.querySelector('#campaigns-summary .pill-on'));
+  // Solicitudes: bandeja con filtro por estado (pendientes por defecto), buscador (también por nº), ficha y pasos de estado.
+  {const d=p.document,rows=()=>d.querySelectorAll('#requests-list .inbox-row');d.querySelector('[data-workspace-view="requests"]').click();
+  assert.deepEqual([...d.querySelectorAll('#requests-filter button')].map(b=>b.textContent),['Pendiente 1','Cerrada 1','Todas 2']);
+  assert.equal(rows().length,1);assert(d.querySelector('#request-detail').textContent.includes('Ayto. Prueba'));assert(!d.querySelector('#request-detail').textContent.includes('UTC'));
+  const replies=[...d.querySelectorAll('#request-detail .reply-list a')].map(a=>a.href);assert(replies[0].startsWith('https://mail.google.com/'));assert(replies.some(h=>h.startsWith('mailto:ana@x.es?subject=')));
+  d.querySelectorAll('#requests-filter button')[2].click();assert.equal(rows().length,2);
+  const q=d.querySelector('#requests-search');q.value='#8';q.dispatchEvent(new p.w.Event('input'));assert.equal(rows().length,1);assert(d.querySelector('#request-detail').textContent.includes('Colegio'));
+  q.value='colegio';q.dispatchEvent(new p.w.Event('input'));assert.equal(rows().length,1);
+  q.value='';q.dispatchEvent(new p.w.Event('input'));d.querySelectorAll('#requests-filter button')[0].click();
+  // «Cerrar solicitud» guarda, la solicitud sigue seleccionada en la lista y el contador baja.
+  d.querySelector('#request-detail .btn-primary').click();await new Promise(r=>setTimeout(r,20));
+  assert.deepEqual(p.calls.filter(c=>c.action==='request-status').map(c=>c.body),[{id:7,status:'cerrada'}]);
+  assert.equal(rows().length,1);assert(d.querySelector('#request-detail .request-saved').textContent.includes('Cerrada'));
+  assert.equal(d.querySelector('#requests-filter button').textContent,'Pendiente 0');
+  // Pulsar un paso del estado también lo cambia (para corregir).
+  d.querySelector('#request-detail .request-steps button').click();await new Promise(r=>setTimeout(r,20));
+  assert.deepEqual(p.calls.filter(c=>c.action==='request-status').at(-1).body,{id:7,status:'pendiente'});}
+  assert.deepEqual(p.errors,[]);p.close();
+  // Admin de campaña: crea operadores de su campaña, registra Orb y exporta CSV; sin campañas nuevas ni solicitudes.
+  user.permissions=[...ADMIN_CAMPANA];p=await page('portal.html');
+  assert.equal(p.document.querySelector('#worker-title').textContent,'Añadir operador');assert(p.document.querySelector('#worker-campaign').closest('label').hidden);
+  assert(p.document.querySelector('[data-workspace-view="requests"]').hidden);
+  // «Mi campaña»: primera sección del admin de campaña, con su ficha y sus ajustes; sin Resumen ni Campañas.
+  assert(!p.document.querySelector('[data-view="campaign"]').hidden);assert(p.document.querySelector('[data-view="overview"]').hidden);
+  assert(p.document.querySelector('[data-workspace-view="campaigns"]').hidden);assert(p.document.querySelector('[data-workspace-view="overview"]').hidden);
+  assert.equal(p.document.querySelector('#my-campaign-name').textContent,'Campaña de prueba');assert.equal(p.document.querySelector('#my-campaign-public').textContent,'Sí');
+  const settings=p.document.querySelector('#campaign-settings-form');assert.equal(settings.elements.medium.value,'60');assert.equal(settings.elements.radius.value,'30');assert(settings.elements.public.checked);
+  settings.elements.high.value='120';settings.dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+  assert.deepEqual(p.calls.find(c=>c.action==='campaign-settings').body,{medium:'60',high:'120',radius:'30',public:true});
+  p.document.querySelector('[data-workspace-view="campaigns"]').click();assert(!p.document.querySelector('[data-view="campaign"]').hidden);
+  // Equipo del admin de campaña: sus operadores con su Orb y acciones (editar, reenviar invitación).
+  p.document.querySelector('[data-workspace-view="workers"]').click();const team=p.document.querySelector('#workers-list');
+  assert.equal(p.document.querySelector('#workers-title').textContent,'Operadores de tu campaña');assert([...team.querySelectorAll('th')].some(th=>th.textContent==='AERIQ'));
+  const buttons=[...team.querySelectorAll('.row-actions button')].map(b=>b.textContent);assert.deepEqual(buttons,['Editar','Reenviar invitación']);
+  team.querySelectorAll('.row-actions button')[1].click();await wait();assert.deepEqual(p.calls.find(c=>c.action==='worker-invite').body,{id:2});
+  team.querySelector('.row-actions button').click();assert(p.document.querySelector('#worker-modal').open);
+  const wf=p.document.querySelector('#worker-edit-form');wf.elements.phone.value='600111222';wf.dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+  assert.deepEqual(p.calls.find(c=>c.action==='worker-edit').body,{id:'2',name:'Pau',last:'Operador',phone:'600111222'});
+  p.document.querySelector('[data-workspace-view="devices"]').click();await wait();assert(!p.document.querySelector('#add-device').hidden);
+  p.document.querySelector('[data-workspace-view="reports"]').click();p.document.querySelector('#report-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+  // Informe: cabecera con filtros, cifras, etiqueta de simulado y PDF como documento aparte (solo el informe).
+  {const d=p.document,r=d.querySelector('#report-results'),pdf=d.querySelector('#print-report');assert(r.firstElementChild.classList.contains('report-header'));assert.equal(r.querySelectorAll('.report-kpi').length,5);assert.equal(r.querySelector('.report-badge').textContent,'Dato simulado');
+  const ex=r.querySelector('.report-exceedances table');assert.equal(ex.rows[0].cells[1].textContent,'Origen');assert.equal(ex.rows[1].cells[1].textContent,'Simulado');
+  assert(!pdf.hidden&&!pdf.disabled);p.w.HTMLCanvasElement.prototype.toDataURL=()=>'data:image/png;base64,AAAA';pdf.click();await wait();const doc=d.querySelector('iframe').contentDocument;
+  assert.equal(doc.querySelector('h1').textContent,'Informe ambiental AERIQ');assert(doc.querySelector('.desc').textContent.includes('simulados'));assert(doc.querySelector('.simwarn'));assert(!doc.querySelector('form,nav'));}
+  const csv=p.document.querySelector('#export-report');assert(!csv.hidden&&!csv.disabled);csv.click();await wait();
+  assert(p.calls.some(c=>c.action==='readings'&&c.body===null)&&p.calls.filter(c=>c.action==='readings').length===2);assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
   // Formulario comercial: catálogos de la BD, preselección por URL, campos de estudio, teléfono y validación en línea.
   p=await page('solicitar.html','?interes=kits&org=empresa');await wait();{
     const d=p.document,f=d.querySelector('#service-form'),radios=()=>[...d.querySelectorAll('[name=interest]')];
@@ -88,5 +167,32 @@ async function page(name,search=''){
   // Los enlaces antiguos (?service=estudio) siguen preseleccionando el servicio.
   p=await page('solicitar.html','?service=estudio');await wait();assert(p.document.querySelector('[name=interest][value=estudio]').checked);assert(!p.document.querySelector('[data-study]').hidden);assert.deepEqual(p.errors,[]);p.close();
   p=await page('mapa.html');assert(p.calls.some(c=>c.path==='/public.php'));assert(p.document.querySelector('#map-sensor-list').textContent.includes('68 ppb'));p.document.querySelector('[data-source=mine]').click();await wait();assert(p.calls.some(c=>c.path==='/portal.php'&&c.action==='map'));assert.deepEqual(p.errors,[]);p.close();
+  // Header: sin sesión «Iniciar sesión»; con sesión «Mi panel»/«Mi cuenta» según el rol y menú con tu nombre.
+  globalThis.noSession=true;p=await page('index.html');let link=p.document.querySelector('#account-link');
+  assert(p.document.querySelector('.site-header').hasAttribute('data-ready'));assert.equal(link.textContent,'Iniciar sesión');assert(!p.document.querySelector('.account-menu'));
+  // Sin sesión: el menú empieza por «El AERIQ» (sin «Mapa»); al mapa se va con el botón «Ver el mapa».
+  assert.deepEqual([...p.document.querySelectorAll('.main-nav a')].map(a=>a.textContent),['El AERIQ','Organizaciones','Nosotros','Contacto']);assert(!p.document.querySelector('.header-actions .btn').hidden);p.close();globalThis.noSession=false;
+  const navText=p=>[...p.document.querySelectorAll('.main-nav a')].map(a=>a.textContent);
+  for(const [perms,page_,items] of [[ADMIN,'index.html',['Inicio','Mapa','Mi panel']],[ADMIN_CAMPANA,'solicitar.html',['Inicio','Mapa','Mi campaña']],[['mapa.organizacion','mediciones.registrar'],'mapa.html',['Inicio','Mapa','Mi campaña']]]){
+    user.permissions=[...perms];p=await page(page_);link=p.document.querySelector('#account-link');
+    // Con sesión: menú central privado, sin el enlace de acceso ni el botón «Ver el mapa».
+    assert.deepEqual(navText(p),items,page_);assert(link.hidden);assert([...p.document.querySelectorAll('.header-actions .btn')].every(b=>b.hidden));
+    assert.equal(p.document.documentElement.dataset.session,'user');
+    if(items.includes('Mi panel'))assert(p.document.querySelector('.main-nav a[href="portal.html"]'));
+    if(items.includes('Mi campaña'))assert(p.document.querySelector('.main-nav a[href="portal.html#campaign"]'));
+    const menu=p.document.querySelector('#account-link + .account-menu');assert(menu,page_);assert.equal(menu.querySelector('.account-avatar').textContent,'AA');
+    assert(menu.querySelector('a[href="perfil.html"]'));assert.deepEqual([...menu.querySelectorAll('.account-menu-list a,.account-menu-list button')].map(n=>n.textContent),['Mi cuenta','Cerrar sesión'],page_);menu.querySelector('button.danger').click();await wait();
+    assert(p.calls.some(c=>c.path==='/auth.php'&&c.action==='logout'),page_);assert.deepEqual(p.errors,[]);p.close();
+  }
+  // Operador: «Mi campaña» de solo consulta (su campaña, su Orb y sus últimas lecturas), sin menú lateral ni acciones.
+  user.permissions=['mapa.organizacion','mediciones.registrar'];p=await page('portal.html');
+  assert(p.document.querySelector('.workspace-nav').hidden);assert(!p.document.querySelector('#operator-campaign').hidden);assert(p.document.querySelector('[data-view="campaign"][data-perm="equipo.gestionar"]').hidden);
+  assert.equal(p.document.querySelector('#op-campaign-name').textContent,'Campaña de prueba');assert.equal(p.document.querySelector('#op-orb').textContent,'Orb original');assert(p.document.querySelector('#op-battery').textContent.startsWith('Batería: 57 % · media'));assert.equal(p.document.querySelector('#op-level-mid').textContent,'60 – 100 ppb');assert(p.document.querySelector('#op-admins a').href.startsWith('mailto:marta@'));
+  assert(p.document.querySelector('#op-readings').textContent.includes('42 ppb'));assert(!p.document.querySelector('#operator-campaign form,#operator-campaign button'));
+  assert(!p.calls.some(c=>c.action==='dashboard'));assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
+  // El operador no ve en Mi cuenta enlaces al panel ni a la flota (le darían error).
+  // Mi cuenta es solo tu cuenta: sin accesos al panel ni a la flota dentro de la página (eso va en el header).
+  p=await page('perfil.html');assert(!p.document.querySelector('#pedidos'));assert(!p.document.querySelector('main a[href^="portal.html"],main a[href="sensores.html"]'));p.close();
+  user.permissions=[...ADMIN];p=await page('perfil.html');assert(!p.document.querySelector('main a[href^="portal.html"]'));p.close();
   console.log('AERIQ DOM OK: portada/3D, galería, flota, panel por secciones, informes, formularios, presupuesto y mapa público/privado.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

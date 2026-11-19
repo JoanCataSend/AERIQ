@@ -1,6 +1,6 @@
 # Contratos API AERIQ
 
-Las rutas se publican en `https://jcatsen.upv.edu.es/AERIQ/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/AERIQ/`). El esquema completo está en [schema.sql](../src/database/schema.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
+Las rutas se publican en `https://jcatsen.upv.edu.es/AERIQ/` (por ejemplo, `auth.php` y `mobile-auth.php` están en `httpdocs/AERIQ/`). El esquema completo está en [1-instalar.sql](../src/database/1-instalar.sql); no depende de tablas antiguas. Fechas UTC, JSON y HTTPS para sesiones/operaciones privadas.
 
 ## Cuentas
 
@@ -46,6 +46,16 @@ Las asignaciones del GET y los `devices` de `portal.php?action=dashboard` incluy
 GPS es opcional como conjunto. El servidor consulta el rango/unidad de `magnitudes`, rechaza (422) una magnitud que el modelo del Orb no mide (`modelo_magnitudes`), comprueba asignación y fechas, y toma la procedencia del Orb. `assignmentId` y `unit` se comprueban si se incluyen; la app actual siempre los envía. No se permite que un cliente elija otra organización o declare su lectura como real.
 
 El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta: `ok,id,eventId,duplicate`. Reutilizar el evento con datos diferentes devuelve 409; cambiar de asignación no reasigna lecturas históricas.
+
+## Orb de la campaña desde Android: `mobile-team.php`
+
+Para el admin de campaña (permiso `equipo.gestionar`) con el token del móvil (`X-AERIQ-Token`). Es otra puerta a la misma lógica que el panel web: no añade reglas ni permisos.
+
+- GET devuelve `campaign` (`id,nombre`), `operators` (quienes pueden medir en su campaña: `id,nombre,orb,activo,pendiente`, sin correo ni teléfono) y `devices` (Orb de su campaña: `id,nombre,direccion_ble,trabajador_id,trabajador,activo,simulado,ultima_medicion`). Sale de `aeriq_dashboard()`.
+- POST registra o reasigna un Orb con `aeriq_device_save()`, igual que `portal.php?action=device`: `id?` (para un Orb ya registrado), `name,address,worker,active,simulated`. Solo a operadores de su campaña; un Orb por operador (si el operador llevaba otro, ese queda libre) y la asignación anterior del Orb se cierra.
+- Errores: 401 sin sesión, 403 sin `equipo.gestionar` (operador o admin principal), 404/409 si el Orb no es de su campaña o ya existe, 422 si la MAC o los campos no son válidos.
+
+La app Android lo usa en Panel → «Asignar un Orb con el móvil»: busca los Orb por Bluetooth para no teclear la MAC. El operador recibe la asignación en `GET field.php` al abrir su app.
 
 ## Público: `public.php`
 

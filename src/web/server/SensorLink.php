@@ -17,7 +17,7 @@ function aeriq_share(array $a, array $data): array {
     $db->begin_transaction();
     try {
         $c = aeriq_one('SELECT c.id,c.nombre,c.publicar FROM asignaciones a JOIN campanas c ON c.id=a.campana_id JOIN dispositivos d ON d.id=a.dispositivo_id WHERE a.dispositivo_id=? AND a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 FOR UPDATE', [$device,aeriq_org($a),$user]);
-        if (!$c) throw new AeriqError('Orb no asignado o inactivo.', 403);
+        if (!$c) throw new AeriqError('AERIQ no asignado o inactivo.', 403);
         $personal = $c['nombre'] === aeriq_personal_campaign($user);
         if ($personal && (int)$c['publicar'] !== $share) aeriq_sql('UPDATE campanas SET publicar=? WHERE id=?', [$share,(int)$c['id']]);
         $db->commit();
@@ -39,7 +39,7 @@ function aeriq_link_sensor(array $a, array $data): array {
     if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/D', $address)) {
         throw new AeriqError('Dirección del sensor no válida.');
     }
-    $name = aeriq_text($data['name'] ?? 'Mi sensor Orb', 160);
+    $name = aeriq_text($data['name'] ?? 'Mi sensor AERIQ', 160);
     $db = conexionBD();
     $db->begin_transaction();
     try {

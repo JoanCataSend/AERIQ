@@ -153,11 +153,11 @@ public final class WorkScreens {
         shortcuts.addView(shortcut(R.drawable.ic_pulse, "Estado del sensor", true,
             () -> sensorStatus(ble, selected)), new LinearLayout.LayoutParams(0, ui.dp(132), 1));
         shortcuts.addView(new android.view.View(activity), new LinearLayout.LayoutParams(ui.dp(12), 1));
-        shortcuts.addView(shortcut(R.drawable.ic_sliders, "Configurar sensor", false,
+        shortcuts.addView(shortcut(R.drawable.ic_sliders, "Detalles del sensor", false,
             () -> activity.go(Screen.CONFIG)), new LinearLayout.LayoutParams(0, ui.dp(132), 1));
         ui.add(body, shortcuts);
 
-        // ---- Compartir con la red
+        // ---- Envío a la campaña: automático, sin interruptor. Publicarlo lo decide el admin de campaña en la web.
         LinearLayout share = ui.row();
         share.setBackground(ui.shape(0xffe6efec, 22, 0));
         share.setPadding(ui.dp(18), ui.dp(16), ui.dp(16), ui.dp(16));
@@ -165,18 +165,14 @@ public final class WorkScreens {
         users.setColorFilter(GREEN);
         share.addView(users, new LinearLayout.LayoutParams(ui.dp(26), ui.dp(26)));
         LinearLayout shareTexts = ui.column();
-        shareTexts.setPadding(ui.dp(14), 0, ui.dp(10), 0);
-        shareTexts.addView(ui.text(sending ? "Compartiendo con la red" : "Compartir con la red", 17, true, INK));
-        shareTexts.addView(ui.text("Opcional. Tu ozono, con posición y hora, sale en el mapa público.", 13, false, MUTED));
+        shareTexts.setPadding(ui.dp(14), 0, 0, 0);
+        shareTexts.addView(ui.text(selected == null ? "Envío a tu campaña" : sending ? "Enviando a tu campaña" : "Envío en pausa",
+            17, true, INK));
+        shareTexts.addView(ui.text(selected == null
+            ? "Cuando tengas un Orb asignado, cada lectura se enviará sola con su posición y hora."
+            : "Cada lectura se envía sola con su posición y hora. El admin de tu campaña decide si sale en el mapa público.",
+            13, false, MUTED));
         share.addView(shareTexts, new LinearLayout.LayoutParams(0, -2, 1));
-        Switch shareToggle = ui.toggle(sending);
-        shareToggle.setEnabled(selected != null);
-        shareToggle.setContentDescription("Compartir mediciones con la red");
-        shareToggle.setOnCheckedChangeListener((button, checked) -> {
-            activity.toggleSharing(checked);
-            ((TextView) shareTexts.getChildAt(0)).setText(checked ? "Compartiendo con la red" : "Compartir con la red");
-        });
-        share.addView(shareToggle);
         ui.add(body, share);
         if (selected == null) {
             ui.button(body, "Vincular un sensor", () -> activity.go(Screen.LINK));
@@ -318,24 +314,51 @@ public final class WorkScreens {
         return button;
     }
 
-    /** Detalle técnico (antes en la pantalla principal): recepción, diagnóstico, temperatura y envío. */
+    /** Detalle técnico en una hoja de la app: resumen, Bluetooth, diagnóstico, temperatura y envío. */
     private void sensorStatus(AeriqBleController ble, OrbAssignment selected) {
         int flags = ble.sensorDiagnostic;
-        String diagnostic = flags < 0 ? "Sin diagnóstico recibido."
+        // 0 = sin datos, 1 = correcto, 2 = a revisar, 3 = fallo.
+        int severity = flags < 0 ? 0 : (flags & 128) != 0 || (flags & 8) != 0 || (flags & 1) == 0 ? 3
+            : (flags & 2) != 0 || (flags & 32) != 0 ? 2 : 1;
+        String diagnostic = flags < 0 ? "Aún no ha llegado ningún diagnóstico del Orb."
             : (flags & 128) != 0 ? "Señal fuera de rango (VGAS y VREF difieren más de 60 mV): revisa el cableado del sensor."
             : (flags & 8) != 0 ? "VREF no está cerca de la mitad de la alimentación: revisa el cable de VREF y el buffer."
             : (flags & 1) == 0 ? "Lectura inválida. Comprueba alimentación y cableado."
             : (flags & 2) != 0 ? "El cálculo de O₃ es negativo y se limita a 0. Revisa cero, VREF y estabilización."
             : (flags & 32) != 0 ? "Temperatura fuera del rango de compensación."
-            : "Cálculo válido · la calibración física debe verificarse.";
-        String message = "Sensor: " + (selected == null ? "ninguno seleccionado" : activity.sensorName(selected) + " · " + selected.campaign)
-            + "\n\nBluetooth: " + ble.status
-            + "\n\nDiagnóstico: " + diagnostic
-            + "\n\nTemperatura del módulo: " + (ble.lastTemperature == null ? "—" : ble.lastTemperature.reading.value + " °C")
-            + "\n\nServidor: " + activity.serverStatus();
-        new android.app.AlertDialog.Builder(activity).setTitle("Estado del sensor").setMessage(message)
-            .setNegativeButton("Reintentar envíos", (dialog, which) -> activity.retryUploads())
-            .setPositiveButton("Cerrar", null).show();
+            : "Cálculo válido. La calibración física debe verificarse.";
+        int[] tones = {MUTED, Quality.LOW, Quality.MEDIUM, Quality.HIGH};
+        int[] softs = {0xffeff3f1, Quality.soft(0), Quality.soft(1), Quality.soft(2)};
+        String[] headlines = {"Sin datos del sensor", "Funciona correctamente", "Revisa el sensor", "El sensor tiene un fallo"};
+
+        AppSheet sheet = new AppSheet(activity, ui, "Estado del sensor",
+            selected == null ? "Ningún sensor seleccionado" : activity.sensorName(selected) + " · " + selected.campaign);
+
+        LinearLayout summary = ui.row();
+        summary.setBackground(ui.shape(softs[severity], 20, 0));
+        summary.setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14));
+        android.view.View dot = new android.view.View(activity);
+        android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+        circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        circle.setColor(severity == 0 ? Quality.NONE : tones[severity]);
+        dot.setBackground(circle);
+        summary.addView(dot, new LinearLayout.LayoutParams(ui.dp(12), ui.dp(12)));
+        TextView headline = ui.text(headlines[severity], 16, true, severity == 0 ? INK : Quality.text(severity - 1));
+        headline.setPadding(ui.dp(12), 0, 0, 0);
+        summary.addView(headline, new LinearLayout.LayoutParams(0, -2, 1));
+        sheet.content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+
+        sheet.section("Detalle");
+        LinearLayout details = sheet.group();
+        sheet.info(details, R.drawable.ic_bluetooth, "Bluetooth", ble.status, 0xff2f80ed);
+        sheet.info(details, R.drawable.ic_pulse, "Diagnóstico", diagnostic, severity == 0 ? MUTED : tones[severity]);
+        sheet.info(details, R.drawable.aeriq_temperature, "Temperatura del módulo",
+            ble.lastTemperature == null ? "—" : ble.lastTemperature.reading.value + " °C", GREEN);
+        sheet.info(details, R.drawable.ic_globe, "Envío al servidor", activity.serverStatus(), GREEN);
+
+        sheet.secondary("Reintentar envíos", activity::retryUploads);
+        sheet.primary("Cerrar", null);
+        sheet.show();
     }
 
     // ===================================================================== Vincular sensor
@@ -388,15 +411,16 @@ public final class WorkScreens {
         shop.addView(bag, new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
         LinearLayout shopTexts = ui.column();
         shopTexts.setPadding(ui.dp(16), 0, ui.dp(12), 0);
-        shopTexts.addView(ui.text("¿Aún no tienes sensor?", 17, true, INK));
-        TextView shopText = ui.text("Puedes comprarlo en la web de AERIQ. El mapa público sigue siendo gratis.", 14, false, MUTED);
+        shopTexts.addView(ui.text("¿Tu organización aún no tiene Orb?", 17, true, INK));
+        TextView shopText = ui.text("Los Orb se venden en kits para ayuntamientos y empresas, con cuentas para su equipo. "
+            + "Solicita información en la web.", 14, false, MUTED);
         shopText.setPadding(0, ui.dp(4), 0, 0);
         shopTexts.addView(shopText);
         shop.addView(shopTexts, new LinearLayout.LayoutParams(0, -2, 1));
         ImageView external = ui.image(R.drawable.ic_external, 24, 24);
         external.setColorFilter(GREEN);
         shop.addView(external, new LinearLayout.LayoutParams(ui.dp(24), ui.dp(24)));
-        shop.setOnClickListener(view -> activity.open(ApiRoutes.BASE));
+        shop.setOnClickListener(view -> activity.open(ApiRoutes.BASE + "solicitar.html"));
         LinearLayout.LayoutParams shopParams = new LinearLayout.LayoutParams(-1, -2);
         shopParams.topMargin = ui.dp(4);
         body.addView(shop, shopParams);
@@ -491,17 +515,12 @@ public final class WorkScreens {
         Runnable action = () -> {
             if (selected) { activity.go(Screen.SENSOR); return; }
             if (assigned != null) { activity.selectOrb(device.address); return; }
-            EditText label = new EditText(activity);
-            label.setSingleLine(true);
-            label.setText("Sensor PBIO · " + device.address.substring(Math.max(0, device.address.length() - 5)));
-            new android.app.AlertDialog.Builder(activity).setTitle("Vincula tu sensor")
-                .setMessage("Ponle un nombre. Quedará guardado en tu cuenta y las nuevas lecturas serán privadas.")
-                .setView(label).setNegativeButton("Cancelar", null)
-                .setPositiveButton("Vincular", (dialog, which) -> {
-                    String text = label.getText().toString().trim();
-                    if (text.isEmpty() || text.length() > 80) { activity.message("Usa un nombre de entre 1 y 80 caracteres."); return; }
-                    activity.assignSensor(device.address, text);
-                }).show();
+            // La app no se asigna Orb: lo hace el administrador de campaña desde el panel web (sensor-link.php responde 403).
+            new android.app.AlertDialog.Builder(activity).setTitle("Este Orb no está asignado a tu cuenta")
+                .setMessage("Los Orb los asigna el administrador de tu campaña desde el panel web de AERIQ. "
+                    + "Pídeselo indicando este identificador: " + device.address + ". Cuando lo asigne, aparecerá aquí.")
+                .setNegativeButton("Cerrar", null)
+                .setPositiveButton("Actualizar", (dialog, which) -> activity.refreshAssignments()).show();
         };
         if (highlighted) {
             TextView button = ui.text(selected ? "Vinculado" : "Vincular", 16, true, WHITE);
@@ -521,6 +540,197 @@ public final class WorkScreens {
         parent.addView(card, params);
     }
 
+    /**
+     * Pestaña Panel para quien gestiona y no mide (admin de campaña o admin principal). Lo que muestra sale de
+     * los permisos del servidor, como el panel web: la gestión se hace allí, la app solo la explica y la abre.
+     */
+    public void panel(LinearLayout body, AeriqAuthManager.User user) {
+        if (user == null) return;
+        LinearLayout who = panel(body, 18);
+        who.addView(ui.text(user.roleName, 22, true, INK));
+        String scope = !user.campaign.isEmpty() ? "Campaña: " + user.campaign
+            : !user.organization.isEmpty() ? user.organization : "";
+        if (!scope.isEmpty()) {
+            TextView place = ui.text(scope, 14, false, MUTED);
+            place.setPadding(0, ui.dp(4), 0, 0);
+            who.addView(place);
+        }
+        TextView intro = ui.text("La gestión se hace en el panel web de AERIQ. La app es para quien mide con el Orb; "
+            + "desde aquí también puedes consultar el mapa público y Aprende.", 14, false, MUTED);
+        intro.setPadding(0, ui.dp(12), 0, 0);
+        intro.setLineSpacing(ui.dp(2), 1);
+        who.addView(intro);
+
+        List<String> tasks = new ArrayList<>();
+        if (user.can(AeriqAuthManager.User.PERMISSION_CAMPAIGNS)) {
+            tasks.add("Crear campañas y nombrar a su admin");
+            tasks.add("Seguir el estado de cada campaña y sus Orb");
+            tasks.add("Atender las solicitudes de kits y estudios");
+        }
+        if (user.can(AeriqAuthManager.User.PERMISSION_TEAM)) {
+            tasks.add("Crear operadores y reenviar o desactivar sus cuentas");
+            tasks.add("Registrar los Orb y asignar uno a cada operador (también desde aquí, con el móvil)");
+            tasks.add("Ajustar umbrales y radio, y decidir si la campaña sale en el mapa público");
+            tasks.add("Consultar informes y exportar CSV");
+        }
+        if (!tasks.isEmpty()) {
+            LinearLayout list = panel(body, 18);
+            list.addView(ui.text("En el panel web puedes", 17, true, INK));
+            for (String task : tasks) {
+                LinearLayout row = ui.row();
+                row.setGravity(android.view.Gravity.TOP);
+                row.setPadding(0, ui.dp(10), 0, 0);
+                ImageView tick = ui.image(R.drawable.ic_tick, 20, 20);
+                tick.setColorFilter(GREEN);
+                row.addView(tick, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
+                TextView label = ui.text(task, 15, false, INK);
+                label.setPadding(ui.dp(12), 0, 0, 0);
+                row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
+                list.addView(row, new LinearLayout.LayoutParams(-1, -2));
+            }
+        }
+        if (user.can(AeriqAuthManager.User.PERMISSION_TEAM)) {
+            Button assign = ui.button(body, "Asignar un Orb con el móvil", () -> activity.go(Screen.ASSIGN));
+            assign.setContentDescription("Buscar Orb por Bluetooth y asignarlos a operadores");
+            ui.outline(body, "Abrir el panel web", () -> activity.open(ApiRoutes.BASE + "portal.html"));
+        } else {
+            Button open = ui.button(body, "Abrir el panel web", () -> activity.open(ApiRoutes.BASE + "portal.html"));
+            open.setContentDescription("Abrir el panel web de AERIQ en el navegador");
+        }
+        ui.note(body, "Entra en la web con este mismo correo y contraseña.");
+    }
+
+    /**
+     * Asignar Orb (admin de campaña): busca los Orb cercanos por Bluetooth para no teclear la MAC, y registra o
+     * reasigna el elegido a un operador de su campaña. El operador lo recibe solo al abrir su app.
+     */
+    public void assign(LinearLayout body, AeriqBleController ble, CampaignTeam team, String status) {
+        LinearLayout intro = panel(body, 18);
+        intro.addView(ui.text("Asigna un Orb a un operador", 19, true, INK));
+        TextView how = ui.text("Enciende el Orb y acércalo al móvil. Toca el que quieras y elige el operador: le aparecerá "
+            + "en su app sin que tenga que hacer nada.", 14, false, MUTED);
+        how.setPadding(0, ui.dp(8), 0, 0);
+        how.setLineSpacing(ui.dp(2), 1);
+        intro.addView(how);
+        if (!status.isEmpty()) {
+            TextView state = ui.text(status, 13, true, GREEN);
+            state.setPadding(0, ui.dp(10), 0, 0);
+            intro.addView(state);
+        }
+
+        LinearLayout people = panel(body, 18);
+        people.addView(ui.text("Operadores de tu campaña", 17, true, INK));
+        if (team.operators.isEmpty()) {
+            TextView none = ui.text("Aún no hay operadores. Créalos en el panel web: Equipo → Añadir operador.", 14, false, MUTED);
+            none.setPadding(0, ui.dp(8), 0, 0);
+            people.addView(none);
+        }
+        for (CampaignTeam.Operator operator : team.operators) {
+            LinearLayout row = ui.column();
+            row.setPadding(0, ui.dp(10), 0, 0);
+            row.addView(ui.text(operator.name, 15, true, INK));
+            row.addView(ui.text((operator.orb.isEmpty() ? "Sin Orb" : "Lleva " + operator.orb)
+                + (operator.pending ? " · invitación pendiente" : !operator.active ? " · cuenta desactivada" : ""), 13, false, MUTED));
+            people.addView(row);
+        }
+
+        LinearLayout near = panel(body, 18);
+        LinearLayout head = ui.row();
+        head.addView(ui.text("Orb cercanos", 17, true, INK), new LinearLayout.LayoutParams(0, -2, 1));
+        TextView scan = ui.text("", 14, true, GREEN);
+        scan.setGravity(android.view.Gravity.CENTER);
+        scan.setMinHeight(ui.dp(48));
+        scan.setPadding(ui.dp(12), 0, 0, 0);
+        scan.setOnClickListener(view -> activity.toggleScan());
+        head.addView(scan);
+        near.addView(head, new LinearLayout.LayoutParams(-1, -2));
+        TextView scanState = ui.text("", 13, false, MUTED);
+        near.addView(scanState);
+        LinearLayout list = ui.column();
+        near.addView(list, new LinearLayout.LayoutParams(-1, -2));
+        String[] shown = {null};
+        activity.updateLive(() -> {
+            scan.setText(ble.scanning ? "Detener" : "Buscar");
+            scan.setContentDescription(ble.scanning ? "Detener la búsqueda de Orb" : "Buscar Orb cercanos por Bluetooth");
+            List<AeriqBleController.FoundDevice> found = ble.devices();
+            scanState.setText(ble.scanning ? (found.isEmpty() ? "Buscando Orb encendidos cerca…" : found.size() + " Orb detectados")
+                : found.isEmpty() ? "Pulsa Buscar para encontrar los Orb encendidos." : "Búsqueda detenida.");
+            // Solo se rehace la lista si cambian los Orb o su señal, para no parpadear cada segundo.
+            StringBuilder key = new StringBuilder();
+            for (AeriqBleController.FoundDevice device : found) key.append(device.address).append(signal(device.rssi));
+            if (key.toString().equals(shown[0])) return;
+            shown[0] = key.toString();
+            list.removeAllViews();
+            for (AeriqBleController.FoundDevice device : found) list.addView(nearbyOrb(device, team));
+        });
+        // Al entrar se empieza a buscar, como en Vincular.
+        if (!ble.scanning) activity.toggleScan();
+    }
+
+    private android.view.View nearbyOrb(AeriqBleController.FoundDevice device, CampaignTeam team) {
+        CampaignTeam.Device registered = team.byAddress(device.address);
+        CampaignTeam.Operator holder = team.holder(registered);
+        LinearLayout card = ui.row();
+        card.setPadding(0, ui.dp(12), 0, ui.dp(12));
+        card.setMinimumHeight(ui.dp(56));
+        LinearLayout texts = ui.column();
+        texts.addView(ui.text(registered != null ? registered.name : "Orb sin registrar", 15, true, INK));
+        texts.addView(ui.text(device.address + " · " + signal(device.rssi), 13, false, MUTED));
+        texts.addView(ui.text(holder != null ? "Lo lleva " + holder.name
+            : registered != null ? "Registrado, sin operador" : "Se registrará en tu campaña al asignarlo", 13, false,
+            holder != null ? MUTED : GREEN));
+        card.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView action = ui.text(holder != null ? "Cambiar" : "Asignar", 15, true, GREEN);
+        action.setPadding(ui.dp(12), 0, 0, 0);
+        card.addView(action);
+        card.setContentDescription((registered != null ? registered.name : "Orb sin registrar") + ", " + device.address
+            + ". Toca para asignarlo a un operador.");
+        card.setOnClickListener(view -> chooseOperator(device.address, registered, team));
+        return card;
+    }
+
+    private void chooseOperator(String address, CampaignTeam.Device registered, CampaignTeam team) {
+        List<CampaignTeam.Operator> candidates = new ArrayList<>();
+        for (CampaignTeam.Operator operator : team.operators) if (operator.active || operator.pending) candidates.add(operator);
+        if (candidates.isEmpty()) {
+            activity.message("No hay operadores en tu campaña. Créalos en el panel web.");
+            return;
+        }
+        LinearLayout form = ui.column();
+        form.setPadding(ui.dp(22), ui.dp(8), ui.dp(22), 0);
+        form.addView(ui.text("Nombre del Orb", 13, true, INK));
+        EditText name = new EditText(activity);
+        name.setSingleLine(true);
+        name.setText(registered != null ? registered.name : "Orb " + address.substring(Math.max(0, address.length() - 5)));
+        form.addView(name, new LinearLayout.LayoutParams(-1, -2));
+        TextView pick = ui.text("Operador", 13, true, INK);
+        pick.setPadding(0, ui.dp(12), 0, 0);
+        form.addView(pick);
+        RadioGroup group = new RadioGroup(activity);
+        for (int i = 0; i < candidates.size(); i++) {
+            CampaignTeam.Operator operator = candidates.get(i);
+            RadioButton option = new RadioButton(activity);
+            option.setId(i + 1);
+            option.setMinHeight(ui.dp(48));
+            option.setText(operator.name + (operator.orb.isEmpty() ? " · sin Orb" : " · lleva " + operator.orb));
+            option.setButtonTintList(android.content.res.ColorStateList.valueOf(GREEN));
+            group.addView(option);
+        }
+        form.addView(group);
+        TextView rule = ui.text("Cada operador lleva un solo Orb: si ya tenía otro, quedará libre.", 12, false, MUTED);
+        rule.setPadding(0, ui.dp(8), 0, 0);
+        form.addView(rule);
+        new android.app.AlertDialog.Builder(activity).setTitle(address).setView(form)
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Asignar", (dialog, which) -> {
+                String value = name.getText().toString().trim();
+                int chosen = group.getCheckedRadioButtonId();
+                if (value.isEmpty() || value.length() > 160) { activity.message("Pon un nombre de entre 1 y 160 caracteres."); return; }
+                if (chosen < 1) { activity.message("Elige el operador."); return; }
+                activity.assignOrb(registered, address, value, candidates.get(chosen - 1));
+            }).show();
+    }
+
     public void services(LinearLayout body) {
         section(body, "Tu campaña, a tu medida.", "Código Norte desarrolla AERIQ y el sensor Orb. La consulta del mapa público es gratuita.");
         service(body, "Kits para administraciones", "Para campañas municipales y estudios del territorio.", "administracion");
@@ -531,7 +741,7 @@ public final class WorkScreens {
 
     private void service(LinearLayout body, String title, String description, String kind) {
         LinearLayout card = section(body, title, description);
-        ui.button(card, "Solicitar información ↗", () -> activity.open(ApiRoutes.BASE + "solicitar.html?service=" + kind));
+        ui.button(card, "Solicitar información", () -> activity.open(ApiRoutes.BASE + "solicitar.html?service=" + kind));
     }
 
     private LinearLayout section(LinearLayout body, String title, String description) {

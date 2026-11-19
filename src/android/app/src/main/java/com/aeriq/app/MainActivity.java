@@ -45,11 +45,13 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     public enum Screen {
         LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
-        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PREMIUM
+        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PANEL, ASSIGN
     }
+    /** Pantallas del Orb: solo para cuentas que miden (permiso mediciones.registrar), como en la web. */
+    private static final EnumSet<Screen> SENSOR_SCREENS = EnumSet.of(Screen.SENSOR, Screen.LINK, Screen.HISTORY, Screen.CONFIG);
 
     private static final EnumSet<Screen> PUBLIC = EnumSet.of(
-        Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN);
+        Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN, Screen.COMPARE);
     private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5, EXPORT_PDF = 6;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService maps = Executors.newSingleThreadExecutor();
@@ -66,7 +68,6 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private FrameLayout stage; // contenedor a pantalla completa (mapa)
     private ScrollView scroll;
     private boolean sharing, started, restoring = true;
-    private boolean linkingSensor;
     private long lastSyncAt;
     private List<OrbAssignment> assignments = Collections.emptyList();
     private List<StoredReading> history = Collections.emptyList();
@@ -107,8 +108,16 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         location = new ForegroundCaptureLocation(this);
         ble = new AeriqBleController(this, this::receive);
         ble.onBattery = this::receiveBattery;
+        // El operador no tiene que vincular a mano su único Orb: al verlo por Bluetooth se conecta y empieza a enviar.
+        ble.onAutoSelect = () -> {
+            OrbAssignment orb = selected();
+            setSharing(orb != null && !orb.simulated);
+            if (current == Screen.SENSOR || current == Screen.LINK) render();
+        };
         if (state != null) {
-            current = Screen.valueOf(state.getString("screen", Screen.LOGIN.name()));
+            // Una pantalla guardada que ya no existe (por ejemplo, la antigua Premium) vuelve al inicio de sesión.
+            try { current = Screen.valueOf(state.getString("screen", Screen.LOGIN.name())); }
+            catch (IllegalArgumentException removed) { current = Screen.LOGIN; }
         }
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.shell);
@@ -171,8 +180,20 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         if (auth.user != null && auth.user.mustChangePassword) destination = Screen.CHANGE_PASSWORD;
         else if (auth.user == null && !PUBLIC.contains(destination)) {
             destination = Screen.LOGIN;
-            message("Inicia sesión para acceder a tus datos y al sensor.");
+            message("Inicia sesión con la cuenta de tu organización para acceder al sensor.");
+        } else if (auth.user != null && !auth.user.collects() && SENSOR_SCREENS.contains(destination)) {
+            // Los administradores no miden: su pestaña es Panel (gestión en la web).
+            destination = Screen.PANEL;
+        } else if (destination == Screen.PANEL && (auth.user == null || auth.user.collects())) {
+            destination = auth.user == null ? Screen.LOGIN : Screen.SENSOR;
+        } else if (destination == Screen.ASSIGN && (auth.user == null
+            || !auth.user.can(AeriqAuthManager.User.PERMISSION_TEAM))) {
+            // Asignar Orb es del admin de campaña, como «Registrar Orb» en el panel web.
+            destination = auth.user == null ? Screen.LOGIN : Screen.PANEL;
         }
+        // Al salir de Asignar Orb se deja de buscar por Bluetooth: el admin no recibe lecturas.
+        if (current == Screen.ASSIGN && destination != Screen.ASSIGN && ble.scanning) ble.stopScan();
+        if (destination == Screen.ASSIGN && current != Screen.ASSIGN) refreshTeam();
         if (current != destination || body.getChildCount() == 0 || mapScreen == null) {
             boolean enteringLink = destination == Screen.LINK && current != Screen.LINK;
             current = destination;
@@ -209,7 +230,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         DesignScreens design = new DesignScreens(this, ui);
         switch (current) {
             case MAP:
-                title("Mapa de ozono", null, R.drawable.ic_bell, () -> message("No tienes avisos nuevos."));
+                title("Mapa de ozono", null);
                 scroll.setVisibility(View.GONE);
                 stage.setVisibility(View.VISIBLE);
                 mapScreen = new PublicMapScreen(this, ui, stage, maps);
@@ -220,7 +241,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 design.learn(body);
                 break;
             case SENSOR:
-                title("Mi sensor", null, R.drawable.ic_settings, () -> go(Screen.CONFIG));
+                title("Mi sensor", null);
                 work.sensor(body, ble, assignments, assignmentStatus, serverStatus, sharing, history);
                 break;
             case LINK:
@@ -228,12 +249,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 work.link(body, ble, assignments);
                 break;
             case HISTORY:
-                title("Historial", Screen.SENSOR, R.drawable.ic_settings, () -> go(Screen.CONFIG));
+                title("Historial", Screen.SENSOR);
                 design.history(body, history, historyStatus, selected());
                 break;
             case CONFIG:
-                title("Configurar sensor", Screen.SENSOR);
-                design.settings(body, ble, selected(), sharing, prefs);
+                title("Detalles del sensor", Screen.SENSOR);
+                design.details(body, ble, selected(), location.allowed());
                 break;
             case COMPARE:
                 title("Comparar zonas", Screen.MAP);
@@ -243,13 +264,17 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 title("Soluciones AERIQ", Screen.ACCOUNT);
                 work.services(body);
                 break;
+            case PANEL:
+                title("Panel", null);
+                work.panel(body, auth.user);
+                break;
+            case ASSIGN:
+                title("Asignar Orb", Screen.PANEL);
+                work.assign(body, ble, team, teamStatus);
+                break;
             case ACCOUNT:
                 title("Cuenta", null);
                 design.account(body, auth.user, selected(), sharing, prefs);
-                break;
-            case PREMIUM:
-                title("Premium", Screen.ACCOUNT);
-                design.premium(body);
                 break;
             default:
                 throw new IllegalStateException(current.name());
@@ -282,13 +307,17 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     private void showNavigation() {
-        Screen[] routes = {Screen.MAP, Screen.SENSOR, Screen.LEARN, Screen.ACCOUNT};
-        String[] labels = {"Mapa", "Mi sensor", "Aprende", "Cuenta"};
-        int[] icons = {R.drawable.figma_nav_map, R.drawable.figma_nav_chip, R.drawable.figma_nav_book, R.drawable.figma_nav_user};
+        // La segunda pestaña depende de los permisos: quien mide ve «Mi sensor»; quien gestiona, «Panel».
+        boolean manager = auth.user != null && !auth.user.collects() && auth.user.manages();
+        Screen[] routes = {Screen.MAP, manager ? Screen.PANEL : Screen.SENSOR, Screen.LEARN, Screen.ACCOUNT};
+        String[] labels = {"Mapa", manager ? "Panel" : "Mi sensor", "Aprende", "Cuenta"};
+        int[] icons = {R.drawable.figma_nav_map, manager ? R.drawable.ic_sliders : R.drawable.figma_nav_chip,
+            R.drawable.figma_nav_book, R.drawable.figma_nav_user};
         Screen active = current;
         if (EnumSet.of(Screen.LINK, Screen.CONFIG, Screen.HISTORY).contains(current)) active = Screen.SENSOR;
         if (current == Screen.COMPARE) active = Screen.MAP;
-        if (current == Screen.SERVICES || current == Screen.PREMIUM) active = Screen.ACCOUNT;
+        if (current == Screen.SERVICES) active = Screen.ACCOUNT;
+        if (current == Screen.ASSIGN) active = Screen.PANEL;
         for (int index = 0; index < routes.length; index++) {
             Screen route = routes[index];
             boolean selected = active == route;
@@ -354,8 +383,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     private void clearWorker() {
-        linkingSensor = false;
         setSharing(false);
+        ble.preferredAddress = null;
+        team = CampaignTeam.empty();
         ble.stopScan();
         ble.unlink();
         history = Collections.emptyList();
@@ -381,6 +411,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             if (error == null) {
                 assignments = rows;
                 assignmentStatus = rows.size() + " asignaciones activas";
+                OrbAssignment only = onlyRealAssignment();
+                ble.preferredAddress = only == null ? null : only.address;
+                if (only != null && selected() == null && started && ble.hasScanPermissions() && ble.bluetoothEnabled()) ble.startScan();
                 if (selected() == null) {
                     ble.unlink();
                     setSharing(false);
@@ -402,6 +435,45 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     private OrbAssignment selected() { return assigned(ble.selectedAddress); }
 
+    // ---------------------------------------------------------------- Asignar Orb (admin de campaña)
+    private CampaignTeam team = CampaignTeam.empty();
+    private String teamStatus = "Consultando tu campaña…";
+
+    public void refreshTeam() {
+        teamStatus = "Consultando tu campaña…";
+        field.team((rows, error) -> {
+            if (error == null) team = rows;
+            teamStatus = error == null ? (rows.campaign.isEmpty() ? "" : "Campaña: " + rows.campaign) : "No se pudo consultar: " + error;
+            if (current == Screen.ASSIGN) render();
+        });
+    }
+
+    /** Registra o reasigna el Orb al operador elegido; el servidor aplica las mismas reglas que el panel web. */
+    public void assignOrb(CampaignTeam.Device existing, String address, String name, CampaignTeam.Operator operator) {
+        message("Asignando " + name + " a " + operator.name + "…");
+        field.assignOrb(existing == null ? null : existing.id, name, address, operator.id,
+            existing != null && existing.simulated, error -> {
+                if (error != null) {
+                    new android.app.AlertDialog.Builder(this).setTitle("No se pudo asignar el Orb")
+                        .setMessage(error).setPositiveButton("Entendido", null).show();
+                    return;
+                }
+                message(name + " asignado a " + operator.name + ". Le aparecerá al abrir la app.");
+                refreshTeam();
+            });
+    }
+
+    /** El único Orb real asignado a la cuenta, o null si no hay ninguno o hay varios (entonces se elige en Vincular). */
+    private OrbAssignment onlyRealAssignment() {
+        OrbAssignment only = null;
+        for (OrbAssignment orb : assignments) {
+            if (orb.simulated || orb.address.isEmpty()) continue;
+            if (only != null) return null;
+            only = orb;
+        }
+        return only;
+    }
+
     private OrbAssignment assigned(String address) {
         for (OrbAssignment assignment : assignments) {
             if (!assignment.address.isEmpty() && assignment.address.equalsIgnoreCase(address)) return assignment;
@@ -413,8 +485,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         OrbAssignment assignment = assigned(reading.address);
         if (!started || !sharing || assignment == null) return;
         serverStatus = "Enviando " + reading.reading.label() + "…";
-        // Sin "Guardar mi recorrido" la lectura se envía sin posición GPS.
-        field.upload(reading, assignment, prefs.saveRoute() ? location.current() : null, status -> serverStatus = status);
+        // La posición va siempre: sin ella la lectura no puede salir en el mapa de la campaña.
+        field.upload(reading, assignment, location.current(), status -> serverStatus = status);
     }
 
     private String batterySentAddress;
@@ -434,21 +506,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         field.battery(assignment, address, percent, now);
     }
 
-    public void setSharing(boolean enabled) { setSharing(enabled, false); }
-
-    /** Interruptor «Compartir con la red»: además de enviar las lecturas, publica o retira la campaña personal. */
-    public void toggleSharing(boolean enabled) { setSharing(enabled, true); }
-
-    private void setSharing(boolean enabled, boolean fromUser) {
-        OrbAssignment assignment = selected();
-        sharing = enabled && assignment != null;
-        // Publicar siempre que se activa (también al elegir el Orb). Retirar solo si la persona lo apaga:
-        // cerrar sesión o cambiar de Orb no despublica lo ya compartido.
-        if (assignment != null && !assignment.simulated && (sharing || fromUser)) {
-            field.share(assignment, sharing, (text, error) -> {
-                if (fromUser) message(error != null ? "No se pudo cambiar la publicación: " + error : text);
-            });
-        }
+    /**
+     * Envío a la campaña: las lecturas del Orb seleccionado se envían solas a su campaña. Publicarlas en el mapa
+     * público lo decide el administrador de la campaña desde el panel web, no la app.
+     */
+    public void setSharing(boolean enabled) {
+        sharing = enabled && selected() != null;
         serverStatus = sharing ? "Envío activado: esperando lecturas de campaña" : "Envío desactivado";
         if (!sharing) location.stop();
         else if (location.allowed()) {
@@ -465,26 +528,6 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         ble.select(address);
         setSharing(!assigned(address).simulated);
         go(Screen.SENSOR);
-    }
-
-    public void assignSensor(String address, String name) {
-        if (linkingSensor) { message("Se está guardando la asignación…"); return; }
-        if (!workerAccount()) { message("Necesitas una cuenta de trabajador o administrador de tu organización."); return; }
-        linkingSensor = true;
-        message("Asignando sensor a tu cuenta…");
-        field.linkSensor(address, name, (rows, error) -> {
-            linkingSensor = false;
-            if (error != null) {
-                new android.app.AlertDialog.Builder(this).setTitle("No se pudo asignar el sensor")
-                    .setMessage(error + "\n\nSi aparece HTTP 404, falta publicar la API sensor-link.php en el servidor.")
-                    .setPositiveButton("Entendido", null).show();
-                return;
-            }
-            assignments = rows;
-            assignmentStatus = rows.size() + " sensores asignados a tu cuenta";
-            selectOrb(address);
-            message("Sensor asignado a tu cuenta");
-        });
     }
 
     public void unlink() {
@@ -548,15 +591,21 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         if (request == BLE_PERMISSION) {
             if (ble.hasScanPermissions()) scanWithBluetooth();
             else message("No se han concedido los permisos Bluetooth");
-        } else if (request == GPS_CAPTURE && sharing && started) location.start();
+        } else if (request == GPS_CAPTURE) {
+            if (sharing && started) location.start();
+            if (current == Screen.CONFIG) render();
+        }
         else if (request == GPS_MAP && mapScreen != null) mapScreen.locate();
     }
 
     /** Nombre del sensor en este móvil: el que puso el usuario o el de la asignación. */
-    public String sensorName(OrbAssignment sensor) {
-        if (sensor == null) return "";
-        String alias = prefs.alias(sensor.address);
-        return alias != null ? alias : sensor.name;
+    /** Nombre del Orb tal como lo registra el admin de campaña en el panel web. */
+    public String sensorName(OrbAssignment sensor) { return sensor == null ? "" : sensor.name; }
+
+    /** Pide el permiso de ubicación desde «Detalles del sensor» si la persona lo denegó. */
+    public void requestCaptureLocation() {
+        if (location.allowed()) { message("La ubicación ya está permitida."); return; }
+        requestPermissions(locationPermissions(), GPS_CAPTURE);
     }
 
     public AppPrefs prefs() { return prefs; }
@@ -749,6 +798,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         }, "email", credential.email, "password", credential.password);
     }
 
+    // Exportar CSV/PDF no se ofrece en la app (en la web el operador no descarga datos). Se conserva por si se habilita.
     public void exportPdf(List<StoredReading> rows, String title) {
         exportRows = new ArrayList<>(rows);
         exportTitle = title;
@@ -863,12 +913,14 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         catch (android.content.ActivityNotFoundException error) { message("No hay navegador disponible."); }
     }
 
+    public boolean signedIn() { return auth.user != null; }
+
     public void message(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
 
     @Override protected void onStart() {
         super.onStart();
         started = true;
-        if (ble.selectedAddress != null && ble.hasScanPermissions() && ble.bluetoothEnabled()) ble.startScan();
+        if ((ble.selectedAddress != null || ble.preferredAddress != null) && ble.hasScanPermissions() && ble.bluetoothEnabled()) ble.startScan();
         if (sharing) location.start();
         if (mapScreen != null) mapScreen.resume();
         main.post(tick);
@@ -901,7 +953,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             case FORGOT: go(Screen.LOGIN); break;
             case RESET: go(Screen.FORGOT); break;
             case CONFIG: case HISTORY: case LINK: go(Screen.SENSOR); break;
-            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: case PREMIUM: go(Screen.ACCOUNT); break;
+            case ASSIGN: go(Screen.PANEL); break;
+            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: go(Screen.ACCOUNT); break;
             case MAP: case LOGIN: finish(); break;
             default: go(Screen.MAP);
         }

@@ -24,29 +24,22 @@ httpdocs/
 │   ├── android/              # Proyecto Android Studio, pruebas y recursos originales
 │   ├── web/                  # Raíz desplegable: HTML/CSS/JS, API PHP y server/
 │   └── database/
-│       ├── schema.sql        # Esquema único, nombres en español, relaciones y vistas
-│       └── seed-demo.sql     # Organizaciones, cuentas y lecturas ficticias comprensibles
+│       ├── 1-instalar.sql    # Instala la base completa (estructura, catálogos y admin principal)
+│       └── 2-simulacion.sql  # Opcional: campañas, AERIQ, lecturas y cuentas de prueba
 ├── scripts/
 │   ├── audit-repository.py
 │   ├── build-plesk-package.py
-│   ├── reset-database.py     # Recreación explícita con copia previa y modo de simulación
 │   ├── migrate-legacy.php    # Importación a otra base vacía, sin borrar el origen
 │   ├── bootstrap-organization.php
 │   └── tests/
 └── doc/                      # Diseños, pruebas, despliegue, HU, tareas e histórico
 ```
 
-## Base de demostración
+## Base de datos
 
-El esquema nuevo no necesita las tablas antiguas de Plesk. Tiene 26 tablas con nombres claros (los roles, permisos, servicios y estados son catálogos, no `ENUM`) y cuatro vistas: `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`. El diseño y sus decisiones están en [Modelo de datos](doc/base-de-datos.md). El [README de datos](src/database/README.md) explica las relaciones y las seis cuentas de ejemplo.
+Se instala con dos archivos de [src/database](src/database/README.md): `1-instalar.sql` (obligatorio) y `2-simulacion.sql` (datos de prueba, opcional). Se importan desde phpMyAdmin en la base que tengas seleccionada, sea cual sea su nombre. Tiene 26 tablas y cuatro vistas. El diseño y sus decisiones están en [Modelo de datos](doc/base-de-datos.md).
 
-Antes de borrar nada puedes consultar el plan, sin conectar a la base:
-
-```powershell
-python scripts/reset-database.py --database aeriq_demo --user root --demo --dry-run
-```
-
-El borrado real requiere el nombre exacto y `--confirm RECREAR:nombre_base`; el script crea una copia completa antes de ejecutar DROP. Nunca se ejecuta automáticamente desde la web. Para conservar datos anteriores se utiliza `migrate-legacy.php` hacia una base diferente y vacía.
+Para llevar una base con datos reales a otro ordenador, usa **Exportar** e **Importar** de phpMyAdmin (ver el [README de datos](src/database/README.md)).
 
 ## Comprobaciones
 

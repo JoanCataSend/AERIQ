@@ -15,4 +15,4 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 
 Los formularios/llamadas existentes se reutilizan y se amplían con `fleet.js`, `portal.js`, `public-map.js`, `solicitudes.js` y los clientes especializados. `styles.css` sigue siendo el CSS compartido. No se han sustituido los recursos por imágenes nuevas.
 
-El servidor utiliza un único [schema.sql](../database/schema.sql). Consulta [API](../../doc/api.md), [despliegue](../../doc/despliegue.md) y [pruebas](../../doc/pruebas.md). Un servidor estático solo permite presentación; los flujos de datos necesitan PHP, base y correo configurados.
+El servidor utiliza una única definición de base, [1-instalar.sql](../database/1-instalar.sql). Consulta [API](../../doc/api.md), [despliegue](../../doc/despliegue.md) y [pruebas](../../doc/pruebas.md). Un servidor estático solo permite presentación; los flujos de datos necesitan PHP, base y correo configurados.

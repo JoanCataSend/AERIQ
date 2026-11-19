@@ -42,9 +42,16 @@ public final class PublicReadings {
         }
     }
 
-    public static Result fetch(boolean simulated) throws Exception {
+    public static Result fetch(boolean simulated) throws Exception { return fetch(simulated, 24); }
+
+    /**
+     * hours: 24 (último día), 168 (última semana) o 0 (histórico, las 2.000 más recientes). Sin este parámetro el
+     * servidor devuelve solo las últimas 24 h, y una comparación de 7 o 30 días quedaba vacía.
+     */
+    public static Result fetch(boolean simulated, int hours) throws Exception {
+        if (hours != 0 && hours != 24 && hours != 168) throw new IllegalArgumentException("Periodo no admitido: " + hours);
         JsonHttp.Response response = JsonHttp.request(ApiRoutes.PUBLIC_MAP + "?action=map&mode="
-            + (simulated ? "simulated" : "real"), null, null);
+            + (simulated ? "simulated" : "real") + "&hours=" + hours, null, null);
         if (!response.ok()) throw new IllegalStateException(response.message());
         JSONArray array = response.json.getJSONArray("measurements");
         List<Reading> rows = new ArrayList<>();

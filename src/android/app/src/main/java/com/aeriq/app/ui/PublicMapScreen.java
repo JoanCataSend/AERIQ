@@ -72,9 +72,9 @@ public final class PublicMapScreen {
     private final LinearLayout suggestions;
     private final LinearLayout warning;
     private final TextView warningText;
-    private final CheckBox markers, zones, campaignRadius;
+    private final Switch markers, zones, dark, campaignRadius;
     private final SeekBar radiusSeek;
-    private final TextView radiusLabel, legend;
+    private final TextView radiusValue, radiusLabel, legend;
     // Ficha inferior
     private final View zoneDot;
     private final TextView zoneTitle, zoneSubtitle, zoneValue, zoneUnit, zoneChip, zoneUpdated;
@@ -83,11 +83,21 @@ public final class PublicMapScreen {
     private List<List<Reading>> groups = Collections.emptyList();
     /** Radio de prueba elegido en «Capas»; 0 = el de cada campaña. Solo afecta a esta vista. */
     private int radiusOverride;
+    /** Periodo del mapa: 24 (último día), 168 (última semana) o 0 (histórico). Como en la web. */
+    private int hours = 24;
+    /** «Ver historial» es de quien tiene sensor: sin sesión se oculta en vez de llevar al inicio de sesión. */
+    private View historyAction, historyGap;
     /** Último punto consultado al tocar el mapa, para recalcularlo si cambian los datos o el radio. */
     private GeoPoint queried;
     private int request, searchRequest;
     private boolean closed, suppressSuggestions;
     private Marker locationMarker;
+    /** Tu última posición conocida en el mapa; la ficha enseña tu ciudad y el ozono de cerca. */
+    private GeoPoint here;
+    /** Nombre del lugar que enseña la ficha (ciudad) y nivel del aviso superior, que lo menciona. */
+    private String placeLabel = "";
+    private int placeRequest, warningLevel;
+    private boolean autoLocated;
     private Runnable pendingSearch;
 
     public PublicMapScreen(MainActivity activity, Views ui, FrameLayout stage, ExecutorService worker) {
@@ -192,11 +202,11 @@ public final class PublicMapScreen {
         floating.addView(controls);
 
         // ---------- Capas ----------
-        layers = ui.column();
-        layers.setPadding(ui.dp(20), ui.dp(8), ui.dp(20), 0);
-        zones = toggle(layers, "Zonas estimadas (interpolación)", true);
-        markers = toggle(layers, "Puntos de medición", true);
-        CheckBox dark = toggle(layers, "Mapa oscuro", false);
+        // Los controles se crean una vez (conservan su estado) y se muestran en una hoja de la app.
+        zones = ui.toggle(true);
+        markers = ui.toggle(true);
+        dark = ui.toggle(false);
+        campaignRadius = ui.toggle(true);
         dark.setOnCheckedChangeListener((button, checked) -> {
             map.getOverlayManager().getTilesOverlay().setColorFilter(checked
                 ? new ColorMatrixColorFilter(new float[]{-.65f,0,0,0,175, 0,-.65f,0,0,185, 0,0,-.65f,0,183, 0,0,0,1,0})
@@ -206,15 +216,16 @@ public final class PublicMapScreen {
         zones.setOnCheckedChangeListener((button, checked) -> draw());
         markers.setOnCheckedChangeListener((button, checked) -> draw());
         // Radio de interpolación: por defecto el de cada campaña; el control lo sustituye solo en esta vista.
-        radiusLabel = ui.text("", 14, false, INK);
-        radiusLabel.setPadding(ui.dp(6), ui.dp(14), 0, ui.dp(4));
-        layers.addView(radiusLabel);
+        radiusValue = ui.text("", 17, true, GREEN);
+        radiusLabel = ui.text("", 12, false, MUTED);
         radiusSeek = new SeekBar(activity);
         radiusSeek.setMax((PublicReadings.RADIUS_MAX - PublicReadings.RADIUS_MIN) / RADIUS_STEP);
         radiusSeek.setProgress((PublicReadings.RADIUS_DEFAULT - PublicReadings.RADIUS_MIN) / RADIUS_STEP);
         radiusSeek.setContentDescription("Radio de interpolación, de 20 a 50 metros");
-        layers.addView(radiusSeek, new LinearLayout.LayoutParams(-1, -2));
-        campaignRadius = toggle(layers, "Usar el radio de cada campaña", true);
+        radiusSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(GREEN));
+        radiusSeek.setThumbTintList(android.content.res.ColorStateList.valueOf(GREEN));
+        radiusSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xffcfd8d4));
+        radiusSeek.setPadding(ui.dp(4), ui.dp(12), ui.dp(4), ui.dp(12));
         campaignRadius.setOnCheckedChangeListener((button, checked) -> {
             radiusOverride = checked ? 0 : PublicReadings.RADIUS_MIN + radiusSeek.getProgress() * RADIUS_STEP;
             refreshRadius();
@@ -222,7 +233,7 @@ public final class PublicMapScreen {
         radiusSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                 if (!fromUser) return;
-                // Al desmarcar la casilla, su propio aviso aplica el radio elegido.
+                // Al desmarcar el interruptor, su propio aviso aplica el radio elegido.
                 if (campaignRadius.isChecked()) { campaignRadius.setChecked(false); return; }
                 radiusOverride = PublicReadings.RADIUS_MIN + progress * RADIUS_STEP;
                 refreshRadius();
@@ -258,7 +269,7 @@ public final class PublicMapScreen {
         top.addView(zoneDot, dotParams);
         LinearLayout names = ui.column();
         zoneTitle = ui.text("Cargando mediciones…", 20, true, INK);
-        zoneSubtitle = ui.text("Red colaborativa", 14, false, MUTED);
+        zoneSubtitle = ui.text("Mediciones publicadas por cada campaña", 14, false, MUTED);
         names.addView(zoneTitle);
         names.addView(zoneSubtitle);
         top.addView(names, new LinearLayout.LayoutParams(0, -2, 1));
@@ -299,20 +310,19 @@ public final class PublicMapScreen {
         history.addView(historyLabel);
         history.setOnClickListener(view -> activity.go(Screen.HISTORY));
         actions.addView(history, new LinearLayout.LayoutParams(0, ui.dp(54), 1));
-        actions.addView(new View(activity), new LinearLayout.LayoutParams(ui.dp(10), 1));
+        View gap = new View(activity);
+        actions.addView(gap, new LinearLayout.LayoutParams(ui.dp(10), 1));
+        historyAction = history;
+        historyGap = gap;
         LinearLayout compare = ui.row();
         compare.setGravity(Gravity.CENTER);
         compare.setBackground(ui.shape(DARK, 18, 0));
-        ImageView sparkles = ui.image(R.drawable.ic_sparkles, 20, 20);
-        sparkles.setColorFilter(WHITE);
-        compare.addView(sparkles, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
-        TextView compareLabel = ui.text("Comparar", 15, true, WHITE);
-        compareLabel.setPadding(ui.dp(8), 0, ui.dp(8), 0);
+        ImageView scale = ui.image(R.drawable.ic_scale, 20, 20);
+        scale.setColorFilter(WHITE);
+        compare.addView(scale, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
+        TextView compareLabel = ui.text("Comparar zonas", 15, true, WHITE);
+        compareLabel.setPadding(ui.dp(10), 0, 0, 0);
         compare.addView(compareLabel);
-        TextView premium = ui.text("Premium", 11, true, INK);
-        premium.setPadding(ui.dp(8), ui.dp(3), ui.dp(8), ui.dp(3));
-        premium.setBackground(ui.shape(WHITE, 12, 0));
-        compare.addView(premium);
         compare.setOnClickListener(view -> activity.go(Screen.COMPARE));
         actions.addView(compare, new LinearLayout.LayoutParams(0, ui.dp(54), 1));
         sheet.addView(actions, new LinearLayout.LayoutParams(-1, -2));
@@ -354,11 +364,10 @@ public final class PublicMapScreen {
             return true;
         });
 
-        showZone(null, null);
+        showZone(null, null, null);
         load();
     }
 
-    private LinearLayout layers;
     private LinearLayout grip, bottom;
     private int hiddenOffset;
     private boolean expanded, dragging;
@@ -453,7 +462,8 @@ public final class PublicMapScreen {
 
     private void showRadius() {
         if (radiusOverride != 0) {
-            radiusLabel.setText("Radio de prueba: " + radiusOverride + " m. Solo cambia esta vista y no se guarda.");
+            radiusValue.setText(radiusOverride + " m");
+            radiusLabel.setText("Radio de prueba: solo cambia esta vista y no se guarda.");
             return;
         }
         int min = Integer.MAX_VALUE, max = 0;
@@ -463,8 +473,8 @@ public final class PublicMapScreen {
             max = Math.max(max, group.get(0).radius);
         }
         if (max == 0) min = max = PublicReadings.RADIUS_DEFAULT;
-        radiusLabel.setText("Radio de interpolación: " + (min == max ? min + " m" : min + "–" + max + " m")
-            + " (el de cada campaña)");
+        radiusValue.setText(min == max ? min + " m" : min + "–" + max + " m");
+        radiusLabel.setText("El que ha fijado cada campaña. Mueve la barra para probar otro (20–50 m).");
     }
 
     private void refreshRadius() {
@@ -499,6 +509,8 @@ public final class PublicMapScreen {
         String[] text = PublicReadings.describe(best, radius, sample == null ? "" : sample.unit,
             sample == null ? 0 : sample.medium, sample == null ? 0 : sample.high, sample != null && sample.simulated);
         queried = point;
+        placeRequest++;
+        warningLevel = 0;
         zoneTitle.setText(text[0]);
         zoneSubtitle.setText(text[1]);
         zoneUpdated.setText("");
@@ -523,18 +535,39 @@ public final class PublicMapScreen {
     }
 
     private void showLayers() {
-        if (layers.getParent() != null) ((android.view.ViewGroup) layers.getParent()).removeView(layers);
-        new android.app.AlertDialog.Builder(activity).setTitle("Capas del mapa").setView(layers)
-            .setPositiveButton("Cerrar", null).show();
+        AppSheet sheet = new AppSheet(activity, ui, "Capas del mapa", "Qué mediciones ver y cómo pintarlas");
+        sheet.section("Periodo");
+        int[] periodHours = {24, 168, 0};
+        int selected = 0;
+        for (int i = 0; i < periodHours.length; i++) if (periodHours[i] == hours) selected = i;
+        ui.segments(sheet.content, new String[]{"Últimas 24 h", "7 días", "Todo"}, selected, index -> {
+            if (hours != periodHours[index]) { hours = periodHours[index]; load(); }
+        });
+        sheet.section("Mostrar en el mapa");
+        LinearLayout show = sheet.group();
+        sheet.toggle(show, "Zonas estimadas", "Color alrededor de cada medición (interpolación)", zones);
+        sheet.toggle(show, "Puntos de medición", "Cada lectura publicada", markers);
+        sheet.toggle(show, "Mapa oscuro", null, dark);
+        sheet.section("Radio de interpolación");
+        LinearLayout radius = sheet.group();
+        LinearLayout head = ui.row();
+        head.setPadding(0, ui.dp(12), 0, 0);
+        head.addView(ui.text("Radio", 15, true, INK), new LinearLayout.LayoutParams(0, -2, 1));
+        detach(radiusValue);
+        head.addView(radiusValue);
+        radius.addView(head, new LinearLayout.LayoutParams(-1, -2));
+        detach(radiusSeek);
+        radius.addView(radiusSeek, new LinearLayout.LayoutParams(-1, -2));
+        detach(radiusLabel);
+        radiusLabel.setPadding(0, 0, 0, ui.dp(12));
+        radius.addView(radiusLabel);
+        sheet.toggle(radius, "Usar el radio de cada campaña", null, campaignRadius);
+        sheet.primary("Listo", null);
+        sheet.show();
     }
 
-    private CheckBox toggle(LinearLayout parent, String label, boolean checked) {
-        CheckBox button = new CheckBox(activity);
-        button.setText(label);
-        button.setChecked(checked);
-        button.setButtonTintList(android.content.res.ColorStateList.valueOf(GREEN));
-        parent.addView(button);
-        return button;
+    private static void detach(View view) {
+        if (view.getParent() != null) ((android.view.ViewGroup) view.getParent()).removeView(view);
     }
 
     // ---------------------------------------------------------------- datos
@@ -543,7 +576,7 @@ public final class PublicMapScreen {
         int generation = ++request;
         worker.execute(() -> {
             try {
-                PublicReadings.Result result = PublicReadings.fetch(false);
+                PublicReadings.Result result = PublicReadings.fetch(false, hours);
                 activity.runOnUiThread(() -> {
                     if (closed || generation != request) return;
                     readings = result.rows;
@@ -557,12 +590,13 @@ public final class PublicMapScreen {
                     groups = support;
                     showRadius();
                     draw();
-                    if (!readings.isEmpty()) {
+                    if (here != null) showZone(nearestZone(here), null, here);
+                    else if (!readings.isEmpty()) {
                         Reading latest = readings.get(0);
                         for (Reading reading : readings) if (reading.date.compareTo(latest.date) > 0) latest = reading;
                         if (locationMarker == null) map.getController().setCenter(latest.position());
-                        showZone(latest.zone, null);
-                    } else showZone(null, null);
+                        showZone(latest.zone, null, latest.position());
+                    } else showZone(null, null, null);
                     // La consulta de un punto se mantiene tras recargar los datos.
                     if (pending != null) query(pending);
                 });
@@ -577,6 +611,7 @@ public final class PublicMapScreen {
     }
 
     private void draw() {
+        updateHistoryAction();
         map.getOverlays().clear();
         // Debajo de todo: recoge los toques que no caen en un marcador y consulta ese punto.
         map.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
@@ -599,7 +634,7 @@ public final class PublicMapScreen {
             icon.setSize(ui.dp(18), ui.dp(18));
             marker.setIcon(icon);
             marker.setOnMarkerClickListener((selected, view) -> {
-                showZone(reading.zone, null);
+                showZone(reading.zone, null, reading.position());
                 setExpanded(true);
                 return true;
             });
@@ -678,28 +713,34 @@ public final class PublicMapScreen {
     }
 
     /**
-     * Rellena la ficha inferior. Con zona: media de las lecturas de la última hora medida en esa zona.
-     * Sin zona pero con lugar buscado: indica que allí aún no hay sensores.
+     * Rellena la ficha inferior. El título es el lugar (la ciudad de where, o el que se ha buscado), no el nombre
+     * interno de la zona de la campaña. Con zona: media de las lecturas de la última hora medida en esa zona.
+     * Sin zona: indica que allí aún no hay mediciones publicadas.
      */
-    private void showZone(String zone, String placeName) {
+    private void showZone(String zone, String placeName, GeoPoint where) {
         queried = null;
         List<Reading> rows = new ArrayList<>();
         if (zone != null) for (Reading reading : readings) if (reading.zone.equals(zone)) rows.add(reading);
         if (rows.isEmpty()) {
+            warningLevel = 0;
+            boolean somewhere = placeName != null || where != null;
+            setPlace(placeName, where, readings.isEmpty() ? "Sin mediciones publicadas" : "Elige una zona");
             zoneDot.setBackground(dot(Quality.NONE));
-            zoneTitle.setText(placeName != null ? placeName : readings.isEmpty() ? "Sin mediciones publicadas" : "Elige una zona");
-            zoneSubtitle.setText(placeName != null ? "Aún no hay sensores publicados aquí" : "Red colaborativa");
+            zoneSubtitle.setText(somewhere ? "Aún no hay mediciones publicadas cerca" : "Mediciones publicadas por cada campaña");
             zoneValue.setText("—");
             zoneUnit.setText("");
             zoneChip.setText("Calidad: —");
             zoneChip.setTextColor(MUTED);
             zoneChip.setBackground(ui.shape(0xffeff3f1, 18, 0));
             zoneUpdated.setText("");
-            warning.setVisibility(View.GONE);
             return;
         }
         long latest = 0;
-        for (Reading reading : rows) latest = Math.max(latest, Quality.utc(reading.date));
+        Reading newest = rows.get(0);
+        for (Reading reading : rows) {
+            long time = Quality.utc(reading.date);
+            if (time > latest) { latest = time; newest = reading; }
+        }
         double sum = 0;
         int count = 0;
         Set<String> points = new HashSet<>();
@@ -712,9 +753,11 @@ public final class PublicMapScreen {
         Reading sample = rows.get(0);
         double value = count == 0 ? sample.value : sum / count;
         int level = Quality.level(value, sample.medium, sample.high);
+        warningLevel = level;
+        // Si no se sabe la ciudad, se usa el nombre de la zona como último recurso.
+        setPlace(placeName, where != null ? where : newest.position(), zone);
         zoneDot.setBackground(dot(Quality.color(level)));
-        zoneTitle.setText(placeName != null && !placeName.equalsIgnoreCase(zone) ? placeName + " · " + zone : zone);
-        zoneSubtitle.setText("Red colaborativa · " + count + (count == 1 ? " medición" : " mediciones")
+        zoneSubtitle.setText(count + (count == 1 ? " medición" : " mediciones")
             + (points.size() > 1 ? " en " + points.size() + " puntos" : ""));
         zoneValue.setText(Quality.number(value));
         zoneUnit.setText(sample.unit);
@@ -722,17 +765,39 @@ public final class PublicMapScreen {
         zoneChip.setTextColor(Quality.text(level));
         zoneChip.setBackground(ui.shape(Quality.soft(level), 18, 0));
         zoneUpdated.setText("Actualizado " + Quality.when(latest));
-        if (level == 0) warning.setVisibility(View.GONE);
-        else {
-            SpannableStringBuilder text = new SpannableStringBuilder("Aviso: ");
-            text.setSpan(new StyleSpan(Typeface.BOLD), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.setSpan(new ForegroundColorSpan(Quality.MEDIUM_TEXT), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.append(level == 2
-                ? "ozono alto en " + zone + ". Evita la actividad física al aire libre."
-                : "ozono moderado en " + zone + ". Evita el ejercicio intenso en horas de sol.");
-            warningText.setText(text);
-            warning.setVisibility(View.VISIBLE);
-        }
+    }
+
+    /**
+     * Pone el título de la ficha: el nombre conocido o la ciudad de where (sin calle). La ciudad se busca en
+     * segundo plano; si llega tarde (ya se ha elegido otra cosa) se descarta. Si no se encuentra, fallback.
+     */
+    private void setPlace(String known, GeoPoint where, String fallback) {
+        int generation = ++placeRequest;
+        String cached = known != null ? known : where == null ? fallback
+            : PlaceSearch.cachedCity(where.getLatitude(), where.getLongitude());
+        if (cached != null) { showPlace(cached); return; }
+        showPlace("Buscando la ciudad…");
+        worker.execute(() -> {
+            String city = PlaceSearch.city(activity, where.getLatitude(), where.getLongitude());
+            activity.runOnUiThread(() -> {
+                if (closed || generation != placeRequest) return;
+                showPlace(city != null ? city : fallback);
+            });
+        });
+    }
+
+    private void showPlace(String name) {
+        placeLabel = name;
+        zoneTitle.setText(name);
+        if (warningLevel == 0) { warning.setVisibility(View.GONE); return; }
+        SpannableStringBuilder text = new SpannableStringBuilder("Aviso: ");
+        text.setSpan(new StyleSpan(Typeface.BOLD), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.setSpan(new ForegroundColorSpan(Quality.MEDIUM_TEXT), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.append(warningLevel == 2
+            ? "ozono alto en " + placeLabel + ". Evita la actividad física al aire libre."
+            : "ozono moderado en " + placeLabel + ". Evita el ejercicio intenso en horas de sol.");
+        warningText.setText(text);
+        warning.setVisibility(View.VISIBLE);
     }
 
     private GradientDrawable dot(int color) {
@@ -821,7 +886,7 @@ public final class PublicMapScreen {
             map.getController().setZoom(place.zoom());
             map.getController().animateTo(target);
         }
-        showZone(nearestZone(target), place.name);
+        showZone(nearestZone(target), place.name, target);
     }
 
     private String nearestZone(GeoPoint point) {
@@ -836,13 +901,17 @@ public final class PublicMapScreen {
 
     // ---------------------------------------------------------------- ubicación
 
-    public void locate() {
+    public void locate() { locate(false); }
+
+    /** Centra el mapa en ti y enseña tu ciudad en la ficha. Con quiet (al abrir el mapa) no avisa de nada. */
+    private void locate(boolean quiet) {
         if (!location.allowed()) {
-            activity.message("No se ha concedido permiso de ubicación.");
+            if (!quiet) activity.message("No se ha concedido permiso de ubicación.");
             return;
         }
         Location point = location.current();
         if (point == null) {
+            if (quiet) return;
             location.start();
             activity.message("Buscando tu ubicación…");
             main.postDelayed(() -> { if (!closed && location.current() != null) locate(); }, 2500);
@@ -861,12 +930,34 @@ public final class PublicMapScreen {
         locationMarker.setTitle("Mi ubicación");
         map.getController().setZoom(16.0);
         map.getController().animateTo(position);
-        String zone = nearestZone(position);
-        if (zone != null) showZone(zone, null);
+        here = position;
+        showZone(nearestZone(position), null, position);
         draw();
     }
 
-    public void resume() { map.onResume(); }
+    public void resume() {
+        map.onResume();
+        updateHistoryAction();
+        // Con el permiso ya concedido, al abrir el mapa se busca tu posición (sin volver a pedir permiso).
+        if (location.allowed()) {
+            location.start();
+            if (!autoLocated) awaitPosition(10);
+        }
+    }
+
+    /** Espera la primera posición (hasta unos 15 s) y la enseña una sola vez. */
+    private void awaitPosition(int tries) {
+        if (closed || autoLocated) return;
+        if (location.current() != null) { autoLocated = true; locate(true); return; }
+        if (tries > 0) main.postDelayed(() -> awaitPosition(tries - 1), 1500);
+    }
+
+    private void updateHistoryAction() {
+        if (historyAction == null) return;
+        int visibility = activity.signedIn() ? View.VISIBLE : View.GONE;
+        historyAction.setVisibility(visibility);
+        historyGap.setVisibility(visibility);
+    }
     public void pause() { location.stop(); map.onPause(); }
     public void close() {
         closed = true;

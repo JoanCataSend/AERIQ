@@ -89,7 +89,7 @@ function initSensorProduct(){
  const main=$('#product-main-image');
  $$('[data-angle]').forEach(button=>button.addEventListener('click',()=>{
    $$('[data-angle]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button))});
-   if(main){main.src=button.dataset.imageSrc;main.alt=button.dataset.imageAlt||'Sensor Orb de ozono (O₃)'}
+   if(main){main.src=button.dataset.imageSrc;main.alt=button.dataset.imageAlt||'Sensor AERIQ de ozono (O₃)'}
  }));
  $$('[data-angle]').forEach(b=>b.setAttribute('aria-pressed',String(b.classList.contains('active'))));
 }

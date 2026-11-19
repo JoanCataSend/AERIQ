@@ -42,6 +42,10 @@ public final class AeriqBleController {
     /** Se avisa con la dirección y el porcentaje cada vez que llega la batería del Orb seleccionado. */
     public java.util.function.BiConsumer<String, Integer> onBattery;
     public LiveMeasurement lastO3, lastTemperature;
+    /** Orb asignado a la cuenta: al detectarlo sin otro seleccionado, se selecciona solo. */
+    public String preferredAddress;
+    /** Se avisa cuando se selecciona solo el Orb asignado. */
+    public Runnable onAutoSelect;
     private final Context context;
     private final Consumer<LiveMeasurement> onReading;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -144,6 +148,10 @@ public final class AeriqBleController {
         int diagnostic = reading.typeId == IBeaconParser.STATUS_ID ? reading.value
             : IBeaconParser.parseDiagnostic(record.getServiceData(ParcelUuid.fromString(IBeaconParser.STATUS_UUID)), reading.counter);
         devices.put(address, new FoundDevice(address, name == null ? "Sensor AERIQ / PBIO" : name, rssi, received, diagnostic));
+        if (selectedAddress == null && address.equalsIgnoreCase(preferredAddress)) {
+            select(address);
+            if (onAutoSelect != null) onAutoSelect.run();
+        }
         if (selectedAddress == null) {
             status = reading.typeId == IBeaconParser.STATUS_ID
                 ? "Sensor detectado, con error de lectura (estado 0x" + Integer.toHexString(reading.value) + "). Selecciónalo para diagnosticar."

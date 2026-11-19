@@ -67,26 +67,6 @@ public final class AeriqFieldClient implements AutoCloseable {
         list("history", "readings", StoredReading::fromJson, done);
     }
 
-    public void linkSensor(String address, String name, BiConsumer<List<OrbAssignment>, String> done) {
-        String credential = token.get();
-        if (credential == null) { done.accept(Collections.emptyList(), "Inicia sesión"); return; }
-        worker.execute(() -> {
-            List<OrbAssignment> rows = new ArrayList<>();
-            String error = null;
-            try {
-                JsonHttp.Response response = JsonHttp.request(ApiRoutes.BASE + "sensor-link.php",
-                    JsonHttp.object("address", address, "name", name), credential);
-                if (!response.ok()) throw new IllegalStateException(response.message());
-                JSONArray data = response.json.getJSONArray("assignments");
-                for (int i = 0; i < data.length(); i++) rows.add(new OrbAssignment(data.getJSONObject(i)));
-            } catch (Exception failure) { error = failure.getMessage(); }
-            String message = error;
-            main.post(() -> {
-                if (!closed && credential.equals(token.get())) done.accept(rows, message);
-            });
-        });
-    }
-
     public void upload(LiveMeasurement reading, OrbAssignment assignment, Location location, Consumer<String> done) {
         String credential = token.get();
         long account = owner.get();
@@ -127,22 +107,42 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
-    /**
-     * «Compartir con la red»: publica (true) o retira (false) del mapa público la campaña personal del Orb.
-     * Una campaña de la organización no cambia. done recibe el mensaje del servidor o un error.
-     */
-    public void share(OrbAssignment assignment, boolean share, BiConsumer<String, String> done) {
+    /** Admin de campaña: operadores y Orb de su campaña (mobile-team.php, mismas reglas que el panel web). */
+    public void team(BiConsumer<CampaignTeam, String> done) {
         String credential = token.get();
-        if (credential == null) { done.accept(null, "Inicia sesión"); return; }
+        if (credential == null) { done.accept(CampaignTeam.empty(), "Inicia sesión"); return; }
         worker.execute(() -> {
-            String text = null, error = null;
+            CampaignTeam team = CampaignTeam.empty();
+            String error = null;
             try {
-                text = request(credential, "share", JsonHttp.object("deviceId", assignment.id, "share", share)).optString("message");
+                JsonHttp.Response response = JsonHttp.request(ApiRoutes.TEAM, null, credential);
+                if (!response.ok()) throw new IllegalStateException(response.message());
+                team = new CampaignTeam(response.json);
             } catch (Exception failure) { error = failure.getMessage(); }
-            String message = text, failure = error;
-            main.post(() -> {
-                if (!closed && credential.equals(token.get())) done.accept(message, failure);
-            });
+            CampaignTeam result = team;
+            String message = error;
+            main.post(() -> { if (!closed && credential.equals(token.get())) done.accept(result, message); });
+        });
+    }
+
+    /**
+     * Admin de campaña: registra el Orb (deviceId null) o lo reasigna, siempre a un operador de su campaña.
+     * El servidor aplica las reglas del panel web: un Orb por operador y la asignación anterior se cierra.
+     */
+    public void assignOrb(Long deviceId, String name, String address, long workerId, boolean simulated, Consumer<String> done) {
+        String credential = token.get();
+        if (credential == null) { done.accept("Inicia sesión"); return; }
+        worker.execute(() -> {
+            String error = null;
+            try {
+                JSONObject body = JsonHttp.object("name", name, "address", address, "worker", workerId,
+                    "active", true, "simulated", simulated);
+                if (deviceId != null) body.put("id", deviceId);
+                JsonHttp.Response response = JsonHttp.request(ApiRoutes.TEAM, body, credential);
+                if (!response.ok()) throw new IllegalStateException(response.message());
+            } catch (Exception failure) { error = failure.getMessage(); }
+            String message = error;
+            main.post(() -> { if (!closed && credential.equals(token.get())) done.accept(message); });
         });
     }
 

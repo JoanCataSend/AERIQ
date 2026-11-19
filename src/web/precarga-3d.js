@@ -1,5 +1,5 @@
-/* AERIQ · Precarga discreta del visor 3D y del modelo del Orb.
-   Se incluye en las páginas que no muestran el modelo para que, al abrir la ficha del Orb,
+/* AERIQ · Precarga discreta del visor 3D y del modelo del AERIQ.
+   Se incluye en las páginas que no muestran el modelo para que, al abrir la ficha del AERIQ,
    el visor y el archivo GLB ya estén en la caché del navegador. No se ejecuta con ahorro
    de datos ni en conexiones 2G, porque el modelo pesa unos 59 MB. */
 'use strict';

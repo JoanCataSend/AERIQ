@@ -8,9 +8,9 @@
 <title>AERIQ, sensor portátil de ozono · Código Norte</title>
 <link rel="icon" href="assets/aeriq_mark.png">
 <link rel="stylesheet" href="aeriq.css">
-<link rel="preload" href="assets/aeriq_sensor_3d.glb" as="fetch" crossorigin="anonymous">
-<link rel="preconnect" href="https://ajax.googleapis.com" crossorigin>
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<link rel="preload" href="assets/aeriq_sensor_3d.glb?v=malla-corregida" as="fetch" crossorigin="anonymous">
+<link rel="modulepreload" href="model-viewer-3.5.0.min.js">
+<script type="module" src="model-viewer-3.5.0.min.js"></script>
 <script src="auth-client.js"></script>
 </head>
 <body data-page="sensor">
@@ -38,7 +38,7 @@
       <p class="tagline">Un sensor de ozono del tamaño de un llavero.</p>
       <div class="product-stage product-stage-3d">
         <div class="sensor-3d-shell">
-                    <model-viewer class="sensor-model-viewer" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb" alt="Modelo 3D del AERIQ que se puede girar en todas las direcciones" poster="assets/aeriq-orb-llavero-transparente.png?v=2" camera-controls disable-zoom disable-pan camera-orbit="28deg 75deg 150%" min-camera-orbit="-Infinity 0deg 150%" max-camera-orbit="Infinity 180deg 150%" interaction-prompt="none" touch-action="none" environment-image="neutral" exposure="1" shadow-intensity="1" shadow-softness="0.9"></model-viewer>          <span class="mv-loading" role="status">Cargando modelo 3D…</span>
+                    <model-viewer class="sensor-model-viewer" loading="eager" reveal="auto" src="assets/aeriq_sensor_3d.glb?v=malla-corregida" alt="Modelo 3D del AERIQ que se puede girar en todas las direcciones" camera-controls disable-zoom disable-pan camera-orbit="24deg 86deg 150%" min-camera-orbit="-Infinity 0deg 150%" max-camera-orbit="Infinity 180deg 150%" interaction-prompt="none" touch-action="none" environment-image="neutral" exposure="1" shadow-intensity="0" shadow-softness="0.9"></model-viewer>          <span class="mv-loading" role="status">Cargando modelo 3D…</span>
         </div>
       </div>
     </div>

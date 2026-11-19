@@ -16,7 +16,7 @@ El formulario se organiza en tres bloques: qué necesitas, tus datos, y dónde y
 ## Pantallas operativas
 
 - `portal.html`: resumen y navegación por trabajadores, campañas, dispositivos, informes o solicitudes según función.
-- `sensores.html` + `fleet.js`: tabla organizativa real; alta/baja administrativa, nombre, asignaciones, origen y última actividad.
+- `fleet.js`: sección «Dispositivos AERIQ» de `portal.html` (admin de campaña); registro, operador, en servicio/baja y última actividad.
 - `mapa.html` + `public-map.js`: controles, búsqueda local, capas, aspecto claro/oscuro recordado, selección y CSV. Origen real/simulado, periodo y ámbito público/organización. Zonas estimadas en color, datos insuficientes en gris y sin datos sin color, pintadas en un lienzo con bordes redondos que siguen el radio de cada medición; radio de interpolación de prueba (20–50 m) y consulta de cualquier punto al pulsar el mapa. Ver [interpolación](interpolacion.md).
 - Ruta del Orb (solo con «Mi organización»): la casilla «Ruta del Orb» y el selector de Orb dibujan en azul las posiciones de ese Orb en orden de captura, dentro del periodo elegido, con un punto de inicio y otro de última posición. Un hueco de más de 10 minutos entre lecturas corta la línea, para no unir con una recta un descanso o un día distinto. La ruta sale de las mismas mediciones del mapa (máximo 2.000 recientes) y de su GPS; sin «Guardar mi recorrido» en Android las lecturas no llevan posición y no forman ruta. El mapa público no expone el Orb de cada medición.
 - `perfil.html`: datos y contraseña existentes; organización, función y herramientas de campaña en lugar de pedidos ficticios.
