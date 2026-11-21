@@ -74,8 +74,11 @@ try {
     if ($action==='forgot') {
         $email=auth_email($d['email']??'');auth_rate('forgot',$email,4,3600);
         auth_mail_config_ok();$u=auth_find($email);
-        if ($u && ($u['verificado_en'] || $u['debe_cambiar_clave']) && ($u['activo'] || $u['debe_cambiar_clave'])) auth_generate_code((int)$u['id'],'recuperar',$email);
-        auth_responder(200,['ok'=>true,'message'=>'Si la cuenta puede recuperarse, recibirás un código para restablecerla.']);
+        if (!$u) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
+        if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
+        if (!$u['activo'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'Esta cuenta está desactivada. Contacta con tu organización.','field'=>'email']);
+        auth_generate_code((int)$u['id'],'recuperar',$email);
+        auth_responder(200,['ok'=>true,'message'=>'Te hemos enviado un correo con un enlace y un código para elegir una contraseña nueva. Caducan en 10 minutos.']);
     }
     if ($action==='reset-password') {
         $email=auth_email($d['email']??'');auth_rate('reset',$email,12);$code=trim((string)($d['code']??''));$pass=auth_password($d['password']??'');

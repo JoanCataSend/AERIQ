@@ -1,4 +1,4 @@
-# Interpolación acotada y zonas sin datos (T25 · HU28)
+# Interpolación acotada y zonas sin datos (T25, T46, T47 · HU28)
 
 El mapa representa las áreas medidas sin extenderlas a distancias arbitrarias. Una zona solo recibe un nivel de ozono si hay mediciones suficientes cerca; si no, queda **sin datos**. Sin datos no significa aire limpio.
 
@@ -18,10 +18,14 @@ Ponderación inversa a la distancia (IDW) local y acotada:
    | Ninguna posición dentro del radio | Sin datos (`lejos`) |
    | 1 o 2 posiciones | Datos insuficientes (`insuficiente`) |
    | Posiciones de grupos distintos | No se estima (`mezcla`) |
-   | 3 o más posiciones | `valor = Σ(vᵢ·wᵢ) / Σwᵢ`, con `wᵢ = 1 / max(distanciaMin, dᵢ)^potencia` |
+   | 3 o más posiciones, dentro de la **zona propia** de la más cercana | El valor medido en esa posición |
+   | 3 o más posiciones, fuera de esa zona | `valor = Σ(vᵢ·wᵢ) / Σwᵢ`, con `wᵢ = 1 / max(distanciaMin, dᵢ)^potencia` |
+
+   La **zona propia** de cada posición (T46) es un círculo de radio `zonaPropia` (la mitad) de la distancia a su posición vecina más cercana del mismo grupo, como mucho `zonaPropiaMax` (15 m). Dentro de ella manda su valor medido: un punto rojo ya no queda rodeado de zona amarilla porque sus vecinos sean más bajos. Fuera de ella, la potencia 3 (antes 2) hace que la medición más cercana pese más que las lejanas.
 
    Al ser una media ponderada, el valor nunca sale del rango de las mediciones usadas. La distancia es haversine con radio terrestre de 6 371 000 m.
-4. **Pintado.** Sobre la vista actual se coloca una rejilla fina de pantalla (un punto cada 4 px en la web y cada 4 dp en Android) y se evalúa la estimación en cada punto cercano a alguna medición (`raster` en `aeriq-domain.js` y `PublicReadings.raster` en Android). La imagen resultante se amplía con suavizado, así que cada medición alcanza un círculo de su radio y el borde de las zonas sale redondo, sin cuadrados. Al mover o ampliar el mapa se vuelve a calcular.
+4. **Campañas que se solapan (T47).** Si las zonas de dos campañas se tocan, la zona común no se queda con el color de la primera ni suma colores: se interpola con las lecturas de las dos (media de cada estimación ponderada por su peso IDW total) y el nivel se juzga con los umbrales de la campaña que más pesa en ese punto. En la zona propia de una posición manda su valor medido (si hay dos, el de la más cercana). El resultado no depende del orden de las campañas. Los tres niveles se pintan con la misma transparencia.
+5. **Pintado.** Sobre la vista actual se coloca una rejilla fina de pantalla (un punto cada 4 px en la web y cada 4 dp en Android) y se evalúa la estimación en cada punto cercano a alguna medición (`raster` en `aeriq-domain.js` y `PublicReadings.raster` en Android). La imagen resultante se amplía con suavizado, así que cada medición alcanza un círculo de su radio y el borde de las zonas sale redondo, sin cuadrados. Al mover o ampliar el mapa se vuelve a calcular.
 
 ## Parámetros
 
@@ -33,12 +37,15 @@ Están en un único sitio por plataforma: `AeriqDomain.INTERPOLACION` en la web 
 | Radio por defecto | `radio` | `RADIUS_DEFAULT` | 30 m | El de una campaña nueva |
 | Posiciones mínimas | `minPosiciones` | `MIN_POSITIONS` | 3 | Soporte exigido dentro del radio |
 | Separación mínima | `separacionMin` | `MIN_SEPARATION` | 5 m | Por debajo, dos lecturas son la misma posición |
-| Potencia | `potencia` | `POWER` | 2 | Exponente del peso |
+| Potencia | `potencia` | `POWER` | 3 | Exponente del peso (2 hasta T46) |
+| Zona propia | `zonaPropia`, `zonaPropiaMax` | `OWN_FRACTION`, `OWN_MAX` | 0,5 y 15 m | Fracción de la distancia a la vecina más cercana en la que manda el valor medido, y su máximo |
 | Distancia mínima | `distanciaMin` | `MIN_DISTANCE` | 1 m | Evita dividir entre cero sobre una medición |
 | Celda | `celda` | `CELL` | 10 m | Lado de la rejilla de validación de las pruebas (ya no se pinta) |
 | Tope de evaluaciones | `maxEvaluaciones` | `MAX_EVALUATIONS` | 250.000 | Puntos evaluados como máximo por pintado; si se alcanza, se avisa |
 
-El paso de la rejilla de pantalla (4 px / 4 dp) y los colores están en `public-map.js` (`PASO`, `RGBA`) y en `PublicMapScreen` (`ZONE_STEP_DP`, `ZONE_COLORS`).
+El paso de la rejilla de pantalla (4 px / 4 dp) y los colores están en `public-map.js` (`PASO`, `ALFA`, `RGBA`) y en `PublicMapScreen` (`ZONE_STEP_DP`, `ZONE_COLORS`). Bajo, moderado y alto usan la misma transparencia (alfa 92 de 255); el gris de datos insuficientes es más claro.
+
+Los puntos de medición del mapa son uno por posición: la lectura más reciente de cada sitio, la misma que usa la zona. Así el color del punto y el de su zona salen del mismo valor; las lecturas anteriores del mismo sitio siguen en la lista de mediciones.
 
 En la web, `support`, `estimate` e `interpolate` aceptan un último argumento con los parámetros que se quieran cambiar, por ejemplo `{separacionMin: 1}`.
 
@@ -55,7 +62,7 @@ En la web, `support`, `estimate` e `interpolate` aceptan un último argumento co
 | Zona gris | Datos insuficientes: hay una o dos posiciones cerca, pero no bastan. Una medición aislada se ve como un círculo gris de su radio |
 | Sin color | Sin datos: no hay mediciones dentro del radio |
 
-Al pulsar cualquier punto del mapa se explica ese punto: «Estimación: 62 ppb · moderado», con cuántas posiciones y a qué distancia está la más cercana, y la advertencia de que es un valor interpolado, no medido; «Datos insuficientes», con cuántas posiciones hay y cuántas hacen falta; o «Sin datos», con la distancia a la medición más cercana. La consulta no cambia la medición seleccionada ni la exportación CSV.
+Al pulsar cualquier punto del mapa se explica ese punto: «Estimación: 45 ppb · bajo», con cuántas posiciones y a qué distancia está la más cercana, y la advertencia de que es un valor interpolado, no medido (o, junto a una medición, que se muestra su valor medido). Si al redondear el número cruzaría un umbral, se da con un decimal («59,6 ppb · bajo», no «60 ppb · bajo»); «Datos insuficientes», con cuántas posiciones hay y cuántas hacen falta; o «Sin datos», con la distancia a la medición más cercana. La consulta no cambia la medición seleccionada ni la exportación CSV.
 
 Por rendimiento se evalúan como máximo 250.000 puntos por pintado, tanto en la web como en Android; solo se calculan los cercanos a alguna medición, así que el tope solo se alcanza con muchísimas mediciones en pantalla. Si se alcanza, el mapa lo avisa («Zonas recortadas…» o «Zonas incompletas…») para que una zona recortada no se confunda con una zona sin datos.
 
@@ -67,7 +74,7 @@ Los mismos casos y los mismos valores esperados (tolerancia 1e-6) están en `scr
 
 | Caso | Datos | Resultado comprobado |
 | --- | --- | --- |
-| Denso | Rejilla 5 × 3 de la simulación, posiciones a ~11 m | Con 30 m: 53 celdas estimadas, 23 insuficientes y 302 sin datos; valores dentro del rango de las muestras; ninguna celda estimada a más del radio de una medición |
+| Denso | Rejilla 5 × 3, posiciones a ~11 m | Con 30 m: 53 celdas estimadas, 23 insuficientes y 302 sin datos; valores dentro del rango de las muestras; ninguna celda estimada a más del radio de una medición; sobre una medición, su valor exacto |
 | Radio configurable | Los mismos datos con 20, 30, 40 y 50 m | 30, 53, 87 y 126 celdas estimadas |
 | Disperso | Tres puntos a ~90 m | Ninguna celda estimada con ningún radio admitido |
 | Disperso | Dos posiciones próximas | Solo datos insuficientes |
@@ -77,10 +84,13 @@ Los mismos casos y los mismos valores esperados (tolerancia 1e-6) están en `scr
 | Mezcla | Una lectura real, de otra unidad o de otra campaña entre las demás | No se estima |
 | Límites | Radio 19, 51, 0 o no numérico | No se estima; 20 y 50 sí |
 | Repetidos | Varias lecturas en una posición, en distinto orden | Siempre cuenta la más reciente |
+| Punto rojo entre amarillos (T46) | 110 ppb rodeado de seis lecturas de 70 ppb a ~11 m | Zona propia de ~5,5 m; alrededor del punto rojo la zona es roja y cada punto conserva su color |
+| Perfiles simulados (T46) | Las 24 posiciones de cada perfil de `2-simulacion.sql` (bueno, regular, malo) | En cada punto la zona tiene el nivel de su medición; el perfil bueno no tiene zonas amarillas ni rojas y el malo sí tiene rojas |
+| Solape de campañas (T47) | Dos campañas (40 y 105 ppb) cuyas zonas se tocan | La zona común sale moderada (intermedia), igual en cualquier orden de las campañas |
 
 Además:
 
-- La rejilla de pintado (`raster`) da en cada punto exactamente lo mismo que `estimate`: sobre la rejilla 18 × 21 reproduce los recuentos de la tabla (53 estimadas, 23 insuficientes; 30, 53, 87 y 126 con 20–50 m; 0, 3, 11 y 27 en el triángulo), funciona de arriba abajo como la pantalla, no pinta con radios fuera de rango, deja que un valor estimado gane a «datos insuficientes» entre campañas y marca el recorte al alcanzar el tope. Una medición aislada pinta un disco de 30 m, no un cuadrado (que llegaría a ~42 m en las esquinas). Mismos casos en `aeriq-domain.test.js` y en `PublicInterpolationTest.java`.
+- La rejilla de pintado (`raster`) da en cada punto de una sola campaña exactamente lo mismo que `estimate`: sobre la rejilla 18 × 21 reproduce los recuentos de la tabla (53 estimadas, 23 insuficientes; 30, 53, 87 y 126 con 20–50 m; 0, 3, 11 y 27 en el triángulo), funciona de arriba abajo como la pantalla, no pinta con radios fuera de rango, deja que un valor estimado gane a «datos insuficientes» entre campañas, combina las campañas que se solapan y marca el recorte al alcanzar el tope. Una medición aislada pinta un disco de 30 m, no un cuadrado (que llegaría a ~42 m en las esquinas). Mismos casos en `aeriq-domain.test.js` y en `PublicInterpolationTest.java`.
 - `scripts/tests/map-interpolation.test.js` ejecuta el mapa web en jsdom con un doble de Leaflet (1 m por píxel) y un lienzo falso que guarda la imagen pintada: una medición aislada solo produce un círculo gris del radio, el caso denso produce zonas de color que coinciden con el cálculo directo en cada punto, el control de radio cambia la cobertura, la consulta de un punto da los tres mensajes y muchos puntos dispersos se pintan sin recorte. También comprueba la ruta del Orb en «Mi organización»: orden de captura, tramos partidos por huecos de más de 10 minutos, cambio de Orb y que en «Públicos» no aparece.
 - `scripts/tests/integration-aeriq.py` comprueba que el servidor rechaza radios de campaña fuera de 20–50 m y que el mapa público devuelve el radio guardado.
 - `scripts/tests/preview-aeriq.js` sirve posiciones ficticias (un grupo denso, un par y un punto aislado) para revisarlo a ojo.

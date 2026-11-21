@@ -23,6 +23,7 @@ import com.aeriq.app.MainActivity;
 import com.aeriq.app.MainActivity.Screen;
 import com.aeriq.app.R;
 import com.aeriq.app.data.AeriqAuthManager;
+import com.aeriq.app.data.PasswordRules;
 
 import static com.aeriq.app.ui.Views.*;
 
@@ -56,12 +57,12 @@ public final class AuthScreens {
         body.addView(brand, new LinearLayout.LayoutParams(-1, ui.dp(screen == Screen.LOGIN ? 60 : 66)));
         String title, description;
         switch (screen) {
-            case FORGOT: title = "Recuperar contraseña"; description = "Te enviaremos un código para establecer una nueva contraseña."; break;
-            case RESET: title = "Nueva contraseña"; description = "Introduce el código recibido y tu nueva contraseña."; break;
+            case FORGOT: title = "Recuperar contraseña"; description = "Te enviaremos un correo con un código para establecer una nueva contraseña."; break;
+            case RESET: title = "Nueva contraseña"; description = "Introduce el código del correo (caduca en 10 minutos) y tu nueva contraseña."; break;
             case EDIT_PROFILE: title = "Datos personales"; description = "Tu perfil se guarda en la misma base de datos que la web."; break;
             case CHANGE_PASSWORD:
                 title = (auth.user != null && auth.user.mustChangePassword) ? "Sustituye tu contraseña temporal" : "Cambiar contraseña";
-                description = "Elige una contraseña diferente de al menos 12 caracteres.";
+                description = "Elige una contraseña diferente: al menos 8 caracteres, con mayúscula, minúscula, número y símbolo.";
                 break;
             default: title = "Iniciar sesión"; description = "Entra con la cuenta que te dio tu organización para ver tu sensor, tus mediciones y tus datos personales.";
         }
@@ -122,7 +123,7 @@ public final class AuthScreens {
 
         // Botón Entrar (verde)
         Button entrar = submit(card, "Entrar", "login", Screen.MAP,
-            () -> !value(email).isEmpty() && password.length() > 0,
+            () -> !value(email).isEmpty() && password.length() > 0 ? null : "Escribe tu correo y tu contraseña.",
             () -> new Object[]{"email", value(email), "password", value(password)});
         entrar.setTextSize(16);
         ui.pill(entrar, GREEN);
@@ -288,7 +289,7 @@ public final class AuthScreens {
         EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
         email.setHint("nombre@ejemplo.com");
         if (screen == Screen.FORGOT) {
-            submit(card, "Enviar código", "forgot", Screen.RESET, () -> validEmail(email),
+            submit(card, "Enviar código", "forgot", Screen.RESET, () -> validEmail(email) ? null : "Escribe un correo electrónico válido.",
                 () -> new Object[]{"email", value(email)});
         } else {
             EditText code = ui.field(card, "Código", "", InputType.TYPE_CLASS_NUMBER);
@@ -297,10 +298,12 @@ public final class AuthScreens {
             code.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});
             EditText password = ui.field(card, "Nueva contraseña", "", PASSWORD);
             EditText confirm  = ui.field(card, "Repetir contraseña", "", PASSWORD);
-            password.setHint("Mínimo 12 caracteres");
+            password.setHint("Mín. 8, con mayúscula, número y símbolo");
             confirm.setHint("Repite la contraseña");
+            rules(card, password, confirm);
             submit(card, "Cambiar contraseña", "reset-password", Screen.MAP,
-                () -> validEmail(email) && code.length() == 6 && matching(password, confirm),
+                () -> !validEmail(email) ? "Escribe un correo electrónico válido."
+                    : code.length() != 6 ? "El código del correo tiene seis cifras." : newPassword(password, confirm),
                 () -> new Object[]{"email", value(email), "code", value(code), "password", value(password)});
         }
     }
@@ -311,7 +314,7 @@ public final class AuthScreens {
         EditText last  = ui.field(card, "Apellidos", auth.user.last, TEXT);
         EditText phone = ui.field(card, "Teléfono (opcional)", auth.user.phone, InputType.TYPE_CLASS_PHONE);
         submit(card, "Guardar cambios", "profile", Screen.ACCOUNT,
-            () -> !value(name).trim().isEmpty() && !value(last).trim().isEmpty(),
+            () -> !value(name).trim().isEmpty() && !value(last).trim().isEmpty() ? null : "Escribe tu nombre y tus apellidos.",
             () -> new Object[]{"name", value(name).trim(), "last", value(last).trim(), "phone", value(phone).trim()});
         ui.label(body, "Correo de la cuenta: " + auth.user.email, 11, false, MUTED);
     }
@@ -321,22 +324,25 @@ public final class AuthScreens {
         EditText password = ui.field(card, "Nueva contraseña", "", PASSWORD);
         EditText confirm  = ui.field(card, "Confirmar nueva contraseña", "", PASSWORD);
         if (auth.user.mustChangePassword) current.setHint("Contraseña temporal");
-        password.setHint("Mínimo 12 caracteres");
+        password.setHint("Mín. 8, con mayúscula, número y símbolo");
         confirm.setHint("Repetir");
+        rules(card, password, confirm);
         submit(card, "Actualizar contraseña", "change-password", Screen.MAP,
-            () -> current.length() > 0 && matching(password, confirm),
+            () -> current.length() == 0 ? "Escribe tu contraseña actual." : newPassword(password, confirm),
             () -> new Object[]{"current", value(current), "password", value(password)});
     }
 
     // ── HELPERS ────────────────────────────────────────────────────────────
+    /** problem: devuelve qué falta para poder enviar (null o vacío si todo está bien). */
     private Button submit(LinearLayout card, String caption, String action, Screen next,
-                        java.util.function.BooleanSupplier valid, java.util.function.Supplier<Object[]> fields) {
+                        java.util.function.Supplier<String> problem, java.util.function.Supplier<Object[]> fields) {
         Button button = ui.action(caption, GREEN, WHITE, () -> {});
         ui.add(card, button);
         button.setOnClickListener(view -> {
             if (auth.busy) return;
-            if (!valid.getAsBoolean()) {
-                activity.message("Revisa los datos. Las contraseñas nuevas deben coincidir y tener 12 caracteres.");
+            String wrong = problem.get();
+            if (wrong != null && !wrong.isEmpty()) {
+                activity.message(wrong);
                 return;
             }
             button.setEnabled(false);
@@ -351,7 +357,47 @@ public final class AuthScreens {
 
     private static String value(EditText input) { return input.getText().toString(); }
     private static boolean validEmail(EditText input) { return value(input).contains("@"); }
-    private static boolean matching(EditText first, EditText second) {
-        return first.length() >= 12 && value(first).equals(value(second));
+    /** Qué le falta a la contraseña nueva (los requisitos los vuelve a comprobar el servidor). */
+    private static String newPassword(EditText password, EditText confirm) {
+        String problem = PasswordRules.problem(value(password));
+        if (!problem.isEmpty()) return problem;
+        return value(password).equals(value(confirm)) ? null : "Las contraseñas nuevas no coinciden.";
+    }
+
+    /** Lista de requisitos bajo la contraseña nueva, marcada en verde según se cumplen mientras se escribe. */
+    private void rules(LinearLayout card, EditText password, EditText confirm) {
+        LinearLayout box = ui.column();
+        box.setBackground(ui.shape(0xfff1f4f3, 12, 0));
+        box.setPadding(ui.dp(12), ui.dp(10), ui.dp(12), ui.dp(10));
+        box.addView(ui.text("Tu contraseña necesita:", 13, true, INK));
+        TextView[] items = new TextView[PasswordRules.ALL.size()];
+        for (int i = 0; i < items.length; i++) {
+            items[i] = ui.text("", 13, false, MUTED);
+            items[i].setPadding(0, ui.dp(3), 0, 0);
+            box.addView(items[i]);
+        }
+        Runnable update = () -> {
+            java.util.List<String> missing = PasswordRules.missing(value(password));
+            for (int i = 0; i < items.length; i++) {
+                boolean ok = !missing.contains(PasswordRules.ALL.get(i));
+                items[i].setText((ok ? "● " : "○ ") + PasswordRules.ALL.get(i));
+                items[i].setTextColor(ok ? GREEN : MUTED);
+            }
+            box.setContentDescription(missing.isEmpty() ? "La contraseña cumple todos los requisitos"
+                : "A la contraseña le falta: " + String.join(", ", missing));
+        };
+        password.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable e) { update.run(); }
+        });
+        update.run();
+        // Va justo después del campo de la contraseña nueva (antes de «Repetir»).
+        android.view.View confirmRow = (android.view.View) confirm.getParent();
+        int at = card.indexOfChild(confirmRow) - 1; // la etiqueta de «Repetir» va justo antes de su fila
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.bottomMargin = ui.dp(16);
+        params.topMargin = -ui.dp(6);
+        card.addView(box, Math.max(0, at), params);
     }
 }

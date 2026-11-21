@@ -973,3 +973,45 @@ form .field-check{margin-top:20px}
 .op-grid+.panel{margin-top:16px}
 #operator-campaign .campaign-progress{margin-bottom:0}
 .op-battery-bar{background:var(--surface);border:1px solid var(--line)}
+
+/* Requisitos de la contraseña nueva (T33): se marcan en verde según se cumplen. */
+.password-rules{list-style:none;margin:6px 0 16px;padding:10px 12px;border-radius:12px;background:var(--alt);font-size:.86rem;line-height:1.5;color:var(--ink-3)}
+.password-rules li{display:flex;gap:8px;align-items:baseline}
+.password-rules li:not(.password-rules-title)::before{content:"";flex:none;width:.7em;height:.7em;border-radius:50%;border:2px solid currentColor;transform:translateY(.05em)}
+.password-rules li.is-ok{color:var(--brand)}
+.password-rules li.is-ok::before{background:currentColor}
+.password-rules-title{font-weight:600;color:var(--ink)}
+
+/* Informe: aviso de picos (T40) y veredicto por franjas horarias (T41). */
+.report-peaks{margin:14px 0;padding:12px 16px;border-radius:var(--r);border:1px solid #e0b450;background:#fff7e0;color:#6b4300}
+.report-peaks.is-high{border-color:#e6a5a1;background:var(--danger-tint);color:#8c1d18}
+.report-peaks ul{margin:6px 0 0;padding-left:20px}
+.report-verdict{margin:18px 0}
+.report-verdict h4{margin:0 0 10px;font-size:1rem}
+.report-franjas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.report-franja{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--alt)}
+.report-franja strong{font-size:1.05rem}
+.report-franja small{color:var(--ink-3)}
+.report-franja.is-buena{background:#e7f5ef;border-color:#b9e2d2}.report-franja.is-buena strong{color:var(--brand-ink)}
+.report-franja.is-regular{background:#fff4e0;border-color:#f0d39b}.report-franja.is-regular strong{color:#8a5300}
+.report-franja.is-mala{background:var(--danger-tint);border-color:#f0b8b4}.report-franja.is-mala strong{color:var(--danger)}
+.report-verdict-text{margin:12px 0 0;padding:10px 14px;border-left:4px solid var(--brand);background:var(--alt);border-radius:0 var(--r-sm) var(--r-sm) 0}
+@media (max-width:700px){.report-franjas{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Tabla de dispositivos (T43-T45): paneles que filtran, filtros combinables y cabeceras que ordenan. */
+.device-panels{grid-template-columns:repeat(4,minmax(0,1fr))}
+.stat-button{text-align:left;font:inherit;color:inherit;cursor:pointer;background:var(--surface);border:2px solid transparent;transition:border-color .2s,background-color .2s}
+.stat-button:hover{border-color:var(--line-strong)}
+.stat-button.selected{border-color:var(--brand);background:var(--brand-tint)}
+.stat-button:focus-visible{outline:3px solid rgba(14,107,94,.35);outline-offset:2px}
+.device-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:4px 0 16px}
+.device-filters .device-search{flex:1 1 240px;max-width:none}
+.device-filter{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.device-filter select{height:46px;min-width:150px;padding:0 12px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);font:inherit;font-weight:400;color:var(--ink)}
+.device-filters .text-link{height:46px}
+.sort-button{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;font:inherit;font-weight:inherit;color:inherit;cursor:pointer;text-align:left}
+.sort-button:hover{color:var(--brand)}
+.sort-button:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+.sort-arrow{font-size:.75em;color:var(--brand);min-width:1em}
+th[aria-sort="ascending"] .sort-button,th[aria-sort="descending"] .sort-button{color:var(--brand)}
+@media (max-width:900px){.device-panels{grid-template-columns:repeat(2,minmax(0,1fr))}}

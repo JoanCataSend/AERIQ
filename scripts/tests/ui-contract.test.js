@@ -20,7 +20,7 @@ async function page(name,search=''){
   const w=dom.window;
   w.matchMedia=()=>({matches:false});w.requestAnimationFrame=f=>w.setTimeout(f,0);w.URL.createObjectURL=()=> 'blob:test';w.URL.revokeObjectURL=()=>{};
   w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
-  w.HTMLCanvasElement.prototype.getContext=()=>({beginPath(){},moveTo(){},lineTo(){},fillRect(){},fillText(){},setLineDash(){},stroke(){},clearRect(){},drawImage(){},putImageData(){},createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}});
+  w.HTMLCanvasElement.prototype.getContext=()=>({beginPath(){},moveTo(){},lineTo(){},fillRect(){},fillText(){},setLineDash(){},stroke(){},fill(){},arc(){},closePath(){},save(){},restore(){},translate(){},rotate(){},clearRect(){},drawImage(){},putImageData(){},createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}});
   // El mapa pinta las zonas en un lienzo propio (public-map.js): proyección lineal de ~1 m por píxel en el campus.
   const chain=()=>({addTo(){return this;},on(){return this;},setView(){return this;},setCenter(){},clearLayers(){},addLayer(){},getBounds(){return {pad(){return this;},contains(){return true;}};},getCenter(){return {lat:38.99665};},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){},bindTooltip(){return this;},
     getSize(){return {x:800,y:600};},containerPointToLatLng([x,y]){return {lat:38.9984-y*9e-6,lng:-0.1704+x*11.6e-6};},containerPointToLayerPoint(){return {x:0,y:0};},createPane(){return w.document.createElement('div');}});
@@ -59,6 +59,16 @@ async function page(name,search=''){
   // Flota de Orb dentro del panel («Dispositivos Orb»): tabla, filtros y edición; el Orb va a un operador de la campaña.
   p=await page('portal.html');p.document.querySelector('[data-workspace-view="devices"]').click();await wait();const fleet=p.document.querySelector('#fleet');assert(!fleet.hidden);
   assert(fleet.querySelector('.devices-table').textContent.includes('Orb original'));assert(fleet.querySelector('.devices-table').textContent.includes('57 % · media'));assert.equal(fleet.querySelector('.stat strong').textContent,'1');
+  // Paneles con su número (T45), filtros combinables (T43) y orden al pulsar la cabecera con flecha (T44).
+  {const panels=[...fleet.querySelectorAll('.device-panels .stat-button')];assert.deepEqual(panels.map(b=>b.querySelector('small').textContent),['En servicio','Dados de baja','Recibiendo ahora','Sin uso en más de 30 días']);
+  assert.deepEqual(panels.map(b=>b.querySelector('strong').textContent).slice(0,2),['1','0']);
+  panels[1].click();assert(fleet.querySelector('.devices-table').textContent.includes('No hay dispositivos que coincidan'));assert.equal(panels[1].getAttribute('aria-pressed'),'true');
+  panels[1].click();assert(fleet.querySelector('.devices-table').textContent.includes('Orb original'));
+  const estado=fleet.querySelector('select[name=estado]');estado.value='baja';estado.dispatchEvent(new p.w.Event('change'));assert(fleet.querySelector('.devices-table').textContent.includes('No hay dispositivos que coincidan'));
+  fleet.querySelector('.device-filters .text-link').click();assert.equal(estado.value,'');assert(fleet.querySelector('.devices-table').textContent.includes('Orb original'));
+  assert(fleet.querySelector('select[name=operador] option[value="2"]'));assert(fleet.querySelector('select[name=actividad] option[value="sin_uso"]'));
+  const th=[...fleet.querySelectorAll('.devices-table th')].find(t=>t.textContent.startsWith('Última medición'));th.querySelector('button').click();assert.equal(th.getAttribute('aria-sort'),'ascending');assert.equal(th.querySelector('.sort-arrow').textContent,'▲');
+  th.querySelector('button').click();assert.equal(th.getAttribute('aria-sort'),'descending');assert.equal(th.querySelector('.sort-arrow').textContent,'▼');}
   assert(!p.document.querySelector('#add-device').hidden);fleet.querySelector('.devices-table .text-link').click();assert(p.document.querySelector('#device-modal').open);assert(fleet.querySelector('select[name=worker] option[value="2"]'));assert(!fleet.querySelector('select[name=campaign]'));
   p.document.querySelector('#device-new-name').value='Orb actualizado';p.document.querySelector('#device-edit-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
   const sent=p.calls.find(c=>c.action==='device'&&c.body);assert.equal(sent.body.name,'Orb actualizado');assert(!('campaign' in sent.body));assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
@@ -71,7 +81,8 @@ async function page(name,search=''){
   assert.equal(p.document.querySelector('#worker-title').textContent,'Asignar admin de campaña');assert(shown('#worker-campaign'));assert(p.document.querySelector('#worker-campaign option[value="1"]'));
   assert.equal(p.document.querySelector('#worker-form').firstElementChild.querySelector('select').name,'campaign','la campaña va primero');
   p.document.querySelector('[data-workspace-view="overview"]').click();assert(p.document.querySelector('#campaigns-summary').textContent.includes('Campaña de prueba'));assert.equal(p.document.querySelector('#sum-campaigns').textContent,'1');
-  p.document.querySelector('[data-workspace-view="orbs"]').click();assert(!p.document.querySelector('[data-view="orbs"]').hidden);assert(p.document.querySelector('#orbs-by-campaign').textContent.includes('Campaña de prueba · 1 AERIQ'));
+  p.document.querySelector('[data-workspace-view="orbs"]').click();assert(!p.document.querySelector('[data-view="orbs"]').hidden);{const o=p.document.querySelector('#orbs-by-campaign');assert(o.querySelector('.devices-table').textContent.includes('Campaña de prueba'));assert(o.querySelector('.devices-table').textContent.includes('Orb actualizado'));
+  assert(o.querySelector('select[name=campana] option[value="1"]'));assert.equal(o.querySelectorAll('.device-panels .stat-button').length,4);}
   p.document.querySelector('[data-workspace-view="reports"]').click();assert(p.document.querySelector('[data-view="reports"]').hidden,'sin informes');assert(!p.calls.some(c=>c.action==='readings'));
   p.document.querySelector('[data-workspace-view="campaigns"]').click();assert(shown('#campaign-form'));
   // Crear campaña: solo nombre, zona (texto libre), fechas y activa. Umbrales, distancia y publicación son del admin de campaña.
@@ -97,9 +108,11 @@ async function page(name,search=''){
   assert.deepEqual(p.calls.filter(c=>c.action==='request-status').map(c=>c.body),[{id:7,status:'cerrada'}]);
   assert.equal(rows().length,1);assert(d.querySelector('#request-detail .request-saved').textContent.includes('Cerrada'));
   assert.equal(d.querySelector('#requests-filter button').textContent,'Pendiente 0');
-  // Pulsar un paso del estado también lo cambia (para corregir).
-  d.querySelector('#request-detail .request-steps button').click();await new Promise(r=>setTimeout(r,20));
-  assert.deepEqual(p.calls.filter(c=>c.action==='request-status').at(-1).body,{id:7,status:'pendiente'});}
+  // Una solicitud no vuelve atrás (T38): los pasos anteriores no se pueden pulsar y «Reabrir» usa su propia acción.
+  assert([...d.querySelectorAll('#request-detail .request-steps button')].every(b=>b.disabled));
+  const reopen=[...d.querySelectorAll('#request-detail .request-actions button')].find(b=>b.textContent==='Reabrir');assert(reopen);reopen.click();await new Promise(r=>setTimeout(r,20));
+  assert.deepEqual(p.calls.filter(c=>c.action==='request-reopen').map(c=>c.body),[{id:7}]);assert.equal(p.calls.filter(c=>c.action==='request-status').length,1);
+  assert(d.querySelector('#request-detail .request-history').textContent.includes('Reabierta'));}
   assert.deepEqual(p.errors,[]);p.close();
   // Admin de campaña: crea operadores de su campaña, registra Orb y exporta CSV; sin campañas nuevas ni solicitudes.
   user.permissions=[...ADMIN_CAMPANA];p=await page('portal.html');
@@ -125,9 +138,12 @@ async function page(name,search=''){
   p.document.querySelector('[data-workspace-view="reports"]').click();p.document.querySelector('#report-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
   // Informe: cabecera con filtros, cifras, etiqueta de simulado y PDF como documento aparte (solo el informe).
   {const d=p.document,r=d.querySelector('#report-results'),pdf=d.querySelector('#print-report');assert(r.firstElementChild.classList.contains('report-header'));assert.equal(r.querySelectorAll('.report-kpi').length,5);assert.equal(r.querySelector('.report-badge').textContent,'Dato simulado');
+  // Lectura de 68 ppb con umbral medio 60: un pico moderado con su hora y valor, y la franja de esa hora regular.
+  assert(r.querySelector('.report-peaks').textContent.includes('1 pico de ozono'));assert(r.querySelector('.report-peaks li').textContent.includes('68 ppb · nivel moderado'));
+  assert.equal(r.querySelectorAll('.report-franja').length,4);assert.equal(r.querySelectorAll('.report-franja.is-regular').length,1);assert(r.querySelector('.report-verdict-text').textContent.startsWith('La calidad del aire es regular'));
   const ex=r.querySelector('.report-exceedances table');assert.equal(ex.rows[0].cells[1].textContent,'Origen');assert.equal(ex.rows[1].cells[1].textContent,'Simulado');
   assert(!pdf.hidden&&!pdf.disabled);p.w.HTMLCanvasElement.prototype.toDataURL=()=>'data:image/png;base64,AAAA';pdf.click();await wait();const doc=d.querySelector('iframe').contentDocument;
-  assert.equal(doc.querySelector('h1').textContent,'Informe ambiental AERIQ');assert(doc.querySelector('.desc').textContent.includes('simulados'));assert(doc.querySelector('.simwarn'));assert(!doc.querySelector('form,nav'));}
+  assert.equal(doc.querySelector('h1').textContent,'Informe ambiental AERIQ');assert(doc.querySelector('.desc').textContent.includes('simulados'));assert(doc.querySelector('.simwarn'));assert(doc.querySelector('.peaks'));assert(doc.body.textContent.includes('Veredicto por franja horaria'));assert(!doc.querySelector('form,nav'));}
   const csv=p.document.querySelector('#export-report');assert(!csv.hidden&&!csv.disabled);csv.click();await wait();
   assert(p.calls.some(c=>c.action==='readings'&&c.body===null)&&p.calls.filter(c=>c.action==='readings').length===2);assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
   // Formulario comercial: catálogos de la BD, preselección por URL, campos de estudio, teléfono y validación en línea.

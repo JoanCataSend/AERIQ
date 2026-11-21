@@ -21,11 +21,12 @@
 <main class="auth-page">
   <section class="auth-card">
     <h1>Elige tu contraseña</h1>
-    <p>Para entrar en tu organización tienes que sustituir la contraseña temporal que recibiste.</p>
+    <p id="password-intro">Para entrar en tu organización tienes que sustituir la contraseña temporal que recibiste.</p>
     <form id="first-password">
-      <label>Contraseña temporal<input name="current" type="password" autocomplete="current-password" required></label>
-      <label>Contraseña nueva<input name="password" type="password" autocomplete="new-password" minlength="12" required placeholder="Mínimo 12 caracteres"></label>
-      <label>Repite la contraseña nueva<input name="confirm" type="password" autocomplete="new-password" minlength="12" required></label>
+      <label id="invite-email" hidden>Correo<input name="email" type="email" autocomplete="username" readonly class="readonly-input"></label>
+      <label id="temporary-field">Contraseña temporal<input name="current" type="password" autocomplete="current-password" required></label>
+      <label>Contraseña nueva<input name="password" type="password" autocomplete="new-password" data-password-rules required placeholder="Mín. 8, con mayúscula, número y símbolo"></label>
+      <label>Repite la contraseña nueva<input name="confirm" type="password" autocomplete="new-password" required></label>
       <button class="btn btn-primary btn-block" type="submit">Guardar</button>
     </form>
     <p class="auth-bottom"><button class="text-link" type="button" id="first-logout">Cerrar sesión</button></p>

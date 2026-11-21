@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/AeriqMail.php';
 
 /** Dominio AERIQ. Tablas nuevas aisladas de las tablas heredadas de Sprint 0. */
 final class AeriqError extends RuntimeException {
@@ -82,12 +83,15 @@ function aeriq_password_changed(int $id): void {
     aeriq_sql('UPDATE usuarios SET debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=?',[$id]);
 }
 
-/** $replyTo (opcional) permite contestar directamente a quien envió el formulario. */
-function aeriq_mail(string $recipient,string $subject,string $text,?string $replyTo=null): void {
+/**
+ * $replyTo (opcional) permite contestar directamente a quien envió el formulario.
+ * $html (opcional): versión HTML corporativa (aeriq_mail_compose); se envía junto al texto (multipart/alternative).
+ */
+function aeriq_mail(string $recipient,string $subject,string $text,?string $replyTo=null,?string $html=null): void {
     $cfg=auth_mail_config_ok();
     if ($replyTo!==null && !filter_var($replyTo,FILTER_VALIDATE_EMAIL)) $replyTo=null;
     if ($cfg['transport']==='smtp_native') {
-        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$text,$replyTo); }
+        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$text,$replyTo,$html); }
         catch (Throwable $ex) {
             error_log('AERIQ: fallo en SMTP directo (sin registrar credenciales): '.$ex->getMessage());
             throw new AeriqError('No se pudo enviar el correo por SMTP. Comprueba la contraseña de aplicación y el acceso saliente del servidor.',503);
@@ -99,11 +103,29 @@ function aeriq_mail(string $recipient,string $subject,string $text,?string $repl
         $c=$cfg['smtp']; $m=new PHPMailer\PHPMailer\PHPMailer(true); $m->isSMTP();
         $m->Host=$c['host'];$m->Port=(int)$c['port'];$m->SMTPAuth=true;$m->Username=$c['username'];$m->Password=$c['password'];
         $m->SMTPSecure=($c['encryption']??'tls')==='ssl'?'ssl':'tls';$m->CharSet='UTF-8';
-        $m->setFrom($c['from_email'],$c['from_name']??'Código Norte');$m->addAddress($recipient);if($replyTo!==null)$m->addReplyTo($replyTo);$m->Subject=$subject;$m->Body=$text;$m->send();return;
+        $m->setFrom($c['from_email'],$c['from_name']??'Código Norte');$m->addAddress($recipient);if($replyTo!==null)$m->addReplyTo($replyTo);$m->Subject=$subject;
+        if ($html!==null) {$m->isHTML(true);$m->Body=$html;$m->AltBody=$text;} else $m->Body=$text;
+        try {$m->send();}
+        catch (Throwable $ex) {
+            error_log('AERIQ: fallo en transporte SMTP (sin registrar credenciales): '.$ex->getMessage());
+            throw new AeriqError('No se ha podido enviar el correo. Revisa la configuración del servidor.',503);
+        }
+        return;
     }
-    $headers=['From: '.$cfg['from_name'].' <'.$cfg['from_email'].'>','Content-Type: text/plain; charset=UTF-8'];
+    [$type,$body]=aeriq_mail_body($text,$html);
+    $headers=['From: '.$cfg['from_name'].' <'.$cfg['from_email'].'>','MIME-Version: 1.0','Content-Type: '.$type,'X-Mailer: AERIQ'];
     if ($replyTo!==null) $headers[]='Reply-To: '.$replyTo;
-    if (!mail($recipient,'=?UTF-8?B?'.base64_encode($subject).'?=',$text,implode("\r\n",$headers))) throw new AeriqError('El servidor no ha aceptado el correo.',503);
+    if (!@mail($recipient,'=?UTF-8?B?'.base64_encode($subject).'?=',$body,implode("\r\n",$headers))) throw new AeriqError('El servidor no ha aceptado el correo. Comprueba que PHP mail() esté habilitado en Plesk.',503);
+}
+/** Cuerpo MIME: texto solo, o texto + HTML como alternativas. Devuelve [Content-Type, cuerpo con saltos CRLF]. */
+function aeriq_mail_body(string $text,?string $html): array {
+    $text=str_replace(["\r\n","\r"],"\n",$text);
+    if ($html===null) return ['text/plain; charset=UTF-8',str_replace("\n","\r\n",$text)];
+    $boundary='aeriq_'.bin2hex(random_bytes(12));
+    $parts=['--'.$boundary,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',chunk_split(base64_encode($text),76,"\r\n"),
+        '--'.$boundary,'Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: base64','',chunk_split(base64_encode($html),76,"\r\n"),
+        '--'.$boundary.'--',''];
+    return ['multipart/alternative; boundary="'.$boundary.'"',implode("\r\n",$parts)];
 }
 function aeriq_worker(array $a,array $d): array {
     $org=aeriq_org($a);$email=auth_email($d['email']??'');$name=auth_string($d['name']??'',90);$last=auth_string($d['last']??'',120);$phone=aeriq_text($d['phone']??'',40,true);
@@ -133,7 +155,17 @@ function aeriq_invite(int $id,string $email): void {
     $hours=max(1,min(168,(int)(getenv('AERIQ_INVITATION_HOURS')?:24)));
     $temporary=bin2hex(random_bytes(16));
     aeriq_sql('UPDATE usuarios SET password_hash=?,activo=0,debe_cambiar_clave=1,invitacion_expira_en=DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR) WHERE id=?',[password_hash($temporary,PASSWORD_DEFAULT),$hours,$id]);
-    aeriq_mail($email,'AERIQ · Invitación de tu organización',"Tu organización te invita a AERIQ.\nCorreo: $email\nContraseña temporal: $temporary\n\nAbre AERIQ e inicia sesión con este mismo correo. Puedes entrar con Google (la cuenta se activa en el primer acceso) o con la contraseña temporal (cámbiala para activar la cuenta). El acceso temporal caduca en $hours horas. Si caduca, recupera el acceso desde la web o la app.\nCódigo Norte · AERIQ");
+    // T32: el botón abre directamente la página de elegir contraseña con el correo y la clave temporal ya puestos.
+    // Van tras «#»: el navegador no los envía al servidor ni aparecen en sus registros.
+    $link=aeriq_public_url('cambiar-clave.html').'#'.http_build_query(['email'=>$email,'temporal'=>$temporary],'','&',PHP_QUERY_RFC3986);
+    $mail=aeriq_mail_compose('Te damos la bienvenida a AERIQ',[
+        ['p',"Tu organización te ha creado una cuenta en AERIQ con el correo $email."],
+        ['p','Pulsa el botón para elegir tu contraseña. Después podrás entrar en la web y en la app de AERIQ con tu correo y esa contraseña.'],
+        ['button','Establecer mi contraseña',$link],
+        ['facts',['Correo'=>$email,'Contraseña temporal'=>$temporary,'Caduca en'=>$hours.' horas']],
+        ['note','Si prefieres hacerlo a mano, inicia sesión con la contraseña temporal y te pedirá cambiarla. También puedes entrar con Google usando este mismo correo. Si el acceso caduca, recupéralo desde «¿Has olvidado tu contraseña?».'],
+    ],'Elige tu contraseña para empezar a usar AERIQ');
+    aeriq_mail($email,'AERIQ · Invitación de tu organización',$mail['text'],null,$mail['html']);
 }
 /** Cuenta que esta cuenta puede gestionar: el admin principal, los admins de campaña de su organización; el admin de campaña, los operadores de su campaña. */
 function aeriq_managed(array $a,int $id): array {
@@ -465,7 +497,24 @@ function aeriq_request(array $d): array {
         try { aeriq_mail($notify,'AERIQ · Nueva solicitud #'.$id.' · '.$entity,implode("\n",$lines),$email); }
         catch (Throwable $e) { error_log('AERIQ: solicitud registrada; aviso comercial no entregado.'); }
     }
-    return ['ok'=>true,'id'=>$id,'message'=>'Solicitud registrada. Código Norte la revisará y te propondrá la solución que mejor encaje.'];
+    // T36: acuse al solicitante con el número y el resumen de lo que ha pedido. Si falla, la solicitud sigue guardada.
+    $facts=['Número de solicitud'=>'#'.$id,'Servicio'=>$service,'Organización'=>$entity.' ('.$org['nombre'].')','Contacto'=>$contact,
+        'Teléfono'=>$phone,'Lugar'=>$municipality.' ('.$province.')','Zona'=>$zone,'Objetivos'=>implode(', ',array_column($objectives,'nombre'))];
+    if ($surface!==null) $facts['Superficie']=rtrim(rtrim(number_format($surface,2,',','.'),'0'),',').' m²';
+    if ($duration!=='') $facts['Duración']=$duration;
+    if ($start!==null) $facts['Inicio deseado']=substr($start,0,7);
+    $facts['Lo que necesitas']=mb_strlen($needs)>600?mb_substr($needs,0,600).'…':$needs;
+    $sent=true;
+    try {
+        $mail=aeriq_mail_compose('Hemos recibido tu solicitud',[
+            ['p',"Hola, $contact:"],
+            ['p','Gracias por contactar con Código Norte. Tu solicitud ha llegado correctamente y la revisaremos en los próximos días laborables. Te escribiremos a este correo cada vez que cambie de estado.'],
+            ['facts',$facts],
+            ['note','Guarda el número de solicitud: te servirá si necesitas escribirnos. Puedes responder a este correo para añadir información.'],
+        ],'Solicitud #'.$id.' recibida');
+        aeriq_mail($email,'AERIQ · Hemos recibido tu solicitud #'.$id,$mail['text'],(getenv('AERIQ_COMMERCIAL_EMAIL')?:AERIQ_COMMERCIAL_EMAIL_DEFAULT),$mail['html']);
+    } catch (Throwable $e) { $sent=false;error_log('AERIQ: solicitud registrada; confirmación al solicitante no entregada.'); }
+    return ['ok'=>true,'id'=>$id,'mailed'=>$sent,'message'=>'Solicitud registrada. '.($sent?'Te hemos enviado un correo de confirmación. ':'').'Código Norte la revisará y te propondrá la solución que mejor encaje.'];
 }
 
 /** Catálogos del formulario público: servicios, tipos de organización, objetivos, provincias y duraciones. */
@@ -484,9 +533,14 @@ function aeriq_requests(): array {
     $history=[];$objectives=[];
     if ($rows) {
         $ids=array_map(fn($r)=>(int)$r['id'],$rows);
-        $sql='SELECT h.solicitud_id,e.codigo AS estado,e.nombre AS estado_nombre,h.cambiado_en,CONCAT(u.nombre,\' \',u.apellidos) AS usuario FROM solicitudes_historial h JOIN estados_solicitud e ON e.id=h.estado_id LEFT JOIN usuarios u ON u.id=h.usuario_id WHERE h.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY h.cambiado_en,h.id';
+        $sql='SELECT h.solicitud_id,e.codigo AS estado,e.nombre AS estado_nombre,e.final,h.cambiado_en,CONCAT(u.nombre,\' \',u.apellidos) AS usuario FROM solicitudes_historial h JOIN estados_solicitud e ON e.id=h.estado_id LEFT JOIN usuarios u ON u.id=h.usuario_id WHERE h.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY h.cambiado_en,h.id';
+        $wasFinal=[];
         foreach (aeriq_rows($sql,$ids) as $h) {
-            $history[(int)$h['solicitud_id']][]=['estado'=>$h['estado'],'estado_nombre'=>$h['estado_nombre'],'cambiado_en'=>$h['cambiado_en'],'usuario'=>$h['usuario']];
+            $sid=(int)$h['solicitud_id'];
+            // Una entrada que sale de un estado final es una reapertura (T38): se marca para enseñarla así.
+            $history[$sid][]=['estado'=>$h['estado'],'estado_nombre'=>$h['estado_nombre'],'cambiado_en'=>$h['cambiado_en'],'usuario'=>$h['usuario'],
+                'reapertura'=>!empty($wasFinal[$sid]) && !(int)$h['final']];
+            $wasFinal[$sid]=(bool)(int)$h['final'];
         }
         $sql='SELECT so.solicitud_id,o.nombre FROM solicitud_objetivos so JOIN objetivos_medicion o ON o.id=so.objetivo_id WHERE so.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY o.orden,o.id';
         foreach (aeriq_rows($sql,$ids) as $o) $objectives[(int)$o['solicitud_id']][]=$o['nombre'];
@@ -495,20 +549,66 @@ function aeriq_requests(): array {
     unset($r);
     return ['requests'=>$rows,'states'=>aeriq_rows('SELECT codigo,nombre,final FROM estados_solicitud ORDER BY orden')];
 }
-/** Cambia el estado de una solicitud y deja constancia de quién y cuándo. */
+/**
+ * Cambia el estado de una solicitud (T38): solo hacia delante en el orden del catálogo. Volver atrás no se
+ * permite; una solicitud cerrada se recupera con aeriq_request_reopen(). Cada cambio queda en el historial con
+ * quién y cuándo, y se avisa por correo al solicitante (T37). Un fallo del correo no deshace el cambio.
+ */
 function aeriq_request_status(array $a,array $d): array {
-    $state=aeriq_one('SELECT id FROM estados_solicitud WHERE codigo=?',[is_string($d['status']??null)?$d['status']:'']);
+    $state=aeriq_one('SELECT id,codigo,nombre,orden,final FROM estados_solicitud WHERE codigo=?',[is_string($d['status']??null)?$d['status']:'']);
     if (!$state) throw new AeriqError('Estado no válido.');
     $id=aeriq_int($d['id']??null);
     $db=conexionBD();$db->begin_transaction();
     try {
-        $current=aeriq_one('SELECT estado_id FROM solicitudes WHERE id=? FOR UPDATE',[$id]);
+        $current=aeriq_one('SELECT s.estado_id,e.orden,e.final,e.nombre FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=? FOR UPDATE',[$id]);
         if (!$current) throw new AeriqError('Solicitud no encontrada.',404);
-        if ((int)$current['estado_id']!==(int)$state['id']) {
-            aeriq_sql('UPDATE solicitudes SET estado_id=? WHERE id=?',[(int)$state['id'],$id]);
-            aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) VALUES(?,?,?)',[$id,(int)$state['id'],(int)$a['usuario_id']]);
-        }
+        if ((int)$current['estado_id']===(int)$state['id']) {$db->commit();return ['ok'=>true,'changed'=>false,'message'=>'La solicitud ya estaba en «'.$state['nombre'].'».'];}
+        if ((int)$current['final']) throw new AeriqError('La solicitud está cerrada. Usa «Reabrir» para volver a trabajar en ella.',409);
+        if ((int)$state['orden']<(int)$current['orden']) throw new AeriqError('Una solicitud solo puede avanzar de estado: no puede volver de «'.$current['nombre'].'» a «'.$state['nombre'].'».',409);
+        aeriq_sql('UPDATE solicitudes SET estado_id=? WHERE id=?',[(int)$state['id'],$id]);
+        aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) VALUES(?,?,?)',[$id,(int)$state['id'],(int)$a['usuario_id']]);
         $db->commit();
     } catch (Throwable $e) {$db->rollback();throw $e;}
-    return ['ok'=>true];
+    return aeriq_request_notify($id,(int)$state['final']?'cerrada':'avance');
+}
+/** Reabre una solicitud cerrada (T38): vuelve a «En revisión» y queda en el historial como reapertura. */
+function aeriq_request_reopen(array $a,array $d): array {
+    $id=aeriq_int($d['id']??null);
+    $target=aeriq_one("SELECT id FROM estados_solicitud WHERE codigo='en_revision'")
+        ?:aeriq_one('SELECT id FROM estados_solicitud WHERE final=0 ORDER BY orden DESC LIMIT 1');
+    if (!$target) throw new AeriqError('No hay un estado al que reabrir.',500);
+    $db=conexionBD();$db->begin_transaction();
+    try {
+        $current=aeriq_one('SELECT e.final FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=? FOR UPDATE',[$id]);
+        if (!$current) throw new AeriqError('Solicitud no encontrada.',404);
+        if (!(int)$current['final']) throw new AeriqError('Solo se puede reabrir una solicitud cerrada.',409);
+        aeriq_sql('UPDATE solicitudes SET estado_id=? WHERE id=?',[(int)$target['id'],$id]);
+        aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) VALUES(?,?,?)',[$id,(int)$target['id'],(int)$a['usuario_id']]);
+        $db->commit();
+    } catch (Throwable $e) {$db->rollback();throw $e;}
+    return aeriq_request_notify($id,'reabierta');
+}
+/** Correo al solicitante tras un cambio de estado (T37): avance, cierre o reapertura. */
+function aeriq_request_notify(int $id,string $kind): array {
+    $r=aeriq_one('SELECT s.id,s.email,s.contacto,s.entidad,sv.nombre AS servicio,e.codigo,e.nombre AS estado FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=?',[$id]);
+    $explain=['pendiente'=>'Tu solicitud está registrada y pendiente de revisión.',
+        'en_revision'=>'Estamos estudiando tu solicitud: qué solución encaja, cuántos AERIQ hacen falta y la disponibilidad.',
+        'respondida'=>'Te hemos enviado nuestra propuesta. Si tienes dudas, responde a este correo y te ayudamos.'];
+    [$title,$subject,$intro,$detail]=match ($kind) {
+        'cerrada'=>['Tu solicitud se ha cerrado','AERIQ · Solicitud #'.$id.' cerrada','Hemos cerrado tu solicitud #'.$id.'.',
+            'Gracias por confiar en Código Norte. Si quieres retomarla o tienes cualquier duda, responde a este correo y la reabriremos.'],
+        'reabierta'=>['Hemos reabierto tu solicitud','AERIQ · Solicitud #'.$id.' reabierta','Hemos vuelto a abrir tu solicitud #'.$id.' y está otra vez en revisión.',
+            'Te escribiremos en cuanto haya novedades.'],
+        default=>['Tu solicitud avanza','AERIQ · Solicitud #'.$id.': '.$r['estado'],'Tu solicitud #'.$id.' ha pasado a «'.$r['estado'].'».',
+            $explain[$r['codigo']]??'Te avisaremos en cada cambio.'],
+    };
+    $sent=true;
+    try {
+        $mail=aeriq_mail_compose($title,[['p','Hola, '.$r['contacto'].':'],['p',$intro],
+            ['facts',['Número de solicitud'=>'#'.$id,'Servicio'=>$r['servicio'],'Organización'=>$r['entidad'],'Estado actual'=>$r['estado']]],
+            ['p',$detail]],$intro);
+        aeriq_mail($r['email'],$subject,$mail['text'],(getenv('AERIQ_COMMERCIAL_EMAIL')?:AERIQ_COMMERCIAL_EMAIL_DEFAULT),$mail['html']);
+    } catch (Throwable $e) { $sent=false;error_log('AERIQ: estado de la solicitud guardado; correo al solicitante no entregado.'); }
+    return ['ok'=>true,'changed'=>true,'estado'=>$r['codigo'],'estado_nombre'=>$r['estado'],'mailed'=>$sent,
+        'message'=>'Guardado: ahora está en «'.$r['estado'].'».'.($sent?' Se ha avisado por correo a '.$r['email'].'.':' No se pudo enviar el correo al solicitante; avísale tú.')];
 }

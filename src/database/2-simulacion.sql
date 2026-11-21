@@ -1,11 +1,13 @@
 -- =====================================================================
 -- AERIQ · 2-simulacion.sql  (OPCIONAL)
--- Datos de prueba para enseñar la web y la app. Importar DESPUÉS de
+-- Datos de prueba para enseñar la web y la app: tres perfiles de calidad del aire
+-- (bueno, regular y malo), uno por campaña. Importar DESPUÉS de
 -- 1-instalar.sql, con la misma base seleccionada en phpMyAdmin.
 -- No borra nada y se puede repetir: no duplica filas y vuelve a poner las
 -- lecturas en las últimas horas para que se vean en el mapa.
 --
--- Todo va marcado como simulado (dispositivos y lecturas con simulado = 1,
+-- Perfiles: BUENO = campus (Marta, Pau), REGULAR = playa (Lucía), MALO = recinto
+-- privado (Álex). Todo va marcado como simulado (dispositivos y lecturas con simulado = 1,
 -- correos .example). Cuentas, todas con contraseña 1234:
 --   analista.simulacion@aeriq.example   Marta · admin de campaña (campus)
 --   operador.simulacion@aeriq.example   Pau   · operador (campus)
@@ -95,65 +97,66 @@ INSERT INTO asignaciones (organizacion_id,dispositivo_id,trabajador_id,campana_i
  WHERE @d3 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM asignaciones WHERE dispositivo_id=@d3 AND finalizada_en IS NULL);
 SET @a3 := (SELECT id FROM asignaciones WHERE dispositivo_id=@d3 AND finalizada_en IS NULL);
 
--- ------------------------------------------------------------ Lecturas simuladas
--- Ozono en ppb y temperatura en °C, fechas UTC relativas a la importación.
--- Las posiciones son ilustrativas y están a unos 11 m entre sí para que el mapa pueda interpolar.
-INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado) VALUES
- ('ae300000-0000-4000-8000-000000000001',@a1,14,38,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 290 MINUTE),38.996651,-0.166009,5,1,-55,1),
- ('ae300000-0000-4000-8000-000000000002',@a1,14,42,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 270 MINUTE),38.996651,-0.165879,5,2,-56,1),
- ('ae300000-0000-4000-8000-000000000003',@a1,14,47,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 250 MINUTE),38.996651,-0.165749,5,3,-57,1),
- ('ae300000-0000-4000-8000-000000000004',@a1,14,51,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 230 MINUTE),38.996651,-0.165619,5,4,-58,1),
- ('ae300000-0000-4000-8000-000000000005',@a1,14,56,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 210 MINUTE),38.996651,-0.165489,5,5,-59,1),
- ('ae300000-0000-4000-8000-000000000006',@a1,14,61,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 190 MINUTE),38.996751,-0.166009,5,6,-60,1),
- ('ae300000-0000-4000-8000-000000000007',@a1,14,66,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 170 MINUTE),38.996751,-0.165879,5,7,-61,1),
- ('ae300000-0000-4000-8000-000000000008',@a1,14,72,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 150 MINUTE),38.996751,-0.165749,5,8,-62,1),
- ('ae300000-0000-4000-8000-000000000009',@a1,14,78,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 130 MINUTE),38.996751,-0.165619,5,9,-63,1),
- ('ae300000-0000-4000-8000-000000000010',@a1,14,84,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 110 MINUTE),38.996751,-0.165489,5,10,-64,1),
- ('ae300000-0000-4000-8000-000000000011',@a1,14,91,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 90 MINUTE),38.996851,-0.166009,5,11,-65,1),
- ('ae300000-0000-4000-8000-000000000012',@a1,14,97,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 70 MINUTE),38.996851,-0.165879,5,12,-66,1),
- ('ae300000-0000-4000-8000-000000000013',@a1,14,103,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 50 MINUTE),38.996851,-0.165749,5,13,-55,1),
- ('ae300000-0000-4000-8000-000000000014',@a1,14,108,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE),38.996851,-0.165619,5,14,-56,1),
- ('ae300000-0000-4000-8000-000000000015',@a1,14,114,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 10 MINUTE),38.996851,-0.165489,5,15,-57,1),
- ('ae300000-0000-4000-8000-000000000016',@a1,12,18.5,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE),38.996651,-0.166009,5,100,-60,1),
- ('ae300000-0000-4000-8000-000000000017',@a1,12,21.0,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 120 MINUTE),38.996651,-0.166009,5,101,-60,1),
- ('ae300000-0000-4000-8000-000000000018',@a1,12,23.5,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 210 MINUTE),38.996651,-0.166009,5,102,-60,1),
- ('ae300000-0000-4000-8000-000000000019',@a2,14,35,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 290 MINUTE),38.999000,-0.158900,5,1,-55,1),
- ('ae300000-0000-4000-8000-000000000020',@a2,14,40,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 270 MINUTE),38.999000,-0.158770,5,2,-56,1),
- ('ae300000-0000-4000-8000-000000000021',@a2,14,44,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 250 MINUTE),38.999000,-0.158640,5,3,-57,1),
- ('ae300000-0000-4000-8000-000000000022',@a2,14,49,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 230 MINUTE),38.999000,-0.158510,5,4,-58,1),
- ('ae300000-0000-4000-8000-000000000023',@a2,14,53,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 210 MINUTE),38.999000,-0.158380,5,5,-59,1),
- ('ae300000-0000-4000-8000-000000000024',@a2,14,57,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 190 MINUTE),38.999100,-0.158900,5,6,-60,1),
- ('ae300000-0000-4000-8000-000000000025',@a2,14,62,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 170 MINUTE),38.999100,-0.158770,5,7,-61,1),
- ('ae300000-0000-4000-8000-000000000026',@a2,14,68,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 150 MINUTE),38.999100,-0.158640,5,8,-62,1),
- ('ae300000-0000-4000-8000-000000000027',@a2,14,74,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 130 MINUTE),38.999100,-0.158510,5,9,-63,1),
- ('ae300000-0000-4000-8000-000000000028',@a2,14,81,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 110 MINUTE),38.999100,-0.158380,5,10,-64,1),
- ('ae300000-0000-4000-8000-000000000029',@a2,14,86,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 90 MINUTE),38.999200,-0.158900,5,11,-65,1),
- ('ae300000-0000-4000-8000-000000000030',@a2,14,92,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 70 MINUTE),38.999200,-0.158770,5,12,-66,1),
- ('ae300000-0000-4000-8000-000000000031',@a2,14,95,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 50 MINUTE),38.999200,-0.158640,5,13,-55,1),
- ('ae300000-0000-4000-8000-000000000032',@a2,14,99,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE),38.999200,-0.158510,5,14,-56,1),
- ('ae300000-0000-4000-8000-000000000033',@a2,14,104,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 10 MINUTE),38.999200,-0.158380,5,15,-57,1),
- ('ae300000-0000-4000-8000-000000000034',@a2,12,18.5,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE),38.999000,-0.158900,5,100,-60,1),
- ('ae300000-0000-4000-8000-000000000035',@a2,12,21.0,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 120 MINUTE),38.999000,-0.158900,5,101,-60,1),
- ('ae300000-0000-4000-8000-000000000036',@a2,12,23.5,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 210 MINUTE),38.999000,-0.158900,5,102,-60,1),
- ('ae300000-0000-4000-8000-000000000037',@a3,14,45,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 290 MINUTE),38.967400,-0.182000,5,1,-55,1),
- ('ae300000-0000-4000-8000-000000000038',@a3,14,52,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 270 MINUTE),38.967400,-0.181870,5,2,-56,1),
- ('ae300000-0000-4000-8000-000000000039',@a3,14,58,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 250 MINUTE),38.967400,-0.181740,5,3,-57,1),
- ('ae300000-0000-4000-8000-000000000040',@a3,14,63,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 230 MINUTE),38.967400,-0.181610,5,4,-58,1),
- ('ae300000-0000-4000-8000-000000000041',@a3,14,67,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 210 MINUTE),38.967400,-0.181480,5,5,-59,1),
- ('ae300000-0000-4000-8000-000000000042',@a3,14,71,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 190 MINUTE),38.967500,-0.182000,5,6,-60,1),
- ('ae300000-0000-4000-8000-000000000043',@a3,14,75,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 170 MINUTE),38.967500,-0.181870,5,7,-61,1),
- ('ae300000-0000-4000-8000-000000000044',@a3,14,79,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 150 MINUTE),38.967500,-0.181740,5,8,-62,1),
- ('ae300000-0000-4000-8000-000000000045',@a3,14,82,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 130 MINUTE),38.967500,-0.181610,5,9,-63,1),
- ('ae300000-0000-4000-8000-000000000046',@a3,14,76,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 110 MINUTE),38.967500,-0.181480,5,10,-64,1),
- ('ae300000-0000-4000-8000-000000000047',@a3,14,70,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 90 MINUTE),38.967600,-0.182000,5,11,-65,1),
- ('ae300000-0000-4000-8000-000000000048',@a3,14,64,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 70 MINUTE),38.967600,-0.181870,5,12,-66,1),
- ('ae300000-0000-4000-8000-000000000049',@a3,14,59,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 50 MINUTE),38.967600,-0.181740,5,13,-55,1),
- ('ae300000-0000-4000-8000-000000000050',@a3,14,54,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE),38.967600,-0.181610,5,14,-56,1),
- ('ae300000-0000-4000-8000-000000000051',@a3,14,50,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 10 MINUTE),38.967600,-0.181480,5,15,-57,1),
- ('ae300000-0000-4000-8000-000000000052',@a3,12,18.5,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE),38.967400,-0.182000,5,100,-60,1),
- ('ae300000-0000-4000-8000-000000000053',@a3,12,21.0,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 120 MINUTE),38.967400,-0.182000,5,101,-60,1),
- ('ae300000-0000-4000-8000-000000000054',@a3,12,23.5,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 210 MINUTE),38.967400,-0.182000,5,102,-60,1)
-ON DUPLICATE KEY UPDATE capturada_en=VALUES(capturada_en);
+-- ------------------------------------------------------------ Lecturas simuladas: tres perfiles (T42)
+-- Cada campaña es un perfil de calidad del aire para probar el informe y el mapa: BUENO (campus), REGULAR
+-- (playa) y MALO (recinto, privada). Por campaña: 24 lecturas de ozono, una por hora en las últimas 24 h, y 6 de
+-- temperatura. El valor de cada lectura depende de su hora local (UTC+1, hora de invierno peninsular), así el
+-- veredicto por franjas sale igual se importe a la hora que se importe. Ozono en ppb, temperatura en °C, fechas UTC.
+-- Posiciones en una rejilla de unos 11 m para que el mapa pueda interpolar. Todo va con simulado = 1.
+-- Repetible: cada evento se actualiza con la hora y el valor nuevos (también los 54 de versiones anteriores).
+-- Perfil BUENO · campus (umbrales 60/100): todo por debajo de 60 ppb, sin picos
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(0+t.k+1,12,'0')),@a1,14,
+  ELT(HOUR(DATE_ADD(t.cap,INTERVAL 1 HOUR))+1,24,22,21,20,20,22,26,30,34,38,41,44,47,49,51,52,50,46,41,36,32,29,27,25),
+  t.cap,ROUND(38.996651+FLOOR(t.k/6)*0.0001,6),ROUND(-0.166009+MOD(t.k,6)*0.00013,6),5,t.k+1,-55-MOD(t.k,12),1
+ FROM (SELECT k,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL k*60+5 MINUTE) AS cap FROM (SELECT 0 k UNION ALL SELECT 1 k UNION ALL SELECT 2 k UNION ALL SELECT 3 k UNION ALL SELECT 4 k UNION ALL SELECT 5 k UNION ALL SELECT 6 k UNION ALL SELECT 7 k UNION ALL SELECT 8 k UNION ALL SELECT 9 k UNION ALL SELECT 10 k UNION ALL SELECT 11 k UNION ALL SELECT 12 k UNION ALL SELECT 13 k UNION ALL SELECT 14 k UNION ALL SELECT 15 k UNION ALL SELECT 16 k UNION ALL SELECT 17 k UNION ALL SELECT 18 k UNION ALL SELECT 19 k UNION ALL SELECT 20 k UNION ALL SELECT 21 k UNION ALL SELECT 22 k UNION ALL SELECT 23 k) h) t
+ WHERE @a1 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
+ latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
+-- Temperatura del módulo: seis lecturas, una cada cuatro horas.
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(0+25+t.k,12,'0')),@a1,12,ELT(t.k+1,17.5,16.0,19.5,23.0,24.5,21.0),
+  t.cap,38.996651,-0.166009,5,100+t.k,-60,1
+ FROM (SELECT k,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL k*240+10 MINUTE) AS cap FROM (SELECT 0 k UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5) h) t
+ WHERE @a1 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
+ latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
+
+-- Perfil REGULAR · playa (umbrales propios 55/90): buena de madrugada y regular el resto, picos moderados
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(30+t.k+1,12,'0')),@a2,14,
+  ELT(HOUR(DATE_ADD(t.cap,INTERVAL 1 HOUR))+1,38,36,35,34,35,37,45,52,60,66,70,74,79,84,87,86,82,76,70,66,62,58,54,48),
+  t.cap,ROUND(38.999+FLOOR(t.k/6)*0.0001,6),ROUND(-0.1589+MOD(t.k,6)*0.00013,6),5,t.k+1,-55-MOD(t.k,12),1
+ FROM (SELECT k,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL k*60+5 MINUTE) AS cap FROM (SELECT 0 k UNION ALL SELECT 1 k UNION ALL SELECT 2 k UNION ALL SELECT 3 k UNION ALL SELECT 4 k UNION ALL SELECT 5 k UNION ALL SELECT 6 k UNION ALL SELECT 7 k UNION ALL SELECT 8 k UNION ALL SELECT 9 k UNION ALL SELECT 10 k UNION ALL SELECT 11 k UNION ALL SELECT 12 k UNION ALL SELECT 13 k UNION ALL SELECT 14 k UNION ALL SELECT 15 k UNION ALL SELECT 16 k UNION ALL SELECT 17 k UNION ALL SELECT 18 k UNION ALL SELECT 19 k UNION ALL SELECT 20 k UNION ALL SELECT 21 k UNION ALL SELECT 22 k UNION ALL SELECT 23 k) h) t
+ WHERE @a2 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
+ latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
+-- Temperatura del módulo: seis lecturas, una cada cuatro horas.
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(30+25+t.k,12,'0')),@a2,12,ELT(t.k+1,17.5,16.0,19.5,23.0,24.5,21.0),
+  t.cap,38.999,-0.1589,5,100+t.k,-60,1
+ FROM (SELECT k,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL k*240+10 MINUTE) AS cap FROM (SELECT 0 k UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5) h) t
+ WHERE @a2 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
+ latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
+
+-- Perfil MALO · recinto (umbrales 60/100): mala por la mañana y por la tarde, picos altos
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(60+t.k+1,12,'0')),@a3,14,
+  ELT(HOUR(DATE_ADD(t.cap,INTERVAL 1 HOUR))+1,66,62,60,58,61,65,84,94,102,110,116,121,126,131,134,129,120,112,104,98,92,86,78,72),
+  t.cap,ROUND(38.9674+FLOOR(t.k/6)*0.0001,6),ROUND(-0.182+MOD(t.k,6)*0.00013,6),5,t.k+1,-55-MOD(t.k,12),1
+ FROM (SELECT k,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL k*60+5 MINUTE) AS cap FROM (SELECT 0 k UNION ALL SELECT 1 k UNION ALL SELECT 2 k UNION ALL SELECT 3 k UNION ALL SELECT 4 k UNION ALL SELECT 5 k UNION ALL SELECT 6 k UNION ALL SELECT 7 k UNION ALL SELECT 8 k UNION ALL SELECT 9 k UNION ALL SELECT 10 k UNION ALL SELECT 11 k UNION ALL SELECT 12 k UNION ALL SELECT 13 k UNION ALL SELECT 14 k UNION ALL SELECT 15 k UNION ALL SELECT 16 k UNION ALL SELECT 17 k UNION ALL SELECT 18 k UNION ALL SELECT 19 k UNION ALL SELECT 20 k UNION ALL SELECT 21 k UNION ALL SELECT 22 k UNION ALL SELECT 23 k) h) t
+ WHERE @a3 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
+ latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
+-- Temperatura del módulo: seis lecturas, una cada cuatro horas.
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(60+25+t.k,12,'0')),@a3,12,ELT(t.k+1,17.5,16.0,19.5,23.0,24.5,21.0),
+  t.cap,38.9674,-0.182,5,100+t.k,-60,1
+ FROM (SELECT k,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL k*240+10 MINUTE) AS cap FROM (SELECT 0 k UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5) h) t
+ WHERE @a3 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
+ latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
 
 -- ------------------------------------------------------------ Solicitudes comerciales
 -- Servicios: kits, estudio (superficie opcional, duración) y asesoramiento. Cada solicitud

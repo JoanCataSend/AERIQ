@@ -76,7 +76,9 @@ public final class PublicInterpolationTest {
         assertEquals(30, PublicReadings.RADIUS_DEFAULT);
         assertEquals(3, PublicReadings.MIN_POSITIONS);
         assertEquals(5, PublicReadings.MIN_SEPARATION, 0);
-        assertEquals(2, PublicReadings.POWER, 0);
+        assertEquals(3, PublicReadings.POWER, 0);
+        assertEquals(0.5, PublicReadings.OWN_FRACTION, 0);
+        assertEquals(15, PublicReadings.OWN_MAX, 0);
         assertEquals(1, PublicReadings.MIN_DISTANCE, 0);
         assertEquals(10, PublicReadings.CELL, 0);
     }
@@ -109,25 +111,26 @@ public final class PublicInterpolationTest {
         Sweep result = sweep(rows, 30);
         assertArrayEquals(new int[]{53, 23, 302, 0, 0},
             new int[]{result.value, result.insufficient, result.far, result.mixed, result.radius});
-        assertEquals(3957.222753625807, result.sum, TOLERANCE);
-        assertEquals(42.876886387974906, result.min, TOLERANCE);
-        assertEquals(109.04794135160219, result.max, TOLERANCE);
+        assertEquals(3932.380126722633, result.sum, TOLERANCE);
+        assertEquals(38, result.min, TOLERANCE);
+        assertEquals(114, result.max, TOLERANCE);
         assertTrue("IDW no sale del rango de las muestras", result.min >= 38 && result.max <= 114);
 
         Estimate estimate = PublicReadings.estimate(38.9967, -0.1658, support, 30);
-        assertEquals(62.25689582591126, estimate.value, TOLERANCE);
+        assertEquals(59.6380563517204, estimate.value, TOLERANCE);
         assertEquals(14, estimate.positions);
         assertEquals(Reason.NONE, estimate.reason);
         estimate = PublicReadings.estimate(38.997, -0.16575, support, 30);
-        assertEquals(95.27058686717591, estimate.value, TOLERANCE);
+        assertEquals(97.18262845667287, estimate.value, TOLERANCE);
         assertEquals(8, estimate.positions);
         estimate = PublicReadings.estimate(38.9972, -0.16575, support, 30);
         assertNull(estimate.value);
         assertEquals(Reason.FAR, estimate.reason);
         assertEquals(38.80712562013137, estimate.nearest, TOLERANCE);
-        // Sobre una muestra pesa sobre todo esa muestra, sin exigir igualdad.
+        // Sobre una muestra (y en su zona propia, T46) manda el valor medido en ella.
         estimate = PublicReadings.estimate(38.996651, -0.166009, support, 30);
-        assertEquals(38.58790393896943, estimate.value, TOLERANCE);
+        assertEquals(38, estimate.value, TOLERANCE);
+        assertTrue(estimate.own);
         assertEquals(8, estimate.positions);
     }
 
@@ -185,7 +188,7 @@ public final class PublicInterpolationTest {
     }
 
     @Test public void simulatedInterpolatesAloneAndNeverMixed() {
-        assertEquals(3957.222753625807, sweep(dense(true), 30).sum, TOLERANCE);
+        assertEquals(3932.380126722633, sweep(dense(true), 30).sum, TOLERANCE);
         List<Reading> simulated = dense(true), real = dense(false);
         List<Reading> mixed = new ArrayList<>(simulated.subList(0, 14));
         mixed.add(real.get(14));
@@ -206,18 +209,18 @@ public final class PublicInterpolationTest {
             reading("campaign", "ppb", A[0] + 0.0001, A[1], 70, stamp(5), false),
             reading("campaign", "ppb", A[0], A[1] + 0.00013, 90, stamp(6), false));
         double lat = A[0] + 0.00003, lon = A[1] + 0.00003;
-        assertEquals(92.50890267193577, PublicReadings.interpolate(lat, lon, rows, 30), TOLERANCE);
-        assertEquals(92.50890267193577, PublicReadings.interpolate(lat, lon,
+        assertEquals(99, PublicReadings.interpolate(lat, lon, rows, 30), TOLERANCE);
+        assertEquals(99, PublicReadings.interpolate(lat, lon,
             Arrays.asList(rows.get(1), rows.get(3), rows.get(0), rows.get(2)), 30), TOLERANCE);
         List<Reading> reversed = new ArrayList<>(rows);
         Collections.reverse(reversed);
-        assertEquals(92.50890267193577, PublicReadings.interpolate(lat, lon, reversed, 30), TOLERANCE);
+        assertEquals(99, PublicReadings.interpolate(lat, lon, reversed, 30), TOLERANCE);
     }
 
     @Test public void pointQueryExplainsValueOrLackOfData() {
         List<Reading> support = PublicReadings.support(dense(true));
         String[] text = PublicReadings.describe(PublicReadings.estimate(38.9967, -0.1658, support, 30), 30, "ppb", 60, 100, true);
-        assertEquals("Estimación: 62 ppb · moderado", text[0]);
+        assertEquals("Estimación: 59,6 ppb · bajo", text[0]);
         assertEquals("14 posiciones en 30 m · la más cercana a 7 m. Valor interpolado, no medido · datos simulados.", text[1]);
         text = PublicReadings.describe(PublicReadings.estimate(38.9972, -0.16575, support, 30), 30, "ppb", 60, 100, false);
         assertEquals("Sin datos", text[0]);
@@ -262,7 +265,7 @@ public final class PublicInterpolationTest {
         assertEquals(COLS, grid.columns);
         assertFalse(grid.clipped);
         // 53 con valor (bajo + moderado + alto) y 23 insuficientes, como el barrido punto a punto.
-        assertArrayEquals(new int[]{302, 23, 17, 28, 8}, tally(grid));
+        assertArrayEquals(new int[]{302, 23, 21, 21, 11}, tally(grid));
         for (int i = 0; i < ROWS; i++) for (int j = 0; j < COLS; j++) {
             Estimate estimate = PublicReadings.estimate(lats[i], lons[j], support, 30);
             byte expected = estimate.value != null
@@ -288,14 +291,14 @@ public final class PublicInterpolationTest {
         for (int i = 0; i < ROWS; i++) topDown[i] = lats[ROWS - 1 - i];
         List<Reading> rows = dense(false);
         // De arriba abajo, como la pantalla: mismo resultado.
-        assertArrayEquals(new int[]{302, 23, 17, 28, 8}, tally(raster(rows, 30, topDown, lons, PublicReadings.MAX_EVALUATIONS)));
+        assertArrayEquals(new int[]{302, 23, 21, 21, 11}, tally(raster(rows, 30, topDown, lons, PublicReadings.MAX_EVALUATIONS)));
         // Un radio fuera de 20–50 m no pinta nada.
         assertArrayEquals(new int[]{ROWS * COLS, 0, 0, 0, 0}, tally(raster(rows, 51, lats, lons, PublicReadings.MAX_EVALUATIONS)));
         // Dos grupos que se tocan: donde uno estima y el otro no basta, gana el valor estimado.
         List<Reading> other = Collections.singletonList(reading("other", "ppb", rows.get(0).latitude, rows.get(0).longitude, 50, stamp(0), false));
         PublicReadings.Raster both = PublicReadings.raster(Arrays.asList(PublicReadings.support(other), PublicReadings.support(rows)),
             new int[]{30, 30}, lats, lons, PublicReadings.MAX_EVALUATIONS);
-        assertArrayEquals(new int[]{302, 23, 17, 28, 8}, tally(both));
+        assertArrayEquals(new int[]{302, 23, 21, 21, 11}, tally(both));
         // Tope de evaluaciones: se marca recortado para avisarlo en el mapa.
         PublicReadings.Raster clipped = raster(rows, 30, lats, lons, 10);
         assertEquals(10, clipped.evaluated);
@@ -323,5 +326,81 @@ public final class PublicInterpolationTest {
         assertTrue(farthest <= 30 && farthest > 28);
         double disc = Math.PI * 30 * 30 / 16;
         assertTrue(painted + " puntos para un disco de ~" + Math.round(disc), Math.abs(painted - disc) / disc < .05);
+    }
+
+    // ---- T46: el color junto a cada punto coincide con su medición (mismos casos que aeriq-domain.test.js) ----
+
+    private static byte levelAt(PublicReadings.Raster grid, double[] lats, double[] lons, double lat, double lon) {
+        int i = 0, j = 0;
+        for (int k = 1; k < lats.length; k++) if (Math.abs(lats[k] - lat) < Math.abs(lats[i] - lat)) i = k;
+        for (int k = 1; k < lons.length; k++) if (Math.abs(lons[k] - lon) < Math.abs(lons[j] - lon)) j = k;
+        return grid.states[i * lons.length + j];
+    }
+
+    private static double[] range(double from, double to, double step) {
+        int n = (int) Math.floor((to - from) / step) + 1;
+        double[] out = new double[n];
+        for (int k = 0; k < n; k++) out[k] = from + k * step;
+        return out;
+    }
+
+    private static byte zoneOf(double value) {
+        return value >= 100 ? PublicReadings.ZONE_HIGH : value >= 60 ? PublicReadings.ZONE_MEDIUM : PublicReadings.ZONE_LOW;
+    }
+
+    @Test public void redPointIsNotSurroundedByYellow() {
+        List<Reading> ring = new ArrayList<>();
+        ring.add(reading("campaign", "ppb", A[0], A[1], 110, stamp(0), false));
+        for (int k = 0; k < 6; k++) {
+            double a = k * Math.PI / 3;
+            ring.add(reading("campaign", "ppb", A[0] + 0.0001 * Math.sin(a), A[1] + 0.000128 * Math.cos(a), 70, stamp(k + 1), false));
+        }
+        List<Reading> support = PublicReadings.support(ring);
+        double own = PublicReadings.ownRadii(support).get(support.stream().filter(r -> r.value == 110).findFirst().get());
+        assertTrue("zona propia = mitad de la distancia a la vecina", own > 5 && own < 6);
+        double[] lats = range(A[0] - 0.0004, A[0] + 0.0004, 0.000009), lons = range(A[1] - 0.0005, A[1] + 0.0005, 0.000009 * 1.28);
+        PublicReadings.Raster grid = PublicReadings.raster(Collections.singletonList(support), new int[]{30}, lats, lons, PublicReadings.MAX_EVALUATIONS);
+        double[][] around = {{0, 0}, {0.00003, 0}, {-0.00003, 0}, {0, 0.00004}, {0, -0.00004}, {0.00002, 0.00003}};
+        for (double[] d : around) assertEquals(PublicReadings.ZONE_HIGH, levelAt(grid, lats, lons, A[0] + d[0], A[1] + d[1]));
+        for (Reading r : ring) assertEquals(zoneOf(r.value), levelAt(grid, lats, lons, r.latitude, r.longitude));
+    }
+
+    @Test public void simulatedProfilesKeepTheColourOfEachPoint() {
+        int[][] profiles = {
+            {24, 22, 21, 20, 20, 22, 26, 30, 34, 38, 41, 44, 47, 49, 51, 52, 50, 46, 41, 36, 32, 29, 27, 25},
+            {38, 36, 35, 34, 35, 37, 45, 52, 60, 66, 70, 74, 79, 84, 87, 86, 82, 76, 70, 66, 62, 58, 54, 48},
+            {66, 62, 60, 58, 61, 65, 84, 94, 102, 110, 116, 121, 126, 131, 134, 129, 120, 112, 104, 98, 92, 86, 78, 72}};
+        for (int p = 0; p < profiles.length; p++) {
+            List<Reading> rows = new ArrayList<>();
+            for (int k = 0; k < 24; k++) rows.add(reading("campaign", "ppb", A[0] + (k / 6) * 0.0001, A[1] + (k % 6) * 0.00013, profiles[p][k], stamp(k), false));
+            double[] lats = range(A[0] - 0.0004, A[0] + 0.0008, 0.000009), lons = range(A[1] - 0.0005, A[1] + 0.0012, 0.000009 * 1.28);
+            PublicReadings.Raster grid = PublicReadings.raster(Collections.singletonList(PublicReadings.support(rows)), new int[]{30}, lats, lons, PublicReadings.MAX_EVALUATIONS);
+            for (Reading r : rows) assertEquals("perfil " + p + ", punto de " + r.value, zoneOf(r.value), levelAt(grid, lats, lons, r.latitude, r.longitude));
+            boolean yellowOrRed = false, red = false;
+            for (byte state : grid.states) { if (state >= PublicReadings.ZONE_MEDIUM) yellowOrRed = true; if (state == PublicReadings.ZONE_HIGH) red = true; }
+            if (p == 0) assertFalse("el perfil bueno no tiene zonas amarillas ni rojas", yellowOrRed);
+            if (p == 2) assertTrue("el perfil malo tiene zonas rojas", red);
+        }
+    }
+
+    // ---- T47: donde se solapan dos campañas no gana la primera ----
+
+    @Test public void overlappingCampaignsAreInterpolatedTogether() {
+        List<Reading> left = new ArrayList<>(), right = new ArrayList<>();
+        for (int k = 0; k < 4; k++) {
+            left.add(reading("one", "ppb", A[0] + (k % 2) * 0.0001, A[1] + (k / 2) * 0.00013, 40, stamp(k), false));
+            right.add(reading("two", "ppb", A[0] + (k % 2) * 0.0001, A[1] + 0.00026 + (k / 2) * 0.00013, 105, stamp(k), false));
+        }
+        double[] lats = new double[40], lons = new double[80];
+        for (int i = 0; i < 40; i++) lats[i] = 38.99645 + i * 0.00001;
+        for (int j = 0; j < 80; j++) lons[j] = -0.16635 + j * 0.0000128;
+        List<Reading> l = PublicReadings.support(left), r = PublicReadings.support(right);
+        PublicReadings.Raster ab = PublicReadings.raster(Arrays.asList(l, r), new int[]{30, 30}, lats, lons, PublicReadings.MAX_EVALUATIONS);
+        PublicReadings.Raster ba = PublicReadings.raster(Arrays.asList(r, l), new int[]{30, 30}, lats, lons, PublicReadings.MAX_EVALUATIONS);
+        assertArrayEquals("el resultado no depende del orden de las campañas", ab.states, ba.states);
+        boolean low = false, medium = false, high = false;
+        for (byte state : ab.states) { low |= state == PublicReadings.ZONE_LOW; medium |= state == PublicReadings.ZONE_MEDIUM; high |= state == PublicReadings.ZONE_HIGH; }
+        assertTrue("la zona común muestra un valor intermedio", medium);
+        assertTrue(low && high);
     }
 }

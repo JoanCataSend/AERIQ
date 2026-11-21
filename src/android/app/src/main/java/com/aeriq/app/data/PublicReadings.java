@@ -74,8 +74,13 @@ public final class PublicReadings {
     public static final int MIN_POSITIONS = 3;
     /** Lecturas más juntas (m) cuentan como una sola posición: deriva del GPS. */
     public static final double MIN_SEPARATION = 5;
-    /** Exponente del peso 1/d^p y suelo de distancia (m) para no dividir entre cero. */
-    public static final double POWER = 2, MIN_DISTANCE = 1;
+    /** Exponente del peso 1/d^p (3: manda la medición más cercana, T46) y suelo de distancia (m) para no dividir entre cero. */
+    public static final double POWER = 3, MIN_DISTANCE = 1;
+    /**
+     * Zona propia (T46): alrededor de cada posición, hasta esta fracción de la distancia a su vecina más cercana y
+     * como mucho OWN_MAX metros, la zona toma el valor medido en ese punto.
+     */
+    public static final double OWN_FRACTION = 0.5, OWN_MAX = 15;
     /** Lado (m) de la rejilla de validación de las pruebas. */
     public static final double CELL = 10;
     /** Puntos que {@link #raster} evalúa como máximo por pintado; si se alcanza, se avisa. */
@@ -100,12 +105,20 @@ public final class PublicReadings {
         /** Distancia (m) a la posición más cercana; infinito si no hay ninguna. */
         public final double nearest;
         public final Reason reason;
+        /** Suma de pesos IDW de las posiciones dentro del radio (para combinar campañas que se solapan, T47). */
+        public final double weight;
+        /** true si el punto cae en la zona propia de la posición más cercana y el valor es el medido (T46). */
+        public final boolean own;
 
-        Estimate(Double value, int positions, double nearest, Reason reason) {
+        Estimate(Double value, int positions, double nearest, Reason reason) { this(value, positions, nearest, reason, 0, false); }
+
+        Estimate(Double value, int positions, double nearest, Reason reason, double weight, boolean own) {
             this.value = value;
             this.positions = positions;
             this.nearest = nearest;
             this.reason = reason;
+            this.weight = weight;
+            this.own = own;
         }
     }
 
@@ -166,16 +179,50 @@ public final class PublicReadings {
         return out;
     }
 
+    /**
+     * Zona propia de cada posición de soporte (T46): la mitad de la distancia a su vecina más cercana del mismo grupo,
+     * como mucho {@link #OWN_MAX} metros. Mismo cálculo que ownRadii() de aeriq-domain.js.
+     */
+    public static Map<Reading, Double> ownRadii(List<Reading> samples) {
+        Map<Reading, Double> out = new java.util.IdentityHashMap<>();
+        if (samples.isEmpty()) return out;
+        double reach = OWN_MAX / OWN_FRACTION, latStep = reach / METERS_PER_DEGREE;
+        double lonStep = latStep / Math.max(0.01, Math.cos(samples.get(0).latitude * Math.PI / 180));
+        Map<String, List<Reading>> cells = new HashMap<>();
+        for (Reading r : samples) {
+            cells.computeIfAbsent((long) Math.floor(r.latitude / latStep) + ":" + (long) Math.floor(r.longitude / lonStep), k -> new ArrayList<>()).add(r);
+        }
+        for (Reading r : samples) {
+            long x = (long) Math.floor(r.latitude / latStep), y = (long) Math.floor(r.longitude / lonStep);
+            double nn = Double.POSITIVE_INFINITY;
+            for (int a = -1; a <= 1; a++) for (int b = -1; b <= 1; b++) {
+                List<Reading> cell = cells.get((x + a) + ":" + (y + b));
+                if (cell == null) continue;
+                for (Reading other : cell) {
+                    if (other == r || !groupKey(other).equals(groupKey(r))) continue;
+                    nn = Math.min(nn, distance(r.latitude, r.longitude, other.latitude, other.longitude));
+                }
+            }
+            out.put(r, Math.min(OWN_MAX, nn * OWN_FRACTION));
+        }
+        return out;
+    }
+
     /** Estimación en un punto a partir de posiciones de soporte (resultado de {@link #support}). */
     public static Estimate estimate(double latitude, double longitude, List<Reading> samples, int radius) {
+        return estimate(latitude, longitude, samples, radius, ownRadii(samples));
+    }
+
+    /** Igual, con las zonas propias ya calculadas para el grupo (raster no las repite en cada punto). */
+    static Estimate estimate(double latitude, double longitude, List<Reading> samples, int radius, Map<Reading, Double> own) {
         if (radius < RADIUS_MIN || radius > RADIUS_MAX) return new Estimate(null, 0, Double.POSITIVE_INFINITY, Reason.RADIUS);
-        Reading first = null;
+        Reading first = null, closest = null;
         boolean mixed = false;
         double sum = 0, weights = 0, nearest = Double.POSITIVE_INFINITY;
         int count = 0;
         for (Reading reading : samples) {
             double distance = distance(latitude, longitude, reading.latitude, reading.longitude);
-            if (distance < nearest) nearest = distance;
+            if (distance < nearest) { nearest = distance; closest = reading; }
             if (distance > radius) continue;
             if (first == null) first = reading;
             else if (!groupKey(reading).equals(groupKey(first))) mixed = true;
@@ -184,10 +231,13 @@ public final class PublicReadings {
             weights += weight;
             count++;
         }
-        if (count == 0) return new Estimate(null, 0, nearest, Reason.FAR);
-        if (mixed) return new Estimate(null, count, nearest, Reason.MIXED);
-        if (count < MIN_POSITIONS) return new Estimate(null, count, nearest, Reason.INSUFFICIENT);
-        return new Estimate(sum / weights, count, nearest, Reason.NONE);
+        if (count == 0) return new Estimate(null, 0, nearest, Reason.FAR, 0, false);
+        if (mixed) return new Estimate(null, count, nearest, Reason.MIXED, weights, false);
+        if (count < MIN_POSITIONS) return new Estimate(null, count, nearest, Reason.INSUFFICIENT, weights, false);
+        // Dentro de la zona propia de la posición más cercana manda su valor medido (T46).
+        Double ownRadius = own.get(closest);
+        if (ownRadius != null && nearest <= ownRadius) return new Estimate(closest.value, count, nearest, Reason.NONE, weights, true);
+        return new Estimate(sum / weights, count, nearest, Reason.NONE, weights, false);
     }
 
     /** Valor interpolado o null si el punto queda sin datos. Acepta lecturas en bruto. */
@@ -232,12 +282,22 @@ public final class PublicReadings {
      * fina (la pantalla, cada pocos píxeles), así el borde de cada zona sigue el radio y sale redondo.
      * Mismo cálculo que raster() de aeriq-domain.js. groups: posiciones de soporte por grupo; radii: radio de
      * cada grupo; lats/lons: latitud de cada fila y longitud de cada columna (ordenadas). Solo se evalúan los
-     * puntos cercanos a alguna posición. Si varios grupos alcanzan un punto, un valor estimado gana a «datos insuficientes».
+     * puntos cercanos a alguna posición. Si varios grupos alcanzan un punto, sus estimaciones se combinan (T47) y un
+     * valor estimado gana a «datos insuficientes».
      */
     public static Raster raster(List<List<Reading>> groups, int[] radii, double[] lats, double[] lons, int maxEvaluations) {
-        int rows = lats.length, columns = lons.length, evaluated = 0;
-        byte[] states = new byte[rows * columns];
-        int[] seen = new int[rows * columns];
+        int rows = lats.length, columns = lons.length, evaluated = 0, cells = rows * columns;
+        byte[] states = new byte[cells];
+        int[] seen = new int[cells];
+        // Campañas que se solapan (T47): la zona común se interpola con todas (media de cada estimación ponderada por
+        // su peso IDW) y el nivel se juzga con los umbrales de la que más pesa. En la zona propia de una posición
+        // manda su valor medido, el de la más cercana si hay varias. Mismo cálculo que raster() de aeriq-domain.js.
+        double[] sumV = new double[cells], sumW = new double[cells], topW = new double[cells], exactV = new double[cells], exactD = new double[cells];
+        int[] owner = new int[cells], exactG = new int[cells];
+        boolean[] insufficient = new boolean[cells];
+        java.util.Arrays.fill(owner, -1);
+        java.util.Arrays.fill(exactG, -1);
+        java.util.Arrays.fill(exactD, Double.POSITIVE_INFINITY);
         boolean clipped = false;
         double bucketLat = RADIUS_MAX * 1.1 / METERS_PER_DEGREE;
         scan:
@@ -246,6 +306,7 @@ public final class PublicReadings {
             int radius = radii[g], pass = g + 1;
             if (group.isEmpty() || radius < RADIUS_MIN || radius > RADIUS_MAX) continue;
             Reading first = group.get(0);
+            Map<Reading, Double> own = ownRadii(group);
             // Cubos de ~radio máximo para comparar cada punto solo con las posiciones vecinas.
             double bucketLon = bucketLat / Math.max(0.01, Math.cos(first.latitude * Math.PI / 180));
             Map<String, List<Reading>> buckets = new HashMap<>();
@@ -260,7 +321,7 @@ public final class PublicReadings {
                 int[] c = span(lons, sample.longitude - dLon, sample.longitude + dLon);
                 for (int i = r[0]; i <= r[1]; i++) for (int j = c[0]; j <= c[1]; j++) {
                     int k = i * columns + j;
-                    if (seen[k] == pass || states[k] >= ZONE_LOW) continue;
+                    if (seen[k] == pass) continue;
                     seen[k] = pass;
                     // El tope de rendimiento se avisa: una zona recortada no debe confundirse con una zona sin datos.
                     if (evaluated >= maxEvaluations) { clipped = true; break scan; }
@@ -271,12 +332,26 @@ public final class PublicReadings {
                         List<Reading> bucket = buckets.get((x + dx) + ":" + (y + dy));
                         if (bucket != null) near.addAll(bucket);
                     }
-                    Estimate estimate = estimate(lats[i], lons[j], near, radius);
+                    Estimate estimate = estimate(lats[i], lons[j], near, radius, own);
                     if (estimate.value != null) {
-                        states[k] = estimate.value >= first.high ? ZONE_HIGH : estimate.value >= first.medium ? ZONE_MEDIUM : ZONE_LOW;
-                    } else if (estimate.reason == Reason.INSUFFICIENT) states[k] = ZONE_INSUFFICIENT;
+                        if (estimate.own) {
+                            if (estimate.nearest < exactD[k]) { exactD[k] = estimate.nearest; exactV[k] = estimate.value; exactG[k] = g; }
+                        } else {
+                            sumV[k] += estimate.value * estimate.weight;
+                            sumW[k] += estimate.weight;
+                            if (estimate.weight > topW[k]) { topW[k] = estimate.weight; owner[k] = g; }
+                        }
+                    } else if (estimate.reason == Reason.INSUFFICIENT) insufficient[k] = true;
                 }
             }
+        }
+        for (int k = 0; k < cells; k++) {
+            double value;
+            Reading thresholds;
+            if (exactG[k] >= 0) { value = exactV[k]; thresholds = groups.get(exactG[k]).get(0); }
+            else if (sumW[k] > 0) { value = sumV[k] / sumW[k]; thresholds = groups.get(owner[k]).get(0); }
+            else { if (insufficient[k]) states[k] = ZONE_INSUFFICIENT; continue; }
+            states[k] = value >= thresholds.high ? ZONE_HIGH : value >= thresholds.medium ? ZONE_MEDIUM : ZONE_LOW;
         }
         return new Raster(rows, columns, states, evaluated, clipped);
     }
@@ -288,9 +363,16 @@ public final class PublicReadings {
     public static String[] describe(Estimate estimate, int radius, String unit, double medium, double high, boolean simulated) {
         String positions = estimate.positions + (estimate.positions == 1 ? " posición" : " posiciones") + " en " + radius + " m";
         if (estimate.value != null) {
-            String level = estimate.value >= high ? "alto" : estimate.value >= medium ? "moderado" : "bajo";
-            return new String[]{"Estimación: " + Math.round(estimate.value) + " " + unit + " · " + level,
-                positions + " · la más cercana a " + Math.round(estimate.nearest) + " m. Valor interpolado, no medido"
+            double v = estimate.value;
+            String level = v >= high ? "alto" : v >= medium ? "moderado" : "bajo";
+            // Con un decimal si al redondear cruzaría un umbral: 59,6 no se enseña como «60 · bajo».
+            long rounded = Math.round(v);
+            String roundedLevel = rounded >= high ? "alto" : rounded >= medium ? "moderado" : "bajo";
+            String shown = roundedLevel.equals(level) ? String.valueOf(rounded)
+                : String.format(java.util.Locale.ROOT, "%.1f", v).replace('.', ',');
+            return new String[]{"Estimación: " + shown + " " + unit + " · " + level,
+                positions + " · la más cercana a " + Math.round(estimate.nearest) + " m. "
+                    + (estimate.own ? "Junto a esa medición se muestra su valor medido" : "Valor interpolado, no medido")
                     + (simulated ? " · datos simulados." : ".")};
         }
         if (estimate.reason == Reason.INSUFFICIENT) {

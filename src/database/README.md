@@ -5,7 +5,7 @@ Para instalar la base hacen falta dos archivos, y sirven en cualquier ordenador 
 | Archivo | Qué hace | ¿Obligatorio? |
 |---|---|---|
 | [1-instalar.sql](1-instalar.sql) | **Borra** todo lo que haya en la base e instala las 26 tablas, las 4 vistas, los catálogos (roles, permisos, magnitudes, servicios…), la organización **AERIQ Gandia** y el admin principal. | Sí |
-| [2-simulacion.sql](2-simulacion.sql) | Añade datos de prueba: 3 campañas, 3 AERIQ simulados con 54 lecturas, 4 cuentas de prueba y 3 solicitudes. No borra nada y se puede repetir. | No |
+| [2-simulacion.sql](2-simulacion.sql) | Añade datos de prueba: 3 campañas con un perfil de calidad del aire cada una (bueno, regular y malo), 3 AERIQ simulados con 90 lecturas de las últimas 24 h, 4 cuentas de prueba y 3 solicitudes. No borra nada y se puede repetir. | No |
 
 Los archivos no llevan escrito el nombre de la base: se instalan en la que tengas seleccionada (`mcalgar2_pbio`, `jcatsen_pbio`…).
 
@@ -28,6 +28,16 @@ Todas tienen la contraseña `1234`. Cámbiala si la web es pública.
 | `operador.simulacion@aeriq.example` | Operador (Pau) | Paseo por el campus | `2-simulacion.sql` |
 | `operadora.simulacion@aeriq.example` | Operadora (Lucía) | Playa de Gandia | `2-simulacion.sql` |
 | `operador3.simulacion@aeriq.example` | Operador (Álex) | Recinto municipal (privada) | `2-simulacion.sql` |
+
+Perfiles de los datos simulados (sirven para enseñar el informe y el mapa en los tres escenarios):
+
+| Campaña | Perfil | Qué se ve |
+|---|---|---|
+| Paseo por el campus | Bueno | Todo por debajo del umbral medio (60 ppb). Sin picos. |
+| Playa de Gandia | Regular | Buena de madrugada, regular el resto del día (umbrales propios 55/90). Picos moderados. |
+| Recinto municipal (privada) | Malo | Mala por la mañana y por la tarde, con picos por encima de 100 ppb. |
+
+El valor de cada lectura depende de su hora local, así que el veredicto por franjas sale igual a cualquier hora. Para volver a ponerlas en las últimas 24 h, importa otra vez `2-simulacion.sql`.
 
 Cada operador lleva un solo AERIQ. Las campañas de la playa y del recinto aún no tienen admin: el admin principal se lo puede asignar desde **Mi panel**.
 
