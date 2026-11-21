@@ -20,5 +20,6 @@ compilación Arduino, que utiliza su biblioteca estándar real.
 
 Casos: vector de bytes completo O3, temperatura negativa, ID/estado, rollover de
 reloj, conversión de 100 ppb a 20 °C, compensación a 40 °C, rechazo de un pico,
-reinicio del filtro tras error, límites de salida, saturación y temperatura fuera
-del intervalo de compensación.
+reinicio del filtro tras error, límites de salida, saturación, temperatura fuera
+del intervalo de compensación y cuándo toca anunciar temperatura y batería (primer
+ciclo y cada 30 s, también al dar la vuelta `millis()`).

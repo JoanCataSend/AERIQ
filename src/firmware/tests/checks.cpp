@@ -24,6 +24,13 @@ extern "C" int run_tests() {
   CHECK(!transcurrido(0x0f, 0xfffffff0, 32));
   CHECK(!transcurrido(1199, 0, 1200));
   CHECK(transcurrido(1200, 0, 1200));
+  // Temperatura y bateria: en el primer ciclo y luego cada 30 s, tambien al dar la vuelta millis().
+  CHECK(tocaExtras(500, 0, false));
+  CHECK(!tocaExtras(29999, 0, true));
+  CHECK(tocaExtras(30000, 0, true));
+  CHECK(!tocaExtras(0x00001000, 0xffffa000, true));
+  CHECK(tocaExtras(0x00006000, 0xffffa000, true));
+  CHECK(OZONO_MS + PAUSA_MS + TEMPERATURA_MS + BATERIA_MS < EXTRAS_PERIODO_MS);
 
   // T=20 C at Vplus=3.3 V. 3.694596 mV below Vref corresponds to 100 ppb.
   const float ref = 1.65f, term20 = 38.f * 3.3f / 87.f;

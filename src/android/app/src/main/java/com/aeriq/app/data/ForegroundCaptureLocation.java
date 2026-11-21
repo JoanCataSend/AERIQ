@@ -46,7 +46,8 @@ public final class ForegroundCaptureLocation {
                 if (cached != null && better(cached, last)) last = cached;
                 // Distancia mínima 0: con el móvil quieto también llegan posiciones nuevas. Con 3 m, una
                 // persona parada dejaba de recibirlas y, pasado un minuto, las lecturas se enviaban sin GPS.
-                manager.requestLocationUpdates(provider, 2000, 0, listener, Looper.getMainLooper());
+                // Cada 1 s: el Orb anuncia ozono cada ~1,5 s y cada lectura debe llevar su propia posición.
+                manager.requestLocationUpdates(provider, 1000, 0, listener, Looper.getMainLooper());
             } catch (IllegalArgumentException | SecurityException ignored) {}
         }
     }

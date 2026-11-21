@@ -15,11 +15,15 @@ aeriq::Leds leds;
 uint64_t dispositivo;
 uint8_t secuencia = 0;
 uint32_t inicioEstado = 0;
-enum class Fase { LEER, OZONO, PAUSA, TEMPERATURA, REPOSO, ERROR };
+// Ciclo (tiempos en Protocolo.h): LEER -> OZONO y otra vez LEER. Cada 30 s, tras el ozono:
+// PAUSA -> TEMPERATURA -> BATERIA. Un ciclo invalido anuncia el ESTADO y reposa (con la bateria si toca).
+enum class Fase { LEER, OZONO, PAUSA, TEMPERATURA, BATERIA, ERROR, REPOSO };
 Fase fase = Fase::LEER;
 bool radioError = false;
 bool medidaDisponible = false;
-bool bateriaEnAnuncio = false; // Anuncio de bateria activo durante el reposo.
+bool bateriaEnAnuncio = false; // Anuncio de bateria activo durante el reposo tras un error.
+uint32_t ultimosExtras = 0;    // Ultima vez que se anunciaron temperatura y bateria.
+bool extrasAlgunaVez = false;
 
 void diagnosticar() {
   static uint32_t ultimo = 0;
@@ -107,24 +111,44 @@ void loop() {
       }
       break;
     case Fase::OZONO:
-      if (aeriq::transcurrido(ahora, inicioEstado, 1200)) {
-        Bluefruit.Advertising.stop(); fase = Fase::PAUSA; inicioEstado = ahora;
+      if (aeriq::transcurrido(ahora, inicioEstado, aeriq::OZONO_MS)) {
+        Bluefruit.Advertising.stop();
+        // El ozono va en cada ciclo; temperatura y bateria solo cada 30 s.
+        if (aeriq::tocaExtras(ahora, ultimosExtras, extrasAlgunaVez)) {
+          ultimosExtras = ahora; extrasAlgunaVez = true;
+          fase = Fase::PAUSA; inicioEstado = ahora;
+        } else siguienteCiclo();
       }
       break;
     case Fase::PAUSA:
-      if (aeriq::transcurrido(ahora, inicioEstado, 300)) {
+      if (aeriq::transcurrido(ahora, inicioEstado, aeriq::PAUSA_MS)) {
+        // La temperatura se mide en cada ciclo (compensa el ozono); aqui solo se publica la del ultimo.
         radioError = !publicar(aeriq::TIPO_TEMPERATURA,
                               static_cast<uint16_t>(medida.temperatura));
         fase = Fase::TEMPERATURA; inicioEstado = millis();
       }
       break;
     case Fase::TEMPERATURA:
-    case Fase::ERROR:
-      if (aeriq::transcurrido(ahora, inicioEstado, 1200)) {
-        Bluefruit.Advertising.stop(); fase = Fase::REPOSO; inicioEstado = ahora;
-        // El reposo se aprovecha para anunciar la bateria; el ciclo dura lo mismo.
+      if (aeriq::transcurrido(ahora, inicioEstado, aeriq::TEMPERATURA_MS)) {
+        Bluefruit.Advertising.stop();
         // Sin medidor no se anuncia nada: la bateria no se inventa.
         if (bateria.conocida()) {
+          radioError = !publicar(aeriq::TIPO_BATERIA, static_cast<uint16_t>(bateria.porcentaje()));
+          fase = Fase::BATERIA; inicioEstado = millis();
+        } else siguienteCiclo();
+      }
+      break;
+    case Fase::BATERIA:
+      if (aeriq::transcurrido(ahora, inicioEstado, aeriq::BATERIA_MS)) {
+        Bluefruit.Advertising.stop(); siguienteCiclo();
+      }
+      break;
+    case Fase::ERROR:
+      if (aeriq::transcurrido(ahora, inicioEstado, aeriq::OZONO_MS)) {
+        Bluefruit.Advertising.stop(); fase = Fase::REPOSO; inicioEstado = ahora;
+        // Tras un ciclo invalido se reposa; si toca, se aprovecha para anunciar la bateria.
+        if (bateria.conocida() && aeriq::tocaExtras(ahora, ultimosExtras, extrasAlgunaVez)) {
+          ultimosExtras = ahora; extrasAlgunaVez = true;
           radioError = !publicar(aeriq::TIPO_BATERIA, static_cast<uint16_t>(bateria.porcentaje()));
           bateriaEnAnuncio = !radioError;
         }
@@ -132,12 +156,15 @@ void loop() {
       break;
     case Fase::REPOSO:
       // La publicidad se detiene antes de la siguiente adquisicion del ADC.
-      if (bateriaEnAnuncio && aeriq::transcurrido(ahora, inicioEstado, 1200)) {
+      if (bateriaEnAnuncio && aeriq::transcurrido(ahora, inicioEstado, aeriq::BATERIA_MS)) {
         Bluefruit.Advertising.stop(); bateriaEnAnuncio = false;
       }
-      if (aeriq::transcurrido(ahora, inicioEstado, 1500)) {
-        medidor.iniciar(); fase = Fase::LEER;
-      }
+      if (aeriq::transcurrido(ahora, inicioEstado, aeriq::REPOSO_ERROR_MS)) siguienteCiclo();
       break;
   }
+}
+
+// Vuelve a medir. La publicidad ya esta parada: el ADC adquiere siempre con la radio en silencio.
+void siguienteCiclo() {
+  medidor.iniciar(); fase = Fase::LEER;
 }

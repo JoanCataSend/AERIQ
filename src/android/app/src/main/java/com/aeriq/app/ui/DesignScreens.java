@@ -573,7 +573,7 @@ public final class DesignScreens {
         int generation = ++request[0];
         worker.execute(() -> {
             try {
-                // Histórico (hasta 2.000 lecturas recientes): las pestañas de 7 y 30 días necesitan más que las últimas 24 h.
+                // Histórico (hasta 10.000 lecturas recientes): las pestañas de 7 y 30 días necesitan más que las últimas 24 h.
                 List<PublicReadings.Reading> rows = PublicReadings.fetch(false, 0).rows;
                 activity.runOnUiThread(() -> {
                     if (!results.isAttachedToWindow() || generation != request[0]) return;

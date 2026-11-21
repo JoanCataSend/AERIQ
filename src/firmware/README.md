@@ -120,17 +120,21 @@ inicial son llamadas sincrónicas acotadas del core. Las esperas se resuelven co
 `millis()` y, para los 300 µs, `micros()`, con restas sin signo resistentes al rollover.
 La publicidad permanece detenida durante la adquisición.
 
-Ciclo válido: adquisición (~300 ms o más), O3 1200 ms, pausa 300 ms, temperatura
-1200 ms, reposo 1500 ms. Si hay medidor de batería, los primeros 1200 ms del reposo
-anuncian la batería (tipo `10`) y los 300 ms finales quedan sin publicidad: el ciclo
-dura lo mismo y el ADC sigue midiendo con la radio parada. O3 y temperatura proceden del mismo ciclo y comparten
-secuencia. Primera secuencia 1; después de 255 vuelve a 0 y al reiniciar empieza
+Ciclo válido (tiempos en `Protocolo.h`): adquisición (~300 ms o más, con la radio
+parada) y O3 1200 ms; después vuelve a adquirir. El ozono es la medida principal y
+sale en **cada ciclo, unos 1,5 s**. Temperatura y batería cambian despacio y solo se
+anuncian **cada 30 s**, en el primer ciclo y luego tras el ozono: pausa 300 ms,
+temperatura 1200 ms y, si hay medidor, batería (tipo `10`) 1200 ms. Ese ciclo dura
+unos 4,2 s. La temperatura se sigue midiendo en cada ciclo porque compensa el ozono;
+solo se publica cada 30 s. O3 y temperatura de un mismo ciclo comparten secuencia.
+Hasta noviembre de 2026 el ciclo anunciaba también temperatura y batería en cada
+vuelta y el ozono salía cada ~4,2 s; el formato de los anuncios no ha cambiado. Primera secuencia 1; después de 255 vuelve a 0 y al reiniciar empieza
 de nuevo. No sirve como identificador global ni fecha.
 
 Vplus inferido fuera de 2.6..3.4 V (margen de 0.1 V sobre 2.7..3.3 V nominal),
 cálculo no finito o cualquier muestra ADC 0/4095 invalidan el ciclo
 y reinician el filtro. Se transmite sólo estado durante 1200 ms y se reposa
-1500 ms. No se publican ceros ficticios como lecturas válidas. Fuera de −20..50 °C
+1500 ms (si toca, los primeros 1200 ms del reposo anuncian la batería). No se publican ceros ficticios como lecturas válidas. Fuera de −20..50 °C
 se marca diagnóstico y se usan coeficientes del extremo, conservando T real.
 Un fallo de inicialización/construcción/arranque BLE detiene la publicación
 (`radioError`), para revisar y reiniciar el dispositivo.

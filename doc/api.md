@@ -66,7 +66,7 @@ La app Android lo usa en Panel → «Asignar un Orb con el móvil»: busca los O
 
 ## Público: `public.php`
 
-GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 2.000 lecturas recientes del filtro, sin identidad del trabajador ni del Orb: con el mapa público no se puede reconstruir el recorrido de nadie.
+GET `?action=map&mode=real|simulated&hours=24|168|0` devuelve `measurements,mode,hours,truncated`; `0` significa histórico completo dentro del límite. Solo incluye ozono válido con coordenadas y publicación de campaña autorizada. Máximo 10.000 lecturas recientes del filtro, sin identidad del trabajador ni del Orb: con el mapa público no se puede reconstruir el recorrido de nadie.
 
 GET `?action=services` devuelve los catálogos del formulario comercial:
 - `services`: código, nombre, descripción y `mide_superficie` de cada servicio activo (`kits`, `estudio`, `asesoramiento`), ordenados por `servicios.orden`.

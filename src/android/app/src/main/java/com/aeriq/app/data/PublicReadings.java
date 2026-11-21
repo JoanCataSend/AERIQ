@@ -45,7 +45,7 @@ public final class PublicReadings {
     public static Result fetch(boolean simulated) throws Exception { return fetch(simulated, 24); }
 
     /**
-     * hours: 24 (último día), 168 (última semana) o 0 (histórico, las 2.000 más recientes). Sin este parámetro el
+     * hours: 24 (último día), 168 (última semana) o 0 (histórico, las 10.000 más recientes). Sin este parámetro el
      * servidor devuelve solo las últimas 24 h, y una comparación de 7 o 30 días quedaba vacía.
      */
     public static Result fetch(boolean simulated, int hours) throws Exception {

@@ -98,7 +98,7 @@ function initAeriqMap(){
       q('#legend-route').hidden=false;
       if(fit)map.fitBounds(L.latLngBounds(points.map(r=>[r.latitud,r.longitud])),{maxZoom:18,padding:[40,40]});
     }
-    note.textContent=`${points.length} ${points.length===1?'posición':'posiciones'} en ${segments.length} ${segments.length===1?'tramo':'tramos'}. Un hueco de más de 10 minutos corta la línea.${truncated?' Solo entran las 2.000 mediciones más recientes del periodo.':''}`;
+    note.textContent=`${points.length} ${points.length===1?'posición':'posiciones'} en ${segments.length} ${segments.length===1?'tramo':'tramos'}. Un hueco de más de 10 minutos corta la línea.${truncated?' Solo entran las 10.000 mediciones más recientes del periodo.':''}`;
   }
   const redraw=()=>{drawZones();if(queried)query(queried);};
   async function refresh(){
@@ -116,7 +116,7 @@ function initAeriqMap(){
         const button=document.createElement('button');button.className='sensor-list-item';button.textContent=`${r.zona} · ${r.valor} ${r.unidad} · ${r.simulado?'Simulado':'Real'}`;button.onclick=()=>choose(r);list.append(button);
       }
       if(!q('#marker-toggle').checked)map.removeLayer(pins);else pins.addTo(map);
-      baseStatus=rows.length?`${rows.length} mediciones autorizadas. Gris = datos insuficientes; sin color = sin datos.${result.truncated?' Se muestran las 2.000 más recientes.':''}`:'No hay mediciones publicadas de este origen. Las áreas permanecen sin datos.';status.textContent=baseStatus;
+      baseStatus=rows.length?`${rows.length} mediciones autorizadas. Gris = datos insuficientes; sin color = sin datos.${result.truncated?' Se muestran las 10.000 más recientes.':''}`:'No hay mediciones publicadas de este origen. Las áreas permanecen sin datos.';status.textContent=baseStatus;
       if(rows.length){if(!hasFit){map.fitBounds(L.latLngBounds(rows.map(r=>[r.latitud,r.longitud])),{maxZoom:18});hasFit=true;}drawZones();const previous=rows.find(r=>r.id===previousId);if(previous)choose(previous,false);}
       drawRoute();
       // La consulta de un punto se mantiene tras recargar los datos.

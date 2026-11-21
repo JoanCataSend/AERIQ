@@ -28,6 +28,19 @@ inline bool transcurrido(uint32_t ahora, uint32_t inicio, uint32_t intervalo) {
   return static_cast<uint32_t>(ahora - inicio) >= intervalo;
 }
 
+// ---- Ciclo de publicacion ----
+// El ozono es la medida principal: cada ciclo mide (~300 ms con la radio parada) y anuncia el O3.
+// Temperatura y bateria cambian despacio: se anuncian solo cada EXTRAS_PERIODO_MS, tras el ozono.
+// Ciclo normal ~1.5 s; uno con extras, ~4.2 s (o ~3 s sin medidor de bateria).
+constexpr uint32_t OZONO_MS = 1200, PAUSA_MS = 300, TEMPERATURA_MS = 1200, BATERIA_MS = 1200;
+constexpr uint32_t EXTRAS_PERIODO_MS = 30000;
+// Reposo tras un ciclo invalido: no se repite el estado sin parar mientras se revisa el cableado.
+constexpr uint32_t REPOSO_ERROR_MS = 1500;
+// true si toca anunciar temperatura y bateria: en el primer ciclo y despues cada EXTRAS_PERIODO_MS.
+inline bool tocaExtras(uint32_t ahora, uint32_t ultimo, bool algunaVez) {
+  return !algunaVez || transcurrido(ahora, ultimo, EXTRAS_PERIODO_MS);
+}
+
 // ---- Bateria: medidor MAX17048 por I2C (Qwiic) ----
 // Registro SOC: porcentaje en 1/256 %. Se redondea y se limita a 0..100.
 inline uint8_t porcentajeMax17048(uint16_t soc) {

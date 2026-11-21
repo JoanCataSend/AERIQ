@@ -410,11 +410,13 @@ function aeriq_map_data(?array $access,array $query): array {
     if($hours)$where[]='l.capturada_en>=DATE_SUB(UTC_TIMESTAMP(),INTERVAL '.$hours.' HOUR)';
     // Solo el mapa de la organización identifica el AERIQ (para dibujar su ruta); el público no lo expone.
     $orb=$access?',a.dispositivo_id,d.nombre AS dispositivo':'';$orbJoin=$access?' JOIN dispositivos d ON d.id=a.dispositivo_id':'';
-    $rows=aeriq_rows('SELECT l.id,l.valor,t.unidad,l.capturada_en,l.latitud,l.longitud,l.simulado,z.nombre AS zona,c.id AS campaignId,c.radio_m,'.AERIQ_UMBRALES_O3.$orb.' FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.$orbJoin.' WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en DESC,l.id DESC LIMIT 2001',$params);
-    $truncated=count($rows)>2000;$rows=array_slice($rows,0,2000);
+    $rows=aeriq_rows('SELECT l.id,l.valor,t.unidad,l.capturada_en,l.latitud,l.longitud,l.simulado,z.nombre AS zona,c.id AS campaignId,c.radio_m,'.AERIQ_UMBRALES_O3.$orb.' FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.$orbJoin.' WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en DESC,l.id DESC LIMIT '.(AERIQ_MAPA_MAX+1),$params);
+    $truncated=count($rows)>AERIQ_MAPA_MAX;$rows=array_slice($rows,0,AERIQ_MAPA_MAX);
     foreach ($rows as &$r) {foreach (['valor','latitud','longitud','umbral_medio','umbral_alto'] as $k)$r[$k]=(float)$r[$k];$r['simulado']=(bool)$r['simulado'];$r['radio_m']=(int)$r['radio_m'];if($access)$r['dispositivo_id']=(int)$r['dispositivo_id'];}
     unset($r);return ['measurements'=>$rows,'truncated'=>$truncated,'mode'=>$mode,'hours'=>$hours];
 }
+/** Lecturas del mapa como máximo (las más recientes del filtro). El Orb anuncia ozono cada ~1,5 s: 10.000 son unas 4 h de un Orb. */
+const AERIQ_MAPA_MAX=10000;
 /** Provincias de España: por ahora el formulario comercial solo atiende España. */
 const AERIQ_PROVINCIAS=['A Coruña','Álava','Albacete','Alicante','Almería','Asturias','Ávila','Badajoz','Barcelona','Bizkaia','Burgos','Cáceres','Cádiz','Cantabria','Castellón','Ceuta','Ciudad Real','Córdoba','Cuenca','Gipuzkoa','Girona','Granada','Guadalajara','Huelva','Huesca','Illes Balears','Jaén','La Rioja','Las Palmas','León','Lleida','Lugo','Madrid','Málaga','Melilla','Murcia','Navarra','Ourense','Palencia','Pontevedra','Salamanca','Santa Cruz de Tenerife','Segovia','Sevilla','Soria','Tarragona','Teruel','Toledo','Valencia','Valladolid','Zamora','Zaragoza'];
 /** Duraciones que se ofrecen para un estudio; se guardan tal cual en solicitudes.duracion. */
