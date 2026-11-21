@@ -29,7 +29,8 @@ class Consola {
   };
   static const char *ruta() { return "/aeriq_cal.bin"; }
   static constexpr uint32_t MAGIA = 0x41455131; // "AEQ1"
-  static constexpr uint16_t CICLOS_CERO = 130;   // ~4.5 s por ciclo = ~10 min
+  // ~1.6 s por ciclo de media (ozono cada ciclo; temperatura y bateria cada 30 s) = ~10 min.
+  static constexpr uint16_t CICLOS_CERO = 370;
   static constexpr uint32_t ESTABILIZACION_MS = 60UL * 60UL * 1000UL;
 
   char linea[40] = {};
@@ -144,7 +145,7 @@ class Consola {
       return;
     }
     suma += v; sumaCuadrados += static_cast<double>(v) * v; ++ciclos;
-    if (ciclos % 13 == 0 && Serial) {
+    if (ciclos % (CICLOS_CERO / 10) == 0 && Serial) {
       Serial.print(F("CERO ")); Serial.print(ciclos * 100 / CICLOS_CERO);
       Serial.print(F("%  media=")); Serial.print(suma / ciclos * 1000.0, 3); Serial.println(F(" mV"));
     }
