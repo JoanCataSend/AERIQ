@@ -144,16 +144,12 @@ function summary(){
   set('sum-admins',dashboard.workers.filter(w=>w.rol==='admin_campana'&&Number(w.activo)).length);
   set('sum-orbs',dashboard.campaigns.reduce((n,c)=>n+Number(c.orbs_en_uso||0),0));
   table(document.querySelector('#campaigns-summary'),['Campaña','Admin','Operadores','AERIQ en uso','Estado'],dashboard.campaigns.map(c=>({cells:[c.nombre,c.admin_nombre||'Sin admin',String(c.operadores),String(c.orbs_en_uso),statePill(c)]})));
-  const host=document.querySelector('#orbs-by-campaign');if(!host)return;host.replaceChildren();
-  const groups=[...dashboard.campaigns.map(c=>({title:c.nombre,sub:'Admin: '+(c.admin_nombre||'sin asignar'),devices:dashboard.devices.filter(d=>Number(d.campana_id)===Number(c.id))})),
-    {title:'Sin asignar',sub:'AERIQ registrados que ahora no lleva nadie',devices:dashboard.devices.filter(d=>!d.campana_id)}];
-  for(const g of groups){
-    if(g.title==='Sin asignar'&&!g.devices.length)continue;
-    const box=el('div');box.className='orb-group';box.append(el('h3',`${g.title} · ${g.devices.length} AERIQ`),el('p',g.sub));
-    const list=el('div');list.className='table-scroll';box.append(list);host.append(box);
-    table(list,['AERIQ','Operador','Estado','Batería','Última medición'],g.devices.map(d=>({cells:[d.nombre,d.trabajador||'—',Number(d.activo)?'Alta':'Baja',d.bateria_pct!=null?d.bateria_pct+' %':'—',d.ultima_medicion?String(d.ultima_medicion).slice(0,16):'Sin datos']})));
-  }
+  const host=document.querySelector('#orbs-by-campaign');if(!host||typeof AeriqDeviceTable==='undefined')return;
+  // Una sola tabla con la campaña como columna: se filtra por campaña, estado, actividad y operador y se ordena por columna.
+  orbsTable||=AeriqDeviceTable.mount(host,{columns:['nombre','campana','operador','actividad','ultima','bateria'],campaigns:true,empty:'Todavía no hay AERIQ registrados en la organización.'});
+  orbsTable.set(dashboard.devices);
 }
+let orbsTable=null;
 // Formulario de campaña: «Crear campaña» o «Editar campaña: …» con su botón de cancelar.
 function campaignMode(c){
   const title=document.querySelector('#campaign-form-title'),submit=document.querySelector('#campaign-submit'),cancel=document.querySelector('#campaign-cancel');
@@ -171,25 +167,62 @@ function catalogs(){
   if(zone){const value=zone.value;zone.replaceChildren(new Option('Todas las zonas',''),...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));zone.value=[...zone.options].some(o=>o.value===value)?value:'';}
 }
 const originOf=r=>Number(r.simulado)?'Simulado':'Real';
-// Gráfica de medias por periodo con ejes, fechas extremas y, si el grupo comparte umbrales, sus líneas.
-// Los puntos en rojo son periodos con alguna lectura que alcanza el umbral medio.
-function drawChart(canvas,series,limits){
+// Gráfica de la evolución (T39): media de cada periodo sobre un eje de tiempo real (los huecos sin datos se ven),
+// eje Y con la unidad y eje X con fechas u horas locales. Si el grupo comparte umbrales, sus líneas discontinuas.
+// Los picos (T40) se marcan con un triángulo y su valor: rojo si llegan al umbral alto, ámbar si al medio.
+function drawChart(canvas,series,limits,opts={}){
   const ctx=canvas.getContext?.('2d');if(!ctx||!series.length)return;
-  const W=canvas.width,H=canvas.height,L=56,R=16,T=18,B=30;
-  const values=series.flatMap(s=>[s.mean,s.max]);if(limits)values.push(limits.medium,limits.high);
-  const min=Math.min(0,...values),top=Math.max(min+1,...values),max=top+(top-min)*.08;
-  const x=i=>L+(series.length>1?i*(W-L-R)/(series.length-1):(W-L-R)/2),y=v=>H-B-(v-min)/(max-min)*(H-T-B);
-  ctx.clearRect(0,0,W,H);ctx.font='12px sans-serif';ctx.lineWidth=1;ctx.strokeStyle='#8a8f8d';ctx.fillStyle='#3d4442';
-  ctx.beginPath();ctx.moveTo(L,T);ctx.lineTo(L,H-B);ctx.lineTo(W-R,H-B);ctx.stroke();
-  ctx.textAlign='right';ctx.textBaseline='middle';for(const v of [min,(min+max)/2,max])ctx.fillText(v.toFixed(1),L-6,y(v));
-  ctx.textBaseline='top';ctx.textAlign='left';ctx.fillText(AeriqDomain.when(series[0].date,{hour:false}),L,H-B+8);
-  if(series.length>1){ctx.textAlign='right';ctx.fillText(AeriqDomain.when(series.at(-1).date,{hour:false}),W-R,H-B+8);}
-  if(limits)for(const [v,color,label] of [[limits.medium,'#b26a00','Umbral medio'],[limits.high,'#b3261e','Umbral alto']]){
+  const unit=opts.unit||'',group=opts.group||'day',peaks=opts.peaks||[];
+  const W=canvas.width,H=canvas.height,L=64,R=18,T=22,B=42;
+  const values=series.flatMap(s=>[s.mean,s.max]);if(limits)values.push(limits.medium,limits.high);for(const p of peaks)values.push(p.valor);
+  const min=Math.min(0,...values),top=Math.max(min+1,...values),max=top+(top-min)*.12;
+  const time=d=>Date.parse(String(d).length<=10?d+'T00:00:00Z':String(d).replace(' ','T')+'Z');
+  const t0=time(series[0].date),t1=Math.max(time(series.at(-1).date),...peaks.map(p=>time(p.capturada_en)));
+  const x=t=>L+(t1>t0?(t-t0)*(W-L-R)/(t1-t0):(W-L-R)/2),y=v=>H-B-(v-min)/(max-min)*(H-T-B);
+  ctx.clearRect(0,0,W,H);ctx.font='12px sans-serif';ctx.lineWidth=1;
+  // Rejilla y ejes.
+  ctx.strokeStyle='#e3e8e6';for(let i=0;i<=4;i++){const v=min+(max-min)*i/4;ctx.beginPath();ctx.moveTo(L,y(v));ctx.lineTo(W-R,y(v));ctx.stroke();}
+  ctx.strokeStyle='#8a8f8d';ctx.beginPath();ctx.moveTo(L,T);ctx.lineTo(L,H-B);ctx.lineTo(W-R,H-B);ctx.stroke();
+  ctx.fillStyle='#3d4442';ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=min+(max-min)*i/4;ctx.fillText(v.toFixed(v>=100?0:1),L-8,y(v));}
+  // Unidad del eje Y (vertical) y del eje X.
+  ctx.save();ctx.translate(14,(T+H-B)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.font='bold 12px sans-serif';ctx.fillText(unit?`Valor (${unit})`:'Valor',0,0);ctx.restore();
+  const sameDay=new Date(t0).toDateString()===new Date(t1).toDateString(),pad=n=>String(n).padStart(2,'0');
+  const label=t=>{const d=new Date(t);const day=`${d.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]}`;
+    return group==='hour'?(sameDay?`${pad(d.getHours())}:${pad(d.getMinutes())}`:`${day} ${pad(d.getHours())}:00`):day;};
+  const ticks=t1>t0?Math.min(6,series.length):1;ctx.textBaseline='top';
+  for(let i=0;i<ticks;i++){const t=ticks===1?t0:t0+(t1-t0)*i/(ticks-1);ctx.textAlign=i===0&&ticks>1?'left':i===ticks-1&&ticks>1?'right':'center';ctx.fillText(label(t),x(t),H-B+8);}
+  ctx.textAlign='center';ctx.font='bold 12px sans-serif';ctx.fillText(group==='hour'?'Hora local':group==='week'?'Semana':'Día',(L+W-R)/2,H-16);ctx.font='12px sans-serif';
+  if(limits)for(const [v,color,text] of [[limits.medium,'#b26a00','Umbral medio'],[limits.high,'#b3261e','Umbral alto']]){
     ctx.strokeStyle=color;ctx.fillStyle=color;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(v));ctx.lineTo(W-R,y(v));ctx.stroke();ctx.setLineDash([]);
-    ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`${label} · ${v}`,W-R,y(v)-2);
+    ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`${text} · ${v} ${unit}`,W-R,y(v)-2);
   }
-  ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.beginPath();series.forEach((s,i)=>i?ctx.lineTo(x(i),y(s.mean)):ctx.moveTo(x(i),y(s.mean)));ctx.stroke();
-  for(const [i,s] of series.entries()){const over=limits&&s.max>=limits.medium,r=over?4:2;ctx.fillStyle=over?'#b3261e':'#0e6b5e';ctx.fillRect(x(i)-r,y(s.mean)-r,2*r,2*r);}
+  ctx.strokeStyle='#0e6b5e';ctx.lineWidth=3;ctx.lineJoin='round';ctx.beginPath();series.forEach((s,i)=>i?ctx.lineTo(x(time(s.date)),y(s.mean)):ctx.moveTo(x(time(s.date)),y(s.mean)));ctx.stroke();
+  for(const s of series){const over=limits&&s.max>=limits.medium,r=over?4:3;ctx.fillStyle=over?'#b3261e':'#0e6b5e';ctx.beginPath();ctx.arc(x(time(s.date)),y(s.mean),r,0,Math.PI*2);ctx.fill();}
+  // Picos: triángulo en la hora exacta y con el valor de la lectura más alta del tramo.
+  for(const p of peaks){
+    const px=x(time(p.capturada_en)),py=y(p.valor),color=p.nivel==='alto'?'#b3261e':'#b26a00';
+    ctx.fillStyle=color;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py-9);ctx.lineTo(px-7,py+4);ctx.lineTo(px+7,py+4);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='bold 12px sans-serif';ctx.fillText(`${p.valor}`,px,py-11);ctx.font='12px sans-serif';
+  }
+}
+// Aviso de picos (T40): solo aparece si los hay; dice la hora y el valor de cada uno.
+function peakAlert(peaks){
+  if(!peaks.length)return null;
+  const box=el('div');box.className='report-peaks'+(peaks.some(p=>p.nivel==='alto')?' is-high':'');box.setAttribute('role','alert');
+  const n=peaks.length;box.append(el('strong',`${n} ${n===1?'pico de ozono':'picos de ozono'} en el periodo`));
+  // Los más altos primero; con muchos, se enseñan 8 y el resto está en la tabla de superaciones.
+  const top=[...peaks].sort((a,b)=>b.valor-a.valor).slice(0,8);
+  const list=el('ul');for(const p of top)list.append(el('li',`${AeriqDomain.when(p.capturada_en)} · ${p.valor} ${p.unidad} · nivel ${p.nivel}${p.dispositivo?' · '+p.dispositivo:''}${p.lecturas>1?` (${p.lecturas} lecturas seguidas sobre el umbral)`:''}`));
+  box.append(list);if(peaks.length>top.length)box.append(el('small',`Y ${peaks.length-top.length} picos más: están en la tabla de superaciones.`));return box;
+}
+// Veredicto por franjas horarias (T41): cuatro fichas de color y un texto que destaca las buenas y las malas.
+function verdictBlock(v){
+  const box=el('div');box.className='report-verdict';box.append(el('h4','Veredicto de calidad del aire por franja horaria'));
+  const grid=el('div');grid.className='report-franjas';
+  for(const f of v.franjas){const card=el('div');card.className='report-franja '+(f.calidad?'is-'+f.calidad:'is-empty');
+    card.append(el('strong',f.calidad?f.calidad[0].toUpperCase()+f.calidad.slice(1):'Sin datos'),el('span',`${f.nombre} · ${f.horas}`),el('small',f.lecturas?`media ${Math.round(f.media)} ppb · ${f.lecturas} lecturas`:'sin lecturas'));grid.append(card);}
+  const text=el('p',v.texto);text.className='report-verdict-text';box.append(grid,text);return box;
 }
 // Cabecera compacta con los filtros aplicados (el PDF tiene la suya en printReport).
 function reportHeader(report){
@@ -213,21 +246,26 @@ function reportKpis(stats,unit,thermal){
 let lastReport=null;
 function renderReport(rows,group,info){
   const host=document.querySelector('#report-results');host.replaceChildren();
+  if(group==='auto'||!group)group=AeriqDomain.autoGroup(rows);
+  if(info)info.group={hour:'Horas',day:'Días',week:'Semanas'}[group];
   lastReport={info,count:rows.length,generated:new Date().toISOString().slice(0,16).replace('T',' '),sets:[]};
   const sets=new Map();for(const r of rows){const key=`${originOf(r)} · ${r.unidad}`;if(!sets.has(key))sets.set(key,[]);sets.get(key).push(r);}
   for(const [name,set] of sets){
     const thermal=set[0].unidad==='°C',simulated=Boolean(Number(set[0].simulado));const stats=AeriqDomain.statistics(set,group);
-    const model={name,set,thermal,simulated,stats,limits:null,canvas:null};lastReport.sets.push(model);
+    const peaks=thermal?[]:AeriqDomain.peaks(set),verdict=thermal?null:AeriqDomain.verdict(set);
+    const model={name,set,thermal,simulated,stats,limits:null,canvas:null,peaks,verdict,group};lastReport.sets.push(model);
     const block=el('section');block.className='report-block';host.append(block);
     const head=el('h3',name+' ');const badge=el('span',simulated?'Dato simulado':'Dato real');badge.className='report-badge'+(simulated?' is-simulated':'');head.append(badge);block.append(head);
     if(simulated){const warn=el('p','Datos simulados: no representan mediciones reales.');warn.className='report-simulated';block.append(warn);}
     block.append(reportKpis(stats,set[0].unidad,thermal));
+    const alert=peakAlert(peaks);if(alert)block.append(alert);
     const limits=thermal?null:AeriqDomain.sharedThresholds(set);
     const canvas=el('canvas');canvas.width=900;canvas.height=240;canvas.style.width='100%';canvas.setAttribute('role','img');
     canvas.setAttribute('aria-label','Evolución de valores medios'+(limits?` con umbral medio ${limits.medium} y alto ${limits.high}`:'')+'; datos disponibles en la tabla siguiente');
-    block.append(canvas);drawChart(canvas,stats.series,limits);model.limits=limits;model.canvas=canvas;
-    if(!thermal)block.append(el('p',limits?'Línea discontinua: umbrales de la campaña. Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.':'Las lecturas tienen umbrales distintos según su campaña; consulta el nivel en la tabla de superaciones.'));
-    const summary=el('div');block.append(summary);table(summary,['Periodo','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[AeriqDomain.when(s.date,{hour:false}),s.min,s.max,s.mean.toFixed(2)]})));
+    block.append(canvas);drawChart(canvas,stats.series,limits,{unit:set[0].unidad,group,peaks});model.limits=limits;model.canvas=canvas;
+    if(!thermal)block.append(el('p',(limits?'Línea discontinua: umbrales de la campaña. Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.':'Las lecturas tienen umbrales distintos según su campaña; consulta el nivel en la tabla de superaciones.')+(peaks.length?' Triángulos: picos (lectura más alta de cada tramo sobre el umbral).':'')));
+    if(verdict)block.append(verdictBlock(verdict));
+    const summary=el('div');block.append(summary);table(summary,['Periodo','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[AeriqDomain.when(s.date,{hour:group==='hour'}),s.min,s.max,s.mean.toFixed(2)]})));
     block.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
     if(stats.exceedances.length){const exceed=el('div');exceed.className='table-scroll report-exceedances';block.append(exceed);table(exceed,['Fecha del suceso','Origen','Valor','Unidad','Umbral medio','Umbral alto','Nivel'],stats.exceedances.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),originOf(r),r.valor,r.unidad,r.umbral_medio,r.umbral_alto,levelOf(r)]})));}
     const detail=el('div');detail.className='table-scroll';block.append(detail);
@@ -240,7 +278,7 @@ function reportInfo(f,filters,group){
   const text=name=>{const s=f.elements.namedItem(name);return s.selectedOptions?.[0]?.textContent||'';};
   const devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.closest('label').textContent.trim());
   return {type:text('type'),campaign:filters.campaign?text('campaign'):'Todas las autorizadas',zone:filters.zone||'Todas las zonas',devices:devices.length?devices.join(', '):'Todos',
-    period:`${filters.from||'desde el inicio'} — ${filters.to||'hasta hoy'}`,group:group==='week'?'Semanas':'Días',from:filters.from||'',to:filters.to||'',campaignSet:Boolean(filters.campaign),zoneSet:Boolean(filters.zone)};
+    period:`${filters.from||'desde el inicio'} — ${filters.to||'hasta hoy'}`,group:{auto:'Automática',hour:'Horas',week:'Semanas'}[group]||'Días',from:filters.from||'',to:filters.to||'',campaignSet:Boolean(filters.campaign),zoneSet:Boolean(filters.zone)};
 }
 // Periodo legible: el del filtro o, si falta un extremo, el de los propios datos.
 function reportPeriod(report){
@@ -278,7 +316,8 @@ figure{margin:0 0 6px;break-inside:avoid}figure img{width:100%;border:1px solid 
 h3{font-size:11pt;margin:16px 0 6px;color:#0e3d36}
 table{width:100%;border-collapse:collapse;font-size:8.5pt}thead{display:table-header-group}tr{break-inside:avoid}
 th{background:#0e6b5e;color:#fff;text-align:left;padding:5px 7px;font-weight:600}td{padding:4px 7px;border-bottom:1px solid #e3e8e6}tbody tr:nth-child(even) td{background:#f7faf9}
-td.alto{color:#b3261e;font-weight:700}td.moderado{color:#b26a00;font-weight:700}td.sim{color:#7a4b00;font-weight:700}
+td.alto{color:#b3261e;font-weight:700}td.moderado{color:#b26a00;font-weight:700}td.buena{color:#0e6b5e;font-weight:700}td.sim{color:#7a4b00;font-weight:700}
+.peaks{border:1px solid #e0b450;background:#fff7e0;color:#7a4b00;border-radius:6px;padding:8px 12px;margin:0 0 10px}.peaks.high{border-color:#e6a5a1;background:#fdeceb;color:#8c1d18}.peaks ul{margin:4px 0 0;padding-left:18px}
 .note{font-size:8pt;color:#6b7a74}.footer{margin-top:24px;padding-top:8px;border-top:1px solid #d5ddda;font-size:8pt;color:#6b7a74}`;
 const ANNEX_MAX=500;
 // Documento de informe independiente en un iframe oculto: se imprime solo el informe, sin la página del portal.
@@ -307,8 +346,11 @@ function printReport(){
     for(const [k,v,alert] of [['Lecturas',st.count],['Mínimo',`${st.min} ${unit}`],['Máximo',`${st.max} ${unit}`],['Media',`${st.mean.toLocaleString('es-ES',{maximumFractionDigits:2})} ${unit}`],['Superaciones',s.thermal?'—':st.exceedances.length,!s.thermal&&st.exceedances.length]])kpis.append(h('div',{class:'kpi'+(alert?' alert':'')},h('b',{},v),h('small',{},k)));
     sec.append(kpis);
     let src=null;try{src=s.canvas?.toDataURL('image/png');}catch{src=null;}
-    if(src&&src.startsWith('data:image'))sec.append(h('figure',{},h('img',{src,alt:'Evolución de valores medios'}),h('figcaption',{},s.thermal?'Media por periodo (°C). No se aplican umbrales de ozono.':s.limits?`Media por periodo. Líneas discontinuas: umbral medio (${s.limits.medium} ${unit}) y alto (${s.limits.high} ${unit}). Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.`:'Media por periodo. Las lecturas tienen umbrales distintos según su campaña; ver tabla de superaciones.')));
-    sec.append(h('h3',{},'Evolución temporal'),tableOf(['Periodo',`Mínimo (${unit})`,`Máximo (${unit})`,`Media (${unit})`],st.series.map(x=>[AeriqDomain.when(x.date,{hour:false}),x.min,x.max,x.mean.toFixed(2)])));
+    if(src&&src.startsWith('data:image'))sec.append(h('figure',{},h('img',{src,alt:'Evolución de valores medios'}),h('figcaption',{},s.thermal?'Media por periodo (°C). No se aplican umbrales de ozono.':s.limits?`Media por periodo. Líneas discontinuas: umbral medio (${s.limits.medium} ${unit}) y alto (${s.limits.high} ${unit}). Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.${s.peaks?.length?' Triángulos: picos.':''}`:'Media por periodo. Las lecturas tienen umbrales distintos según su campaña; ver tabla de superaciones.')));
+    if(s.peaks?.length){const box=h('div',{class:'peaks'+(s.peaks.some(p=>p.nivel==='alto')?' high':'')},h('b',{},`${s.peaks.length} ${s.peaks.length===1?'pico de ozono':'picos de ozono'} en el periodo`));
+      const ul=h('ul');for(const p of s.peaks)ul.append(h('li',{},`${AeriqDomain.when(p.capturada_en)} · ${p.valor} ${p.unidad} · nivel ${p.nivel}${p.dispositivo?' · '+p.dispositivo:''}`));box.append(ul);sec.append(box);}
+    if(s.verdict){sec.append(h('h3',{},'Veredicto por franja horaria'),tableOf(['Franja','Horas','Lecturas',`Media (${unit})`,'Calidad'],s.verdict.franjas.map(f=>[f.nombre,f.horas,f.lecturas,f.media===null?'—':f.media.toFixed(1),f.calidad||'Sin datos']),(c,col)=>col===4?({buena:'buena',regular:'moderado',mala:'alto'})[c]:undefined),h('p',{class:'desc'},s.verdict.texto));}
+    sec.append(h('h3',{},'Evolución temporal'),tableOf(['Periodo',`Mínimo (${unit})`,`Máximo (${unit})`,`Media (${unit})`],st.series.map(x=>[AeriqDomain.when(x.date,{hour:s.group==='hour'}),x.min,x.max,x.mean.toFixed(2)])));
     if(!s.thermal){
       sec.append(h('h3',{},'Superaciones de umbral'));
       if(st.exceedances.length)sec.append(tableOf(['Fecha','AERIQ','Origen','Valor','Umbral medio','Umbral alto','Nivel'],st.exceedances.map(r=>[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,s.simulated?'Simulado':'Real',`${r.valor} ${r.unidad}`,r.umbral_medio,r.umbral_alto,levelOf(r)]),(c,col)=>col===6?String(c):col===2&&c==='Simulado'?'sim':undefined));
@@ -329,6 +371,8 @@ document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();con
   try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group,reportInfo(f,filters,group));document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;document.querySelector('#print-report').disabled=!currentRows.length;}
   catch(error){document.querySelector('#report-summary').textContent=error.message;}finally{b.disabled=false;}
 };
+// Con un informe ya generado, cambiar el periodo o la agrupación lo vuelve a calcular (la gráfica se actualiza sola).
+document.querySelector('#report-form').addEventListener('change',e=>{if(lastReport&&['from','to','group'].includes(e.target.name)&&e.currentTarget.checkValidity())e.currentTarget.requestSubmit();});
 // PDF sin librerías: printReport() maqueta el informe aparte y el navegador ofrece «Guardar como PDF».
 document.querySelector('#print-report').onclick=printReport;
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
@@ -370,12 +414,13 @@ function renderRequests(){
   if(!shown.length)host.append(el('p',req.list.length?'No hay solicitudes con este filtro.':'Todavía no hay solicitudes.'));
   renderRequestDetail(req.list.find(r=>r.id===req.sel));
 }
-async function setRequestState(r,code){
-  const name=req.states.find(s=>s.codigo===code)?.nombre||code;
-  try{await Aeriq.portal('request-status',{id:r.id,status:code});
-    Object.assign(r,{estado:code,estado_nombre:name});
-    (r.historial||=[]).push({estado_nombre:name,cambiado_en:new Date().toISOString().slice(0,19).replace('T',' '),usuario:[me.name,me.last].filter(Boolean).join(' ')});
-    req.keep.add(r.id);req.note=`Guardado ✓ · ahora está en «${name}»`;}
+// Las solicitudes solo avanzan (T38); una cerrada se recupera con «Reabrir». El servidor avisa por correo (T37).
+async function setRequestState(r,code,reopen=false){
+  try{const res=await Aeriq.portal(reopen?'request-reopen':'request-status',reopen?{id:r.id}:{id:r.id,status:code});
+    const name=res.estado_nombre||req.states.find(s=>s.codigo===code)?.nombre||code;
+    Object.assign(r,{estado:res.estado||code,estado_nombre:name});
+    if(res.changed!==false)(r.historial||=[]).push({estado_nombre:name,reapertura:reopen,cambiado_en:new Date().toISOString().slice(0,19).replace('T',' '),usuario:[me.name,me.last].filter(Boolean).join(' ')});
+    req.keep.add(r.id);req.note=(res.message||`Guardado ✓ · ahora está en «${name}»`);}
   catch(e){req.note='';portalFeedback.textContent=e.message;}
   renderRequests();
 }
@@ -386,17 +431,18 @@ function renderRequestDetail(r){
   const head=el('header');head.className='request-detail-head';
   const who=el('div');const h=el('h3',r.entidad);h.append(' ',reqPill(r));who.append(h,el('small',`Solicitud #${r.id} · recibida el ${when(r.recibida_en,true)}`));
   head.append(who,replyMenu(r));host.append(head);
-  // Pasos del estado: el actual marcado; pulsar un paso lo cambia. Botón principal = siguiente paso.
+  // Pasos del estado: el actual marcado; solo se puede pulsar un paso posterior (no se retrocede). Botón principal = siguiente paso.
   const steps=el('ol');steps.className='request-steps';steps.setAttribute('aria-label','Estado de la solicitud');
   const at=req.states.findIndex(s=>s.codigo===r.estado);
   req.states.forEach((s,i)=>{const li=el('li');li.className=i<at?'done':i===at?'current':'';
-    const b=el('button',s.nombre);b.type='button';b.title=REQ_HELP[s.codigo]||'';b.disabled=i===at;if(i===at)b.setAttribute('aria-current','step');b.onclick=()=>setRequestState(r,s.codigo);li.append(b);steps.append(li);});
+    const closed=Boolean(Number(req.states[at]?.final));
+    const b=el('button',s.nombre);b.type='button';b.title=i<at?'Una solicitud no puede volver a un estado anterior.':(REQ_HELP[s.codigo]||'');b.disabled=i<=at||closed;if(i===at)b.setAttribute('aria-current','step');b.onclick=()=>setRequestState(r,s.codigo);li.append(b);steps.append(li);});
   host.append(steps);
   const actions=el('div');actions.className='request-actions';
   const next=req.states[at+1];
   if(next){const b=el('button',next.codigo==='cerrada'?'Cerrar solicitud':`Pasar a ${next.nombre}`);b.type='button';b.className='btn btn-primary';b.onclick=()=>{b.disabled=true;setRequestState(r,next.codigo);};actions.append(b);}
   if(next&&next.codigo!=='cerrada'&&r.estado!=='cerrada'){const c=el('button','Cerrar solicitud');c.type='button';c.className='btn btn-outline';c.onclick=()=>{c.disabled=true;setRequestState(r,'cerrada');};actions.append(c);}
-  if(!next){const o=el('button','Reabrir');o.type='button';o.className='btn btn-outline';o.onclick=()=>{o.disabled=true;setRequestState(r,'en_revision');};actions.append(o);}
+  if(!next||Number(req.states[at]?.final)){const o=el('button','Reabrir');o.type='button';o.className='btn btn-outline';o.title='Vuelve a «En revisión» y queda en el historial';o.onclick=()=>{o.disabled=true;setRequestState(r,'en_revision',true);};actions.append(o);}
   const note=el('small',req.note);note.className='request-saved';note.setAttribute('role','status');actions.append(note);
   host.append(actions,el('p',REQ_HELP[r.estado]||''));host.lastChild.className='note';
   // Ficha: etiqueta a la izquierda, dato a la derecha.
@@ -409,7 +455,7 @@ function renderRequestDetail(r){
   if(r.objetivos?.length)add('Objetivos',r.objetivos.join(', '));
   if(r.duracion||r.superficie!=null||r.inicio_deseado)add('Estudio',`${r.superficie!=null?r.superficie+' m²':'Superficie por estimar'} · ${r.duracion||'Duración sin indicar'} · Inicio ${r.inicio_deseado?r.inicio_deseado.slice(0,7):'sin indicar'}`);
   const needs=el('p',r.necesidades);needs.className='request-needs';add('Necesita',needs);
-  if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);r.historial.forEach((x,i)=>log.append(el('li',[x.estado_nombre,when(x.cambiado_en,true),x.usuario||(i?'':'Formulario público')].filter(Boolean).join(' · '))));add('Historial',log);}
+  if(r.historial?.length){const log=el('ol');log.className='request-history';log.setAttribute('aria-label',`Historial de la solicitud ${r.id}`);r.historial.forEach((x,i)=>log.append(el('li',[x.reapertura?`Reabierta → ${x.estado_nombre}`:x.estado_nombre,when(x.cambiado_en,true),x.usuario||(i?'':'Formulario público')].filter(Boolean).join(' · '))));add('Historial',log);}
   host.append(info);
 }
 // Responder: el enlace mailto no hace nada si el ordenador no tiene app de correo, así que se ofrecen Gmail, Outlook y copiar.

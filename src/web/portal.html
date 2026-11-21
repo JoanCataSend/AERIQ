@@ -97,7 +97,7 @@
             </div>
             <div class="panel portal-section"><h2>Estado de las campañas</h2><div id="campaigns-summary" class="table-scroll"></div></div>
           </section>
-          <section data-view="orbs" data-perm="campanas.gestionar" class="panel portal-section"><h2>AERIQ por campaña</h2><p>Qué AERIQ lleva cada campaña y quién los usa. Los registra y asigna el admin de cada campaña.</p><div id="orbs-by-campaign"></div></section>
+          <section data-view="orbs" data-perm="campanas.gestionar" class="panel portal-section"><h2>AERIQ por campaña</h2><p>Qué AERIQ lleva cada campaña, quién los usa y cuáles llevan tiempo sin medir. Los registra y asigna el admin de cada campaña.</p><div id="orbs-by-campaign"></div></section>
           <section data-view="workers" class="panel portal-section" data-perm="campanas.gestionar equipo.gestionar">
             <h2 id="worker-title">Añadir a una persona</h2>
             <form id="worker-form" class="form-grid"><label class="full pill-select" data-perm="campanas.gestionar">Campaña que gestionará<select name="campaign" id="worker-campaign"></select></label><label>Nombre<input name="name" required maxlength="90"></label><label>Apellidos<input name="last" required maxlength="120"></label><label>Correo<input name="email" type="email" required></label><label>Teléfono (opcional)<input name="phone" type="tel" maxlength="40"></label><div class="button-row full"><button type="submit" class="btn btn-primary">Crear cuenta y enviar acceso temporal</button></div></form>
@@ -114,25 +114,13 @@
           </section>
           <section data-view="devices" id="fleet">
             <div class="fleet-head"><div><h2>Dispositivos AERIQ</h2><p>Qué AERIQ están enviando lecturas y qué operador lleva cada uno.</p></div><button class="btn btn-primary" type="button" id="add-device" hidden><svg aria-hidden="true"><use href="#i-plus"/></svg>Registrar AERIQ</button></div>
-            <div class="stats-grid">
-              <div class="stat"><strong>—</strong><small>AERIQ registrados</small></div>
-              <div class="stat"><strong>—</strong><small>En servicio</small></div>
-              <div class="stat"><strong>—</strong><small>Dados de baja</small></div>
-            </div>
-            <div class="panel portal-section">
-              <div class="devices-controls">
-                <label class="search-control"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar dispositivo</span><input type="search" id="device-search" placeholder="Buscar por nombre o dirección BLE"></label>
-                <div class="segmented" role="group" aria-label="Filtrar por actividad"><button class="selected" type="button" data-device-filter="all">Todos</button><button type="button" data-device-filter="active">Recibiendo</button><button type="button" data-device-filter="inactive">Sin datos</button></div>
-              </div>
-              <div class="table-scroll"><table class="devices-table"><thead><tr><th>AERIQ</th><th>Actividad</th><th>Operador</th><th>Última medición</th><th>Batería</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="6">Consultando los dispositivos AERIQ…</td></tr></tbody></table></div>
-              <div class="table-bottom">Consultando dispositivos…</div>
-            </div>
+            <div id="fleet-table" class="panel portal-section"><p>Consultando los dispositivos AERIQ…</p></div>
             <p class="note">Dar de baja un AERIQ conserva sus mediciones.</p>
             <dialog id="device-modal" class="modal"><form method="dialog" id="device-edit-form"><h2>Editar AERIQ</h2><p class="text-muted">El AERIQ se asigna a un operador de tu campaña.</p><label>Nombre del dispositivo<input id="device-new-name" required></label><div class="button-pair"><button type="button" class="btn btn-outline" id="device-modal-close">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></dialog>
           </section>
           <section data-view="reports" class="panel portal-section">
             <h2>Informes y exportación</h2>
-            <form id="report-form" class="form-grid"><label>Magnitud<select name="type"><option value="14">Ozono · ppb</option><option value="12">Temperatura · °C</option><option value="all">Ozono y temperatura (series separadas)</option></select></label><label>Agrupar por<select name="group"><option value="day">Días</option><option value="week">Semanas</option></select></label><label>Campaña<select id="report-campaign" name="campaign"></select></label><label>Zona<select id="report-zone" name="zone"><option value="">Todas las zonas</option></select></label><fieldset class="full report-devices"><legend>AERIQ <small>(sin marcar ninguno = todos)</small></legend><div id="report-device" class="check-pills"></div></fieldset><label>Desde<input name="from" type="date"></label><label>Hasta<input name="to" type="date"></label><div class="button-row full"><button class="btn btn-primary" type="submit">Generar informe</button></div></form>
+            <form id="report-form" class="form-grid"><label>Magnitud<select name="type"><option value="14">Ozono · ppb</option><option value="12">Temperatura · °C</option><option value="all">Ozono y temperatura (series separadas)</option></select></label><label>Agrupar por<select name="group"><option value="auto">Automática (según el periodo)</option><option value="hour">Horas</option><option value="day">Días</option><option value="week">Semanas</option></select></label><label>Campaña<select id="report-campaign" name="campaign"></select></label><label>Zona<select id="report-zone" name="zone"><option value="">Todas las zonas</option></select></label><fieldset class="full report-devices"><legend>AERIQ <small>(sin marcar ninguno = todos)</small></legend><div id="report-device" class="check-pills"></div></fieldset><label>Desde<input name="from" type="date"></label><label>Hasta<input name="to" type="date"></label><div class="button-row full"><button class="btn btn-primary" type="submit">Generar informe</button></div></form>
             <p id="report-summary" role="status"></p>
             <button id="export-report" class="btn btn-outline" type="button" disabled data-perm="datos.exportar">Descargar CSV</button>
             <p class="note">Las series reales y simuladas se muestran por separado; sus estadísticas no se mezclan.</p>
@@ -157,6 +145,7 @@
 
 <script src="aeriq-client.js" defer></script>
 <script src="aeriq-domain.js" defer></script>
+<script src="device-table.js" defer></script>
 <script src="fleet.js" defer></script>
 <script src="portal.js" defer></script>
 <script src="workspace-nav.js" defer></script>

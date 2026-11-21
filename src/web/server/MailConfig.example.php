@@ -5,4 +5,7 @@
 return [
     'from_email' => 'no-reply@tu-dominio.es',
     'from_name'  => 'AERIQ',
+    // Dirección pública de la web para los enlaces y el logo de los correos (invitación, recuperar, solicitudes).
+    // Si se omite, se usa la variable de entorno AERIQ_PUBLIC_URL o la carpeta del script en el servidor.
+    // 'public_url' => 'https://jcatsen.upv.edu.es/AERIQ/',
 ];

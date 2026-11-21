@@ -80,8 +80,30 @@ const AeriqAuth = (() => {
     document.addEventListener('click',e=>{const m=document.querySelector('.account-menu');if(m?.open&&!m.contains(e.target))m.open=false;});
     document.addEventListener('keydown',e=>{const m=document.querySelector('.account-menu');if(e.key==='Escape'&&m?.open){m.open=false;m.querySelector('summary').focus();}});
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',header);else header();
-  return {session,post,home};
+  /*
+   * Requisitos de la contraseña nueva (T33). Son los mismos que comprueba el servidor (auth_password_missing):
+   * aquí solo sirven para avisar mientras se escribe; el servidor vuelve a comprobarlos siempre.
+   */
+  const RULES=[['al menos 8 caracteres',p=>[...p].length>=8],['una mayúscula',p=>/\p{Lu}/u.test(p)],['una minúscula',p=>/\p{Ll}/u.test(p)],
+    ['un número',p=>/\p{Nd}/u.test(p)],['un símbolo (por ejemplo ! ? # @ . -)',p=>/[^\p{L}\p{Nd}\s]/u.test(p)]];
+  const passwordMissing=p=>RULES.filter(([,ok])=>!ok(String(p||''))).map(([text])=>text);
+  /** Lista de requisitos debajo del campo, marcada en vivo. El formulario no se envía mientras falte alguno. */
+  function passwordRules(input){
+    if(!input||input.dataset.rulesReady)return;input.dataset.rulesReady='1';
+    const list=document.createElement('ul');list.className='password-rules';list.id=(input.id||input.name)+'-rules';
+    const title=document.createElement('li');title.className='password-rules-title';title.textContent='Tu contraseña necesita:';list.append(title);
+    const items=RULES.map(([text])=>{const li=document.createElement('li');li.textContent=text;list.append(li);return li;});
+    input.setAttribute('aria-describedby',list.id);(input.closest('label')||input).after(list);
+    const update=()=>{
+      const p=input.value,missing=passwordMissing(p);
+      RULES.forEach(([text],i)=>items[i].classList.toggle('is-ok',!missing.includes(text)));
+      input.setCustomValidity(p&&missing.length?'La contraseña no es segura. Le falta: '+missing.join(', ')+'.':'');
+    };
+    input.addEventListener('input',update);update();
+  }
+  const attachRules=()=>document.querySelectorAll('input[data-password-rules]').forEach(passwordRules);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{header();attachRules();});else{header();attachRules();}
+  return {session,post,home,passwordMissing,passwordRules};
 })();
 // También disponible para módulos ES (por ejemplo, google-auth.js).
 window.AeriqAuth = AeriqAuth;

@@ -103,7 +103,7 @@ async function page(measurements,{organization=false,mine=measurements}={}){
 
   // Consulta de un punto: estimación, datos insuficientes o sin datos; no cambia la medición seleccionada.
   let text=p.click(38.9967,-0.1658);
-  assert(text.includes('Punto consultado'));assert(text.includes('Estimación: 62 ppb · moderado'));assert(text.includes('Valor interpolado, no medido · datos simulados.'));
+  assert(text.includes('Punto consultado'));assert(text.includes('Estimación: 59,6 ppb · bajo'));assert(text.includes('Valor interpolado, no medido · datos simulados.'));
   assert.equal(p.q('#selected-id').textContent,'—');
   text=p.click(38.9990,-0.1640);assert(text.includes('Sin datos'));assert(text.includes('Sin datos no significa aire limpio.'));
   text=p.click(isolated.latitud,isolated.longitud);assert(text.includes('Datos insuficientes'));

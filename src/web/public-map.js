@@ -21,7 +21,8 @@ function initAeriqMap(){
   const P=AeriqDomain.INTERPOLACION,Z=AeriqDomain.ZONA;
   // Rejilla de pantalla: se evalúa un punto cada PASO píxeles y la imagen se amplía suavizada,
   // así el borde de cada zona sigue el radio (redondo) en vez de formar cuadrados.
-  const PASO=4,RGBA={[Z.insuficiente]:[104,109,107,48],[Z.bajo]:[33,156,114,86],[Z.moderado]:[238,162,45,96],[Z.alto]:[227,91,93,96]};
+  // Misma transparencia para los tres niveles (T47): ningún color «pesa» más que otro donde se juntan zonas.
+  const PASO=4,ALFA=92,RGBA={[Z.insuficiente]:[104,109,107,48],[Z.bajo]:[33,156,114,ALFA],[Z.moderado]:[238,162,45,ALFA],[Z.alto]:[227,91,93,ALFA]};
   const routeColor=getComputedStyle(document.documentElement).getPropertyValue('--route').trim()||'#24508f';
   let groups=[],radiusOverride=null,queried=null,baseStatus='';
   // El control del mapa sustituye al radio de la campaña solo en esta vista; no se guarda ni se envía.
@@ -106,8 +107,12 @@ function initAeriqMap(){
       // Reales y simuladas nunca se mezclan: la casilla elige uno u otro origen.
       const mode=q('#simulated-toggle').checked?'simulated':'real';
       const result=await Aeriq.map(mode,source,Number(q('#public-period')?.value||24));if(id!==requestId)return;rows=result.measurements;truncated=Boolean(result.truncated);directory.hidden=!rows.length;buildGroups();showRadius();
-      for(const r of rows){
+      // Un punto por posición: la lectura más reciente de cada sitio, la misma con la que se pinta la zona (T46).
+      // Las anteriores del mismo sitio siguen en la lista de mediciones, pero no se apilan con otros colores en el mapa.
+      for(const g of groups)for(const r of g.samples){
         const marker=L.circleMarker([r.latitud,r.longitud],{radius:6,color:'#fff',weight:2,fillColor:colors[level(r)],fillOpacity:1,bubblingMouseEvents:false}).on('click',()=>choose(r));pins.addLayer(marker);
+      }
+      for(const r of rows){
         const button=document.createElement('button');button.className='sensor-list-item';button.textContent=`${r.zona} · ${r.valor} ${r.unidad} · ${r.simulado?'Simulado':'Real'}`;button.onclick=()=>choose(r);list.append(button);
       }
       if(!q('#marker-toggle').checked)map.removeLayer(pins);else pins.addTo(map);

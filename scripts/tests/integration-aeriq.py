@@ -69,7 +69,7 @@ def main():
             # 2-simulacion.sql: repetible, sin duplicados, una campaña por cuenta y un AERIQ por operador.
             for _ in range(2):
                 sql('USE aeriq_install_test;'+simulation)
-                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM mediciones WHERE simulado=1')=='54'
+                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM mediciones WHERE simulado=1')=='90'
                 assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM usuarios')=='5'
                 assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM solicitudes_historial')=='6'
                 assert sql("USE aeriq_install_test; SELECT COUNT(*) FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE r.codigo<>'admin' AND u.campana_id IS NULL")=='0'

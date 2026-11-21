@@ -1,6 +1,6 @@
 <?php
 /**
- * AERIQ â€“ AutenticaciÃ³n para Android (independiente de las cookies web).
+ * AERIQ – Autenticación para Android (independiente de las cookies web).
  * Usa los mismos usuarios y codigos_email de auth.php.
  * Los tokens se entregan una vez y solo se guarda su SHA-256 en MariaDB.
  * Instalar junto a auth.php y al directorio server/ actual en Plesk.
@@ -32,11 +32,11 @@ function mobile_current(): ?array {
 }
 function mobile_require(): array {
     $u=mobile_current();
-    if (!$u) auth_responder(401,['error'=>'SesiÃ³n caducada. Inicia sesiÃ³n de nuevo.']);
+    if (!$u) auth_responder(401,['error'=>'Sesión caducada. Inicia sesión de nuevo.']);
     auth_login_allowed($u);return $u;
 }
 function mobile_issue(int $id): string {
-    // Caducidad absoluta de 30 dÃ­as. No guardamos la credencial en texto claro.
+    // Caducidad absoluta de 30 días. No guardamos la credencial en texto claro.
     $token=bin2hex(random_bytes(32));$hash=hash('sha256',$token);
     $s=conexionBD()->prepare('INSERT INTO sesiones_moviles(token_hash,usuario_id,vence_en) VALUES(?,?,DATE_ADD(NOW(),INTERVAL 30 DAY))');
     $s->bind_param('si',$hash,$id);$s->execute();
@@ -63,14 +63,14 @@ try {
     if ($method==='GET' && $action==='firebase-config') {
         auth_responder(200,['ok'=>true,'configured'=>firebase_web_configured(),'config'=>firebase_public_config()]);
     }
-    if ($method!=='POST') auth_responder(405,['error'=>'MÃ©todo no permitido']);
+    if ($method!=='POST') auth_responder(405,['error'=>'Método no permitido']);
     $d=mobile_body();
     if ($action==='profile') aeriq_ready(mobile_require());
     // No hay autoregistro: las cuentas las crea un administrador desde la web.
     if ($action==='login') {
         $email=auth_email($d['email']??'');auth_rate('mobile-login',$email,12);
         $u=auth_find($email);$password=(string)($d['password']??'');
-        if (!$u || !password_verify($password,$u['password_hash'])) auth_responder(401,['error'=>'Correo o contraseÃ±a incorrectos']);
+        if (!$u || !password_verify($password,$u['password_hash'])) auth_responder(401,['error'=>'Correo o contraseña incorrectos']);
         auth_login_allowed($u);
         if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'La cuenta no está activada. Contacta con un administrador.']);
         $id=(int)$u['id'];
@@ -100,14 +100,17 @@ try {
     if ($action==='forgot') {
         $email=auth_email($d['email']??'');auth_rate('mobile-forgot',$email,4,3600);
         auth_mail_config_ok();$u=auth_find($email);
-        if ($u && ($u['verificado_en'] || $u['debe_cambiar_clave']) && ($u['activo'] || $u['debe_cambiar_clave'])) auth_generate_code((int)$u['id'],'recuperar',$email);
-        auth_responder(200,['ok'=>true,'message'=>'Si existe la cuenta, recibirÃ¡s un cÃ³digo de recuperaciÃ³n.']);
+        if (!$u) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
+        if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
+        if (!$u['activo'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'Esta cuenta está desactivada. Contacta con tu organización.','field'=>'email']);
+        auth_generate_code((int)$u['id'],'recuperar',$email);
+        auth_responder(200,['ok'=>true,'message'=>'Te hemos enviado un correo con un enlace y un código para elegir una contraseña nueva. Caducan en 10 minutos.']);
     }
     if ($action==='reset-password') {
         $email=auth_email($d['email']??'');auth_rate('mobile-reset',$email,12);
         $code=trim((string)($d['code']??''));$pass=auth_password($d['password']??'');
         $u=auth_find($email);
-        if (!$u || (!$u['verificado_en'] && !$u['debe_cambiar_clave']) || (!$u['activo'] && !$u['debe_cambiar_clave'])) auth_responder(422,['error'=>'CÃ³digo incorrecto o caducado']);
+        if (!$u || (!$u['verificado_en'] && !$u['debe_cambiar_clave']) || (!$u['activo'] && !$u['debe_cambiar_clave'])) auth_responder(422,['error'=>'Código incorrecto o caducado']);
         $id=(int)$u['id'];auth_verify_code($id,'recuperar',$code);
         $hash=password_hash($pass,PASSWORD_DEFAULT);$db=conexionBD();
         $s=$db->prepare('UPDATE usuarios SET password_hash=? WHERE id=?');$s->bind_param('si',$hash,$id);$s->execute();aeriq_password_changed($id);
@@ -122,7 +125,7 @@ try {
     if ($action==='profile') {
         $u=mobile_require();$name=auth_string($d['name']??'',90);
         $last=auth_string($d['last']??'',120);$phone=trim((string)($d['phone']??''));
-        if ((function_exists('mb_strlen')?mb_strlen($phone,'UTF-8'):strlen($phone))>40) auth_responder(422,['error'=>'TelÃ©fono demasiado largo']);
+        if ((function_exists('mb_strlen')?mb_strlen($phone,'UTF-8'):strlen($phone))>40) auth_responder(422,['error'=>'Teléfono demasiado largo']);
         $id=(int)$u['id'];$s=conexionBD()->prepare('UPDATE usuarios SET nombre=?,apellidos=?,telefono=? WHERE id=?');
         $s->bind_param('sssi',$name,$last,$phone,$id);$s->execute();
         auth_responder(200,['ok'=>true,'user'=>mobile_user($id)]);
@@ -131,23 +134,23 @@ try {
         $u=mobile_require();$id=(int)$u['id'];auth_rate('mobile-password-change',(string)$id,6);
         $s=conexionBD()->prepare('SELECT password_hash FROM usuarios WHERE id=?');$s->bind_param('i',$id);$s->execute();
         $old=$s->get_result()->fetch_assoc();
-        if (!$old || !password_verify((string)($d['current']??''),$old['password_hash'])) auth_responder(422,['error'=>'ContraseÃ±a actual incorrecta']);
+        if (!$old || !password_verify((string)($d['current']??''),$old['password_hash'])) auth_responder(422,['error'=>'Contraseña actual incorrecta']);
         $newPassword=auth_password($d['password']??'');
-        if (password_verify($newPassword,$old['password_hash'])) auth_responder(422,['error'=>'La contraseÃ±a nueva debe ser diferente.']);
+        if (password_verify($newPassword,$old['password_hash'])) auth_responder(422,['error'=>'La contraseña nueva debe ser diferente.']);
         $hash=password_hash($newPassword,PASSWORD_DEFAULT);
         $s=conexionBD()->prepare('UPDATE usuarios SET password_hash=? WHERE id=?');$s->bind_param('si',$hash,$id);$s->execute();
-        // Anula sesiones antiguas, vuelve a emitir un token para este mÃ³vil.
+        // Anula sesiones antiguas, vuelve a emitir un token para este móvil.
         aeriq_password_changed($id);
         $s=conexionBD()->prepare('DELETE FROM sesiones_moviles WHERE usuario_id=?');$s->bind_param('i',$id);$s->execute();
         auth_responder(200,['ok'=>true,'token'=>mobile_issue($id),'user'=>mobile_user($id)]);
     }
-    auth_responder(404,['error'=>'AcciÃ³n no disponible']);
+    auth_responder(404,['error'=>'Acción no disponible']);
 } catch (AeriqError $e) {
     auth_responder($e->status,['error'=>$e->getMessage()]);
 } catch (mysqli_sql_exception $e) {
-    error_log('AERIQ mÃ³vil SQL: '.$e->getMessage());
-    auth_responder(500,['error'=>'Error de base de datos: verifica la migraciÃ³n de sesiones mÃ³viles.']);
+    error_log('AERIQ móvil SQL: '.$e->getMessage());
+    auth_responder(500,['error'=>'Error de base de datos: verifica la migración de sesiones móviles.']);
 } catch (Throwable $e) {
-    error_log('AERIQ mÃ³vil: '.$e->getMessage());
-    auth_responder(500,['error'=>'Error interno de autenticaciÃ³n mÃ³vil.']);
+    error_log('AERIQ móvil: '.$e->getMessage());
+    auth_responder(500,['error'=>'Error interno de autenticación móvil.']);
 }

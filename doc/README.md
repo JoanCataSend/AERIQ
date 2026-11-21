@@ -10,6 +10,7 @@
 | [Web](web.md) | Diseño conservado, flota, panel, mapas y servicios |
 | [Android](android.md) | Pantallas, BLE, captura, historial y cuenta |
 | [Interpolación](interpolacion.md) | Algoritmo del mapa, parámetros, zonas sin datos y validación |
+| [Comunicación con el trabajador](comunicacion-trabajador.md) | Investigación T48: opciones y recomendación (alcance pendiente de confirmar) |
 | [Diseño Android](android_design.md) | Arquitectura y flujo de captura en la app |
 | [Diseño de firmware](firmware_design.md) | Adquisición de sensores y contrato BLE del Orb |
 | [API](api.md) | Contratos y permisos |

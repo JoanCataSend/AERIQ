@@ -28,10 +28,32 @@ function auth_string(mixed $value, int $limit): string {
     if ($s==='' || (function_exists('mb_strlen') ? mb_strlen($s,'UTF-8') : strlen($s))>$limit) auth_responder(422,['error'=>'Revisa los datos introducidos']);
     return $s;
 }
+/**
+ * Requisitos de la contraseña nueva (T33): al menos 8 caracteres, una mayúscula, una minúscula, un número y un
+ * símbolo (máximo 256). Devuelve lo que falta, vacío si cumple. Los mismos requisitos están en auth-client.js
+ * (web) y en PasswordRules.java (Android), pero el que decide es el servidor.
+ */
+function auth_password_missing(string $p): array {
+    $missing=[];
+    $length=function_exists('mb_strlen')?mb_strlen($p,'UTF-8'):strlen($p);
+    if ($length<8) $missing[]='al menos 8 caracteres';
+    if (!preg_match('/\p{Lu}/u',$p)) $missing[]='una mayúscula';
+    if (!preg_match('/\p{Ll}/u',$p)) $missing[]='una minúscula';
+    if (!preg_match('/\p{Nd}/u',$p)) $missing[]='un número';
+    if (!preg_match('/[^\p{L}\p{Nd}\s]/u',$p)) $missing[]='un símbolo (por ejemplo ! ? # @ . -)';
+    return $missing;
+}
 function auth_password(mixed $value): string {
-    if (!is_string($value)) auth_responder(422,['error'=>'Contraseña no válida']);
+    if (!is_string($value)) auth_responder(422,['error'=>'Contraseña no válida','field'=>'password']);
     $p=(string)$value;
-    if (strlen($p)<12 || strlen($p)>256) auth_responder(422,['error'=>'La contraseña debe contener al menos 12 caracteres (máximo 256)']);
+    if (strlen($p)>256) auth_responder(422,['error'=>'La contraseña puede tener como máximo 256 caracteres.','field'=>'password']);
+    if (!preg_match('//u',$p)) auth_responder(422,['error'=>'Contraseña no válida','field'=>'password']);
+    $missing=auth_password_missing($p);
+    if ($missing) {
+        $last=array_pop($missing);
+        $list=$missing?implode(', ',$missing).' y '.$last:$last;
+        auth_responder(422,['error'=>'La contraseña no es segura. Le falta: '.$list.'.','field'=>'password','missing'=>array_merge($missing,[$last])]);
+    }
     return $p;
 }
 function auth_rate(string $action, string $subject, int $limit, int $interval=900): void {
@@ -107,7 +129,7 @@ function auth_smtp_command($socket,string $command,array $expected): string {
     auth_smtp_write($socket,$command."\r\n");
     return auth_smtp_read($socket,$expected);
 }
-function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null): void {
+function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null,?string $html=null): void {
     $host=(string)$smtp['host'];$port=(int)$smtp['port'];$encryption=(string)($smtp['encryption']??'tls');
     $endpoint=($encryption==='ssl'?'ssl://':'').$host.':'.$port;
     $socket=@stream_socket_client($endpoint,$errno,$errstr,20,STREAM_CLIENT_CONNECT);
@@ -132,12 +154,14 @@ function auth_smtp_send(array $smtp,string $recipient,string $subject,string $bo
         auth_smtp_command($socket,'DATA',[354]);
         $fromName=str_replace(["\r","\n"],'',(string)($smtp['from_name']??'AERIQ'));
         $encodedSubject='=?UTF-8?B?'.base64_encode($subject).'?=';
+        [$type,$mime]=aeriq_mail_body($body,$html);
         $headers=['From: '.$fromName.' <'.$smtp['from_email'].'>','To: '.$recipient,'Subject: '.$encodedSubject,
-            'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit','X-Mailer: AERIQ'];
+            'MIME-Version: 1.0','Content-Type: '.$type,'X-Mailer: AERIQ'];
+        if ($html===null) $headers[]='Content-Transfer-Encoding: 8bit';
         if ($replyTo!==null && filter_var($replyTo,FILTER_VALIDATE_EMAIL)) $headers[]='Reply-To: '.$replyTo;
-        $body=str_replace(["\r\n","\r"],"\n",$body);
-        $body=preg_replace('/(^|\n)\./','$1..',$body);
-        $message=implode("\r\n",$headers)."\r\n\r\n".str_replace("\n","\r\n",$body)."\r\n.\r\n";
+        // Transparencia SMTP: una línea que empieza por «.» se duplica.
+        $mime=preg_replace('/(^|\r\n)\./','$1..',$mime);
+        $message=implode("\r\n",$headers)."\r\n\r\n".$mime."\r\n.\r\n";
         auth_smtp_write($socket,$message);
         auth_smtp_read($socket,[250]);
         auth_smtp_command($socket,'QUIT',[221]);
@@ -187,69 +211,24 @@ function auth_mail_config_ok(): array {
     return ['transport'=>'php_mail','from_email'=>$from,'from_name'=>$fromName];
 }
 
-/** Envía un código, pero el éxito de mail() no garantiza entrega en la bandeja de entrada. */
+/**
+ * Correo de recuperación (T34, T35): código de seis cifras y enlace que abre recuperar.html con el correo y el
+ * código ya puestos. El código caduca a los 10 minutos y se borra al usarse, así que el enlace también.
+ * Que mail() acepte el mensaje no garantiza que llegue a la bandeja de entrada.
+ */
 function auth_send_mail(string $recipient,string $code,string $purpose): void {
-    $cfg=auth_mail_config_ok();
     if (!filter_var($recipient,FILTER_VALIDATE_EMAIL) || !preg_match('/^[0-9]{6}$/',$code)) {
         auth_responder(422,['error'=>'Datos de correo no válidos.']);
     }
-    $subject='AERIQ · Recupera tu contraseña';
-    $plain="Tu código AERIQ es: {$code}\n\nCaduca en 10 minutos. Si no lo has solicitado, ignora este mensaje.\nNunca compartas este código.";
-    if ($cfg['transport']==='smtp_native') {
-        try { auth_smtp_send($cfg['smtp'],$recipient,$subject,$plain); }
-        catch (Throwable $ex) {
-            error_log('AERIQ: fallo en SMTP directo (sin registrar códigos ni credenciales): '.$ex->getMessage());
-            auth_responder(503,['error'=>'No se ha podido enviar el correo. Comprueba la contraseña de aplicación y el acceso SMTP del servidor.']);
-        }
-        return;
-    }
-    if ($cfg['transport']==='smtp') {
-        $smtp=$cfg['smtp'];
-        require_once dirname(__DIR__).'/vendor/autoload.php';
-        $mailer=new PHPMailer\PHPMailer\PHPMailer(true);
-        try {
-            $mailer->isSMTP();
-            $mailer->Host=$smtp['host'];$mailer->Port=(int)$smtp['port'];
-            $mailer->SMTPAuth=true;$mailer->Username=$smtp['username'];$mailer->Password=$smtp['password'];
-            $mailer->SMTPSecure=($smtp['encryption']??'tls')==='ssl' ? PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS : PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mailer->CharSet='UTF-8';$mailer->setFrom($smtp['from_email'],$smtp['from_name']??'AERIQ');
-            $mailer->addAddress($recipient);$mailer->Subject=$subject;$mailer->Body=$plain;
-            $mailer->send();
-        } catch (Throwable $ex) {
-            error_log('AERIQ: fallo en transporte SMTP (sin registrar códigos ni credenciales): '.$ex->getMessage());
-            auth_responder(503,['error'=>'No se ha podido enviar el correo. Revisa la configuración del servidor.']);
-        }
-        return;
-    }
-
-    // Opción simple, como Boticardo: servidor local de correo del alojamiento.
-    $boundary='aeriq_'.bin2hex(random_bytes(12));
-    $html='<!doctype html><html lang="es"><body style="margin:0;background:#f6f8f6;padding:30px 14px;font-family:Arial,sans-serif;color:#17201d">'
-      .'<main style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4ebe7;border-radius:18px;padding:30px">'
-      .'<p style="font-size:15px;font-weight:bold;letter-spacing:.16em;color:#0e6b5e">AERIQ</p>'
-      .'<h1 style="font-size:24px;line-height:1.25">Recupera tu contraseña</h1>'
-      .'<p>Introduce este código en la web de AERIQ:</p>'
-      .'<p style="font-size:36px;font-weight:bold;letter-spacing:.22em;text-align:center;background:#eef6f2;color:#0e6b5e;padding:20px;border-radius:12px">'.$code.'</p>'
-      .'<p>El código caduca en <b>10 minutos</b>. Si no lo has solicitado, ignora este mensaje.</p>'
-      .'<p style="color:#77847e;font-size:12px">No compartas el código con nadie.</p></main></body></html>';
-    $parts=[
-        '--'.$boundary,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit','',$plain,
-        '--'.$boundary,'Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: 8bit','',$html,
-        '--'.$boundary.'--',''
-    ];
-    $headers=[
-        'From: '.$cfg['from_name'].' <'.$cfg['from_email'].'>',
-        'Reply-To: '.$cfg['from_email'],
-        'MIME-Version: 1.0',
-        'Content-Type: multipart/alternative; boundary="'.$boundary.'"',
-        'X-Mailer: AERIQ'
-    ];
-    $encodedSubject='=?UTF-8?B?'.base64_encode($subject).'?=';
-    $ok=@mail($recipient,$encodedSubject,implode("\r\n",$parts),implode("\r\n",$headers));
-    if (!$ok) {
-        error_log('AERIQ: PHP mail() ha rechazado el mensaje de recuperación.');
-        auth_responder(503,['error'=>'El alojamiento no ha aceptado el correo. Comprueba que PHP mail() esté habilitado en Plesk.']);
-    }
+    $link=aeriq_public_url('recuperar.html').'#'.http_build_query(['email'=>$recipient,'code'=>$code],'','&',PHP_QUERY_RFC3986);
+    $mail=aeriq_mail_compose('Recupera tu contraseña',[
+        ['p','Hemos recibido una petición para cambiar la contraseña de tu cuenta de AERIQ.'],
+        ['button','Elegir una contraseña nueva',$link],
+        ['p','También puedes escribir este código en la web o en la app de AERIQ:'],
+        ['code',$code],
+        ['note','El enlace y el código caducan en 10 minutos y solo sirven una vez. Si no lo has pedido tú, ignora este mensaje: tu contraseña no cambia. No compartas el código con nadie.'],
+    ],'Tu código para recuperar el acceso a AERIQ');
+    aeriq_mail($recipient,'AERIQ · Recupera tu contraseña',$mail['text'],null,$mail['html']);
 }
 function auth_generate_code(int $userId,string $purpose,string $email,bool $throttle=true): void {
     $db=conexionBD();

@@ -58,8 +58,8 @@
           <form id="password-form" style="margin-top:20px">
             <label>Contraseña actual<input name="current" type="password" required autocomplete="current-password"></label>
             <div class="form-grid" style="margin-top:16px">
-              <label>Contraseña nueva<input type="password" name="password" required minlength="12" autocomplete="new-password" placeholder="Mínimo 12 caracteres"></label>
-              <label>Repite la contraseña nueva<input type="password" name="confirm" required minlength="12" autocomplete="new-password"></label>
+              <label>Contraseña nueva<input type="password" name="password" required data-password-rules autocomplete="new-password" placeholder="Mín. 8, con mayúscula, número y símbolo"></label>
+              <label>Repite la contraseña nueva<input type="password" name="confirm" required autocomplete="new-password"></label>
             </div>
             <div class="form-actions"><small>El cambio se guarda en el servidor al momento.</small><button class="btn btn-primary" type="submit">Cambiar contraseña</button></div>
           </form>

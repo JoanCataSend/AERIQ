@@ -4,7 +4,13 @@ Las rutas se publican en `https://jcatsen.upv.edu.es/AERIQ/` (por ejemplo, `auth
 
 ## Cuentas
 
-Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `login,google,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`. No hay autoregistro: las cuentas las crea un administrador desde el portal de la organización. `auth.php?action=firebase-config` devuelve la configuración pública de Firebase y si el botón de Google está listo.
+Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `login,google,logout,forgot,reset-password,profile,change-password` mantienen el contrato existente, cookie segura y `X-CSRF-Token`.
+
+**Contraseña nueva** (`reset-password`, `change-password`, web y móvil; T33): al menos 8 caracteres, con una mayúscula, una minúscula, un número y un símbolo (máximo 256). Si no cumple, responde 422 con `error` («La contraseña no es segura. Le falta: …»), `field: "password"` y `missing` (lista de lo que falta). La web y la app enseñan los mismos requisitos mientras se escribe, pero el que decide es el servidor (`auth_password_missing`).
+
+**Recuperar** (`forgot`, web y móvil; T34): solo para cuentas existentes. Si el correo no tiene cuenta responde 404 («No hay ninguna cuenta de AERIQ con ese correo…»); si la cuenta está desactivada, 403. Si existe, envía un correo con un código de seis cifras y un enlace a `recuperar.html#email=…&code=…` que abre el paso de la contraseña nueva ya relleno. Código y enlace caducan a los 10 minutos, admiten 5 intentos y se borran al usarse (un solo uso). El límite de 4 peticiones por hora y correo se mantiene.
+
+**Correos** (T32, T35-T37): todos salen en texto y HTML corporativo (`server/AeriqMail.php`: logo, colores y pie de AERIQ, maquetado con tablas para Gmail y Outlook). Los enlaces y el logo usan la dirección pública de la web: variable de entorno `AERIQ_PUBLIC_URL`, `public_url` en `MailConfig.php` o, si no hay ninguna, la carpeta del script en `SERVER_NAME`. La invitación trae el botón «Establecer mi contraseña», que abre `cambiar-clave.html#email=…&temporal=…`: entra con la clave temporal y cambia la contraseña en un solo paso. Correo y clave van tras `#`, así que no llegan al servidor en la URL ni a sus registros. No hay autoregistro: las cuentas las crea un administrador desde el portal de la organización. `auth.php?action=firebase-config` devuelve la configuración pública de Firebase y si el botón de Google está listo.
 
 Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login y recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`. `google` recibe `idToken` de Firebase. `social-login` ya no acepta correos sin comprobar: responde `410` hasta que Android envíe un token real. No existe `register` móvil: las cuentas las crea la organización.
 
@@ -23,7 +29,8 @@ La acción `google` verifica la firma RS256 del ID token con los certificados p�
 | `readings` | GET `informes.ver` | `type` (14, 12 o `all`), `campaign,devices` (IDs con comas), `zone` (nombre de zona), `from,to`. Cada fila incluye `tipo`; los umbrales son `null` en magnitudes sin umbral (temperatura) |
 | `map` | GET `mapa.organizacion` | Mismo formato de mapa público y, además, `dispositivo_id` y `dispositivo` (nombre del Orb) en cada medición, para dibujar la ruta de un Orb. Sin `informes.ver` solo ve sus propias asignaciones |
 | `requests` | GET `solicitudes.gestionar` | `requests` (con `servicio`, `servicio_nombre`, `estado`, `estado_nombre` e `historial`) y `states` (catálogo ordenado) |
-| `request-status` | POST `solicitudes.gestionar` | `id,status`; `status` es un código de `estados_solicitud` (`pendiente`, `en_revision`, `respondida`, `cerrada`). Cada cambio queda en `solicitudes_historial` con la persona y la fecha |
+| `request-status` | POST `solicitudes.gestionar` | `id,status`; `status` es un código de `estados_solicitud` (`pendiente`, `en_revision`, `respondida`, `cerrada`). Solo hacia delante en el orden del catálogo (T38): volver atrás o cambiar una cerrada devuelve 409. Cada cambio queda en `solicitudes_historial` con la persona y la fecha y envía un correo al solicitante (T37), de cierre si el estado es final. Respuesta `ok,changed,estado,estado_nombre,mailed,message`; un fallo del correo no deshace el cambio (`mailed:false`) |
+| `request-reopen` | POST `solicitudes.gestionar` | `id`. Solo para solicitudes cerradas (si no, 409): vuelve a `en_revision`, lo apunta en el historial y avisa por correo al solicitante. En `requests`, cada entrada del historial lleva `reapertura: true` cuando sale de un estado final |
 
 Todo POST del panel requiere CSRF. El rol, sus permisos y la organización se consultan en servidor. Las asignaciones preservan su histórico; dar de baja no borra mediciones. Fechas de campaña `YYYY-MM-DD`, radio 20–50 m y umbrales de ozono en ppb. Un informe de más de 10.000 filas devuelve 413 y pide acotar el filtro.
 
@@ -74,7 +81,7 @@ POST `?action=request` (máximo 8 por hora y dirección):
 - No se pide cantidad de Orb: la recomienda Código Norte.
 - `website` es un campo trampa. Si llega con texto, se responde 201 sin guardar nada.
 
-Un error de validación devuelve 422 con `error` y `field` (el campo que hay que revisar). La solicitud nace en el primer estado del catálogo, guarda sus objetivos en `solicitud_objetivos` y se registra en `solicitudes_historial`. Devuelve número y confirmación de registro. Además se envía la solicitud completa por correo al buzón comercial (`codigonorte.aeriq@gmail.com` por defecto, o la variable de entorno `AERIQ_COMMERCIAL_EMAIL`), con `Reply-To` al correo del cliente. El fallo de ese correo no revierte la solicitud guardada.
+Un error de validación devuelve 422 con `error` y `field` (el campo que hay que revisar). La solicitud nace en el primer estado del catálogo, guarda sus objetivos en `solicitud_objetivos` y se registra en `solicitudes_historial`. Devuelve número y confirmación de registro (`ok,id,mailed,message`). El solicitante recibe un correo de confirmación con el número y un resumen de lo que ha pedido (T36); si ese correo falla, la solicitud sigue guardada y `mailed` es `false`. Además se envía la solicitud completa por correo al buzón comercial (`codigonorte.aeriq@gmail.com` por defecto, o la variable de entorno `AERIQ_COMMERCIAL_EMAIL`), con `Reply-To` al correo del cliente. El fallo de ese correo no revierte la solicitud guardada.
 
 ## Adaptador de consultas anteriores
 

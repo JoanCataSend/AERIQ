@@ -64,6 +64,17 @@ function initForms(){
       authFeedback(error);
     }finally{authSubmitButton(f,false)}
   });
+  // Enlace del correo de recuperación: trae el correo y el código tras «#». Se rellenan y se borran de la URL.
+  if($('#reset-form')){
+    const link=new URLSearchParams(location.hash.slice(1));
+    if(link.get('email')&&link.get('code')){
+      history.replaceState(null,'',location.pathname+location.search);
+      $('#reset-email').value=link.get('email');$('#reset-form').elements.namedItem('code').value=link.get('code');
+      $('#reset-form').hidden=false;$('#forgot-form').hidden=true;
+      const intro=document.querySelector('.auth-card > p');if(intro)intro.textContent='Elige tu contraseña nueva. El enlace caduca a los 10 minutos y solo sirve una vez.';
+      $('#reset-password')?.focus();
+    }
+  }
   $('#forgot-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
     try{
@@ -82,7 +93,9 @@ function initForms(){
     try{
       await AeriqAuth.post('reset-password',{email:f.elements.namedItem('email').value,code:f.elements.namedItem('code').value,password});
       location.href=AeriqAuth.home((await AeriqAuth.session(true)).user);
-    }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
+    }catch(error){
+      authFeedback(/caducado|bloqueado|incorrecto/i.test(error.message)?error.message+' Si venías del enlace del correo, pide uno nuevo: solo sirve una vez y caduca a los 10 minutos.':error);
+    }finally{authSubmitButton(f,false)}
   });
 }
 function initSensorProduct(){

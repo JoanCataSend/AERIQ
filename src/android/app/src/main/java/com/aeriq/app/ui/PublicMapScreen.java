@@ -59,8 +59,11 @@ public final class PublicMapScreen {
     private static final int RADIUS_STEP = 5;
     /** Separación (dp) entre los puntos evaluados para pintar las zonas. */
     private static final int ZONE_STEP_DP = 4;
-    /** Color ARGB de cada estado de PublicReadings.raster: sin datos, insuficiente, bajo, moderado y alto. */
-    private static final int[] ZONE_COLORS = {0x00000000, 0x30686d6b, 0x56219c72, 0x60eea22d, 0x60e35b5d};
+    /**
+     * Color ARGB de cada estado de PublicReadings.raster: sin datos, insuficiente, bajo, moderado y alto.
+     * Los tres niveles con la misma transparencia (T47), igual que la web.
+     */
+    private static final int[] ZONE_COLORS = {0x00000000, 0x30686d6b, 0x5c219c72, 0x5ceea22d, 0x5ce35b5d};
     private final ZoneOverlay zoneOverlay = new ZoneOverlay();
     private final MainActivity activity;
     private final Views ui;
@@ -623,7 +626,8 @@ public final class PublicMapScreen {
         }));
         if (zones.isChecked()) map.getOverlays().add(zoneOverlay);
         refreshZones();
-        if (markers.isChecked()) for (Reading reading : readings) {
+        // Un punto por posición: la lectura más reciente de cada sitio, la misma con la que se pinta la zona (T46).
+        if (markers.isChecked()) for (List<Reading> group : groups) for (Reading reading : group) {
             Marker marker = new Marker(map);
             marker.setPosition(reading.position());
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
