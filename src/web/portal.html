@@ -1,9 +1,165 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Organización | AERIQ · Código Norte</title><link rel="stylesheet" href="styles.css"></head><body><header class="site-header"><div class="header-inner"><a href="index.html" class="brand" aria-label="AERIQ inicio"><img src="assets/aeriq_logo.png" alt="AERIQ"></a><button class="mobile-toggle" type="button" data-menu-toggle aria-label="Abrir menú">☰</button><nav class="main-nav" aria-label="Principal"><a class="" href="mapa.html">Mapa</a><a class="" href="sensor.html">Sensor</a><a href="index.html#planes">Soluciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav><div class="header-actions"><a class="cart-link" href="portal.html" aria-label="Panel de organización" title="Mi organización"><img src="assets/figma_nav_chip.png" width="22" height="22" alt=""></a><a href="login.html" class="link-login" id="account-link">Entrar</a><a href="mapa.html" class="btn btn-dark btn-sm">Ver mapa ↗</a></div></div></header><main class="container portal-page"><p class="eyebrow">ÁREA DE TRABAJO</p><h1 id="portal-title">Tu organización</h1><p id="portal-feedback" role="status" aria-live="polite">Comprobando acceso…</p>
-<div class="workspace-layout"><aside class="workspace-nav" aria-label="Secciones de organización"><a href="#overview" data-workspace-view="overview">Resumen</a><a href="#workers" data-workspace-view="workers">Trabajadores</a><a href="#campaigns" data-workspace-view="campaigns">Campañas</a><a href="#devices" data-workspace-view="devices">Dispositivos Orb</a><a href="#reports" data-workspace-view="reports">Informes y CSV</a><a href="#requests" data-workspace-view="requests">Solicitudes</a></aside><div class="workspace-content"><div id="organization-panel" hidden><section class="workspace-overview" data-view="overview"><div class="stats-grid"><article class="stat card"><span>◈</span><strong data-count="workers">—</strong><small>Personas</small></article><article class="stat card"><span>⌖</span><strong data-count="campaigns">—</strong><small>Campañas</small></article><article class="stat card"><span>▣</span><strong data-count="devices">—</strong><small>Dispositivos Orb</small></article></div><div class="card portal-section"><p class="eyebrow">TU RED AMBIENTAL</p><h2>Todo empieza con una campaña.</h2><p>Da de alta a tu equipo, registra los Orb y asigna cada dispositivo a un trabajador y una campaña. Los informes y el mapa utilizarán esas mediciones.</p><a class="btn btn-primary" href="#campaigns" data-workspace-view="campaigns">Ver campañas ↗</a><a class="btn btn-outline" href="sensores.html">Abrir flota de Orb</a></div></section>
-<section data-view="workers" class="card portal-section" data-admin><h2>Registrar trabajador o analista</h2><form id="worker-form" class="form-grid"><label>Nombre<input name="name" required maxlength="90"></label><label>Apellidos<input name="last" required maxlength="120"></label><label>Correo<input name="email" type="email" required></label><label>Función<select name="role"><option value="trabajador">Trabajador: recibe mediciones</option><option value="analista">Analista: informes y exportación</option></select></label><button type="submit" class="btn btn-primary">Crear cuenta y enviar acceso temporal</button></form><p>La nueva cuenta pertenece a esta organización. El primer acceso exige cambiar la contraseña.</p></section>
-<section data-view="workers" class="card portal-section"><h2>Personas de la organización</h2><div id="workers-list" class="table-scroll"></div></section>
-<section data-view="campaigns" class="card portal-section" data-admin><h2>Campañas de medición</h2><form id="campaign-form" class="form-grid"><input type="hidden" name="id"><label>Nombre<input name="name" required maxlength="160"></label><label>Zona<input name="zone" required maxlength="200"></label><label>Inicio (UTC)<input name="start" type="date" required></label><label>Fin (UTC)<input name="end" type="date" required></label><label>Umbral medio (ppb)<input name="medium" type="number" min="0" value="60" step="any" required></label><label>Umbral alto (ppb)<input name="high" type="number" min="0" value="100" step="any" required></label><label>Distancia de interpolación (m)<input name="radius" type="number" min="20" max="50" value="30" required></label><label><input name="active" type="checkbox" checked> Campaña activa</label><label><input name="public" type="checkbox"> Autorizar publicación de las lecturas válidas y sus coordenadas</label><button type="submit" class="btn btn-primary">Guardar campaña</button><button type="reset" class="btn btn-outline">Nueva campaña</button></form><p>Los umbrales son parámetros del proyecto; no equivalen a umbrales oficiales ni convierten ppb a µg/m³.</p><div id="campaigns-list" class="table-scroll"></div></section>
-<section data-view="devices" class="card portal-section"><h2>Dispositivos Orb</h2><form id="device-form" class="form-grid" data-admin><input name="id" type="hidden"><label>Nombre<input name="name" required maxlength="160"></label><label>Dirección BLE del Orb<input name="address" required pattern="([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" placeholder="AA:BB:CC:DD:EE:FF"></label><label>Trabajador<select name="worker" id="device-worker"></select></label><label>Campaña<select name="campaign" id="device-campaign"></select></label><label><input name="active" type="checkbox" checked> Alta administrativa activa</label><label><input name="simulated" type="checkbox" checked> Firmware con datos simulados</label><button class="btn btn-primary" type="submit">Guardar dispositivo</button><button class="btn btn-outline" type="reset">Nuevo dispositivo</button></form><p>Para dar de baja un Orb, edítalo y desactiva su alta administrativa. No se borran sus lecturas.</p><div id="devices-list" class="table-scroll"></div></section>
-<section data-view="reports" class="card portal-section"><h2>Informes y exportación</h2><form id="report-form" class="form-grid"><label>Campaña<select id="report-campaign" name="campaign"></select></label><label>Dispositivos (Ctrl para selección múltiple)<select id="report-device" name="device" multiple size="4"></select></label><label>Zona<input name="zone" placeholder="Todas las zonas; o nombre exacto"></label><label>Desde (UTC)<input name="from" type="date"></label><label>Hasta (UTC)<input name="to" type="date"></label><label>Agrupación<select name="group"><option value="day">Días</option><option value="week">Semanas</option></select></label><button class="btn btn-primary" type="submit">Generar informe</button></form><p id="report-summary" role="status"></p><button id="export-report" class="btn btn-outline" disabled>Descargar CSV</button><p>Se separan las series reales y simuladas; no se mezclan sus estadísticas.</p><div id="report-results"></div></section></div>
-<section data-view="requests" id="commercial-panel" class="card portal-section" hidden><h2>Solicitudes de contratación</h2><p>El estado se guarda en la base de datos. Se muestran las 1.000 solicitudes más recientes.</p><div id="requests-list" class="table-scroll"></div></section>
-</div></div></main><footer class="footer"><div class="container"><div class="footer-top"><a href="index.html" class="footer-brand"><img src="assets/aeriq_logo.png" alt="AERIQ"><span>Medir para comprender.</span></a><nav><a href="sensor.html">Sensor</a><a href="index.html#planes">Soluciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav></div><div class="footer-bottom"><span>© 2026 AERIQ · Desarrollado por Código Norte</span><span>Las imágenes, tarifas y mediciones son ilustrativas.</span></div></div></footer><script src="auth-client.js" defer></script><script src="aeriq-client.js" defer></script><script src="aeriq-domain.js" defer></script><script src="portal.js" defer></script><script src="workspace-nav.js" defer></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Panel de organización de AERIQ: equipo, campañas, dispositivos AERIQ e informes.">
+<title>Organización · AERIQ</title>
+<link rel="icon" href="assets/aeriq_mark.png">
+<link rel="stylesheet" href="aeriq.css">
+<script src="auth-client.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="brand" aria-label="AERIQ, inicio"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"></a>
+    <nav class="main-nav" id="primary-navigation" aria-label="Principal"><a href="sensor.html">El AERIQ</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
+    <div class="header-actions">
+      <a href="login.html" class="link-login" id="account-link">Iniciar sesión</a>
+      <a href="mapa.html" class="btn btn-primary btn-sm">Ver el mapa</a>
+    </div>
+    <button class="mobile-toggle" type="button" data-menu-toggle aria-controls="primary-navigation" aria-expanded="false" aria-label="Abrir menú"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+  </div>
+</header>
+<main class="page">
+  <div class="container">
+    <div class="page-head"><h1 id="portal-title">Tu organización</h1><p id="portal-feedback" class="status" role="status" aria-live="polite">Comprobando acceso…</p></div>
+    <div class="workspace-layout">
+      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#campaign" data-workspace-view="campaign" data-perm="equipo.gestionar">Mi campaña</a><a href="#overview" data-workspace-view="overview" data-perm="campanas.gestionar">Resumen</a><a href="#campaigns" data-workspace-view="campaigns" data-perm="campanas.gestionar">Campañas</a><a href="#workers" data-workspace-view="workers" id="workers-link" data-perm="campanas.gestionar equipo.gestionar">Equipo</a><a href="#devices" data-workspace-view="devices" data-perm="equipo.gestionar">Dispositivos AERIQ</a><a href="#orbs" data-workspace-view="orbs" data-perm="campanas.gestionar">AERIQ por campaña</a><a href="#reports" data-workspace-view="reports" data-perm="informes.ver">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a></aside>
+      <div>
+        <div id="organization-panel" hidden>
+          <section data-view="campaign" data-perm="equipo.gestionar">
+            <div class="panel portal-section campaign-card campaign-hero">
+              <p class="plan-badge" id="my-campaign-state">—</p>
+              <h2 id="my-campaign-name">Mi campaña</h2>
+              <p id="my-campaign-meta" class="campaign-meta"></p>
+              <div class="campaign-progress" id="my-campaign-progress"><div class="campaign-progress-bar"><span></span></div><small id="my-campaign-days"></small></div>
+              <div class="stats-grid">
+                <article class="stat"><strong id="my-campaign-workers">—</strong><small>Operadores</small></article>
+                <article class="stat"><strong id="my-campaign-devices">—</strong><small>AERIQ asignados</small></article>
+                <article class="stat"><strong id="my-campaign-public">—</strong><small>Mapa público</small></article>
+              </div>
+              <div class="button-row"><a class="btn btn-primary" href="#workers" data-workspace-view="workers">Añadir operador</a><a class="btn btn-secondary" href="#devices" data-workspace-view="devices">Registrar y asignar AERIQ</a><a class="btn btn-outline" href="#reports" data-workspace-view="reports">Ver informes y CSV</a></div>
+            </div>
+            <div class="panel portal-section">
+              <h2>Ajustes de la campaña</h2>
+              <p>Los umbrales colorean el mapa y los informes; la distancia decide hasta dónde se interpola cada lectura.</p>
+              <form id="campaign-settings-form" class="form-grid"><label>Umbral moderado (ppb)<input name="medium" type="number" min="0" step="any" required></label><label>Umbral alto (ppb)<input name="high" type="number" min="0" step="any" required></label><label>Distancia de interpolación (m)<input name="radius" type="number" min="20" max="50" required><small class="field-hint">Entre 20 y 50 m.</small></label><label class="switch-row full"><input name="public" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span><span><strong>Mapa público</strong><small>Mostrar las mediciones de esta campaña en el mapa que ve cualquiera.</small></span></label><div class="button-row full"><button type="submit" class="btn btn-primary">Guardar ajustes</button></div></form>
+              <p class="note">Las fechas, el nombre y la zona los cambia el administrador principal.</p>
+            </div>
+          </section>
+          <section data-view="campaign" data-perm="mediciones.registrar" id="operator-campaign">
+            <div class="panel portal-section campaign-card campaign-hero">
+              <div class="hero-badges"><p class="plan-badge" id="op-campaign-state">—</p><p class="plan-badge">Solo consulta</p></div>
+              <h2 id="op-campaign-name">Mi campaña</h2>
+              <p id="op-campaign-meta" class="campaign-meta"></p>
+              <div class="campaign-progress" id="op-campaign-progress"><div class="campaign-progress-bar"><span></span></div><small id="op-campaign-days"></small></div>
+            </div>
+            <div class="op-grid">
+              <article class="panel portal-section op-card">
+                <h3>Tu AERIQ</h3>
+                <p class="op-device" id="op-orb">—</p>
+                <p class="op-status" id="op-status"></p>
+                <div class="op-battery"><div class="op-battery-bar"><span id="op-battery-fill"></span></div><small id="op-battery">—</small></div>
+                <dl class="op-facts"><dt>Asignado desde</dt><dd id="op-since">—</dd><dt>Última lectura</dt><dd id="op-last">—</dd></dl>
+              </article>
+              <article class="panel portal-section op-card">
+                <h3>Cómo leer el ozono</h3>
+                <p class="text-muted">Los colores del mapa y de tus lecturas siguen los umbrales de tu campaña.</p>
+                <div class="op-scale" aria-hidden="true"><span class="low"></span><span class="mid"></span><span class="high"></span></div>
+                <ul class="op-levels"><li><i class="dot low"></i><span>Bajo</span><b id="op-level-low">—</b></li><li><i class="dot mid"></i><span>Moderado</span><b id="op-level-mid">—</b></li><li><i class="dot high"></i><span>Alto</span><b id="op-level-high">—</b></li></ul>
+              </article>
+              <article class="panel portal-section op-card">
+                <h3>Tu admin de campaña</h3>
+                <div id="op-admins" class="op-admins"></div>
+                <p class="text-muted">Para cambiar de AERIQ, de campaña o cualquier dato, habla con tu admin.</p>
+              </article>
+            </div>
+            <div class="panel portal-section"><div class="fleet-head"><div><h2>Tus últimas mediciones</h2><p>Las 20 más recientes de tu AERIQ en esta campaña.</p></div><a class="btn btn-outline" href="mapa.html">Ver en el mapa</a></div><div id="op-readings" class="table-scroll"></div></div>
+          </section>
+          <section data-view="overview" data-perm="campanas.gestionar">
+            <div class="stats-grid">
+              <article class="stat"><strong id="sum-campaigns">—</strong><small>Campañas activas</small></article>
+              <article class="stat"><strong id="sum-orbs">—</strong><small>AERIQ en uso</small></article>
+              <a class="stat stat-link" href="#requests" data-workspace-view="requests"><strong id="sum-requests">—</strong><small>Solicitudes pendientes · Ver</small></a>
+            </div>
+            <div class="panel portal-section">
+              <h2>Organiza tus campañas</h2>
+              <p>Crea cada campaña, nombra a su admin y sigue cómo avanza. Cada admin de campaña gestiona su equipo, sus AERIQ y sus informes.</p>
+              <div class="button-row"><a class="btn btn-primary" href="#campaigns" data-workspace-view="campaigns">1. Crear una campaña</a><a class="btn btn-secondary" href="#workers" data-workspace-view="workers">2. Asignar su admin</a></div>
+            </div>
+            <div class="panel portal-section"><h2>Estado de las campañas</h2><div id="campaigns-summary" class="table-scroll"></div></div>
+          </section>
+          <section data-view="orbs" data-perm="campanas.gestionar" class="panel portal-section"><h2>AERIQ por campaña</h2><p>Qué AERIQ lleva cada campaña y quién los usa. Los registra y asigna el admin de cada campaña.</p><div id="orbs-by-campaign"></div></section>
+          <section data-view="workers" class="panel portal-section" data-perm="campanas.gestionar equipo.gestionar">
+            <h2 id="worker-title">Añadir a una persona</h2>
+            <form id="worker-form" class="form-grid"><label class="full pill-select" data-perm="campanas.gestionar">Campaña que gestionará<select name="campaign" id="worker-campaign"></select></label><label>Nombre<input name="name" required maxlength="90"></label><label>Apellidos<input name="last" required maxlength="120"></label><label>Correo<input name="email" type="email" required></label><label>Teléfono (opcional)<input name="phone" type="tel" maxlength="40"></label><div class="button-row full"><button type="submit" class="btn btn-primary">Crear cuenta y enviar acceso temporal</button></div></form>
+            <p class="note">Recibirá por correo una contraseña temporal única y tendrá que cambiarla en el primer acceso.</p>
+          </section>
+          <section data-view="workers" class="panel portal-section"><h2 id="workers-title">Personas de la organización</h2><div id="workers-list" class="table-scroll"></div>
+            <dialog id="worker-modal" class="modal"><form method="dialog" id="worker-edit-form"><h2 id="worker-edit-title">Editar datos</h2><input type="hidden" name="id"><label>Correo<input id="worker-edit-email" type="email" readonly tabindex="-1" class="readonly-input"><small class="field-hint">El correo identifica la cuenta y no se puede cambiar.</small></label><label>Nombre<input name="name" required maxlength="90" autofocus></label><label>Apellidos<input name="last" required maxlength="120"></label><label>Teléfono (opcional)<input name="phone" type="tel" maxlength="40"><small class="field-hint">Se muestra en la lista para poder contactar con esta persona.</small></label><div class="button-pair"><button type="button" class="btn btn-outline" id="worker-modal-close">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></dialog>
+          </section>
+          <section data-view="campaigns" class="panel portal-section">
+            <h2 id="campaign-form-title">Crear campaña</h2>
+            <form id="campaign-form" class="form-grid" data-perm="campanas.gestionar"><input type="hidden" name="id"><label>Nombre de campaña<input name="name" required maxlength="160"></label><label>Zona<input name="zone" required maxlength="200" autocomplete="off"></label><label>Inicio<input name="start" type="date" required></label><label>Fin<input name="end" type="date" required></label><div class="button-row"><button type="submit" class="btn btn-primary" id="campaign-submit">Crear campaña</button><button type="button" class="btn btn-outline" id="campaign-cancel" hidden>Cancelar edición</button></div></form>
+            <h2 class="section-gap">Campañas</h2>
+            <div id="campaigns-list" class="table-scroll"></div>
+          </section>
+          <section data-view="devices" id="fleet">
+            <div class="fleet-head"><div><h2>Dispositivos AERIQ</h2><p>Qué AERIQ están enviando lecturas y qué operador lleva cada uno.</p></div><button class="btn btn-primary" type="button" id="add-device" hidden><svg aria-hidden="true"><use href="#i-plus"/></svg>Registrar AERIQ</button></div>
+            <div class="stats-grid">
+              <div class="stat"><strong>—</strong><small>AERIQ registrados</small></div>
+              <div class="stat"><strong>—</strong><small>En servicio</small></div>
+              <div class="stat"><strong>—</strong><small>Dados de baja</small></div>
+            </div>
+            <div class="panel portal-section">
+              <div class="devices-controls">
+                <label class="search-control"><svg aria-hidden="true"><use href="#i-search"/></svg><span class="visually-hidden">Buscar dispositivo</span><input type="search" id="device-search" placeholder="Buscar por nombre o dirección BLE"></label>
+                <div class="segmented" role="group" aria-label="Filtrar por actividad"><button class="selected" type="button" data-device-filter="all">Todos</button><button type="button" data-device-filter="active">Recibiendo</button><button type="button" data-device-filter="inactive">Sin datos</button></div>
+              </div>
+              <div class="table-scroll"><table class="devices-table"><thead><tr><th>AERIQ</th><th>Actividad</th><th>Operador</th><th>Última medición</th><th>Batería</th><th>Acciones</th></tr></thead><tbody><tr><td colspan="6">Consultando los dispositivos AERIQ…</td></tr></tbody></table></div>
+              <div class="table-bottom">Consultando dispositivos…</div>
+            </div>
+            <p class="note">Dar de baja un AERIQ conserva sus mediciones.</p>
+            <dialog id="device-modal" class="modal"><form method="dialog" id="device-edit-form"><h2>Editar AERIQ</h2><p class="text-muted">El AERIQ se asigna a un operador de tu campaña.</p><label>Nombre del dispositivo<input id="device-new-name" required></label><div class="button-pair"><button type="button" class="btn btn-outline" id="device-modal-close">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></dialog>
+          </section>
+          <section data-view="reports" class="panel portal-section">
+            <h2>Informes y exportación</h2>
+            <form id="report-form" class="form-grid"><label>Magnitud<select name="type"><option value="14">Ozono · ppb</option><option value="12">Temperatura · °C</option><option value="all">Ozono y temperatura (series separadas)</option></select></label><label>Agrupar por<select name="group"><option value="day">Días</option><option value="week">Semanas</option></select></label><label>Campaña<select id="report-campaign" name="campaign"></select></label><label>Zona<select id="report-zone" name="zone"><option value="">Todas las zonas</option></select></label><fieldset class="full report-devices"><legend>AERIQ <small>(sin marcar ninguno = todos)</small></legend><div id="report-device" class="check-pills"></div></fieldset><label>Desde<input name="from" type="date"></label><label>Hasta<input name="to" type="date"></label><div class="button-row full"><button class="btn btn-primary" type="submit">Generar informe</button></div></form>
+            <p id="report-summary" role="status"></p>
+            <button id="export-report" class="btn btn-outline" type="button" disabled data-perm="datos.exportar">Descargar CSV</button>
+            <p class="note">Las series reales y simuladas se muestran por separado; sus estadísticas no se mezclan.</p>
+            <div id="report-results"></div>
+            <div class="report-print"><button id="print-report" class="btn btn-primary" type="button" disabled data-perm="informes.ver">Descargar informe en PDF</button><p class="note">Se abre el diálogo de impresión del navegador: elige «Guardar como PDF».</p></div>
+          </section>
+        </div>
+        <section data-view="requests" id="commercial-panel" class="panel portal-section" data-perm="solicitudes.gestionar" hidden><h2>Solicitudes recibidas</h2><div class="inbox"><div class="inbox-list"><input id="requests-search" type="search" placeholder="Buscar nº, entidad, correo…" aria-label="Buscar solicitudes"><div class="inbox-filter" id="requests-filter" role="group" aria-label="Filtrar por estado"></div><div id="requests-list" class="inbox-rows"></div></div><article id="request-detail" class="inbox-detail" aria-live="polite"></article></div></section>
+      </div>
+    </div>
+  </div>
+</main>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <a href="index.html" class="footer-brand"><img src="assets/aeriq_logo.png" alt="AERIQ" width="926" height="288"><span>Medir para comprender.</span></a>
+      <nav aria-label="Pie de página"><a href="mapa.html">Mapa</a><a href="sensor.html">El AERIQ</a><a href="index.html#planes">Organizaciones</a><a href="index.html#nosotros">Nosotros</a><a href="index.html#contacto">Contacto</a></nav>
+    </div>
+    <div class="footer-bottom"><span>© 2026 AERIQ · Código Norte</span></div>
+  </div>
+</footer>
+
+<script src="aeriq-client.js" defer></script>
+<script src="aeriq-domain.js" defer></script>
+<script src="fleet.js" defer></script>
+<script src="portal.js" defer></script>
+<script src="workspace-nav.js" defer></script>
+<script src="precarga-3d.js" defer></script>
+</body>
+</html>

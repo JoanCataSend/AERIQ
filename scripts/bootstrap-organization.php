@@ -13,5 +13,5 @@ try {
     $u=auth_find($argv[2]);if (!$u || !$u['verificado_en']) throw new RuntimeException('Se necesita una cuenta existente y verificada.');
     if ($u['rol']!=='visitante') throw new RuntimeException('La cuenta ya tiene una función. No se sobrescribirá.');
     aeriq_sql('INSERT INTO organizaciones(nombre) VALUES(?)',[aeriq_text($argv[3],160)]);$org=(int)$db->insert_id;
-    aeriq_sql('UPDATE usuarios SET organizacion_id=?,rol=? WHERE id=?',[$org,$argv[1],(int)$u['id']]);$db->commit();echo "Organización y función creadas.\n";
+    aeriq_sql('UPDATE usuarios SET organizacion_id=?,rol_id=(SELECT id FROM roles WHERE codigo=?) WHERE id=?',[$org,$argv[1],(int)$u['id']]);$db->commit();echo "Organización y función creadas.\n";
 } catch (Throwable $e) { $db->rollback();fwrite(STDERR,$e->getMessage()."\n");exit(1); }

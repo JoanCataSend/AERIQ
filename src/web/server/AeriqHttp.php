@@ -24,7 +24,7 @@ function aeriq_json_body(): array {
     if (stripos($_SERVER['CONTENT_TYPE']??'','application/json')!==0) throw new AeriqError('Se esperaba application/json.',415);return auth_body();
 }
 function aeriq_failure(Throwable $e): never {
-    if ($e instanceof AeriqError) auth_responder($e->status,['error'=>$e->getMessage()]);
+    if ($e instanceof AeriqError) auth_responder($e->status,['error'=>$e->getMessage()]+($e->field!==null?['field'=>$e->field]:[]));
     if ($e instanceof mysqli_sql_exception && $e->getCode()===1062) auth_responder(409,['error'=>'El recurso ya existe; no se han sobrescrito datos.']);
     error_log('AERIQ: '.$e->getMessage());auth_responder(500,['error'=>'No se ha podido completar la operación. Comprueba la migración y la configuración del servidor.']);
 }

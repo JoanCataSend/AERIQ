@@ -1,70 +1,58 @@
-# Base de datos AERIQ
+# Base de datos de AERIQ
 
-Un único esquema legible, sin la combinación anterior de tablas Sprint 0 y tablas organizativas añadidas. Los nombres describen lo que guardan y las relaciones tienen claves foráneas.
+Para instalar la base hacen falta dos archivos, y sirven en cualquier ordenador o servidor (Plesk, XAMPP, MariaDB local…):
 
-## Archivos
+| Archivo | Qué hace | ¿Obligatorio? |
+|---|---|---|
+| [1-instalar.sql](1-instalar.sql) | **Borra** todo lo que haya en la base e instala las 26 tablas, las 4 vistas, los catálogos (roles, permisos, magnitudes, servicios…), la organización **AERIQ Gandia** y el admin principal. | Sí |
+| [2-simulacion.sql](2-simulacion.sql) | Añade datos de prueba: 3 campañas, 3 AERIQ simulados con 54 lecturas, 4 cuentas de prueba y 3 solicitudes. No borra nada y se puede repetir. | No |
 
-- [schema.sql](schema.sql): once tablas, restricciones, índices y dos vistas de lectura. No borra ninguna base.
-- [seed-demo.sql](seed-demo.sql): datos ficticios para una instalación nueva. No se importa automáticamente en producción.
-- [Diseño](../../doc/base-de-datos.md): relaciones y decisiones del modelo.
+Los archivos no llevan escrito el nombre de la base: se instalan en la que tengas seleccionada (`mcalgar2_pbio`, `jcatsen_pbio`…).
 
-## Leer los datos sin complicaciones
+## Instalar en phpMyAdmin
 
-En phpMyAdmin abre `vista_mediciones`: verás fecha UTC, organización, campaña, nombre del Orb, trabajador, valor, unidad y origen. `vista_flota` muestra los dispositivos y sus asignaciones actuales con nombres, no solo identificadores.
+1. Entra en phpMyAdmin y pulsa en tu base en la columna de la izquierda.
+2. Abre la pestaña **Importar**, elige `1-instalar.sql` y pulsa **Importar**.
+3. Si quieres datos de prueba, repite el paso 2 con `2-simulacion.sql`.
+4. Comprueba que `server/SDBaseDatos.php` del servidor apunta a esa base con su usuario y contraseña. Ese archivo no se sube al repositorio.
+5. Si tenías la web abierta, cierra sesión y vuelve a entrar.
 
-```sql
-SELECT * FROM vista_mediciones ORDER BY fecha_utc DESC;
-SELECT * FROM vista_flota;
-```
+## Cuentas
 
-`mediciones` referencia una `asignacion`; esta identifica organización, Orb, trabajador y campaña. Cambiar de trabajador cierra la asignación anterior sin cambiar sus lecturas. `magnitudes` define el nombre, unidad y rango del ozono y la temperatura.
+Todas tienen la contraseña `1234`. Cámbiala si la web es pública.
 
-## Instalación nueva
+| Correo | Rol | Campaña | Lo crea |
+|---|---|---|---|
+| `gandia@gmail.com` | Admin principal (Marina) | Todas | `1-instalar.sql` |
+| `analista.simulacion@aeriq.example` | Admin de campaña (Marta) | Paseo por el campus | `2-simulacion.sql` |
+| `operador.simulacion@aeriq.example` | Operador (Pau) | Paseo por el campus | `2-simulacion.sql` |
+| `operadora.simulacion@aeriq.example` | Operadora (Lucía) | Playa de Gandia | `2-simulacion.sql` |
+| `operador3.simulacion@aeriq.example` | Operador (Álex) | Recinto municipal (privada) | `2-simulacion.sql` |
 
-### Recrear una base existente desde phpMyAdmin (Plesk)
+Cada operador lleva un solo AERIQ. Las campañas de la playa y del recinto aún no tienen admin: el admin principal se lo puede asignar desde **Mi panel**.
 
-Exporta primero una copia SQL. Selecciona exclusivamente la base de AERIQ e importa [recrear-demo-plesk.sql](recrear-demo-plesk.sql). Este archivo elimina todas sus tablas y vistas, incluidas las antiguas, y carga el esquema y los ejemplos en una sola operación. No importes después `schema.sql` ni `seed-demo.sql`: ya están incluidos. Conserva el nombre de la base, los usuarios y los permisos. No elimina rutinas ni eventos programados ajenos al proyecto. El borrado no se puede deshacer con ROLLBACK.
+## Pasar la base de un ordenador a otro
 
-Crea una base vacía e importa primero `schema.sql`. Añade `seed-demo.sql` únicamente si quieres la demostración. Configura la conexión privada en `src/web/server/SDBaseDatos.php`. No se mantiene un segundo esquema heredado para ejecutar la aplicación.
+Hay dos casos:
 
-## Recreación con copia previa
+- **Instalación nueva** (sin datos que conservar): importa `1-instalar.sql` y, si quieres, `2-simulacion.sql` en el otro ordenador.
+- **Con los datos reales** (cuentas, campañas y mediciones):
+  1. En el ordenador de origen, selecciona la base y abre **Exportar**. Elige el método *Rápido* y el formato *SQL*, y guarda el archivo.
+  2. En el destino, crea una base vacía (o selecciona una existente) e importa ese archivo en **Importar**.
 
-```powershell
-# Solo mostrar el plan. No conecta ni borra.
-python scripts/reset-database.py --database aeriq_demo --user root --mysql-bin C:/xampp/mysql/bin --demo --dry-run
+  Ese archivo contiene correos y hashes de contraseñas: no lo subas a Git.
 
-# Recrear exactamente esa base, después de guardar una copia si ya existe.
-python scripts/reset-database.py --database aeriq_demo --user root --mysql-bin C:/xampp/mysql/bin --demo --confirm RECREAR:aeriq_demo
-```
+## Roles y permisos
 
-El script pide la contraseña sin mostrarla, rechaza bases del sistema y se detiene si no puede obtener la copia. Los respaldos privados se guardan en `.local-backups/`. Para automatizar una prueba local puede leerse `AERIQ_DB_PASSWORD` del entorno; no se pasa por argumentos.
+| Rol | Código | Permisos |
+|---|---|---|
+| Admin principal | `admin` | `campanas.gestionar`, `solicitudes.gestionar` |
+| Admin de campaña | `admin_campana` | `mapa.organizacion`, `informes.ver`, `equipo.gestionar`, `datos.exportar` |
+| Operador | `trabajador` | `mapa.organizacion`, `mediciones.registrar` |
+| Visitante | `visitante` | Solo el mapa público |
 
-## Conservar datos anteriores
+Cada cuenta, salvo el admin principal, pertenece a una sola campaña (`usuarios.campana_id`). Una campaña está *programada*, *activa* o *finalizada* según sus fechas de inicio y fin. La web lo calcula, así que no hay que tocar nada a mano.
 
-Prepara otra base vacía con `schema.sql`, sin datos demo. Crea dos configuraciones privadas con el formato de `SDBaseDatos.example.php`, una para origen y otra para destino:
+## Cambiar la estructura
 
-```text
-php scripts/migrate-legacy.php --source=origen.php --target=destino.php
-php scripts/migrate-legacy.php --source=origen.php --target=destino.php --apply
-```
-
-La primera orden es un inventario de solo lectura. La segunda conserva cuentas, organizaciones/campañas/Orb y lecturas de las estructuras anteriores compatibles; no borra el origen. Conserva valores y fechas, no inventa GPS ni MAC y no convierte unidades. Rechaza un destino con datos o unidades desconocidas, en vez de sobrescribir o interpretar a ciegas. Las sesiones/códigos anteriores no se importan. La antigua tabla cartográfica ilustrativa no se utiliza como fuente de mediciones reales; consérvala en el respaldo si existe.
-
-## Cuentas de demostración
-
-Para ampliar el mapa de playa, importa [anadir-mediciones-playa-gandia.sql](anadir-mediciones-playa-gandia.sql) en `jcatsen_pbio`. Añade 54 lecturas públicas simuladas (18 verdes, 18 naranjas y 18 rojas), con posiciones ilustrativas repartidas por el entorno de la playa de Gandía. No borra datos y puede repetirse sin duplicarlos. Verlas en **Simulados**; sus fechas se actualizan al importarlas. Requiere las cuentas y el esquema demo actuales.
-
-Para añadir ejemplos sin recrear la base de Plesk, importa [anadir-mediciones-publicas-privadas.sql](anadir-mediciones-publicas-privadas.sql) en `jcatsen_pbio`, una vez instalado el esquema actual y las cuentas demo. Añade tres campañas con doce lecturas simuladas cada una: campus público, recinto municipal privado y recinto de empresa privado. Se puede repetir sin duplicar lecturas; actualiza sus fechas. En el mapa selecciona **Simulados**. El mapa público muestra la campaña pública; el mapa de organización requiere sesión y restringe las privadas a su organización y, para trabajadores, a sus propias asignaciones. No cambia contraseñas ni activa trabajadores pendientes.
-
-Contraseña de todas: `AeriqDemo-2026!`. Son cuentas ficticias con dominios `.example`, no direcciones de contacto.
-
-| Correo | Función |
-| --- | --- |
-| `admin@gandia.example` | Administradora del ayuntamiento demo |
-| `operador@gandia.example` | Trabajador: primer acceso obliga a activar/cambiar contraseña |
-| `analista@gandia.example` | Informes y exportación del ayuntamiento |
-| `comercial@codigonorte.example` | Solicitudes comerciales |
-| `admin@empresaverde.example` | Administradora de otra organización |
-| `operador@empresaverde.example` | Trabajador de la segunda organización |
-
-Hay tres Orb con MAC ficticias, dos campañas, nueve mediciones simuladas y tres solicitudes. Cambia la MAC por la real para probar BLE. Ningún valor de ejemplo se presenta como medición real; la segunda campaña es privada. No publiques estas cuentas conocidas en un entorno real.
+Edita `1-instalar.sql`, que es la única definición de la base. Si cambias la estructura de una base que ya tiene datos que quieres conservar, escribe el `ALTER TABLE` a mano y apúntalo en el mensaje del commit.

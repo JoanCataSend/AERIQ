@@ -2,3 +2,11 @@
 <FilesMatch "^(composer\.(json|lock)|\.env.*|\.htaccess)$">
     Require all denied
 </FilesMatch>
+
+# Recursos estáticos pesados (modelo 3D e imágenes): una semana en la caché del navegador,
+# para que la precarga del Orb se reutilice al abrir su ficha y en visitas posteriores.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(glb|webp|png|jpe?g|svg)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>

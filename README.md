@@ -19,34 +19,27 @@ Esta revisión conserva los diseños, recursos, galería y visor 3D anteriores. 
 | Conocer límites pendientes | [Estado](doc/estado.md) |
 
 ```text
-AERIQ/
+httpdocs/
 ├── src/
 │   ├── android/              # Proyecto Android Studio, pruebas y recursos originales
 │   ├── web/                  # Raíz desplegable: HTML/CSS/JS, API PHP y server/
 │   └── database/
-│       ├── schema.sql        # Esquema único, nombres en español, relaciones y vistas
-│       └── seed-demo.sql     # Organizaciones, cuentas y lecturas ficticias comprensibles
+│       ├── 1-instalar.sql    # Instala la base completa (estructura, catálogos y admin principal)
+│       └── 2-simulacion.sql  # Opcional: campañas, AERIQ, lecturas y cuentas de prueba
 ├── scripts/
 │   ├── audit-repository.py
 │   ├── build-plesk-package.py
-│   ├── reset-database.py     # Recreación explícita con copia previa y modo de simulación
 │   ├── migrate-legacy.php    # Importación a otra base vacía, sin borrar el origen
 │   ├── bootstrap-organization.php
 │   └── tests/
 └── doc/                      # Diseños, pruebas, despliegue, HU, tareas e histórico
 ```
 
-## Base de demostración
+## Base de datos
 
-El esquema nuevo no necesita las tablas antiguas de Plesk. Tiene once tablas con nombres claros y dos vistas: `vista_mediciones` y `vista_flota`. El [README de datos](src/database/README.md) explica las relaciones y las seis cuentas de ejemplo.
+Se instala con dos archivos de [src/database](src/database/README.md): `1-instalar.sql` (obligatorio) y `2-simulacion.sql` (datos de prueba, opcional). Se importan desde phpMyAdmin en la base que tengas seleccionada, sea cual sea su nombre. Tiene 26 tablas y cuatro vistas. El diseño y sus decisiones están en [Modelo de datos](doc/base-de-datos.md).
 
-Antes de borrar nada puedes consultar el plan, sin conectar a la base:
-
-```powershell
-python scripts/reset-database.py --database aeriq_demo --user root --demo --dry-run
-```
-
-El borrado real requiere el nombre exacto y `--confirm RECREAR:nombre_base`; el script crea una copia completa antes de ejecutar DROP. Nunca se ejecuta automáticamente desde la web. Para conservar datos anteriores se utiliza `migrate-legacy.php` hacia una base diferente y vacía.
+Para llevar una base con datos reales a otro ordenador, usa **Exportar** e **Importar** de phpMyAdmin (ver el [README de datos](src/database/README.md)).
 
 ## Comprobaciones
 
@@ -56,6 +49,6 @@ node scripts/tests/aeriq-domain.test.js
 python scripts/tests/integration-aeriq.py
 ```
 
-Android: abre `src/android/` y ejecuta sus tareas Gradle. Los scripts usan Python 3.9+; la integración aislada necesita PHP y MariaDB locales. La aplicación utiliza el mismo origen `/AERIQ/` para cuentas, captura y mapas, centralizado en `ApiRoutes.kt`.
+Android: abre `src/android/` y ejecuta sus tareas Gradle. Los scripts usan Python 3.9+; la integración aislada necesita PHP y MariaDB locales. La aplicación utiliza el origen `https://jcatsen.upv.edu.es/AERIQ/` para cuentas, captura y mapas, centralizado en `ApiRoutes.java`.
 
 No se ha borrado, migrado ni publicado nada en Plesk. La batería/LED del Orb necesita hardware y firmware que no están incluidos. Las pruebas de radio/GPS en móvil y la revisión visual final se registran aparte de la compilación y de las pruebas automatizadas.

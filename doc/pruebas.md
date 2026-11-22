@@ -10,10 +10,11 @@ Auditoría correcta de 24 documentos y 14 páginas; 75 recursos originales compr
 python scripts/audit-repository.py
 node scripts/tests/aeriq-domain.test.js
 node scripts/tests/ui-contract.test.js
+node scripts/tests/map-interpolation.test.js
 python scripts/tests/integration-aeriq.py --php C:/xampp/php/php.exe --mysql-bin C:/xampp/mysql/bin
 ```
 
-La prueba DOM utiliza jsdom instalado solo en `.local-backups/test-tools/`; no añade dependencias de ejecución a la web. Lee [scripts](../scripts/README.md) para prepararla.
+La prueba DOM utiliza jsdom instalado solo en `.local-backups/test-tools/`; no añade dependencias de ejecución a la web. Lee [scripts](../scripts/README.md) para prepararla. Google Authentication tiene pruebas propias en [pruebas-google.md](pruebas-google.md).
 
 ## Integración aislada
 
@@ -25,7 +26,7 @@ Se comprueban: esquema y datos demo, roles/CSRF, invitación/rollback/fecha de c
 
 La prueba DOM ejecuta scripts de la web en un documento aislado con API falsa: portada/visor y galería presentes, edición de flota con asignaciones, vistas del panel, informes, campos condicionales, presupuesto sin pago y mapa privado/público. No renderiza píxeles ni acredita responsive visual.
 
-Las pruebas de dominio cubren IDW sin muestras, posiciones repetidas, distancias, mezcla de orígenes/unidades, estadísticas y series temporales. CSV cubre comillas/separadores, texto parecido a fórmula y coordenadas negativas como números.
+Las pruebas de dominio cubren la [interpolación](interpolacion.md) con casos densos, dispersos y simulados, deriva del GPS, lecturas repetidas, límites del radio y mezcla de orígenes/unidades, además de estadísticas y series temporales. `map-interpolation.test.js` ejecuta el mapa en jsdom con un doble de Leaflet y comprueba qué celdas se pintan, el control de radio, la consulta de un punto y el aviso de recorte. CSV cubre comillas/separadores, texto parecido a fórmula y coordenadas negativas como números.
 
 ## Android
 

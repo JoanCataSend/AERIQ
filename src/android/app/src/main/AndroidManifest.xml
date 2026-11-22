@@ -5,15 +5,20 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- También se declarará para geolocalizar mediciones cuando exista esa función.
-         Para escaneo BLE se solicita solo en Android 11 e inferiores. -->
+    <!-- Geolocaliza las mediciones y el recorrido («Guardar mi recorrido»). Para el escaneo BLE
+         se solicita solo en Android 11 e inferiores. BLUETOOTH_SCAN no lleva neverForLocation:
+         con esa marca Android descarta los anuncios iBeacon del Orb. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <application android:icon="@drawable/aeriq_launcher" android:roundIcon="@drawable/aeriq_launcher" android:label="AERIQ" android:allowBackup="false"
         android:supportsRtl="true" android:theme="@style/Theme.AERIQ.Visual">
-        <activity android:name=".MainActivity" android:exported="true">
+        <!-- Solo vertical: al girar el móvil la pantalla no cambia. En tablets con Android 16 o
+             superior el sistema puede ignorar este bloqueo en pantallas grandes. -->
+        <activity android:name=".MainActivity" android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

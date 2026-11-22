@@ -4,17 +4,15 @@ Raíz desplegable del producto AERIQ de Código Norte. Se conserva el diseño de
 
 | Página | Función actual |
 | --- | --- |
-| `index.html` | Portada original, Orb 3D, tres soluciones y acceso al mapa |
+| `index.html` | Portada original, vista explosionada del Orb con el scroll (`product-explode.js` + anime.js), Orb 3D, tres soluciones y acceso al mapa |
 | `sensor.html` | Galería de cuatro vistas y preparación de un kit |
 | `mapa.html` | Público/organización, real/simulado, periodo, búsqueda, capas y aspecto |
-| `sensores.html` | Flota real con tabla, filtros, edición y asignación |
-| `portal.html` | Secciones de organización: equipo, campañas, Orb, informes; comercial ve solicitudes |
-| `perfil.html` | Perfil/contraseña, organización y herramientas |
-| `login.html`, `registro.html` | Acceso existente y cuenta visitante sin permisos organizativos |
-| `verificar.html`, `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
-| `solicitar.html` | Kits para administración/empresa y estudios |
-| `carrito.html`, `checkout.html` | Rutas conservadas como preparación y envío de presupuesto, sin tienda ciudadana |
+| `portal.html` | Panel según el rol. Admin principal: resumen, equipo, campañas, Orb (consulta), informes sin CSV y solicitudes. Admin de campaña: Mi campaña, equipo, flota de Orb (tabla con filtros, edición y asignación), informes con CSV |
+| `perfil.html` | Mi cuenta: datos, contraseña, organización y campaña |
+| `login.html` | Acceso con correo/contraseña o Google mediante Firebase (solo cuentas ya invitadas) |
+| `recuperar.html`, `cambiar-clave.html` | Códigos de correo, recuperación y activación inicial |
+| `solicitar.html` | Único formulario comercial: kits, estudio temporal de ozono o asesoramiento, con validación en línea |
 
 Los formularios/llamadas existentes se reutilizan y se amplían con `fleet.js`, `portal.js`, `public-map.js`, `solicitudes.js` y los clientes especializados. `styles.css` sigue siendo el CSS compartido. No se han sustituido los recursos por imágenes nuevas.
 
-El servidor utiliza un único [schema.sql](../database/schema.sql). Consulta [API](../../doc/api.md), [despliegue](../../doc/despliegue.md) y [pruebas](../../doc/pruebas.md). Un servidor estático solo permite presentación; los flujos de datos necesitan PHP, base y correo configurados.
+El servidor utiliza una única definición de base, [1-instalar.sql](../database/1-instalar.sql). Consulta [API](../../doc/api.md), [despliegue](../../doc/despliegue.md) y [pruebas](../../doc/pruebas.md). Un servidor estático solo permite presentación; los flujos de datos necesitan PHP, base y correo configurados.
