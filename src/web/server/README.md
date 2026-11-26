@@ -11,6 +11,8 @@
 | `../communication/MailTransport.php` | Configuración y envío SMTP/PHPMailer/mail(); expone operaciones de envío y disponibilidad |
 | `../database/SqlGateway.php` | Conexión y ejecución SQL parametrizada común |
 | `../database/AuthRepository.php` | Consultas de cuentas, límites de acceso y códigos de correo |
+| `../database/AeriqRepository.php` | Lecturas, escrituras, transacciones y consultas de entidades AERIQ |
+| `../database/AeriqQueryCatalog.php` | Sentencias SQL agrupadas por caso de uso |
 | `FirebaseAuth.php` | Verifica el ID token de Google y vincula la cuenta en `identidades_externas` sin crear cuentas |
 | `*.example.php` | Plantillas sin credenciales |
 

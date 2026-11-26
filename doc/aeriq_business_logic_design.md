@@ -4,7 +4,7 @@
 
 **Responsabilidad objetivo.** Aplicar reglas de cuentas, permisos, organizaciones, campañas, dispositivos, asignaciones, mediciones, informes, mapas, solicitudes y avisos. La lógica no depende de HTTP, sesiones, códigos de estado ni SMTP. Los errores se expresan mediante categorías semánticas; `src/web/communication/HttpErrorMapper.php` las traduce a estados HTTP.
 
-**Estado de la implementación.** El contrato de dominio está separado de HTTP para los errores. `AeriqCore.php` contiene operaciones de aplicación; la conexión/ejecución parametrizada está en `src/web/database/SqlGateway.php`, el envío está en `src/web/communication/MailTransport.php` y la persistencia de autenticación en `src/web/database/AuthRepository.php`. Los casos de uso de AeriqCore aún declaran consultas SQL y transacciones directamente; deben extraerse a repositorios específicos para completar la separación. `src/web/business_logic/DomainError.php` contiene el error de dominio sin estado HTTP.
+**Estado de la implementación.** El contrato de dominio está separado de HTTP para los errores. `AeriqCore.php` contiene casos de uso y reglas; la persistencia de entidades pasa por `AeriqRepository.php` y `AuthRepository.php`, que consultan `AeriqQueryCatalog.php` y delegan la ejecución parametrizada/transacciones en `SqlGateway.php`. El envío está en `communication/MailTransport.php`. `DomainError.php` expresa errores semánticos sin estado HTTP.
 
 ### Tipos lógicos
 
@@ -71,7 +71,7 @@ La definición exhaustiva de campos y restricciones está en `doc/database_desig
 
 - El proxy web comparte las cuatro firmas lógicas anteriores. El login, la sesión y el perfil son funciones de autenticación (`AeriqAuth`) y no se presentan como operaciones de este componente.
 - El mapeo de cada acción HTTP y la forma concreta de JSON están en `doc/web_communication_design.md` y `doc/api.md`.
-- El correo ya está encapsulado en el adaptador de comunicación y la persistencia de autenticación en un repositorio. La persistencia de casos de uso de AeriqCore requiere repositorios específicos; sus consultas permanecen temporalmente en el servicio.
+- Los repositorios son la única capa que ejecuta las operaciones SQL; el servicio de negocio selecciona la operación y aplica validaciones/reglas antes y después de persistir.
 
 ## General Rules
 

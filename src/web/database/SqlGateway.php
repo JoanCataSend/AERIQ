@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/../server/Logica.php';
+require_once __DIR__.'/AeriqQueryCatalog.php';
 
 /**
  * Adaptador SQL compartido: prepara consultas parametrizadas y devuelve filas asociativas.

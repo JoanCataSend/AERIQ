@@ -5,13 +5,14 @@ require_once __DIR__.'/Avisos.php';
 require_once __DIR__.'/../business_logic/DomainError.php';
 require_once __DIR__.'/../communication/MailTransport.php';
 require_once __DIR__.'/../database/SqlGateway.php';
+require_once __DIR__.'/../database/AeriqRepository.php';
 
 /** Dominio AERIQ. Las consultas ejecutan vía database/SqlGateway.php. */
 /** Identidad, organización, rol y permisos de una cuenta, leídos siempre del servidor. */
 function aeriq_access(int $id): array {
-    $a=aeriq_one('SELECT u.id AS usuario_id,u.organizacion_id,u.campana_id,cp.nombre AS campana,o.nombre AS organizacion,u.rol_id,r.codigo AS rol,r.nombre AS rol_nombre,r.requiere_organizacion,u.debe_cambiar_clave AS cambiar_clave,u.activo,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id LEFT JOIN organizaciones o ON o.id=u.organizacion_id LEFT JOIN campanas cp ON cp.id=u.campana_id WHERE u.id=?',[$id]);
+    $a=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_ACCESS_1,[$id]);
     if (!$a) throw new AeriqError('Cuenta no disponible.','unauthenticated');
-    $a['permisos']=array_column(aeriq_rows('SELECT p.codigo FROM rol_permisos rp JOIN permisos p ON p.id=rp.permiso_id WHERE rp.rol_id=? ORDER BY p.codigo',[(int)$a['rol_id']]),'codigo');
+    $a['permisos']=array_column(AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_ACCESS_2,[(int)$a['rol_id']]),'codigo');
     // Un rol de organización sin organización no concede permisos (antes era un CHECK sobre el ENUM).
     if ((int)$a['requiere_organizacion'] && !$a['organizacion_id']) $a['permisos']=[];
     // Un admin de campaña sin campaña no concede permisos: si no, vería toda la organización.
@@ -60,16 +61,6 @@ function aeriq_portal_access(array $user,string $action,string $method,array $fi
     if (!aeriq_can($access,'informes.ver') && !aeriq_can($access,'campanas.gestionar')) throw new AeriqError('Tu función no permite esta operación.','forbidden');
     return $access;
 }
-/** SQL reutilizable: cuentas (alias u) cuyo rol permite registrar mediciones, es decir, asignables a un AERIQ. */
-const AERIQ_PUEDE_MEDIR="EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id=rp.permiso_id WHERE rp.rol_id=u.rol_id AND p.codigo='mediciones.registrar')";
-/** Umbral de ozono de la campaña c: el propio o, si no lo tiene, el de referencia de la magnitud. */
-const AERIQ_UMBRALES_O3='COALESCE(cu.umbral_medio,mo.umbral_medio_defecto) AS umbral_medio,COALESCE(cu.umbral_alto,mo.umbral_alto_defecto) AS umbral_alto';
-const AERIQ_JOIN_UMBRALES_O3='LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=14 JOIN magnitudes mo ON mo.id=14';
-/** Umbral de la campaña c para la magnitud t de cada lectura (la temperatura no tiene). */
-/** Última batería conocida del AERIQ d (porcentaje y fecha UTC de captura). */
-const AERIQ_BATERIA='(SELECT b.porcentaje FROM lecturas_bateria b WHERE b.dispositivo_id=d.id ORDER BY b.capturada_en DESC,b.id DESC LIMIT 1) AS bateria_pct,(SELECT MAX(b.capturada_en) FROM lecturas_bateria b WHERE b.dispositivo_id=d.id) AS bateria_en';
-const AERIQ_UMBRALES_LECTURA='COALESCE(cu.umbral_medio,t.umbral_medio_defecto) AS umbral_medio,COALESCE(cu.umbral_alto,t.umbral_alto_defecto) AS umbral_alto';
-
 function aeriq_int(mixed $v, int $min=1, int $max=PHP_INT_MAX): int {
     if (filter_var($v,FILTER_VALIDATE_INT)===false || (int)$v<$min || (int)$v>$max) throw new AeriqError('Número entero fuera de rango.');
     return (int)$v;
@@ -85,24 +76,18 @@ function aeriq_bool(mixed $v): int { if (!in_array($v,[true,false,0,1,'0','1'],t
 function aeriq_org(array $a): int { if (!$a['organizacion_id']) throw new AeriqError('La cuenta no pertenece a una organización.','forbidden'); return (int)$a['organizacion_id']; }
 function aeriq_own(string $table,int $id,int $org): array {
     if (!in_array($table,['dispositivos','campanas'],true)) throw new LogicException('Tabla no permitida');
-    $r=aeriq_one("SELECT * FROM $table WHERE id=? AND organizacion_id=?",[$id,$org]);
+    $r=AeriqRepository::ownedResource($table,$id,$org);
     if (!$r) throw new AeriqError('El recurso no está disponible en tu organización.','not_found'); return $r;
 }
 /** Campaña a la que se limita la cuenta. null = admin principal: ve toda la organización. */
 function aeriq_campaign(array $a): ?int { return $a['campana_id']===null?null:(int)$a['campana_id']; }
-/** SQL: campaña de la última asignación del AERIQ d. Un AERIQ pertenece a la campaña donde se asignó por última vez. */
-const AERIQ_CAMPANA_ORB='(SELECT h.campana_id FROM asignaciones h WHERE h.dispositivo_id=d.id ORDER BY h.iniciada_en DESC,h.id DESC LIMIT 1)';
-/** SQL: estado de la campaña c según sus fechas (UTC): programada, activa o finalizada. */
-const AERIQ_ESTADO_CAMPANA="CASE WHEN UTC_DATE()<c.inicio THEN 'programada' WHEN UTC_DATE()>c.fin THEN 'finalizada' ELSE 'activa' END AS estado";
-/** SQL: admin de la campaña c (activo o con invitación pendiente), operadores y AERIQ en uso. Para el resumen del admin principal. */
-const AERIQ_CAMPANA_RESUMEN="(SELECT TRIM(CONCAT(u.nombre,' ',u.apellidos)) FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.campana_id=c.id AND r.codigo='admin_campana' AND (u.activo=1 OR u.debe_cambiar_clave=1) ORDER BY u.id LIMIT 1) AS admin_nombre,(SELECT COUNT(*) FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.campana_id=c.id AND r.codigo='trabajador' AND (u.activo=1 OR u.debe_cambiar_clave=1)) AS operadores,(SELECT COUNT(*) FROM asignaciones x WHERE x.campana_id=c.id AND x.finalizada_en IS NULL) AS orbs_en_uso";
 /** Una campaña tiene como mucho un admin (activo o invitado). Devuelve su nombre si ya lo tiene. */
 function aeriq_campaign_admin(int $campaign,int $except=0): ?string {
-    $r=aeriq_one("SELECT TRIM(CONCAT(u.nombre,' ',u.apellidos)) AS n FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.campana_id=? AND u.id<>? AND r.codigo='admin_campana' AND (u.activo=1 OR u.debe_cambiar_clave=1) LIMIT 1",[$campaign,$except]);
+    $r=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_CAMPAIGN_ADMIN_1,[$campaign,$except]);
     return $r?$r['n']:null;
 }
 function aeriq_password_changed(int $id): void {
-    aeriq_sql('UPDATE usuarios SET debe_cambiar_clave=0,activo=1,verificado_en=COALESCE(verificado_en,UTC_TIMESTAMP()),invitacion_expira_en=NULL WHERE id=?',[$id]);
+    AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_PASSWORD_CHANGED_1,[$id]);
 }
 
 function aeriq_worker(array $a,array $d): array {
@@ -117,22 +102,22 @@ function aeriq_worker(array $a,array $d): array {
         $campaign=aeriq_campaign($a);$code='trabajador';
         if (!$campaign) throw new AeriqError('Tu cuenta no tiene campaña asignada.','forbidden');
     }
-    $role=aeriq_one('SELECT id FROM roles WHERE codigo=?',[$code]);
+    $role=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_WORKER_1,[$code]);
     if (!$role) throw new AeriqError('Función no permitida.');
-    aeriq_mailer_ready();aeriq_transaction_begin();
+    aeriq_mailer_ready();AeriqRepository::begin();
     try {
         if (auth_find($email)) throw new AeriqError('Ese correo ya tiene una cuenta. No se cambiará su organización.','conflict');
-        aeriq_sql('INSERT INTO usuarios(organizacion_id,rol_id,campana_id,nombre,apellidos,email,telefono,password_hash,activo,debe_cambiar_clave) VALUES(?,?,?,?,?,?,?,?,0,1)',[$org,(int)$role['id'],$campaign,$name,$last,$email,$phone,'!']);$id=(int)aeriq_last_insert_id();
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_2,[$org,(int)$role['id'],$campaign,$name,$last,$email,$phone,'!']);$id=(int)AeriqRepository::lastInsertId();
         aeriq_invite($id,$email);
-        aeriq_transaction_commit();return ['ok'=>true,'id'=>$id,'message'=>'Invitación registrada. El servidor ha aceptado el correo; la cuenta se activará al cambiar la contraseña.'];
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::commit();return ['ok'=>true,'id'=>$id,'message'=>'Invitación registrada. El servidor ha aceptado el correo; la cuenta se activará al cambiar la contraseña.'];
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
 }
 
 /** Invitación: clave temporal impredecible de un solo uso (solo se guarda su hash) y correo al destinatario. Va dentro de una transacción. */
 function aeriq_invite(int $id,string $email): void {
     $hours=max(1,min(168,(int)(getenv('AERIQ_INVITATION_HOURS')?:24)));
     $temporary=bin2hex(random_bytes(16));
-    aeriq_sql('UPDATE usuarios SET password_hash=?,activo=0,debe_cambiar_clave=1,invitacion_expira_en=DATE_ADD(UTC_TIMESTAMP(),INTERVAL ? HOUR) WHERE id=?',[password_hash($temporary,PASSWORD_DEFAULT),$hours,$id]);
+    AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_INVITE_1,[password_hash($temporary,PASSWORD_DEFAULT),$hours,$id]);
     // T32: el botón abre directamente la página de elegir contraseña con el correo y la clave temporal ya puestos.
     // Van tras «#»: el navegador no los envía al servidor ni aparecen en sus registros.
     $link=aeriq_public_url('cambiar-clave.html').'#'.http_build_query(['email'=>$email,'temporal'=>$temporary],'','&',PHP_QUERY_RFC3986);
@@ -148,8 +133,8 @@ function aeriq_invite(int $id,string $email): void {
 /** Cuenta que esta cuenta puede gestionar: el admin principal, los admins de campaña de su organización; el admin de campaña, los operadores de su campaña. */
 function aeriq_managed(array $a,int $id): array {
     $org=aeriq_org($a);
-    if (aeriq_can($a,'campanas.gestionar')) $u=aeriq_one("SELECT u.* FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.id=? AND u.organizacion_id=? AND r.codigo='admin_campana'",[$id,$org]);
-    elseif (aeriq_can($a,'equipo.gestionar') && aeriq_campaign($a)) $u=aeriq_one("SELECT u.* FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.id=? AND u.organizacion_id=? AND u.campana_id=? AND r.codigo='trabajador'",[$id,$org,aeriq_campaign($a)]);
+    if (aeriq_can($a,'campanas.gestionar')) $u=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_MANAGED_1,[$id,$org]);
+    elseif (aeriq_can($a,'equipo.gestionar') && aeriq_campaign($a)) $u=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_MANAGED_2,[$id,$org,aeriq_campaign($a)]);
     else throw new AeriqError('Tu función no permite gestionar cuentas.','forbidden');
     if (!$u) throw new AeriqError('Esa cuenta no está entre las que gestionas.','not_found');
     return $u;
@@ -158,7 +143,7 @@ function aeriq_managed(array $a,int $id): array {
 function aeriq_worker_edit(array $a,array $d): array {
     $u=aeriq_managed($a,aeriq_int($d['id']??null));
     $phone=trim(is_string($d['phone']??null)?$d['phone']:'');if (mb_strlen($phone)>40) throw new AeriqError('Teléfono demasiado largo.','invalid_input','phone');
-    aeriq_sql('UPDATE usuarios SET nombre=?,apellidos=?,telefono=? WHERE id=?',[auth_string($d['name']??'',90),auth_string($d['last']??'',120),$phone,(int)$u['id']]);
+    AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_EDIT_1,[auth_string($d['name']??'',90),auth_string($d['last']??'',120),$phone,(int)$u['id']]);
     return ['ok'=>true,'message'=>'Datos guardados.'];
 }
 /** Desactivar: no puede entrar ni enviar lecturas, se cierran sus sesiones y queda libre su AERIQ. Sus mediciones se conservan. */
@@ -168,23 +153,23 @@ function aeriq_worker_status(array $a,array $d): array {
         if (!$u['verificado_en']) throw new AeriqError('Esta cuenta aún no se ha activado: reenvía la invitación.','conflict');
         // Solo al reactivar a un admin de campaña (lo hace el admin principal): una campaña, un admin.
         if (aeriq_can($a,'campanas.gestionar') && $u['campana_id'] && ($who=aeriq_campaign_admin((int)$u['campana_id'],$id))) throw new AeriqError("Su campaña ya tiene otro admin: $who. Desactívalo antes.",'conflict');
-        aeriq_sql('UPDATE usuarios SET activo=1 WHERE id=?',[$id]);return ['ok'=>true,'message'=>'Cuenta reactivada.'];
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_STATUS_1,[$id]);return ['ok'=>true,'message'=>'Cuenta reactivada.'];
     }
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
-        aeriq_sql('UPDATE usuarios SET activo=0,debe_cambiar_clave=0,invitacion_expira_en=NULL WHERE id=?',[$id]);
-        aeriq_sql('DELETE FROM sesiones_moviles WHERE usuario_id=?',[$id]);
-        aeriq_sql('UPDATE asignaciones SET finalizada_en=UTC_TIMESTAMP(3) WHERE trabajador_id=? AND finalizada_en IS NULL',[$id]);
-        aeriq_transaction_commit();
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_STATUS_2,[$id]);
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_STATUS_3,[$id]);
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_STATUS_4,[$id]);
+        AeriqRepository::commit();
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return ['ok'=>true,'message'=>'Cuenta desactivada. Su AERIQ queda libre para asignarlo a otra persona.'];
 }
 /** Reenviar la invitación a una cuenta que todavía no se ha activado (por ejemplo, porque caducó). */
 function aeriq_worker_invite(array $a,array $d): array {
     $u=aeriq_managed($a,aeriq_int($d['id']??null));
     if ($u['verificado_en']) throw new AeriqError('Esta cuenta ya está activa: si olvidó la contraseña, puede recuperarla desde el inicio de sesión.','conflict');
-    aeriq_mailer_ready();aeriq_transaction_begin();
-    try {aeriq_invite((int)$u['id'],$u['email']);aeriq_transaction_commit();} catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+    aeriq_mailer_ready();AeriqRepository::begin();
+    try {aeriq_invite((int)$u['id'],$u['email']);AeriqRepository::commit();} catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return ['ok'=>true,'message'=>'Invitación reenviada a '.$u['email'].'.'];
 }
 /** Admin principal: nombre, zona y fechas; el estado (programada, activa, finalizada) sale de las fechas. Umbrales, distancia y publicación los ajusta el admin de la campaña (aeriq_campaign_settings). */
@@ -195,26 +180,21 @@ function aeriq_campaign_save(array $a,array $d): array {
     foreach ([$start,$end] as $date) { $v=DateTimeImmutable::createFromFormat('!Y-m-d',$date);if (!$v || $v->format('Y-m-d')!==$date) throw new AeriqError('Fecha no válida.'); }
     if ($end<$start) throw new AeriqError('La fecha final debe ser posterior al inicio.');
     $name=aeriq_text($d['name']??'',160);$zoneName=aeriq_text($d['zone']??'');
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
         $zone=aeriq_zone($org,$zoneName);
-        if ($id) aeriq_sql('UPDATE campanas SET nombre=?,zona_id=?,inicio=?,fin=?,activa=1 WHERE id=? AND organizacion_id=?',[$name,$zone,$start,$end,$id,$org]);
+        if ($id) AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_CAMPAIGN_SAVE_1,[$name,$zone,$start,$end,$id,$org]);
         // Nueva: privada, distancia por defecto y umbrales de referencia hasta que su admin los ajuste.
-        else { aeriq_sql('INSERT INTO campanas(nombre,zona_id,inicio,fin,activa,publicar,radio_m,organizacion_id) VALUES(?,?,?,?,1,0,30,?)',[$name,$zone,$start,$end,$org]);$new=(int)aeriq_last_insert_id(); }
-        aeriq_transaction_commit();
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        else { AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_CAMPAIGN_SAVE_2,[$name,$zone,$start,$end,$org]);$new=(int)AeriqRepository::lastInsertId(); }
+        AeriqRepository::commit();
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return $id?['ok'=>true,'id'=>$id,'message'=>'Cambios de la campaña guardados.']:['ok'=>true,'id'=>$new,'message'=>'Campaña creada. Ahora asígnale un admin en «Admins de campaña».'];
 }
 /** «Mi campaña» del operador: su campaña, su admin, su AERIQ y sus últimas lecturas. Solo lectura y sin descarga. */
 function aeriq_my_campaign(array $a): array {
     $org=aeriq_org($a);$id=aeriq_campaign($a);$uid=(int)$a['usuario_id'];
     if (!$id) throw new AeriqError('Todavía no perteneces a ninguna campaña: tu admin de campaña te añadirá.','not_found');
-    return [
-        'campaign'=>aeriq_one('SELECT c.id,c.nombre,z.nombre AS zona,c.inicio,c.fin,c.activa,c.publicar,c.radio_m,'.AERIQ_UMBRALES_O3.','.AERIQ_ESTADO_CAMPANA.' FROM campanas c JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE c.id=? AND c.organizacion_id=?',[$id,$org]),
-        'admins'=>aeriq_rows("SELECT u.nombre,u.apellidos,u.email FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.campana_id=? AND r.codigo='admin_campana' AND u.activo=1 ORDER BY u.nombre",[$id]),
-        'orb'=>aeriq_one('SELECT d.id,d.nombre,d.simulado,a.iniciada_en,'.AERIQ_BATERIA.' FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id WHERE a.trabajador_id=? AND a.finalizada_en IS NULL LIMIT 1',[$uid]),
-        'readings'=>aeriq_rows('SELECT m.capturada_en,t.nombre AS magnitud,m.valor,t.unidad FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN magnitudes t ON t.id=m.magnitud_id WHERE a.trabajador_id=? AND a.campana_id=? AND m.valida=1 ORDER BY m.capturada_en DESC LIMIT 20',[$uid,$id]),
-    ];
+    return AeriqRepository::myCampaign($id,$org,$uid);
 }
 /** El admin de campaña ajusta SU campaña: umbrales de ozono, distancia de interpolación y si sale en el mapa público. */
 function aeriq_campaign_settings(array $a,array $d): array {
@@ -222,54 +202,54 @@ function aeriq_campaign_settings(array $a,array $d): array {
     $mid=aeriq_number($d['medium']??null,0,65535);$high=aeriq_number($d['high']??null,0,65535);
     if ($high<=$mid) throw new AeriqError('El umbral alto debe superar al moderado.','invalid_input','high');
     $radius=aeriq_int($d['radius']??30,20,50);$public=aeriq_bool($d['public']??false);
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
-        aeriq_sql('UPDATE campanas SET publicar=?,radio_m=? WHERE id=? AND organizacion_id=?',[$public,$radius,$id,aeriq_org($a)]);
-        aeriq_sql('INSERT INTO campana_umbrales(campana_id,magnitud_id,umbral_medio,umbral_alto) VALUES(?,14,?,?) ON DUPLICATE KEY UPDATE umbral_medio=VALUES(umbral_medio),umbral_alto=VALUES(umbral_alto)',[$id,$mid,$high]);
-        aeriq_transaction_commit();
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_CAMPAIGN_SETTINGS_1,[$public,$radius,$id,aeriq_org($a)]);
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_CAMPAIGN_SETTINGS_2,[$id,$mid,$high]);
+        AeriqRepository::commit();
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return ['ok'=>true,'id'=>$id,'message'=>'Ajustes de la campaña guardados.'];
 }
 /** Devuelve la zona de la organización con ese nombre, creándola si aún no existe. */
 function aeriq_zone(int $org,string $name): int {
-    aeriq_sql('INSERT IGNORE INTO zonas(organizacion_id,nombre) VALUES(?,?)',[$org,$name]);
-    return (int)aeriq_one('SELECT id FROM zonas WHERE organizacion_id=? AND nombre=?',[$org,$name])['id'];
+    AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_ZONE_1,[$org,$name]);
+    return (int)AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_ZONE_2,[$org,$name])['id'];
 }
 function aeriq_device_save(array $a,array $d): array {
     $org=aeriq_org($a);$id=isset($d['id'])?aeriq_int($d['id']):null;$scope=aeriq_campaign($a);
     if (!$scope) throw new AeriqError('Solo el admin de una campaña registra AERIQ.','forbidden');
-    if ($id && !aeriq_one('SELECT d.id FROM dispositivos d WHERE d.id=? AND d.organizacion_id=? AND '.AERIQ_CAMPANA_ORB.'=?',[$id,$org,$scope])) throw new AeriqError('El AERIQ no pertenece a tu campaña.','not_found');
+    if ($id && !AeriqRepository::deviceBelongsToCampaign($id,$org,$scope)) throw new AeriqError('El AERIQ no pertenece a tu campaña.','not_found');
     $mac=strtoupper(aeriq_text($d['address']??'',17));if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/D',$mac)) throw new AeriqError('Dirección BLE no válida.');
     // La campaña es siempre la del admin; el AERIQ se asigna a un operador de esa campaña.
     if (empty($d['worker'])) throw new AeriqError('Asigna el AERIQ a un operador de tu campaña.','invalid_input','worker');
     $worker=aeriq_int($d['worker']);$campaign=$scope;
-    if (!aeriq_one('SELECT u.id FROM usuarios u WHERE u.id=? AND u.organizacion_id=? AND u.campana_id=? AND '.AERIQ_PUEDE_MEDIR.' AND (u.activo=1 OR u.debe_cambiar_clave=1)',[$worker,$org,$scope])) throw new AeriqError('Ese operador no es de tu campaña.','forbidden');
+    if (!AeriqRepository::workerEligibleForCampaign($worker,$org,$scope)) throw new AeriqError('Ese operador no es de tu campaña.','forbidden');
     $active=aeriq_bool($d['active']??true);
     if (!$id && !$active) throw new AeriqError('Un AERIQ nuevo se registra activo.');$simulated=aeriq_bool($d['simulated']??false);$name=aeriq_text($d['name']??'',160);
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
         if ($id) {
-            $previous=aeriq_one('SELECT id FROM dispositivos WHERE id=? AND organizacion_id=? FOR UPDATE',[$id,$org]);
+            $previous=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_5,[$id,$org]);
             if (!$previous) throw new AeriqError('Dispositivo no disponible en tu organización.','not_found');
-            aeriq_sql('UPDATE dispositivos SET nombre=?,direccion_ble=?,activo=?,simulado=? WHERE id=?',[$name,$mac,$active,$simulated,$id]);
-        } else {aeriq_sql('INSERT INTO dispositivos(organizacion_id,nombre,direccion_ble,activo,simulado) VALUES(?,?,?,?,?)',[$org,$name,$mac,$active,$simulated]);$id=(int)aeriq_last_insert_id();}
-        $old=aeriq_one('SELECT * FROM asignaciones WHERE dispositivo_id=? AND finalizada_en IS NULL FOR UPDATE',[$id]);
+            AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_6,[$name,$mac,$active,$simulated,$id]);
+        } else {AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_7,[$org,$name,$mac,$active,$simulated]);$id=(int)AeriqRepository::lastInsertId();}
+        $old=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_8,[$id]);
         $same=$old && $active && $worker && (int)$old['trabajador_id']===$worker && (int)$old['campana_id']===$campaign;
         if (!$same) {
-            aeriq_sql('UPDATE asignaciones SET finalizada_en=UTC_TIMESTAMP(3) WHERE dispositivo_id=? AND finalizada_en IS NULL',[$id]);
+            AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_9,[$id]);
             if ($active && $worker) {
                 // Un AERIQ por operador: si ya llevaba otro, ese queda libre.
-                aeriq_sql('UPDATE asignaciones SET finalizada_en=UTC_TIMESTAMP(3) WHERE trabajador_id=? AND finalizada_en IS NULL',[$worker]);
-                aeriq_sql('INSERT INTO asignaciones(organizacion_id,dispositivo_id,trabajador_id,campana_id) VALUES(?,?,?,?)',[$org,$id,$worker,$campaign]);
+                AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_10,[$worker]);
+                AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_11,[$org,$id,$worker,$campaign]);
             }
         }
-        aeriq_transaction_commit();return ['ok'=>true,'id'=>$id];
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::commit();return ['ok'=>true,'id'=>$id];
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
 }
 
 function aeriq_assignments(array $a): array {
     // Rangos de ozono y temperatura (HU35): la app los comprueba antes de enviar; el servidor vuelve a hacerlo.
-    return aeriq_rows('SELECT d.id,d.nombre,d.direccion_ble,a.id AS asignacion_id,a.campana_id,c.nombre AS campana,z.nombre AS zona,c.publicar,'.AERIQ_UMBRALES_O3.',mo.valor_minimo AS o3_minimo,mo.valor_maximo AS o3_maximo,(SELECT valor_minimo FROM magnitudes WHERE id=12) AS temperatura_minima,(SELECT valor_maximo FROM magnitudes WHERE id=12) AS temperatura_maxima,d.simulado,'.AERIQ_BATERIA.' FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 AND c.activa=1 AND UTC_DATE() BETWEEN c.inicio AND c.fin',[aeriq_org($a),(int)$a['usuario_id']]);
+    return AeriqRepository::assignments(aeriq_org($a),(int)$a['usuario_id']);
 }
 
 function aeriq_capture_time(mixed $v): string {
@@ -284,7 +264,7 @@ function aeriq_ingest(array $a,array $d): array {
     if (!preg_match('/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/Di',$event)) throw new AeriqError('Identificador de lectura no válido.');
     $type=aeriq_int($d['type']??null);
     // La magnitud debe existir y ser una de las que mide el modelo de ese AERIQ.
-    $magnitude=aeriq_one('SELECT t.* FROM magnitudes t JOIN modelo_magnitudes mm ON mm.magnitud_id=t.id JOIN dispositivos d ON d.modelo_id=mm.modelo_id WHERE t.id=? AND d.id=?',[$type,$device]);
+    $magnitude=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_INGEST_1,[$type,$device]);
     if (!$magnitude) throw new AeriqError('Magnitud no admitida.');
     if (isset($d['unit']) && $d['unit']!==$magnitude['unidad']) throw new AeriqError('La unidad no corresponde a esta magnitud.');
     // Solo se rechaza lo que no puede venir del anuncio BLE (uint16/int16). Fuera del rango de la magnitud
@@ -295,22 +275,22 @@ function aeriq_ingest(array $a,array $d): array {
     if (isset($d['latitude']) || isset($d['longitude']) || isset($d['accuracy'])) {
         $lat=aeriq_number($d['latitude']??null,-90,90);$lon=aeriq_number($d['longitude']??null,-180,180);$accuracy=aeriq_number($d['accuracy']??null,0,10000);
     }
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
-        $orb=aeriq_one('SELECT d.*,a.id AS asignacion_id,a.trabajador_id,a.campana_id,a.iniciada_en,c.inicio,c.fin,c.activa AS campana_activa FROM dispositivos d JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL JOIN campanas c ON c.id=a.campana_id WHERE d.id=? AND d.organizacion_id=? AND a.trabajador_id=? FOR UPDATE',[$device,aeriq_org($a),(int)$a['usuario_id']]);
+        $orb=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_INGEST_2,[$device,aeriq_org($a),(int)$a['usuario_id']]);
         if (!$orb || !(int)$orb['activo'] || !(int)$orb['campana_activa']) throw new AeriqError('AERIQ o campaña no asignados o inactivos.','forbidden');
         if ((int)$orb['campana_id']!==$campaign || (isset($d['assignmentId']) && (int)$d['assignmentId']!==(int)$orb['asignacion_id'])) throw new AeriqError('La asignación ha cambiado. Actualiza tus asignaciones.','conflict');
         if (strtoupper((string)($d['address']??''))!==$orb['direccion_ble']) throw new AeriqError('El anuncio no corresponde al AERIQ asignado.','forbidden');
         $date=substr($captured,0,10);if ($date<$orb['inicio'] || $date>$orb['fin'] || $captured<$orb['iniciada_en']) throw new AeriqError('Lectura fuera de las fechas de la asignación/campaña.');
-        $old=aeriq_one('SELECT m.*,a.trabajador_id,a.dispositivo_id,a.campana_id FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id WHERE m.evento=?',[$event]);
+        $old=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_INGEST_3,[$event]);
         if ($old) {
             if ((int)$old['dispositivo_id']!==$device || (int)$old['trabajador_id']!==(int)$a['usuario_id'] || (int)$old['campana_id']!==$campaign || (int)$old['magnitud_id']!==$type || (float)$old['valor']!==$value || $old['capturada_en']!==$captured || ($old['latitud']===null?null:(float)$old['latitud'])!==$lat || ($old['longitud']===null?null:(float)$old['longitud'])!==$lon || ($old['precision_m']===null?null:(float)$old['precision_m'])!==$accuracy || (int)$old['contador']!==$count || (int)$old['rssi']!==$rssi) throw new AeriqError('La clave de lectura ya identifica otros datos.','conflict');
-            aeriq_transaction_commit();return ['ok'=>true,'duplicate'=>true,'id'=>(int)$old['id'],'eventId'=>$event,'valid'=>(bool)(int)$old['valida'],'reason'=>$old['motivo_descarte']];
+            AeriqRepository::commit();return ['ok'=>true,'duplicate'=>true,'id'=>(int)$old['id'],'eventId'=>$event,'valid'=>(bool)(int)$old['valida'],'reason'=>$old['motivo_descarte']];
         }
         $reason=aeriq_discard_reason($magnitude,(int)$orb['asignacion_id'],$type,$value,$captured);
-        aeriq_sql('INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado,valida,motivo_descarte) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',[$event,(int)$orb['asignacion_id'],$type,$value,$captured,$lat,$lon,$accuracy,$count,$rssi,(int)$orb['simulado'],$reason===null?1:0,$reason]);
-        $id=(int)aeriq_last_insert_id();aeriq_transaction_commit();return ['ok'=>true,'duplicate'=>false,'id'=>$id,'eventId'=>$event,'valid'=>$reason===null,'reason'=>$reason];
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_INGEST_4,[$event,(int)$orb['asignacion_id'],$type,$value,$captured,$lat,$lon,$accuracy,$count,$rssi,(int)$orb['simulado'],$reason===null?1:0,$reason]);
+        $id=(int)AeriqRepository::lastInsertId();AeriqRepository::commit();return ['ok'=>true,'duplicate'=>false,'id'=>$id,'eventId'=>$event,'valid'=>$reason===null,'reason'=>$reason];
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
 }
 
 /**
@@ -325,7 +305,7 @@ function aeriq_discard_reason(array $magnitude,int $assignment,int $type,float $
     if ($value<(float)$magnitude['valor_minimo'] || $value>(float)$magnitude['valor_maximo']) return 'fuera_de_rango';
     if ($magnitude['salto_maximo']===null) return null;
     $since=(new DateTimeImmutable($captured,new DateTimeZone('UTC')))->modify('-10 minutes')->format('Y-m-d H:i:s.v');
-    $previous=aeriq_rows("SELECT valor FROM mediciones WHERE asignacion_id=? AND magnitud_id=? AND capturada_en<? AND capturada_en>=? AND (motivo_descarte IS NULL OR motivo_descarte<>'fuera_de_rango') ORDER BY capturada_en DESC,id DESC LIMIT 5",[$assignment,$type,$captured,$since]);
+    $previous=AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_DISCARD_REASON_1,[$assignment,$type,$captured,$since]);
     if (count($previous)<3) return null;
     $mean=array_sum(array_map(fn($r)=>(float)$r['valor'],$previous))/count($previous);
     return abs($value-$mean)>(float)$magnitude['salto_maximo']?'anomala':null;
@@ -339,35 +319,25 @@ function aeriq_discard_reason(array $magnitude,int $assignment,int $type,float $
 function aeriq_battery(array $a,array $d): array {
     $device=aeriq_int($d['deviceId']??null);$percent=aeriq_int($d['percent']??null,0,100);
     $captured=aeriq_capture_time($d['capturedAt']??'');
-    $orb=aeriq_one('SELECT d.id,d.direccion_ble,d.activo,d.simulado FROM dispositivos d JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL WHERE d.id=? AND d.organizacion_id=? AND a.trabajador_id=?',[$device,aeriq_org($a),(int)$a['usuario_id']]);
+    $orb=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_BATTERY_1,[$device,aeriq_org($a),(int)$a['usuario_id']]);
     if (!$orb || !(int)$orb['activo']) throw new AeriqError('AERIQ no asignado o inactivo.','forbidden');
     if ((int)$orb['simulado']) throw new AeriqError('Un AERIQ simulado no tiene batería que registrar.');
     if (strtoupper((string)($d['address']??''))!==$orb['direccion_ble']) throw new AeriqError('El anuncio no corresponde al AERIQ asignado.','forbidden');
-    $last=aeriq_one('SELECT porcentaje,capturada_en FROM lecturas_bateria WHERE dispositivo_id=? ORDER BY capturada_en DESC,id DESC LIMIT 1',[$device]);
+    $last=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_BATTERY_2,[$device]);
     if ($last && (int)$last['porcentaje']===$percent && strtotime($captured.' UTC')-strtotime($last['capturada_en'].' UTC')<600) {
         return ['ok'=>true,'stored'=>false,'percent'=>$percent];
     }
-    aeriq_sql('INSERT INTO lecturas_bateria(dispositivo_id,porcentaje,capturada_en,usuario_id) VALUES(?,?,?,?)',[$device,$percent,$captured,(int)$a['usuario_id']]);
+    AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_BATTERY_3,[$device,$percent,$captured,(int)$a['usuario_id']]);
     return ['ok'=>true,'stored'=>true,'percent'=>$percent];
 }
 
 function aeriq_worker_history(array $a): array {
-    return aeriq_rows('SELECT m.id,a.dispositivo_id,a.campana_id,m.valor,t.unidad,m.magnitud_id AS tipo,m.capturada_en,m.latitud,m.longitud,m.simulado,d.nombre AS dispositivo,c.nombre AS campana,z.nombre AS zona,'.AERIQ_UMBRALES_LECTURA.' FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN magnitudes t ON t.id=m.magnitud_id LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=m.magnitud_id WHERE a.organizacion_id=? AND a.trabajador_id=? AND m.valida=1 ORDER BY m.capturada_en DESC,m.id DESC LIMIT 1000',[aeriq_org($a),(int)$a['usuario_id']]);
+    return AeriqRepository::workerHistory(aeriq_org($a),(int)$a['usuario_id']);
 }
 
 function aeriq_dashboard(array $a): array {
     $org=aeriq_org($a);$scope=aeriq_campaign($a);
-    // Admin de campaña: solo su campaña. Admin principal ($scope null): toda la organización.
-    $only=fn(string $col)=>$scope?" AND $col=".$scope:'';
-    $ref=aeriq_one('SELECT umbral_medio_defecto AS umbral_medio,umbral_alto_defecto AS umbral_alto FROM magnitudes WHERE id=14');
-    return [
-        'workers'=>aeriq_rows('SELECT u.id,u.nombre,u.apellidos,u.email,u.telefono,u.campana_id,(SELECT nombre FROM campanas WHERE id=u.campana_id) AS campana,(u.verificado_en IS NOT NULL) AS verificado,(SELECT d.nombre FROM asignaciones x JOIN dispositivos d ON d.id=x.dispositivo_id WHERE x.trabajador_id=u.id AND x.finalizada_en IS NULL LIMIT 1) AS orb,r.codigo AS rol,r.nombre AS rol_nombre,'.AERIQ_PUEDE_MEDIR.' AS puede_medir,u.activo,u.debe_cambiar_clave AS cambiar_clave,u.invitacion_expira_en FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE u.organizacion_id=?'.$only('u.campana_id').' ORDER BY u.nombre',[$org]),
-        'campaigns'=>aeriq_rows('SELECT c.*,z.nombre AS zona,'.AERIQ_UMBRALES_O3.','.AERIQ_CAMPANA_RESUMEN.','.AERIQ_ESTADO_CAMPANA.' FROM campanas c JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE c.organizacion_id=?'.$only('c.id').' ORDER BY c.inicio DESC',[$org]),
-        'zones'=>aeriq_rows('SELECT id,nombre FROM zonas WHERE organizacion_id=?'.($scope?' AND id=(SELECT zona_id FROM campanas WHERE id='.$scope.')':'').' ORDER BY nombre',[$org]),
-        'roles'=>aeriq_rows('SELECT codigo,nombre,descripcion FROM roles WHERE codigo=?',[$scope?'trabajador':'admin_campana']),
-        'thresholds'=>['umbral_medio'=>(float)$ref['umbral_medio'],'umbral_alto'=>(float)$ref['umbral_alto']],
-        'devices'=>aeriq_rows('SELECT d.*,md.nombre AS modelo,'.AERIQ_BATERIA.',a.trabajador_id,a.campana_id,TRIM(CONCAT(u.nombre,\' \',u.apellidos)) AS trabajador,c.nombre AS campana,(SELECT MAX(m.capturada_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_medicion,(SELECT MAX(m.recibida_en) FROM mediciones m JOIN asignaciones h ON h.id=m.asignacion_id WHERE h.dispositivo_id=d.id) AS ultima_recepcion FROM dispositivos d JOIN modelos_dispositivo md ON md.id=d.modelo_id LEFT JOIN asignaciones a ON a.dispositivo_id=d.id AND a.finalizada_en IS NULL LEFT JOIN usuarios u ON u.id=a.trabajador_id LEFT JOIN campanas c ON c.id=a.campana_id WHERE d.organizacion_id=?'.$only(AERIQ_CAMPANA_ORB).' ORDER BY d.nombre',[$org])
-    ];
+    return AeriqRepository::dashboard($org,$scope);
 }
 /*
  * --------------------
@@ -388,16 +358,14 @@ function aeriq_consultar_panel(array $access,string $action,array $filters=[]): 
 
 function aeriq_readings(array $a,array $filters): array {
     [$where,$params]=aeriq_readings_filter($a,$filters);
-    $where[]='l.valida=1';
-    $rows=aeriq_rows('SELECT l.id,l.evento,a.dispositivo_id,a.campana_id,l.magnitud_id AS tipo,l.valor,t.unidad,l.capturada_en,l.latitud,l.longitud,l.simulado,d.nombre AS dispositivo,c.nombre AS campana,z.nombre AS zona,'.AERIQ_UMBRALES_LECTURA.' FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN dispositivos d ON d.id=a.dispositivo_id LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=l.magnitud_id WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en,l.id LIMIT 10001',$params);
+    $rows=AeriqRepository::reportRows($where,$params);
     if (count($rows)>10000) throw new AeriqError('Demasiados registros. Reduce el intervalo o selecciona campaña/dispositivo; no se exportarán datos incompletos.','too_large');
     return $rows;
 }
 /** HU35: lecturas descartadas (no válidas) con los mismos filtros del informe, para enseñarlas aparte. Máximo 500. */
 function aeriq_discarded(array $a,array $filters): array {
     [$where,$params]=aeriq_readings_filter($a,$filters);
-    $where[]='l.valida=0';
-    return aeriq_rows('SELECT l.id,l.magnitud_id AS tipo,l.valor,t.unidad,t.valor_minimo,t.valor_maximo,t.salto_maximo,l.capturada_en,l.simulado,l.motivo_descarte,d.nombre AS dispositivo,c.nombre AS campana FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN dispositivos d ON d.id=a.dispositivo_id WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en DESC,l.id DESC LIMIT 500',$params);
+    return AeriqRepository::reportRows($where,$params,true);
 }
 /*
  * --------------------
@@ -406,7 +374,7 @@ function aeriq_discarded(array $a,array $filters): array {
  * --------------------
  */
 function aeriq_health(): bool {
-    aeriq_sql('SELECT id FROM organizaciones LIMIT 1');
+    AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_HEALTH_1);
     return true;
 }
 /*
@@ -416,7 +384,7 @@ function aeriq_health(): bool {
  * --------------------
  */
 function aeriq_magnitudes(): array {
-    return aeriq_rows('SELECT id AS tipoMedidaId,nombre,unidad FROM magnitudes ORDER BY id');
+    return AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_MAGNITUDES_1);
 }
 /*
  * --------------------
@@ -425,36 +393,32 @@ function aeriq_magnitudes(): array {
  * --------------------
  */
 function aeriq_devices(array $access): array {
-    return aeriq_rows('SELECT id AS dispositivoId,nombre FROM dispositivos WHERE organizacion_id=?',[aeriq_org($access)]);
+    return AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_DEVICES_1,[aeriq_org($access)]);
 }
 /** Condiciones comunes del informe: organización, campaña del admin, magnitud, campaña, AERIQ, zona y fechas. */
 function aeriq_readings_filter(array $a,array $filters): array {
-    $where=['c.organizacion_id=?','l.magnitud_id IN (12,14)'];$params=[aeriq_org($a)];
-    if ($scope=aeriq_campaign($a)) { $where[]='a.campana_id=?';$params[]=$scope; }
     $type=$filters['type']??14;
     if ($type!=='all') {
         $type=aeriq_int($type);
         if (!in_array($type,[12,14],true)) throw new AeriqError('Magnitud no admitida.');
-        $where[]='l.magnitud_id=?';$params[]=$type;
-    }
-    foreach (['campaign'=>'a.campana_id','device'=>'a.dispositivo_id'] as $key=>$col) {
-        if (!empty($filters[$key])) { $where[]="$col=?";$params[]=aeriq_int($filters[$key]); }
-    }
-    if (!empty($filters['devices'])) {
-        $ids=array_values(array_unique(array_map(fn($v)=>aeriq_int($v),explode(',',(string)$filters['devices']))));
-        if (count($ids)>100) throw new AeriqError('Selecciona como máximo 100 dispositivos.');
-        $where[]='a.dispositivo_id IN ('.implode(',',array_fill(0,count($ids),'?')).')';array_push($params,...$ids);
     }
     if (!empty($filters['from']) && !empty($filters['to']) && $filters['from']>$filters['to']) throw new AeriqError('El intervalo de fechas está invertido.');
-    if (!empty($filters['zone'])) { $where[]='z.nombre=?';$params[]=aeriq_text($filters['zone']); }
-    foreach (['from'=>'>=','to'=>'<='] as $key=>$op) {
+    $criteria=['organizationId'=>aeriq_org($a),'campaignScope'=>aeriq_campaign($a),'type'=>$type,
+        'campaign'=>!empty($filters['campaign'])?aeriq_int($filters['campaign']):null,
+        'device'=>!empty($filters['device'])?aeriq_int($filters['device']):null,
+        'devices'=>[],'zone'=>!empty($filters['zone'])?aeriq_text($filters['zone']):null,'from'=>null,'to'=>null];
+    if (!empty($filters['devices'])) {
+        $criteria['devices']=array_values(array_unique(array_map(fn($v)=>aeriq_int($v),explode(',',(string)$filters['devices']))));
+        if (count($criteria['devices'])>100) throw new AeriqError('Selecciona como máximo 100 dispositivos.');
+    }
+    foreach (['from','to'] as $key) {
         if (!empty($filters[$key])) {
             $date=aeriq_text($filters[$key],10);$v=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
             if (!$v || $v->format('Y-m-d')!==$date) throw new AeriqError('Filtro de fecha no válido.');
-            $where[]="l.capturada_en $op ?";$params[]=$date.($key==='from'?' 00:00:00.000':' 23:59:59.999');
+            $criteria[$key]=$date;
         }
     }
-    return [$where,$params];
+    return AeriqRepository::readingFilters($criteria);
 }
 /*
  * --------------------
@@ -488,13 +452,13 @@ function aeriq_public_map(array $query): array {
 function aeriq_map_data(?array $access,array $query): array {
     $mode=$query['mode']??'real';if (!in_array($mode,['real','simulated'],true)) throw new AeriqError('Selecciona datos reales o simulados.');
     $hours=aeriq_int($query['hours']??24,0,168);if(!in_array($hours,[0,24,168],true))throw new AeriqError('Periodo no válido.');
-    $where=['l.valida=1','l.magnitud_id=14','l.latitud IS NOT NULL','l.longitud IS NOT NULL','l.simulado=?'];$params=[$mode==='simulated'?1:0];
-    if ($access) {$where[]='a.organizacion_id=?';$params[]=aeriq_org($access);if($scope=aeriq_campaign($access)){$where[]='a.campana_id=?';$params[]=$scope;}if(!aeriq_can($access,'informes.ver')){$where[]='a.trabajador_id=?';$params[]=(int)$access['usuario_id'];}}
-    else $where[]='c.publicar=1';
-    if($hours)$where[]='l.capturada_en>=DATE_SUB(UTC_TIMESTAMP(),INTERVAL '.$hours.' HOUR)';
+    $authorization=[];
+    if ($access) {
+        $authorization=['organizationId'=>aeriq_org($access),'campaignId'=>aeriq_campaign($access)];
+        if (!aeriq_can($access,'informes.ver')) $authorization['workerId']=(int)$access['usuario_id'];
+    }
     // Solo el mapa de la organización identifica el AERIQ (para dibujar su ruta); el público no lo expone.
-    $orb=$access?',a.dispositivo_id,d.nombre AS dispositivo':'';$orbJoin=$access?' JOIN dispositivos d ON d.id=a.dispositivo_id':'';
-    $rows=aeriq_rows('SELECT l.id,l.valor,t.unidad,l.capturada_en,l.latitud,l.longitud,l.simulado,z.nombre AS zona,c.id AS campaignId,c.radio_m,'.AERIQ_UMBRALES_O3.$orb.' FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.$orbJoin.' WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en DESC,l.id DESC LIMIT '.(AERIQ_MAPA_MAX+1),$params);
+    $rows=AeriqRepository::mapMeasurements($mode,$hours,$authorization,(bool)$access,AERIQ_MAPA_MAX+1);
     $truncated=count($rows)>AERIQ_MAPA_MAX;$rows=array_slice($rows,0,AERIQ_MAPA_MAX);
     foreach ($rows as &$r) {foreach (['valor','latitud','longitud','umbral_medio','umbral_alto'] as $k)$r[$k]=(float)$r[$k];$r['simulado']=(bool)$r['simulado'];$r['radio_m']=(int)$r['radio_m'];if($access)$r['dispositivo_id']=(int)$r['dispositivo_id'];}
     unset($r);return ['measurements'=>$rows,'truncated'=>$truncated,'mode'=>$mode,'hours'=>$hours];
@@ -520,9 +484,9 @@ function aeriq_field_text(array $d,string $key,int $max,string $message,bool $op
 function aeriq_request(array $d): array {
     // Campo trampa: una persona no lo ve; si llega relleno es un bot. Se responde igual para no darle pistas.
     if (is_string($d['website']??null) && trim($d['website'])!=='') return ['ok'=>true,'id'=>0,'message'=>'Solicitud registrada.'];
-    $service=aeriq_one('SELECT id,codigo,nombre,mide_superficie FROM servicios WHERE codigo=? AND activo=1',[is_string($d['interest']??null)?$d['interest']:'']);
+    $service=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_1,[is_string($d['interest']??null)?$d['interest']:'']);
     if (!$service) throw new AeriqError('Elige qué te interesa.','invalid_input','interest');
-    $org=aeriq_one('SELECT id,nombre FROM tipos_organizacion WHERE codigo=? AND activo=1',[is_string($d['orgType']??null)?$d['orgType']:'']);
+    $org=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_2,[is_string($d['orgType']??null)?$d['orgType']:'']);
     if (!$org) throw new AeriqError('Elige el tipo de organización.','invalid_input','orgType');
     $entity=aeriq_field_text($d,'entity',180,'Escribe el nombre de la organización.');
     $contact=aeriq_field_text($d,'contact',160,'Escribe el nombre de la persona de contacto.');
@@ -537,7 +501,7 @@ function aeriq_request(array $d): array {
     $codes=$d['objectives']??null;
     if (!is_array($codes) || count($codes)>20) throw new AeriqError('Marca al menos un objetivo de la medición.','invalid_input','objectives');
     $codes=array_values(array_unique(array_filter($codes,'is_string')));
-    $objectives=$codes?aeriq_rows('SELECT id,nombre FROM objetivos_medicion WHERE activo=1 AND codigo IN ('.implode(',',array_fill(0,count($codes),'?')).')',$codes):[];
+    $objectives=AeriqRepository::objectivesByCode($codes);
     if (!$codes || count($objectives)!==count($codes)) throw new AeriqError('Marca al menos un objetivo de la medición.','invalid_input','objectives');
     $needs=aeriq_field_text($d,'needs',6000,'Cuéntanos qué necesitas (máximo 6000 caracteres).');
     if (($d['consent']??false)!==true) throw new AeriqError('Debes autorizar el tratamiento de los datos para gestionar la solicitud.','invalid_input','consent');
@@ -558,14 +522,14 @@ function aeriq_request(array $d): array {
             $start=$m->format('Y-m-d');
         }
     }
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
         // Toda solicitud nace en el primer estado del catálogo y queda registrada en el historial.
-        aeriq_sql('INSERT INTO solicitudes(servicio_id,tipo_organizacion_id,estado_id,entidad,contacto,email,telefono,municipio,provincia,zona,superficie,duracion,inicio_deseado,necesidades) VALUES(?,?,(SELECT id FROM estados_solicitud ORDER BY orden LIMIT 1),?,?,?,?,?,?,?,?,?,?,?)',[(int)$service['id'],(int)$org['id'],$entity,$contact,$email,$phone,$municipality,$province,$zone,$surface,$duration,$start,$needs]);$id=(int)aeriq_last_insert_id();
-        foreach ($objectives as $o) aeriq_sql('INSERT INTO solicitud_objetivos(solicitud_id,objetivo_id) VALUES(?,?)',[$id,(int)$o['id']]);
-        aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) SELECT id,estado_id,NULL FROM solicitudes WHERE id=?',[$id]);
-        aeriq_transaction_commit();
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_7,[(int)$service['id'],(int)$org['id'],$entity,$contact,$email,$phone,$municipality,$province,$zone,$surface,$duration,$start,$needs]);$id=(int)AeriqRepository::lastInsertId();
+        foreach ($objectives as $o) AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_8,[$id,(int)$o['id']]);
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_9,[$id]);
+        AeriqRepository::commit();
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     $service=$service['nombre'];
     // El registro es la fuente de verdad: un fallo del aviso no invalida la solicitud.
     // AERIQ_COMMERCIAL_EMAIL (variable de entorno) sustituye al buzón por defecto de Código Norte.
@@ -612,12 +576,12 @@ function aeriq_enviar_solicitud(array $data): array { return aeriq_request($data
 
 /** Catálogos del formulario público: servicios, tipos de organización, objetivos, provincias y duraciones. */
 function aeriq_request_catalogs(): array {
-    $services=aeriq_rows('SELECT codigo,nombre,descripcion,mide_superficie FROM servicios WHERE activo=1 ORDER BY orden,id');
+    $services=AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUEST_CATALOGS_1);
     foreach ($services as &$r) $r['mide_superficie']=(bool)(int)$r['mide_superficie'];
     unset($r);
     return ['services'=>$services,
-        'orgTypes'=>aeriq_rows('SELECT codigo,nombre FROM tipos_organizacion WHERE activo=1 ORDER BY orden,id'),
-        'objectives'=>aeriq_rows('SELECT codigo,nombre FROM objetivos_medicion WHERE activo=1 ORDER BY orden,id'),
+        'orgTypes'=>AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUEST_CATALOGS_2),
+        'objectives'=>AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUEST_CATALOGS_3),
         'provinces'=>AERIQ_PROVINCIAS,'durations'=>AERIQ_DURACIONES];
 }
 /*
@@ -635,25 +599,23 @@ function aeriq_request_catalogs(): array {
 function aeriq_consultar_servicios(): array { return aeriq_request_catalogs(); }
 /** Panel comercial: solicitudes con nombres legibles, su historial y los estados posibles. */
 function aeriq_requests(): array {
-    $rows=aeriq_rows('SELECT s.*,sv.codigo AS servicio,sv.nombre AS servicio_nombre,t.codigo AS tipo_organizacion,t.nombre AS tipo_organizacion_nombre,e.codigo AS estado,e.nombre AS estado_nombre FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id LEFT JOIN tipos_organizacion t ON t.id=s.tipo_organizacion_id JOIN estados_solicitud e ON e.id=s.estado_id ORDER BY s.recibida_en DESC,s.id DESC LIMIT 1000');
+    $rows=AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUESTS_1);
     $history=[];$objectives=[];
     if ($rows) {
         $ids=array_map(fn($r)=>(int)$r['id'],$rows);
-        $sql='SELECT h.solicitud_id,e.codigo AS estado,e.nombre AS estado_nombre,e.final,h.cambiado_en,CONCAT(u.nombre,\' \',u.apellidos) AS usuario FROM solicitudes_historial h JOIN estados_solicitud e ON e.id=h.estado_id LEFT JOIN usuarios u ON u.id=h.usuario_id WHERE h.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY h.cambiado_en,h.id';
         $wasFinal=[];
-        foreach (aeriq_rows($sql,$ids) as $h) {
+        foreach (AeriqRepository::requestHistory($ids) as $h) {
             $sid=(int)$h['solicitud_id'];
             // Una entrada que sale de un estado final es una reapertura (T38): se marca para enseñarla así.
             $history[$sid][]=['estado'=>$h['estado'],'estado_nombre'=>$h['estado_nombre'],'cambiado_en'=>$h['cambiado_en'],'usuario'=>$h['usuario'],
                 'reapertura'=>!empty($wasFinal[$sid]) && !(int)$h['final']];
             $wasFinal[$sid]=(bool)(int)$h['final'];
         }
-        $sql='SELECT so.solicitud_id,o.nombre FROM solicitud_objetivos so JOIN objetivos_medicion o ON o.id=so.objetivo_id WHERE so.solicitud_id IN ('.implode(',',array_fill(0,count($ids),'?')).') ORDER BY o.orden,o.id';
-        foreach (aeriq_rows($sql,$ids) as $o) $objectives[(int)$o['solicitud_id']][]=$o['nombre'];
+        foreach (AeriqRepository::requestObjectives($ids) as $o) $objectives[(int)$o['solicitud_id']][]=$o['nombre'];
     }
     foreach ($rows as &$r) { unset($r['servicio_id'],$r['tipo_organizacion_id'],$r['estado_id']); $r['objetivos']=$objectives[(int)$r['id']]??[]; $r['historial']=$history[(int)$r['id']]??[]; }
     unset($r);
-    return ['requests'=>$rows,'states'=>aeriq_rows('SELECT codigo,nombre,final FROM estados_solicitud ORDER BY orden')];
+    return ['requests'=>$rows,'states'=>AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUESTS_2)];
 }
 /**
  * Cambia el estado de una solicitud (T38): solo hacia delante en el orden del catálogo. Volver atrás no se
@@ -661,42 +623,42 @@ function aeriq_requests(): array {
  * quién y cuándo, y se avisa por correo al solicitante (T37). Un fallo del correo no deshace el cambio.
  */
 function aeriq_request_status(array $a,array $d): array {
-    $state=aeriq_one('SELECT id,codigo,nombre,orden,final FROM estados_solicitud WHERE codigo=?',[is_string($d['status']??null)?$d['status']:'']);
+    $state=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_STATUS_1,[is_string($d['status']??null)?$d['status']:'']);
     if (!$state) throw new AeriqError('Estado no válido.');
     $id=aeriq_int($d['id']??null);
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
-        $current=aeriq_one('SELECT s.estado_id,e.orden,e.final,e.nombre FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=? FOR UPDATE',[$id]);
+        $current=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_STATUS_2,[$id]);
         if (!$current) throw new AeriqError('Solicitud no encontrada.','not_found');
-        if ((int)$current['estado_id']===(int)$state['id']) {aeriq_transaction_commit();return ['ok'=>true,'changed'=>false,'message'=>'La solicitud ya estaba en «'.$state['nombre'].'».'];}
+        if ((int)$current['estado_id']===(int)$state['id']) {AeriqRepository::commit();return ['ok'=>true,'changed'=>false,'message'=>'La solicitud ya estaba en «'.$state['nombre'].'».'];}
         if ((int)$current['final']) throw new AeriqError('La solicitud está cerrada. Usa «Reabrir» para volver a trabajar en ella.','conflict');
         if ((int)$state['orden']<(int)$current['orden']) throw new AeriqError('Una solicitud solo puede avanzar de estado: no puede volver de «'.$current['nombre'].'» a «'.$state['nombre'].'».','conflict');
-        aeriq_sql('UPDATE solicitudes SET estado_id=? WHERE id=?',[(int)$state['id'],$id]);
-        aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) VALUES(?,?,?)',[$id,(int)$state['id'],(int)$a['usuario_id']]);
-        aeriq_transaction_commit();
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_STATUS_3,[(int)$state['id'],$id]);
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_STATUS_4,[$id,(int)$state['id'],(int)$a['usuario_id']]);
+        AeriqRepository::commit();
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return aeriq_request_notify($id,(int)$state['final']?'cerrada':'avance');
 }
 /** Reabre una solicitud cerrada (T38): vuelve a «En revisión» y queda en el historial como reapertura. */
 function aeriq_request_reopen(array $a,array $d): array {
     $id=aeriq_int($d['id']??null);
-    $target=aeriq_one("SELECT id FROM estados_solicitud WHERE codigo='en_revision'")
-        ?:aeriq_one('SELECT id FROM estados_solicitud WHERE final=0 ORDER BY orden DESC LIMIT 1');
+    $target=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_REOPEN_1)
+        ?:AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_REOPEN_2);
     if (!$target) throw new AeriqError('No hay un estado al que reabrir.','internal');
-    aeriq_transaction_begin();
+    AeriqRepository::begin();
     try {
-        $current=aeriq_one('SELECT e.final FROM solicitudes s JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=? FOR UPDATE',[$id]);
+        $current=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_REOPEN_3,[$id]);
         if (!$current) throw new AeriqError('Solicitud no encontrada.','not_found');
         if (!(int)$current['final']) throw new AeriqError('Solo se puede reabrir una solicitud cerrada.','conflict');
-        aeriq_sql('UPDATE solicitudes SET estado_id=? WHERE id=?',[(int)$target['id'],$id]);
-        aeriq_sql('INSERT INTO solicitudes_historial(solicitud_id,estado_id,usuario_id) VALUES(?,?,?)',[$id,(int)$target['id'],(int)$a['usuario_id']]);
-        aeriq_transaction_commit();
-    } catch (Throwable $e) {aeriq_transaction_rollback();throw $e;}
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_REOPEN_4,[(int)$target['id'],$id]);
+        AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_REQUEST_REOPEN_5,[$id,(int)$target['id'],(int)$a['usuario_id']]);
+        AeriqRepository::commit();
+    } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return aeriq_request_notify($id,'reabierta');
 }
 /** Correo al solicitante tras un cambio de estado (T37): avance, cierre o reapertura. */
 function aeriq_request_notify(int $id,string $kind): array {
-    $r=aeriq_one('SELECT s.id,s.email,s.contacto,s.entidad,sv.nombre AS servicio,e.codigo,e.nombre AS estado FROM solicitudes s JOIN servicios sv ON sv.id=s.servicio_id JOIN estados_solicitud e ON e.id=s.estado_id WHERE s.id=?',[$id]);
+    $r=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_NOTIFY_1,[$id]);
     $explain=['pendiente'=>'Tu solicitud está registrada y pendiente de revisión.',
         'en_revision'=>'Estamos estudiando tu solicitud: qué solución encaja, cuántos AERIQ hacen falta y la disponibilidad.',
         'respondida'=>'Te hemos enviado nuestra propuesta. Si tienes dudas, responde a este correo y te ayudamos.'];

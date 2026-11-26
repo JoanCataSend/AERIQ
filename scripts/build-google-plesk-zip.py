@@ -28,6 +28,8 @@ FILES = [
     "communication/MailTransport.php",
     "database/SqlGateway.php",
     "database/AuthRepository.php",
+    "database/AeriqQueryCatalog.php",
+    "database/AeriqRepository.php",
     "server/.htaccess",
 ]
 
