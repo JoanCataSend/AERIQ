@@ -41,14 +41,14 @@ function aeriq_notice_contacts(array $a,?int $only=null): array {
 /** Aviso del que la cuenta es una de las dos partes, con bloqueo opcional; si no, 404. */
 function aeriq_notice_own(array $a,int $id,bool $lock=false): array {
     $n=aeriq_one('SELECT * FROM avisos WHERE id=? AND organizacion_id=? AND (creado_por=? OR destinatario_id=?)'.($lock?' FOR UPDATE':''),[$id,aeriq_org($a),(int)$a['usuario_id'],(int)$a['usuario_id']]);
-    if (!$n) throw new AeriqError('Aviso no encontrado.',404);
+    if (!$n) throw new AeriqError('Aviso no encontrado.','not_found');
     return $n;
 }
 
 function aeriq_notice_text(array $d,string $key,int $max,string $message): string {
     $v=is_string($d[$key]??null)?trim($d[$key]):'';
     $length=function_exists('mb_strlen')?mb_strlen($v,'UTF-8'):strlen($v);
-    if ($v==='' || $length>$max) throw new AeriqError($message,422,$key);
+    if ($v==='' || $length>$max) throw new AeriqError($message,'invalid_input',$key);
     return $v;
 }
 
@@ -99,7 +99,7 @@ function aeriq_notice_create(array $a,array $d): array {
     $to=aeriq_int($d['to']??null);
     $subject=aeriq_notice_text($d,'subject',160,'Escribe el asunto (máximo 160 caracteres).');
     $text=aeriq_notice_text($d,'message',AERIQ_AVISO_MAX,'Escribe el mensaje (máximo '.AERIQ_AVISO_MAX.' caracteres).');
-    if (!aeriq_notice_contacts($a,$to)) throw new AeriqError('No puedes enviar avisos a esa persona.',403,'to');
+    if (!aeriq_notice_contacts($a,$to)) throw new AeriqError('No puedes enviar avisos a esa persona.','forbidden','to');
     $db=conexionBD();$db->begin_transaction();
     try {
         aeriq_sql("INSERT INTO avisos(organizacion_id,creado_por,destinatario_id,asunto,estado_id,creado_en,actualizado_en,visto_creador_en) VALUES(?,?,?,?,(SELECT id FROM estados_aviso WHERE codigo='abierto'),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))",[aeriq_org($a),(int)$a['usuario_id'],$to,$subject]);
@@ -133,12 +133,12 @@ function aeriq_notice_close(array $a,array $d): array {
 
 /** Rutas comunes de portal.php (sesión web) y mobile-avisos.php (token del móvil). */
 function aeriq_notice_route(array $a,string $method,string $action): array {
-    if (!aeriq_org($a)) throw new AeriqError('Los avisos son para cuentas de una organización.',403);
+    if (!aeriq_org($a)) throw new AeriqError('Los avisos son para cuentas de una organización.','forbidden');
     if ($method==='GET' && $action==='notices') return aeriq_notices($a);
     if ($method==='GET' && $action==='notice-unread') return ['unread'=>aeriq_notices_unread($a)];
     if ($method==='GET' && $action==='notice') return aeriq_notice($a,aeriq_int($_GET['id']??null));
     if ($method==='POST' && $action==='notice-create') return aeriq_notice_create($a,aeriq_json_body());
     if ($method==='POST' && $action==='notice-reply') return aeriq_notice_reply($a,aeriq_json_body());
     if ($method==='POST' && $action==='notice-close') return aeriq_notice_close($a,aeriq_json_body());
-    throw new AeriqError('Operación o método no disponible.',405);
+    throw new AeriqError('Operación o método no disponible.','method_not_allowed');
 }

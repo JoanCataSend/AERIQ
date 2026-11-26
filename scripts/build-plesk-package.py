@@ -30,6 +30,8 @@ def deploy_files():
         "SMTPConfig.example.php", "MailConfig.example.php", "FirebaseAuth.php", "FirebaseConfig.example.php", ".htaccess",
     ):
         yield WEB / "server" / name
+    for name in ("business_logic/DomainError.php", "communication/HttpErrorMapper.php", "communication/MailTransport.php", "database/SqlGateway.php", "database/AuthRepository.php"):
+        yield WEB / name
     # La configuración web de Firebase es pública (apiKey de navegador), no un secreto.
     # Se incluye si existe para que el paquete quede operativo; no se versiona en Git.
     firebase_config = WEB / "server" / "FirebaseConfig.php"

@@ -2,7 +2,7 @@
 
 | Carpeta | Contenido |
 | --- | --- |
-| [android](android/README.md) | App Kotlin/Compose, BLE, cuentas y pruebas |
+| [android](android/README.md) | App Java/Android Views, BLE, cuentas y pruebas |
 | [web](web/README.md) | Interfaces y API PHP desplegable |
 | [database](database/README.md) | Esquema único, datos demo y procedimientos |
 

@@ -15,6 +15,8 @@ session_start();
 $_SESSION['csrf'] ??= bin2hex(random_bytes(24));
 require_once __DIR__.'/server/AuthCore.php';
 require_once __DIR__.'/server/FirebaseAuth.php';
+require_once __DIR__.'/server/AeriqCore.php';
+require_once __DIR__.'/communication/HttpErrorMapper.php';
 try {
     $action=(string)($_GET['action']??'session');
     $method=$_SERVER['REQUEST_METHOD']??'GET';
@@ -73,7 +75,7 @@ try {
     }
     if ($action==='forgot') {
         $email=auth_email($d['email']??'');auth_rate('forgot',$email,4,3600);
-        auth_mail_config_ok();$u=auth_find($email);
+        aeriq_mailer_ready();$u=auth_find($email);
         if (!$u) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
         if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
         if (!$u['activo'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'Esta cuenta está desactivada. Contacta con tu organización.','field'=>'email']);
@@ -104,7 +106,7 @@ try {
     }
     auth_responder(404,['error'=>'Acción no disponible']);
 } catch (AeriqError $e) {
-    auth_responder($e->status,['error'=>$e->getMessage()]);
+    auth_responder(aeriq_http_status($e),['error'=>$e->getMessage()]+($e->field!==null?['field'=>$e->field]:[]));
 } catch (mysqli_sql_exception $e) {
     error_log('AERIQ base de datos: '.$e->getMessage());
     auth_responder($e->getCode()===1062?409:500,['error'=>$e->getCode()===1062?'La cuenta ya existe o hay un conflicto de datos':'Error de base de datos. Comprueba la migración y la configuración.']);

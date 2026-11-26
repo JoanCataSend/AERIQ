@@ -28,5 +28,5 @@ try {
         auth_responder(200,['campaign'=>$c?['id'=>(int)$c['id'],'nombre'=>$c['nombre']]:null,'operators'=>$operators,'devices'=>$devices]);
     }
     if ($method==='POST') auth_responder(200,aeriq_device_save($a,aeriq_json_body()));
-    throw new AeriqError('Método no permitido.',405);
+    throw new AeriqError('Método no permitido.','method_not_allowed');
 } catch (Throwable $e) { aeriq_failure($e); }

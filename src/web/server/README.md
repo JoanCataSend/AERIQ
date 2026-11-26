@@ -3,9 +3,14 @@
 | Archivo | Responsabilidad |
 | --- | --- |
 | `Logica.php` | Conexión privada MySQLi en UTF-8/UTC |
-| `AuthCore.php` | Contraseña, códigos de recuperación y correo reutilizados |
-| `AeriqCore.php` | Organizaciones, campañas, asignaciones, mediciones, informes y solicitudes |
-| `AeriqHttp.php` | Cookie/CSRF, token móvil y errores HTTP |
+| `AuthCore.php` | Reglas de autenticación y sesión; usa el repositorio de cuentas/códigos y el puerto de correo |
+| `AeriqCore.php` | Operaciones de aplicación, organizaciones, campañas, asignaciones, mediciones, informes y solicitudes; conserva consultas de casos de uso y coordina transacciones/correo |
+| `AeriqHttp.php` | Cookie/CSRF, token móvil y frontera HTTP; carga explícitamente autenticación, dominio y mapeo de errores |
+| `../business_logic/DomainError.php` | Errores semánticos del dominio sin estado HTTP |
+| `../communication/HttpErrorMapper.php` | Traducción de errores semánticos a estados HTTP |
+| `../communication/MailTransport.php` | Configuración y envío SMTP/PHPMailer/mail(); expone operaciones de envío y disponibilidad |
+| `../database/SqlGateway.php` | Conexión y ejecución SQL parametrizada común |
+| `../database/AuthRepository.php` | Consultas de cuentas, límites de acceso y códigos de correo |
 | `FirebaseAuth.php` | Verifica el ID token de Google y vincula la cuenta en `identidades_externas` sin crear cuentas |
 | `*.example.php` | Plantillas sin credenciales |
 

@@ -23,7 +23,7 @@ function options(id,rows,label){const select=document.getElementById(id),value=s
 function fill(form,data){for(const [key,value] of Object.entries(data)){const field=form.elements.namedItem(key);if(!field)continue;if(field.type==='checkbox')field.checked=Boolean(Number(value));else field.value=value??'';}form.scrollIntoView({behavior:'smooth',block:'center'});}
 function payload(form){const d=Object.fromEntries(new FormData(form));for(const f of form.querySelectorAll('[type="checkbox"]'))d[f.name]=f.checked;if(!d.id)delete d.id;return d;}
 async function refresh(){
-  dashboard=await Aeriq.portal('dashboard');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
+  dashboard=await Aeriq.consultar_panel('resumen');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
   renderWorkers();
   catalogs();
   options('report-campaign',dashboard.campaigns,c=>c.nombre);
@@ -384,7 +384,7 @@ function printReport(){
   ready.then(()=>{document.title=file;win.addEventListener('afterprint',()=>{document.title=old;cleanup();},{once:true});win.focus();win.print();setTimeout(()=>{document.title=old;},5000);});
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#print-report').disabled=true;document.querySelector('#report-results').replaceChildren();
-  try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;const result=await Aeriq.portal('readings',undefined,filters);currentRows=result.readings;renderReport(currentRows,group,reportInfo(f,filters,group),result.discarded||[]);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;document.querySelector('#print-report').disabled=!currentRows.length;}
+  try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;const result=await Aeriq.consultar_panel('lecturas',filters);currentRows=result.readings;renderReport(currentRows,group,reportInfo(f,filters,group),result.discarded||[]);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;document.querySelector('#print-report').disabled=!currentRows.length;}
   catch(error){aeriqStatus(document.querySelector('#report-summary'),error.message,'error');}finally{b.disabled=false;}
 };
 // Con un informe ya generado, cambiar el periodo o la agrupación lo vuelve a calcular (la gráfica se actualiza sola).
@@ -392,7 +392,7 @@ document.querySelector('#report-form').addEventListener('change',e=>{if(lastRepo
 // PDF sin librerías: printReport() maqueta el informe aparte y el navegador ofrece «Guardar como PDF».
 document.querySelector('#print-report').onclick=printReport;
 // El CSV se vuelve a pedir con export=1: el servidor comprueba el permiso datos.exportar.
-document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.portal('readings',undefined,{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
+document.querySelector('#export-report').onclick=async e=>{const b=e.currentTarget;b.disabled=true;let rows;try{rows=(await Aeriq.consultar_panel('lecturas',{...lastFilters,export:1})).readings;}catch(error){document.querySelector('#report-summary').textContent=error.message;return;}finally{b.disabled=false;}const url=URL.createObjectURL(new Blob([AeriqDomain.csv(rows)],{type:'text/csv;charset=utf-8'}));const a=el('a');a.href=url;a.download='AERIQ-mediciones.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
 // Solicitudes: bandeja. Lista a la izquierda (filtro por estado y buscador) y ficha completa a la derecha.
 const REQ_PILL={pendiente:'pill-soon',en_revision:'pill-info',respondida:'pill-on',cerrada:'pill-off'};
 const REQ_HELP={pendiente:'Ha llegado y nadie la ha mirado todavía.',en_revision:'La estáis estudiando (presupuesto, disponibilidad…).',respondida:'Ya habéis contestado y esperáis respuesta del cliente.',cerrada:'Terminada: aceptada y convertida en campaña, o descartada.'};
@@ -403,7 +403,7 @@ const when=(s,hour)=>AeriqDomain.when(s,{hour:Boolean(hour)});
 const link=(href,text)=>{const a=el('a',text);a.href=href;return a;};
 const reqPill=r=>{const p=el('span',r.estado_nombre);p.className='pill '+(REQ_PILL[r.estado]||'pill-off');return p;};
 async function commercial(){
-  const {requests,states=[]}=await Aeriq.portal('requests');req.list=requests;req.states=states;
+  const {requests,states=[]}=await Aeriq.consultar_panel('solicitudes');req.list=requests;req.states=states;
   renderRequests();
 }
 function reqMatches(r){

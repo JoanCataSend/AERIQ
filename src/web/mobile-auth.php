@@ -17,6 +17,8 @@ if (!$isHttps && !in_array($_SERVER['REMOTE_ADDR']??'', ['127.0.0.1','::1'], tru
 }
 require_once __DIR__.'/server/AuthCore.php';
 require_once __DIR__.'/server/FirebaseAuth.php';
+require_once __DIR__.'/server/AeriqCore.php';
+require_once __DIR__.'/communication/HttpErrorMapper.php';
 
 function mobile_token(): ?string {
     $raw=(string)($_SERVER['HTTP_X_AERIQ_TOKEN']??'');
@@ -99,7 +101,7 @@ try {
     }
     if ($action==='forgot') {
         $email=auth_email($d['email']??'');auth_rate('mobile-forgot',$email,4,3600);
-        auth_mail_config_ok();$u=auth_find($email);
+        aeriq_mailer_ready();$u=auth_find($email);
         if (!$u) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
         if (!$u['verificado_en'] && !$u['debe_cambiar_clave']) auth_responder(404,['error'=>'No hay ninguna cuenta de AERIQ con ese correo. Revísalo o pide el acceso a tu organización.','field'=>'email']);
         if (!$u['activo'] && !$u['debe_cambiar_clave']) auth_responder(403,['error'=>'Esta cuenta está desactivada. Contacta con tu organización.','field'=>'email']);
@@ -146,7 +148,7 @@ try {
     }
     auth_responder(404,['error'=>'Acción no disponible']);
 } catch (AeriqError $e) {
-    auth_responder($e->status,['error'=>$e->getMessage()]);
+    auth_responder(aeriq_http_status($e),['error'=>$e->getMessage()]+($e->field!==null?['field'=>$e->field]:[]));
 } catch (mysqli_sql_exception $e) {
     error_log('AERIQ móvil SQL: '.$e->getMessage());
     auth_responder(500,['error'=>'Error de base de datos: verifica la migración de sesiones móviles.']);

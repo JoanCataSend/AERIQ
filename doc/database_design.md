@@ -13,6 +13,7 @@ La definición ejecutable es [`src/database/1-instalar.sql`](../src/database/1-i
 | Campañas y flota | `zonas`, `campanas`, `campana_umbrales`, `dispositivos`, `asignaciones`, `lecturas_bateria` | Inventario, publicación, campañas y asignaciones históricas. |
 | Mediciones | `mediciones` | Eventos únicos vinculados a asignación y magnitud; GPS opcional y procedencia. |
 | Solicitudes | `solicitudes`, `solicitud_objetivos`, `solicitudes_historial` | Solicitudes comerciales, objetivos y transiciones auditables. |
+| Avisos | `estados_aviso`, `avisos`, `aviso_mensajes` | Conversaciones entre cuentas de una organización, estado y mensajes ordenados. |
 | Seguridad | `codigos_email`, `sesiones_moviles`, `limites_acceso` | Recuperación de un solo uso, sesiones móviles con token hash y límites de intentos. |
 | Vistas | `vista_mediciones`, `vista_flota`, `vista_usuarios`, `vista_solicitudes` | Lectura legible para diagnóstico; no duplican almacenamiento. |
 
@@ -552,6 +553,79 @@ FOREIGN KEYS:
 
 CONSTRAINTS:
 + Unicidad e índices según 1-instalar.sql.
+====================================================================================
+
+
+====================================================================================
+TABLE: estados_aviso
+DESCRIPTION: Catálogo de estados de las conversaciones entre cuentas de una organización.
+
+COLUMNS:
++ id | TINYINT UNSIGNED | NOT NULL | Auto-Increment
++ codigo | VARCHAR(30) | NOT NULL
++ nombre | VARCHAR(60) | NOT NULL
++ orden | TINYINT UNSIGNED | NOT NULL
++ final | BOOLEAN | NOT NULL | FALSE
+
+PRIMARY KEY: id
+
+FOREIGN KEYS:
++ Ninguna
+
+CONSTRAINTS:
++ UNIQUE (codigo)
+====================================================================================
+
+
+====================================================================================
+TABLE: avisos
+DESCRIPTION: Conversaciones de aviso entre dos cuentas de la misma organización.
+
+COLUMNS:
++ id | BIGINT UNSIGNED | NOT NULL | Auto-Increment
++ organizacion_id | BIGINT UNSIGNED | NOT NULL
++ creado_por | BIGINT UNSIGNED | NOT NULL
++ destinatario_id | BIGINT UNSIGNED | NOT NULL
++ asunto | VARCHAR(160) | NOT NULL
++ estado_id | TINYINT UNSIGNED | NOT NULL | 1
++ creado_en | DATETIME(3) | NOT NULL | CURRENT_TIMESTAMP(3)
++ actualizado_en | DATETIME(3) | NOT NULL | CURRENT_TIMESTAMP(3)
++ visto_creador_en | DATETIME(3) | NULL
++ visto_destinatario_en | DATETIME(3) | NULL
+
+PRIMARY KEY: id
+
+FOREIGN KEYS:
++ (creado_por, organizacion_id) -> usuarios(id, organizacion_id)
++ (destinatario_id, organizacion_id) -> usuarios(id, organizacion_id)
++ estado_id -> estados_aviso(id)
+
+CONSTRAINTS:
++ CHECK (creado_por <> destinatario_id)
++ INDEX (creado_por, actualizado_en)
++ INDEX (destinatario_id, actualizado_en)
+====================================================================================
+
+
+====================================================================================
+TABLE: aviso_mensajes
+DESCRIPTION: Mensajes ordenados que pertenecen a una conversación de aviso.
+
+COLUMNS:
++ id | BIGINT UNSIGNED | NOT NULL | Auto-Increment
++ aviso_id | BIGINT UNSIGNED | NOT NULL
++ autor_id | BIGINT UNSIGNED | NOT NULL
++ texto | TEXT | NOT NULL
++ creado_en | DATETIME(3) | NOT NULL | CURRENT_TIMESTAMP(3)
+
+PRIMARY KEY: id
+
+FOREIGN KEYS:
++ aviso_id -> avisos(id) ON DELETE CASCADE
++ autor_id -> usuarios(id)
+
+CONSTRAINTS:
++ INDEX (aviso_id, creado_en)
 ====================================================================================
 
 

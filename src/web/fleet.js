@@ -24,7 +24,7 @@ async function initFleet(){
   const mountTable=()=>{view=AeriqDeviceTable.mount(host,{columns:['nombre','actividad','operador','ultima','bateria'],
     action:d=>{if(!admin)return document.createTextNode('Consulta');const b=create('button','Editar / asignar');b.type='button';b.className='text-link';b.onclick=()=>edit(d);return b;},
     empty:'Todavía no hay AERIQ registrados en tu campaña.'});};
-  async function refresh(){const data=await Aeriq.portal('dashboard');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);if(!view)mountTable();view.set(devices);}
+  async function refresh(){const data=await Aeriq.consultar_panel('resumen');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);if(!view)mountTable();view.set(devices);}
   $f('#device-modal-close').onclick=()=>modal.close();
   $f('#add-device').onclick=()=>edit(null);
   form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await Aeriq.portal('device',{...(current?{id:current.id}:{}),name:name.value,address:address.value,worker:worker.value,active:current?active.checked:true,simulated:current?Boolean(Number(current.simulado)):false});modal.close();await refresh();window.dispatchEvent(new Event('aeriq:fleet-changed'));say('AERIQ guardado en tu campaña.','ok');}catch(error){say(error.message,'error');}finally{button.disabled=false;}};

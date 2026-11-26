@@ -8,6 +8,7 @@ if (!in_array($argc,[4,5],true) || !in_array($argv[1],['admin','comercial'],true
 $web=$argc===5?realpath($argv[4]):dirname(__DIR__).'/src/web';
 if (!$web || !is_file($web.'/server/AuthCore.php')) { fwrite(STDERR,"Raíz web no válida.\n");exit(1); }
 require_once $web.'/server/AuthCore.php';
+require_once $web.'/server/AeriqCore.php';
 $db=conexionBD();$db->begin_transaction();
 try {
     $u=auth_find($argv[2]);if (!$u || !$u['verificado_en']) throw new RuntimeException('Se necesita una cuenta existente y verificada.');

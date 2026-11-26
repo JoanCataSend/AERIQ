@@ -31,10 +31,14 @@ function check(bool $condition, string $label): void {
 }
 
 function expect_auth_error(callable $fn, int $status, string $label): void {
+    $category=match ($status) {
+        401=>'unauthenticated', 403=>'forbidden', 404=>'not_found', 409=>'conflict',
+        422=>'invalid_input', 503=>'unavailable', default=>'invalid_input',
+    };
     try {
         $fn();
     } catch (AeriqError $error) {
-        check($error->status === $status, $label . ' (' . $error->status . '=' . $status . ')');
+        check($error->category === $category, $label . ' (' . $error->category . '=' . $category . ')');
         return;
     } catch (Throwable $error) {
         check(false, $label . ' (excepción inesperada: ' . $error->getMessage() . ')');

@@ -23,6 +23,11 @@ FILES = [
     "server/FirebaseConfig.example.php",
     "server/AuthCore.php",
     "server/AeriqCore.php",
+    "business_logic/DomainError.php",
+    "communication/HttpErrorMapper.php",
+    "communication/MailTransport.php",
+    "database/SqlGateway.php",
+    "database/AuthRepository.php",
     "server/.htaccess",
 ]
 

@@ -21,10 +21,61 @@ const Aeriq = (() => {
     }
     return data;
   }
+  /*
+   * --------------------
+   * Diseño lógico: accion: AccionPanel, filtros: FiltrosPanel --> consultar_panel() --> resultado: ResultadoPanel
+   * Descripción: consulta una vista lógica; la cookie de sesión y el servidor aportan el contexto de autorización.
+   * --------------------
+   */
+  function consultar_panel(action, filters={}) {
+    const routes={resumen:'dashboard',lecturas:'readings',solicitudes:'requests'};
+    if(!routes[action])throw new Error('Consulta de panel no disponible.');
+    const query={...filters};
+    if(action==='lecturas'&&Object.prototype.hasOwnProperty.call(query,'type')) {
+      const magnitudes={ozono:14,temperatura:12,todas:'all'};
+      if(Object.prototype.hasOwnProperty.call(magnitudes,query.type))query.type=magnitudes[query.type];
+    }
+    if(typeof query.export==='boolean') { if(query.export)query.export=1; else delete query.export; }
+    return request('portal.php',routes[action],undefined,query);
+  }
+  /*
+   * --------------------
+   * Diseño lógico: ambito: AmbitoMapa, procedencia: Procedencia, horas: N --> consultar_mapa() --> resultado: ResultadoMapa
+   * Descripción: selecciona la ruta pública o autenticada; el servidor resuelve el acceso de la sesión.
+   * --------------------
+   */
+  function consultar_mapa(scope, source='real', hours=24) {
+    const endpoint=scope==='publico'?'public.php':'portal.php';
+    const mode=source==='simulada'?'simulated':source;
+    return request(endpoint,'map',undefined,{mode,hours});
+  }
+  /*
+   * --------------------
+   * Diseño lógico: solicitud: DatosSolicitud --> enviar_solicitud() --> confirmacion: ConfirmacionSolicitud
+   * Descripción: envía una solicitud comercial al endpoint público.
+   * --------------------
+   */
+  function enviar_solicitud(payload) { return request('public.php','request',payload); }
+  /*
+   * --------------------
+   * Diseño lógico: --> consultar_servicios() --> catalogos: CatalogosSolicitud
+   * Descripción: obtiene servicios y catálogos del formulario público.
+   * --------------------
+   */
+  function consultar_servicios() { return request('public.php','services'); }
+  /* Compatibilidad con vistas antiguas: traduce los selectores de interfaz al contrato lógico del mapa. */
+  function map(mode,source='all',hours=24) {
+    const mine=source==='mine';
+    return consultar_mapa(mine?'organizacion':'publico',mode==='simulated'?'simulada':'real',hours);
+  }
   return {
+    consultar_panel,
+    consultar_mapa,
+    enviar_solicitud,
+    consultar_servicios,
     portal:(action,payload,filters)=>request('portal.php',action,payload,filters),
-    map:(mode,source='all',hours=24)=>request(source==='mine'?'portal.php':'public.php','map',undefined,{mode,hours}),
-    submit:(payload)=>request('public.php','request',payload),
-    services:()=>request('public.php','services')
+    map,
+    submit:enviar_solicitud,
+    services:consultar_servicios
   };
 })();

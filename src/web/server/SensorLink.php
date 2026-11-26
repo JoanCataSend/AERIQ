@@ -17,7 +17,7 @@ function aeriq_share(array $a, array $data): array {
     $db->begin_transaction();
     try {
         $c = aeriq_one('SELECT c.id,c.nombre,c.publicar FROM asignaciones a JOIN campanas c ON c.id=a.campana_id JOIN dispositivos d ON d.id=a.dispositivo_id WHERE a.dispositivo_id=? AND a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 FOR UPDATE', [$device,aeriq_org($a),$user]);
-        if (!$c) throw new AeriqError('AERIQ no asignado o inactivo.', 403);
+        if (!$c) throw new AeriqError('AERIQ no asignado o inactivo.','forbidden');
         $personal = $c['nombre'] === aeriq_personal_campaign($user);
         if ($personal && (int)$c['publicar'] !== $share) aeriq_sql('UPDATE campanas SET publicar=? WHERE id=?', [$share,(int)$c['id']]);
         $db->commit();
@@ -47,7 +47,7 @@ function aeriq_link_sensor(array $a, array $data): array {
         aeriq_one('SELECT id FROM organizaciones WHERE id=? FOR UPDATE', [$org]);
         $device = aeriq_one('SELECT * FROM dispositivos WHERE direccion_ble=? FOR UPDATE', [$address]);
         if ($device && ((int)$device['organizacion_id'] !== $org || !(int)$device['activo'] || (int)$device['simulado'])) {
-            throw new AeriqError('Este sensor no está disponible para tu cuenta. Consulta con tu organización.', 409);
+            throw new AeriqError('Este sensor no está disponible para tu cuenta. Consulta con tu organización.','conflict');
         }
         if (!$device) {
             aeriq_sql('INSERT INTO dispositivos(organizacion_id,nombre,direccion_ble,activo,simulado) VALUES(?,?,?,1,0)', [$org,$name,$address]);
@@ -56,11 +56,11 @@ function aeriq_link_sensor(array $a, array $data): array {
         $id = (int)$device['id'];
         $old = aeriq_one('SELECT * FROM asignaciones WHERE dispositivo_id=? AND finalizada_en IS NULL FOR UPDATE', [$id]);
         if ($old && (int)$old['trabajador_id'] !== $user) {
-            throw new AeriqError('Este sensor ya está asignado a otra persona. Tu organización debe liberarlo.', 409);
+            throw new AeriqError('Este sensor ya está asignado a otra persona. Tu organización debe liberarlo.','conflict');
         }
         if ($old) {
             $active = aeriq_one('SELECT id FROM campanas WHERE id=? AND activa=1 AND UTC_DATE() BETWEEN inicio AND fin', [(int)$old['campana_id']]);
-            if (!$active) throw new AeriqError('La campaña de este sensor ha terminado o está inactiva. Consulta con tu organización.', 409);
+            if (!$active) throw new AeriqError('La campaña de este sensor ha terminado o está inactiva. Consulta con tu organización.','conflict');
         } else {
             // Nace privada; la publica «Compartir con la red» (aeriq_share). Se reutiliza esté publicada o no.
             $campaignName = aeriq_personal_campaign($user);

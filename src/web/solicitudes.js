@@ -244,7 +244,7 @@
     summary.hidden=true;setBusy(true);
     const data=collect();
     try{
-      const result=await Aeriq.submit(data);
+      const result=await Aeriq.enviar_solicitud(data);
       clearTimeout(draftTimer);store.clear();showSuccess(result,data);
     }catch(error){
       if(error.field&&FIELDS.includes(error.field)){show(error.field,error.message);showSummary(1);focusField(error.field);}
@@ -254,7 +254,7 @@
 
   // ------------------------------------------------------------ Arranque
   updateCount();
-  Aeriq.services().then(data=>{
+  Aeriq.consultar_servicios().then(data=>{
     if(!data?.services?.length)throw new Error('Sin servicios');
     renderCatalogs(data);restore();syncStudy();updateCount();
   }).catch(()=>{

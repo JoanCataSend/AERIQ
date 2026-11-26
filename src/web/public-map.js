@@ -108,7 +108,7 @@ function initAeriqMap(){
     try{
       // Reales y simuladas nunca se mezclan: la casilla elige uno u otro origen.
       const mode=q('#simulated-toggle').checked?'simulated':'real';
-      const result=await Aeriq.map(mode,source,Number(q('#public-period')?.value||24));if(id!==requestId)return;rows=result.measurements;truncated=Boolean(result.truncated);directory.hidden=!rows.length;buildGroups();showRadius();
+      const result=await Aeriq.consultar_mapa(source==='mine'?'organizacion':'publico',mode==='simulated'?'simulada':'real',Number(q('#public-period')?.value||24));if(id!==requestId)return;rows=result.measurements;truncated=Boolean(result.truncated);directory.hidden=!rows.length;buildGroups();showRadius();
       // Un punto por posición: la lectura más reciente de cada sitio, la misma con la que se pinta la zona (T46).
       // Las anteriores del mismo sitio siguen en la lista de mediciones, pero no se apilan con otros colores en el mapa.
       for(const g of groups)for(const r of g.samples){

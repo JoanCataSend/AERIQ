@@ -3,12 +3,12 @@
 declare(strict_types=1);
 require_once __DIR__.'/server/AeriqHttp.php';
 try {
-    if (($_SERVER['REQUEST_METHOD']??'GET')!=='GET') throw new AeriqError('Las lecturas se envían autenticadas mediante field.php.',405);
+    if (($_SERVER['REQUEST_METHOD']??'GET')!=='GET') throw new AeriqError('Las lecturas se envían autenticadas mediante field.php.','method_not_allowed');
     $action=$_GET['accion']??'medidas';
-    if ($action==='health') {aeriq_sql('SELECT id FROM organizaciones LIMIT 1');auth_responder(200,['ok'=>true,'schema'=>'aeriq-unificado-v2']);}
-    if ($action==='tipos') auth_responder(200,aeriq_rows('SELECT id AS tipoMedidaId,nombre,unidad FROM magnitudes ORDER BY id'));
+    if ($action==='health') {aeriq_health();auth_responder(200,['ok'=>true,'schema'=>'aeriq-unificado-v2']);}
+    if ($action==='tipos') auth_responder(200,aeriq_magnitudes());
     $u=aeriq_web_user();$access=aeriq_ready($u,'informes.ver');
-    if ($action==='dispositivos') auth_responder(200,aeriq_rows('SELECT id AS dispositivoId,nombre FROM dispositivos WHERE organizacion_id=?',[aeriq_org($access)]));
+    if ($action==='dispositivos') auth_responder(200,aeriq_devices($access));
     if ($action==='medidas' || $action==='ultima') {
         $filters=[];
         if (!empty($_GET['dispositivoId']))$filters['device']=$_GET['dispositivoId'];
@@ -18,5 +18,5 @@ try {
         foreach ($rows as &$r) {$r['dispositivoId']=$r['dispositivo_id'];$r['tipoMedidaId']=(int)$r['tipo'];$r['fechaHora']=str_replace(' ','T',$r['capturada_en']);}
         unset($r);auth_responder(200,$action==='ultima'?($rows?end($rows):null):array_reverse($rows));
     }
-    throw new AeriqError('Consulta no disponible. Usa public.php para el mapa público.',404);
+    throw new AeriqError('Consulta no disponible. Usa public.php para el mapa público.','not_found');
 } catch (Throwable $e) {aeriq_failure($e);}
