@@ -125,6 +125,54 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    // ------------------------------------------------------------ Avisos (HU36, mobile-avisos.php)
+
+    private interface Parser<T> { T parse(JSONObject data) throws JSONException; }
+
+    private <T> void notices(String action, JSONObject body, Parser<T> parser, T fallback, BiConsumer<T, String> done) {
+        String credential = token.get();
+        if (credential == null) { done.accept(fallback, "Inicia sesión"); return; }
+        worker.execute(() -> {
+            T result = fallback;
+            String error = null;
+            try {
+                JsonHttp.Response response = JsonHttp.request(ApiRoutes.NOTICES + "?action=" + action, body, credential);
+                if (!response.ok()) throw new IllegalStateException(response.message());
+                result = parser.parse(response.json);
+            } catch (Exception failure) { error = failure.getMessage(); }
+            T value = result;
+            String message = error;
+            main.post(() -> { if (!closed && credential.equals(token.get())) done.accept(value, message); });
+        });
+    }
+
+    /** Bandeja: tus avisos, a quién puedes escribir y cuántos tienen algo nuevo. */
+    public void notices(BiConsumer<Notices.Inbox, String> done) {
+        notices("notices", null, Notices::inbox, Notices.Inbox.empty(), done);
+    }
+
+    /** Un aviso con sus mensajes; abrirlo lo marca como visto. */
+    public void notice(long id, BiConsumer<Notices.Conversation, String> done) {
+        notices("notice&id=" + id, null, Notices::conversation, null, done);
+    }
+
+    /** Crea un aviso. El servidor comprueba que puedes escribir a esa persona. Devuelve el mensaje del servidor. */
+    public void createNotice(long to, String subject, String text, BiConsumer<String, String> done) {
+        notices("notice-create", JsonHttp.object("to", to, "subject", subject, "message", text),
+            data -> data.optString("message", "Aviso enviado."), null, done);
+    }
+
+    /** Responde a un aviso (si estaba cerrado, se vuelve a abrir). */
+    public void replyNotice(long id, String text, BiConsumer<String, String> done) {
+        notices("notice-reply", JsonHttp.object("id", id, "message", text),
+            data -> data.optString("message", "Respuesta enviada."), null, done);
+    }
+
+    public void closeNotice(long id, BiConsumer<String, String> done) {
+        notices("notice-close", JsonHttp.object("id", id),
+            data -> data.optString("message", "Aviso cerrado."), null, done);
+    }
+
     /**
      * Admin de campaña: registra el Orb (deviceId null) o lo reasigna, siempre a un operador de su campaña.
      * El servidor aplica las reglas del panel web: un Orb por operador y la asignación anterior se cierra.
@@ -176,7 +224,7 @@ public final class AeriqFieldClient implements AutoCloseable {
         long account = owner.get();
         if (closed || credential == null || account == 0 || !syncing.compareAndSet(false, true)) return;
         sender.execute(() -> {
-            int saved = 0;
+            int saved = 0, discarded = 0;
             String error = "";
             try {
                 for (ReadingOutbox.Entry entry : outbox.next(account)) {
@@ -196,10 +244,13 @@ public final class AeriqFieldClient implements AutoCloseable {
                         if (!entry.event.equals(response.json.optString("eventId"))) throw new IOException("Confirmación del servidor incorrecta");
                         outbox.acknowledge(account, entry.event);
                         ++saved;
+                        // HU35: el servidor la guarda, pero como no válida (fuera de rango o anómala).
+                        if (!response.json.optBoolean("valid", true)) ++discarded;
                     } catch (Exception failure) { error = failure.getMessage(); break; }
                 }
                 int remaining = outbox.count(account, false), blocked = outbox.count(account, true);
-                String status = (saved > 0 ? "Servidor: " + saved + " lecturas confirmadas. " : "")
+                String status = (saved > 0 ? "Servidor: " + saved + " lecturas confirmadas"
+                    + (discarded > 0 ? " (" + discarded + " descartadas por estar fuera de rango o ser anómalas)" : "") + ". " : "")
                     + remaining + " pendientes · " + blocked + " requieren revisión";
                 if (!error.isEmpty()) status += ". " + error;
                 if (remaining == 0 && blocked == 0 && saved == 0) return;

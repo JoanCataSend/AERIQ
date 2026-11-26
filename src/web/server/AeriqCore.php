@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/AeriqMail.php';
+require_once __DIR__.'/Avisos.php';
 
 /** Dominio AERIQ. Tablas nuevas aisladas de las tablas heredadas de Sprint 0. */
 final class AeriqError extends RuntimeException {
@@ -290,7 +291,8 @@ function aeriq_device_save(array $a,array $d): array {
 }
 
 function aeriq_assignments(array $a): array {
-    return aeriq_rows('SELECT d.id,d.nombre,d.direccion_ble,a.id AS asignacion_id,a.campana_id,c.nombre AS campana,z.nombre AS zona,c.publicar,'.AERIQ_UMBRALES_O3.',d.simulado,'.AERIQ_BATERIA.' FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 AND c.activa=1 AND UTC_DATE() BETWEEN c.inicio AND c.fin',[aeriq_org($a),(int)$a['usuario_id']]);
+    // Rangos de ozono y temperatura (HU35): la app los comprueba antes de enviar; el servidor vuelve a hacerlo.
+    return aeriq_rows('SELECT d.id,d.nombre,d.direccion_ble,a.id AS asignacion_id,a.campana_id,c.nombre AS campana,z.nombre AS zona,c.publicar,'.AERIQ_UMBRALES_O3.',mo.valor_minimo AS o3_minimo,mo.valor_maximo AS o3_maximo,(SELECT valor_minimo FROM magnitudes WHERE id=12) AS temperatura_minima,(SELECT valor_maximo FROM magnitudes WHERE id=12) AS temperatura_maxima,d.simulado,'.AERIQ_BATERIA.' FROM asignaciones a JOIN dispositivos d ON d.id=a.dispositivo_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id '.AERIQ_JOIN_UMBRALES_O3.' WHERE a.organizacion_id=? AND a.trabajador_id=? AND a.finalizada_en IS NULL AND d.activo=1 AND c.activa=1 AND UTC_DATE() BETWEEN c.inicio AND c.fin',[aeriq_org($a),(int)$a['usuario_id']]);
 }
 
 function aeriq_capture_time(mixed $v): string {
@@ -308,7 +310,9 @@ function aeriq_ingest(array $a,array $d): array {
     $magnitude=aeriq_one('SELECT t.* FROM magnitudes t JOIN modelo_magnitudes mm ON mm.magnitud_id=t.id JOIN dispositivos d ON d.modelo_id=mm.modelo_id WHERE t.id=? AND d.id=?',[$type,$device]);
     if (!$magnitude) throw new AeriqError('Magnitud no admitida.');
     if (isset($d['unit']) && $d['unit']!==$magnitude['unidad']) throw new AeriqError('La unidad no corresponde a esta magnitud.');
-    $value=aeriq_number($d['value']??null,(float)$magnitude['valor_minimo'],(float)$magnitude['valor_maximo']);
+    // Solo se rechaza lo que no puede venir del anuncio BLE (uint16/int16). Fuera del rango de la magnitud
+    // la lectura se guarda como no válida (HU35): queda constancia, pero no entra en mapas ni informes.
+    $value=aeriq_number($d['value']??null,-32768,65535);
     $captured=aeriq_capture_time($d['capturedAt']??'');$count=aeriq_int($d['counter']??null,0,255);$rssi=aeriq_int($d['rssi']??null,-127,20);
     $lat=$lon=$accuracy=null;
     if (isset($d['latitude']) || isset($d['longitude']) || isset($d['accuracy'])) {
@@ -324,11 +328,30 @@ function aeriq_ingest(array $a,array $d): array {
         $old=aeriq_one('SELECT m.*,a.trabajador_id,a.dispositivo_id,a.campana_id FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id WHERE m.evento=?',[$event]);
         if ($old) {
             if ((int)$old['dispositivo_id']!==$device || (int)$old['trabajador_id']!==(int)$a['usuario_id'] || (int)$old['campana_id']!==$campaign || (int)$old['magnitud_id']!==$type || (float)$old['valor']!==$value || $old['capturada_en']!==$captured || ($old['latitud']===null?null:(float)$old['latitud'])!==$lat || ($old['longitud']===null?null:(float)$old['longitud'])!==$lon || ($old['precision_m']===null?null:(float)$old['precision_m'])!==$accuracy || (int)$old['contador']!==$count || (int)$old['rssi']!==$rssi) throw new AeriqError('La clave de lectura ya identifica otros datos.',409);
-            $db->commit();return ['ok'=>true,'duplicate'=>true,'id'=>(int)$old['id'],'eventId'=>$event];
+            $db->commit();return ['ok'=>true,'duplicate'=>true,'id'=>(int)$old['id'],'eventId'=>$event,'valid'=>(bool)(int)$old['valida'],'reason'=>$old['motivo_descarte']];
         }
-        aeriq_sql('INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado) VALUES(?,?,?,?,?,?,?,?,?,?,?)',[$event,(int)$orb['asignacion_id'],$type,$value,$captured,$lat,$lon,$accuracy,$count,$rssi,(int)$orb['simulado']]);
-        $id=(int)$db->insert_id;$db->commit();return ['ok'=>true,'duplicate'=>false,'id'=>$id,'eventId'=>$event];
+        $reason=aeriq_discard_reason($magnitude,(int)$orb['asignacion_id'],$type,$value,$captured);
+        aeriq_sql('INSERT INTO mediciones(evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado,valida,motivo_descarte) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',[$event,(int)$orb['asignacion_id'],$type,$value,$captured,$lat,$lon,$accuracy,$count,$rssi,(int)$orb['simulado'],$reason===null?1:0,$reason]);
+        $id=(int)$db->insert_id;$db->commit();return ['ok'=>true,'duplicate'=>false,'id'=>$id,'eventId'=>$event,'valid'=>$reason===null,'reason'=>$reason];
     } catch (Throwable $e) {$db->rollback();throw $e;}
+}
+
+/**
+ * Motivo para descartar una lectura (HU35), o null si es válida.
+ * - 'fuera_de_rango': fuera de [valor_minimo, valor_maximo] de su magnitud.
+ * - 'anomala': se aleja más de salto_maximo de la media de las 5 lecturas anteriores de la misma asignación y
+ *   magnitud (de los 10 minutos previos, al menos 3). La media incluye las anómalas pero no las fuera de rango:
+ *   un pico suelto se descarta, pero si el nivel cambia de verdad, la media lo alcanza en dos o tres lecturas.
+ * Los límites están en la tabla magnitudes: se ajustan sin tocar código.
+ */
+function aeriq_discard_reason(array $magnitude,int $assignment,int $type,float $value,string $captured): ?string {
+    if ($value<(float)$magnitude['valor_minimo'] || $value>(float)$magnitude['valor_maximo']) return 'fuera_de_rango';
+    if ($magnitude['salto_maximo']===null) return null;
+    $since=(new DateTimeImmutable($captured,new DateTimeZone('UTC')))->modify('-10 minutes')->format('Y-m-d H:i:s.v');
+    $previous=aeriq_rows("SELECT valor FROM mediciones WHERE asignacion_id=? AND magnitud_id=? AND capturada_en<? AND capturada_en>=? AND (motivo_descarte IS NULL OR motivo_descarte<>'fuera_de_rango') ORDER BY capturada_en DESC,id DESC LIMIT 5",[$assignment,$type,$captured,$since]);
+    if (count($previous)<3) return null;
+    $mean=array_sum(array_map(fn($r)=>(float)$r['valor'],$previous))/count($previous);
+    return abs($value-$mean)>(float)$magnitude['salto_maximo']?'anomala':null;
 }
 
 /**
@@ -371,7 +394,21 @@ function aeriq_dashboard(array $a): array {
 }
 
 function aeriq_readings(array $a,array $filters): array {
-    $where=['c.organizacion_id=?','l.valida=1','l.magnitud_id IN (12,14)'];$params=[aeriq_org($a)];
+    [$where,$params]=aeriq_readings_filter($a,$filters);
+    $where[]='l.valida=1';
+    $rows=aeriq_rows('SELECT l.id,l.evento,a.dispositivo_id,a.campana_id,l.magnitud_id AS tipo,l.valor,t.unidad,l.capturada_en,l.latitud,l.longitud,l.simulado,d.nombre AS dispositivo,c.nombre AS campana,z.nombre AS zona,'.AERIQ_UMBRALES_LECTURA.' FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN dispositivos d ON d.id=a.dispositivo_id LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=l.magnitud_id WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en,l.id LIMIT 10001',$params);
+    if (count($rows)>10000) throw new AeriqError('Demasiados registros. Reduce el intervalo o selecciona campaña/dispositivo; no se exportarán datos incompletos.',413);
+    return $rows;
+}
+/** HU35: lecturas descartadas (no válidas) con los mismos filtros del informe, para enseñarlas aparte. Máximo 500. */
+function aeriq_discarded(array $a,array $filters): array {
+    [$where,$params]=aeriq_readings_filter($a,$filters);
+    $where[]='l.valida=0';
+    return aeriq_rows('SELECT l.id,l.magnitud_id AS tipo,l.valor,t.unidad,t.valor_minimo,t.valor_maximo,t.salto_maximo,l.capturada_en,l.simulado,l.motivo_descarte,d.nombre AS dispositivo,c.nombre AS campana FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN dispositivos d ON d.id=a.dispositivo_id WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en DESC,l.id DESC LIMIT 500',$params);
+}
+/** Condiciones comunes del informe: organización, campaña del admin, magnitud, campaña, AERIQ, zona y fechas. */
+function aeriq_readings_filter(array $a,array $filters): array {
+    $where=['c.organizacion_id=?','l.magnitud_id IN (12,14)'];$params=[aeriq_org($a)];
     if ($scope=aeriq_campaign($a)) { $where[]='a.campana_id=?';$params[]=$scope; }
     $type=$filters['type']??14;
     if ($type!=='all') {
@@ -396,9 +433,7 @@ function aeriq_readings(array $a,array $filters): array {
             $where[]="l.capturada_en $op ?";$params[]=$date.($key==='from'?' 00:00:00.000':' 23:59:59.999');
         }
     }
-    $rows=aeriq_rows('SELECT l.id,l.evento,a.dispositivo_id,a.campana_id,l.magnitud_id AS tipo,l.valor,t.unidad,l.capturada_en,l.latitud,l.longitud,l.simulado,d.nombre AS dispositivo,c.nombre AS campana,z.nombre AS zona,'.AERIQ_UMBRALES_LECTURA.' FROM mediciones l JOIN asignaciones a ON a.id=l.asignacion_id JOIN magnitudes t ON t.id=l.magnitud_id JOIN campanas c ON c.id=a.campana_id JOIN zonas z ON z.id=c.zona_id JOIN dispositivos d ON d.id=a.dispositivo_id LEFT JOIN campana_umbrales cu ON cu.campana_id=c.id AND cu.magnitud_id=l.magnitud_id WHERE '.implode(' AND ',$where).' ORDER BY l.capturada_en,l.id LIMIT 10001',$params);
-    if (count($rows)>10000) throw new AeriqError('Demasiados registros. Reduce el intervalo o selecciona campaña/dispositivo; no se exportarán datos incompletos.',413);
-    return $rows;
+    return [$where,$params];
 }
 function aeriq_public_map(array $query): array {return aeriq_map_data(null,$query);}
 function aeriq_map_data(?array $access,array $query): array {

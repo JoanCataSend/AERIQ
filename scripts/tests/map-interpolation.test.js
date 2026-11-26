@@ -159,12 +159,12 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   assert.deepEqual(plain(p.routes[1].points),[[dense[14].latitud,dense[14].longitud],[dense[13].latitud,dense[13].longitud]]);
   assert(p.routes.every(r=>r.options.pane==='aeriq-ruta'&&r.options.interactive===false));
   assert.equal(p.ends.length,2);assert(p.ends[0].tooltip.startsWith('Inicio · 10 nov 2026, 12:00'));assert(p.ends[1].tooltip.startsWith('Última posición · 10 nov 2026, 12:41'));
-  assert(p.q('#route-note').textContent.startsWith('5 posiciones en 2 tramos.'));assert(!p.q('#legend-route').hidden);
+  assert(p.q('#route-note').textContent.startsWith('5 posiciones en 2 tramos.'));assert(/^Distancia recorrida: \d/.test(p.q('#route-distance').textContent),'HU39: se muestra la distancia recorrida');assert(!p.q('#legend-route').hidden);
   // Otro Orb: su ruta sustituye a la anterior. Con una sola posición no hay línea, solo el punto de inicio.
   p.q('#route-device').value='3';p.change('#route-device');
-  assert.equal(p.routes.length,0);assert.equal(p.ends.length,1);assert(p.q('#route-note').textContent.startsWith('1 posición en 1 tramo.'));
+  assert.equal(p.routes.length,0);assert.equal(p.ends.length,1);assert(p.q('#route-note').textContent.startsWith('1 posición en 1 tramo.'));assert.equal(p.q('#route-distance').textContent,'','con una sola posición no hay distancia');
   // La ficha de una medición de la organización nombra su Orb.
-  p.change('#route-toggle',false);assert.equal(p.ends.length,0);assert(p.q('#legend-route').hidden);
+  p.change('#route-toggle',false);assert.equal(p.ends.length,0);assert.equal(p.q('#route-distance').textContent,'');assert(p.q('#legend-route').hidden);
   p.q('#map-sensor-list button').click();assert(p.q('#map-info').textContent.includes('Orb Norte'));
   // Volver a «Públicos» oculta el control.
   p.q('[data-source="all"]').click();await wait();assert(p.q('#route-control').hidden);

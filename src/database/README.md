@@ -4,8 +4,9 @@ Para instalar la base hacen falta dos archivos, y sirven en cualquier ordenador 
 
 | Archivo | Qué hace | ¿Obligatorio? |
 |---|---|---|
-| [1-instalar.sql](1-instalar.sql) | **Borra** todo lo que haya en la base e instala las 26 tablas, las 4 vistas, los catálogos (roles, permisos, magnitudes, servicios…), la organización **AERIQ Gandia** y el admin principal. | Sí |
-| [2-simulacion.sql](2-simulacion.sql) | Añade datos de prueba: 3 campañas con un perfil de calidad del aire cada una (bueno, regular y malo), 3 AERIQ simulados con 90 lecturas de las últimas 24 h, 4 cuentas de prueba y 3 solicitudes. No borra nada y se puede repetir. | No |
+| [1-instalar.sql](1-instalar.sql) | **Borra** todo lo que haya en la base e instala las 29 tablas, las 4 vistas, los catálogos (roles, permisos, magnitudes, servicios…), la organización **AERIQ Gandia** y el admin principal. | Sí |
+| [3-actualizar.sql](3-actualizar.sql) | Pone al día una base **con datos** sin borrar nada: rangos y motivo de descarte de las mediciones (HU35) y tablas de avisos (HU36). Solo si la base se instaló antes del 26 de noviembre de 2026. Se puede repetir. | Solo en bases antiguas |
+| [2-simulacion.sql](2-simulacion.sql) | Añade datos de prueba: 3 campañas con un perfil de calidad del aire cada una (bueno, regular y malo), 3 AERIQ simulados con 90 lecturas de las últimas 24 h (y 2 descartadas de ejemplo, guardadas como no válidas), 4 cuentas de prueba y 3 solicitudes. No borra nada y se puede repetir. | No |
 
 Los archivos no llevan escrito el nombre de la base: se instalan en la que tengas seleccionada (`mcalgar2_pbio`, `jcatsen_pbio`…).
 

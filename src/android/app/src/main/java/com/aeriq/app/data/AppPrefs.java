@@ -37,6 +37,13 @@ public final class AppPrefs {
     public boolean ozoneAlerts() { return prefs.getBoolean("avisos", true); }
     public void setOzoneAlerts(boolean enabled) { prefs.edit().putBoolean("avisos", enabled).apply(); }
 
+    /**
+     * Tutorial de la primera vez (HU33): true cuando ya se ha terminado o saltado. Vive en los datos de la app,
+     * así que solo vuelve a salir si se borran los datos o se reinstala.
+     */
+    public boolean tutorialSeen() { return prefs.getBoolean("tutorial_visto", false); }
+    public void setTutorialSeen() { prefs.edit().putBoolean("tutorial_visto", true).apply(); }
+
     /** Adjuntar la posición GPS a tus lecturas (recorrido y distancia, solo visibles para ti). */
     public boolean saveRoute() { return prefs.getBoolean("recorrido", true); }
     public void setSaveRoute(boolean enabled) { prefs.edit().putBoolean("recorrido", enabled).apply(); }

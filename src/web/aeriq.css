@@ -1015,3 +1015,36 @@ form .field-check{margin-top:20px}
 .sort-arrow{font-size:.75em;color:var(--brand);min-width:1em}
 th[aria-sort="ascending"] .sort-button,th[aria-sort="descending"] .sort-button{color:var(--brand)}
 @media (max-width:900px){.device-panels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* HU35: lecturas descartadas en el informe (constancia, fuera de los cálculos). */
+.report-discarded{border-top:1px dashed var(--line-strong)}
+.report-discarded h3{color:var(--ink-2)}
+
+/* Tonos de los mensajes: rojo = error, naranja = aviso, verde = correcto (auth-client.js · aeriqStatus, app.js · toast). */
+.toast[data-tone="error"]{background:var(--danger);color:#fff}
+.toast[data-tone="warn"]{background:#a85a00;color:#fff}
+.toast[data-tone="ok"]{background:var(--brand);color:#fff}
+[data-tone="error"]:not(.toast){color:var(--danger);background:var(--danger-tint);border-left:4px solid var(--danger);padding:8px 12px;border-radius:10px}
+[data-tone="warn"]:not(.toast){color:#7a4300;background:#fff4e0;border-left:4px solid #d98a00;padding:8px 12px;border-radius:10px}
+[data-tone="ok"]:not(.toast){color:var(--brand-ink);background:var(--brand-tint);border-left:4px solid var(--brand);padding:8px 12px;border-radius:10px}
+
+/* HU39: distancia recorrida por el AERIQ en el periodo. */
+.route-distance{margin:6px 0 0;font-weight:650;color:var(--route)}
+.route-distance:empty{display:none}
+
+/* HU36: avisos entre personas. */
+.nav-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--danger);color:#fff;font-size:12px;font-weight:700;vertical-align:middle}
+.nav-badge[hidden]{display:none}
+.notice-row{text-align:left;background:var(--surface);font:inherit;color:inherit;cursor:pointer;justify-items:start}
+.notice-row.is-new{border-color:var(--brand-tint);background:var(--brand-tint)}
+.notice-row.is-new .inbox-row-top strong::before{content:"";display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:var(--brand);vertical-align:middle}
+.notice-subject{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.notice-preview{white-space:normal!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.notice-thread{list-style:none;margin:16px 0;padding:0;display:grid;gap:10px;max-height:55vh;overflow:auto}
+.notice-message{max-width:82%;padding:10px 14px;border-radius:16px 16px 16px 4px;background:var(--alt)}
+.notice-message.is-mine{justify-self:end;border-radius:16px 16px 4px 16px;background:var(--brand-tint)}
+.notice-message strong{display:block;font-size:13px}
+.notice-message p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.notice-message small{color:var(--ink-3);font-size:12px}
+.notice-reply textarea{width:100%;padding:12px;border:1px solid var(--line-strong);border-radius:12px;font:inherit;resize:vertical}
+@media (max-width:760px){.inbox{grid-template-columns:1fr}.inbox-list{position:static}.notice-message{max-width:92%}}

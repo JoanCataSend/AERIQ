@@ -131,16 +131,17 @@ public final class AuthScreens {
         // Divisor social
         ui.dividerWithText(card, "o continúa con");
 
-        // Google. Sin botón de Apple: en Android no hay acceso con Apple y un botón que solo avisa confunde.
+        // Google. El acceso con Apple está desactivado de momento (HU38): exige la cuenta de pago de Apple Developer.
+        // En la web su botón avisa de que no está disponible; aquí no se muestra para no confundir.
         LinearLayout googleBtn = ui.socialButton("Continuar con Google", R.drawable.ic_google_logo, WHITE, INK, 26, () -> socialLogin("google"));
         googleBtn.setContentDescription("Continuar con Google");
         card.addView(googleBtn, new LinearLayout.LayoutParams(-1, ui.dp(52)));
 
         LinearLayout.LayoutParams biometricParams = new LinearLayout.LayoutParams(-1, -2);
         biometricParams.topMargin = ui.dp(10);
-        LinearLayout biometricButton = ui.socialButton("Entrar con huella", R.drawable.ic_fingerprint, DARK, WHITE, 26,
+        LinearLayout biometricButton = ui.socialButton("Entrar con huella o cara", R.drawable.ic_fingerprint, DARK, WHITE, 26,
             activity::loginWithFingerprint);
-        biometricButton.setContentDescription("Entrar con huella");
+        biometricButton.setContentDescription("Entrar con huella o cara");
         biometricParams.height = ui.dp(52);
         card.addView(biometricButton, biometricParams);
 
@@ -197,7 +198,7 @@ public final class AuthScreens {
     private void socialLogin(String provider) {
         boolean isApple = "apple".equalsIgnoreCase(provider);
         if (isApple) {
-            activity.message("El acceso con Apple todavía no está disponible.");
+            activity.message("El acceso con Apple todavía no está disponible.", MainActivity.TONE_WARN);
             return;
         }
         signInWithGoogle();
@@ -255,7 +256,7 @@ public final class AuthScreens {
                             }
                             activity.submit("google", result -> {
                                 if (result.success) {
-                                    activity.message(result.message);
+                                    activity.message(result.message, MainActivity.TONE_OK);
                                     activity.go(Screen.MAP);
                                 } else {
                                     FirebaseAuth.getInstance().signOut();
@@ -342,13 +343,13 @@ public final class AuthScreens {
             if (auth.busy) return;
             String wrong = problem.get();
             if (wrong != null && !wrong.isEmpty()) {
-                activity.message(wrong);
+                activity.message(wrong, MainActivity.TONE_ERROR);
                 return;
             }
             button.setEnabled(false);
             activity.submit(action, result -> {
                 button.setEnabled(true);
-                activity.message(result.message);
+                activity.message(result.message, (result.success ? MainActivity.TONE_OK : MainActivity.TONE_ERROR));
                 if (result.success && next != null) activity.go(next);
             }, fields.get());
         });

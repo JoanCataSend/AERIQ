@@ -88,7 +88,7 @@ function initAeriqMap(){
     select.replaceChildren(...[...devices].sort((a,b)=>a[1].localeCompare(b[1],'es')).map(([id,name])=>new Option(name,id)));
     if(devices.has(current))select.value=current;
     select.disabled=!toggle.checked;
-    if(!devices.size||!toggle.checked){note.textContent='Une las posiciones de un AERIQ en orden de captura, dentro del periodo elegido.';return;}
+    if(!devices.size||!toggle.checked){note.textContent='Une las posiciones de un AERIQ en orden de captura, dentro del periodo elegido.';q('#route-distance').textContent='';return;}
     const segments=AeriqDomain.route(rows.filter(r=>String(r.dispositivo_id)===select.value)),points=segments.flat();
     for(const segment of segments)if(segment.length>1)L.polyline(segment.map(r=>[r.latitud,r.longitud]),{pane:'aeriq-ruta',color:routeColor,weight:3.5,opacity:.9,lineJoin:'round',lineCap:'round',interactive:false}).addTo(trail);
     if(points.length){
@@ -98,6 +98,8 @@ function initAeriqMap(){
       q('#legend-route').hidden=false;
       if(fit)map.fitBounds(L.latLngBounds(points.map(r=>[r.latitud,r.longitud])),{maxZoom:18,padding:[40,40]});
     }
+    // HU39: distancia recorrida en el periodo (sin contar los huecos entre tramos ni los saltos del GPS).
+    const meters=AeriqDomain.routeDistance(segments);q('#route-distance').textContent=points.length>1?`Distancia recorrida: ${AeriqDomain.distanceText(meters)}`:'';
     note.textContent=`${points.length} ${points.length===1?'posición':'posiciones'} en ${segments.length} ${segments.length===1?'tramo':'tramos'}. Un hueco de más de 10 minutos corta la línea.${truncated?' Solo entran las 10.000 mediciones más recientes del periodo.':''}`;
   }
   const redraw=()=>{drawZones();if(queried)query(queried);};
@@ -121,7 +123,7 @@ function initAeriqMap(){
       drawRoute();
       // La consulta de un punto se mantiene tras recargar los datos.
       if(pending)query(pending);
-    }catch(e){if(id===requestId){rows=[];groups=[];queried=null;truncated=false;showRadius();drawRoute();status.textContent=e.message;}}
+    }catch(e){if(id===requestId){rows=[];groups=[];queried=null;truncated=false;showRadius();drawRoute();aeriqStatus(status,e.message,'error');}}
   }
   const range=q('#radius-range');range.min=P.radioMin;range.max=P.radioMax;
   range.oninput=()=>{radiusOverride=Math.min(P.radioMax,Math.max(P.radioMin,Number(range.value)));showRadius();redraw();};
@@ -134,8 +136,8 @@ function initAeriqMap(){
   q('#marker-toggle').onchange=e=>{if(e.target.checked)pins.addTo(map);else map.removeLayer(pins);};
   q('#route-toggle').onchange=()=>drawRoute(true);q('#route-device').onchange=()=>drawRoute(true);
   q('#zoomin-map').onclick=()=>map.zoomIn();q('#zoomout-map').onclick=()=>map.zoomOut();
-  q('#map-search').onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const term=e.target.value.toLowerCase();if(term.includes('playa'))map.setView([38.999,-.1589],16);else if(term.includes('grau')||term.includes('grao'))map.setView([38.9922,-.1656],15);else if(term.includes('upv')||term.includes('gand'))map.setView(campus,16);else toast('Búsqueda local: UPV, playa o Grau de Gandía.');};
-  q('#export-sensor').onclick=()=>{if(!selected){toast('Selecciona una medición pública.');return;}const r=selected;const csv=AeriqDomain.csv([{...r,dispositivo:'Medición pública #'+r.id,campana:r.campaignId}]);const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='AERIQ-medicion-publica.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
+  q('#map-search').onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const term=e.target.value.toLowerCase();if(term.includes('playa'))map.setView([38.999,-.1589],16);else if(term.includes('grau')||term.includes('grao'))map.setView([38.9922,-.1656],15);else if(term.includes('upv')||term.includes('gand'))map.setView(campus,16);else toast('Búsqueda local: UPV, playa o Grau de Gandía.','warn');};
+  q('#export-sensor').onclick=()=>{if(!selected){toast('Selecciona una medición pública.','warn');return;}const r=selected;const csv=AeriqDomain.csv([{...r,dispositivo:'Medición pública #'+r.id,campana:r.campaignId}]);const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='AERIQ-medicion-publica.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
   // Sin espera: tras un zoom el lienzo anterior quedaría a otra escala. Calcular la vista cuesta pocos milisegundos.
   map.on('moveend',drawZones);map.on('resize',drawZones);
   refresh();

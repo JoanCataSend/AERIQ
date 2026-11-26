@@ -189,6 +189,10 @@ public final class DesignScreens {
         LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
         heroParams.bottomMargin = ui.dp(16);
         body.addView(hero, heroParams);
+        // HU33: el tutorial de la primera vez se puede volver a ver aquí.
+        Button again = ui.action("Ver el tutorial de la app", WHITE, GREEN, 26, activity::showTutorial);
+        again.setContentDescription("Volver a ver el tutorial de la app");
+        ui.add(body, again);
 
         LinearLayout[] anchors = new LinearLayout[3];
         tabs(body, new String[]{"Ozono", "Salud", "Normativa"}, 0, index -> {
@@ -738,6 +742,18 @@ public final class DesignScreens {
                 () -> activity.go(Screen.PANEL));
         }
 
+        // Avisos (HU36): bandeja de mensajes con tu admin o tu equipo.
+        if (activity.noticesAvailable()) {
+            data.addView(divider(), new LinearLayout.LayoutParams(-1, ui.dp(1)));
+            int unread = activity.noticesUnread();
+            View trailing = chevron();
+            if (unread > 0) trailing = chip(String.valueOf(unread), RED, WHITE);
+            LinearLayout row = menuRow(data, R.drawable.ic_help, GREEN, PANEL_SOFT, "Avisos", INK,
+                unread > 0 ? (unread == 1 ? "1 aviso nuevo" : unread + " avisos nuevos") : "Mensajes con tu admin o tu equipo",
+                trailing, () -> activity.go(Screen.NOTICES));
+            row.setContentDescription("Avisos" + (unread > 0 ? ", " + unread + (unread == 1 ? " nuevo" : " nuevos") : ""));
+        }
+
         LinearLayout security = panel(body, 16);
         menuRow(security, R.drawable.ic_lock, GREEN, PANEL_SOFT, "Cambiar contraseña", INK, null, chevron(),
             () -> activity.go(Screen.CHANGE_PASSWORD));
@@ -749,7 +765,7 @@ public final class DesignScreens {
             if (updatingFingerprintSwitch[0]) return;
             if (!checked) {
                 activity.disableBiometricAccess(user.id);
-                activity.message("Acceso biométrico desactivado para esta cuenta.");
+                activity.message("Acceso biométrico desactivado para esta cuenta.", MainActivity.TONE_OK);
                 return;
             }
             button.setEnabled(false);
@@ -760,11 +776,11 @@ public final class DesignScreens {
                     button.setChecked(false);
                     updatingFingerprintSwitch[0] = false;
                 } else {
-                    activity.message("Acceso biométrico vinculado a esta cuenta.");
+                    activity.message("Acceso biométrico vinculado a esta cuenta.", MainActivity.TONE_OK);
                 }
             });
         });
-        menuRow(security, R.drawable.ic_fingerprint, GREEN, PANEL_SOFT, "Acceso con huella", INK, null, fingerprint, null);
+        menuRow(security, R.drawable.ic_fingerprint, GREEN, PANEL_SOFT, "Acceso con huella o cara", INK, null, fingerprint, null);
 
         LinearLayout help = panel(body, 16);
         menuRow(help, R.drawable.ic_help, GREEN, PANEL_SOFT, "Ayuda y contacto", INK, null, chevron(),

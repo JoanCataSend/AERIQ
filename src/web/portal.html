@@ -32,7 +32,7 @@
   <div class="container">
     <div class="page-head"><h1 id="portal-title">Tu organización</h1><p id="portal-feedback" class="status" role="status" aria-live="polite">Comprobando acceso…</p></div>
     <div class="workspace-layout">
-      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#campaign" data-workspace-view="campaign" data-perm="equipo.gestionar">Mi campaña</a><a href="#overview" data-workspace-view="overview" data-perm="campanas.gestionar">Resumen</a><a href="#campaigns" data-workspace-view="campaigns" data-perm="campanas.gestionar">Campañas</a><a href="#workers" data-workspace-view="workers" id="workers-link" data-perm="campanas.gestionar equipo.gestionar">Equipo</a><a href="#devices" data-workspace-view="devices" data-perm="equipo.gestionar">Dispositivos AERIQ</a><a href="#orbs" data-workspace-view="orbs" data-perm="campanas.gestionar">AERIQ por campaña</a><a href="#reports" data-workspace-view="reports" data-perm="informes.ver">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a></aside>
+      <aside class="workspace-nav" aria-label="Secciones de la organización"><a href="#campaign" data-workspace-view="campaign" data-perm="equipo.gestionar mediciones.registrar">Mi campaña</a><a href="#overview" data-workspace-view="overview" data-perm="campanas.gestionar">Resumen</a><a href="#campaigns" data-workspace-view="campaigns" data-perm="campanas.gestionar">Campañas</a><a href="#workers" data-workspace-view="workers" id="workers-link" data-perm="campanas.gestionar equipo.gestionar">Equipo</a><a href="#devices" data-workspace-view="devices" data-perm="equipo.gestionar">Dispositivos AERIQ</a><a href="#orbs" data-workspace-view="orbs" data-perm="campanas.gestionar">AERIQ por campaña</a><a href="#reports" data-workspace-view="reports" data-perm="informes.ver">Informes y CSV</a><a href="#requests" data-workspace-view="requests" data-perm="solicitudes.gestionar">Solicitudes</a><a href="#notices" data-workspace-view="notices" data-perm="campanas.gestionar equipo.gestionar mediciones.registrar">Avisos <span class="nav-badge" id="notices-badge" hidden></span></a></aside>
       <div>
         <div id="organization-panel" hidden>
           <section data-view="campaign" data-perm="equipo.gestionar">
@@ -128,6 +128,12 @@
             <div class="report-print"><button id="print-report" class="btn btn-primary" type="button" disabled data-perm="informes.ver">Descargar informe en PDF</button><p class="note">Se abre el diálogo de impresión del navegador: elige «Guardar como PDF».</p></div>
           </section>
         </div>
+        <section data-view="notices" id="notices-panel" class="panel portal-section" data-perm="campanas.gestionar equipo.gestionar mediciones.registrar" hidden>
+          <div class="fleet-head"><div><h2>Avisos</h2><p>Mensajes con tu equipo, como una solicitud: cada aviso tiene asunto, estado e historial.</p></div><button class="btn btn-primary" type="button" id="notice-new">Nuevo aviso</button></div>
+          <p id="notices-status" role="status" aria-live="polite"></p>
+          <div class="inbox"><div class="inbox-list"><div class="inbox-filter" id="notices-filter" role="group" aria-label="Filtrar avisos"></div><div id="notices-list" class="inbox-rows"></div></div><article id="notice-detail" class="inbox-detail" aria-live="polite"></article></div>
+          <dialog id="notice-modal" class="modal"><form method="dialog" id="notice-form"><h2>Nuevo aviso</h2><label>Para<select name="to" required></select></label><label>Asunto<input name="subject" required maxlength="160"></label><label>Mensaje<textarea name="message" required maxlength="4000" rows="6"></textarea></label><div class="button-pair"><button type="button" class="btn btn-outline" id="notice-modal-close">Cancelar</button><button type="submit" class="btn btn-primary">Enviar aviso</button></div></form></dialog>
+        </section>
         <section data-view="requests" id="commercial-panel" class="panel portal-section" data-perm="solicitudes.gestionar" hidden><h2>Solicitudes recibidas</h2><div class="inbox"><div class="inbox-list"><input id="requests-search" type="search" placeholder="Buscar nº, entidad, correo…" aria-label="Buscar solicitudes"><div class="inbox-filter" id="requests-filter" role="group" aria-label="Filtrar por estado"></div><div id="requests-list" class="inbox-rows"></div></div><article id="request-detail" class="inbox-detail" aria-live="polite"></article></div></section>
       </div>
     </div>
@@ -148,6 +154,7 @@
 <script src="device-table.js" defer></script>
 <script src="fleet.js" defer></script>
 <script src="portal.js" defer></script>
+<script src="notices.js" defer></script>
 <script src="workspace-nav.js" defer></script>
 <script src="precarga-3d.js" defer></script>
 </body>

@@ -45,10 +45,13 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     public enum Screen {
         LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
-        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PANEL, ASSIGN
+        CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PANEL, ASSIGN, NOTICES, NOTICE, NOTICE_NEW
     }
     /** Pantallas del Orb: solo para cuentas que miden (permiso mediciones.registrar), como en la web. */
     private static final EnumSet<Screen> SENSOR_SCREENS = EnumSet.of(Screen.SENSOR, Screen.LINK, Screen.HISTORY, Screen.CONFIG);
+
+    /** Avisos entre personas (HU36): solo cuentas de una organización. */
+    private static final EnumSet<Screen> NOTICE_SCREENS = EnumSet.of(Screen.NOTICES, Screen.NOTICE, Screen.NOTICE_NEW);
 
     private static final EnumSet<Screen> PUBLIC = EnumSet.of(
         Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN, Screen.COMPARE);
@@ -134,6 +137,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             return insets.consumeSystemWindowInsets();
         });
         ui.add(body, new ProgressBar(this));
+        // HU34/HU33: la animación sale en cada arranque nuevo (no al recrear la actividad); después, el tutorial si nunca se vio.
+        if (state == null) showIntro();
         long biometricUserId = auth.savedUserId();
         boolean legacyBiometric = prefs.consumeLegacyFingerprint(biometricUserId);
         if (legacyBiometric && !biometricAccess.hasEnrollment(biometricUserId) && auth.sessionToken() != null) {
@@ -141,7 +146,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             restoring = false;
             current = Screen.LOGIN;
             render();
-            message("Por seguridad, vuelve a entrar con tu correo y activa de nuevo el acceso biométrico.");
+            message("Por seguridad, vuelve a entrar con tu correo y activa de nuevo el acceso biométrico.", TONE_WARN);
             return;
         }
         if (biometricAccess.hasEnrollment(biometricUserId) && auth.sessionToken() != null) {
@@ -153,7 +158,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 restoring = false;
                 current = Screen.LOGIN;
                 render();
-                message("La biometría registrada cambió o ya no está disponible. Entra con tu correo y actívala de nuevo.");
+                message("La biometría registrada cambió o ya no está disponible. Entra con tu correo y actívala de nuevo.", TONE_WARN);
                 return;
             }
             // Con "Acceso con huella" la sesión guardada solo se abre tras verificar la huella.
@@ -164,7 +169,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         }
         auth.restore(result -> {
             restoring = false;
-            if (!result.message.isEmpty() && !result.success) message(result.message);
+            if (!result.message.isEmpty() && !result.success) message(result.message, TONE_ERROR);
             if (auth.user != null && current.ordinal() <= Screen.RESET.ordinal()) current = Screen.MAP;
             go(current);
             refreshWorker();
@@ -180,7 +185,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         if (auth.user != null && auth.user.mustChangePassword) destination = Screen.CHANGE_PASSWORD;
         else if (auth.user == null && !PUBLIC.contains(destination)) {
             destination = Screen.LOGIN;
-            message("Inicia sesión con la cuenta de tu organización para acceder al sensor.");
+            message("Inicia sesión con la cuenta de tu organización para acceder al sensor.", TONE_WARN);
         } else if (auth.user != null && !auth.user.collects() && SENSOR_SCREENS.contains(destination)) {
             // Los administradores no miden: su pestaña es Panel (gestión en la web).
             destination = Screen.PANEL;
@@ -190,7 +195,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             || !auth.user.can(AeriqAuthManager.User.PERMISSION_TEAM))) {
             // Asignar Orb es del admin de campaña, como «Registrar Orb» en el panel web.
             destination = auth.user == null ? Screen.LOGIN : Screen.PANEL;
+        } else if (NOTICE_SCREENS.contains(destination) && !noticesAvailable()) {
+            destination = Screen.ACCOUNT;
+        } else if (destination == Screen.NOTICE && noticeId == 0) {
+            destination = Screen.NOTICES;
         }
+        if (destination == Screen.NOTICES && current != Screen.NOTICES) refreshNotices();
         // Al salir de Asignar Orb se deja de buscar por Bluetooth: el admin no recibe lecturas.
         if (current == Screen.ASSIGN && destination != Screen.ASSIGN && ble.scanning) ble.stopScan();
         if (destination == Screen.ASSIGN && current != Screen.ASSIGN) refreshTeam();
@@ -272,6 +282,18 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 title("Asignar Orb", Screen.PANEL);
                 work.assign(body, ble, team, teamStatus);
                 break;
+            case NOTICES:
+                title("Avisos", Screen.ACCOUNT);
+                noticeScreens().inbox(body, noticeInbox, noticeStatus);
+                break;
+            case NOTICE:
+                title("Aviso", Screen.NOTICES);
+                noticeScreens().conversation(body, noticeConversation, noticeStatus);
+                break;
+            case NOTICE_NEW:
+                title("Nuevo aviso", Screen.NOTICES);
+                noticeScreens().compose(body, noticeInbox);
+                break;
             case ACCOUNT:
                 title("Cuenta", null);
                 design.account(body, auth.user, selected(), sharing, prefs);
@@ -316,7 +338,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         Screen active = current;
         if (EnumSet.of(Screen.LINK, Screen.CONFIG, Screen.HISTORY).contains(current)) active = Screen.SENSOR;
         if (current == Screen.COMPARE) active = Screen.MAP;
-        if (current == Screen.SERVICES) active = Screen.ACCOUNT;
+        if (current == Screen.SERVICES || NOTICE_SCREENS.contains(current)) active = Screen.ACCOUNT;
         if (current == Screen.ASSIGN) active = Screen.PANEL;
         for (int index = 0; index < routes.length; index++) {
             Screen route = routes[index];
@@ -336,6 +358,21 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             label.setSingleLine(true);
             tab.addView(label, new LinearLayout.LayoutParams(-1, -2));
             tab.setContentDescription(labels[index]);
+            tab.setTag("tour:tab:" + route.name()); // para el tour con foco (HU33)
+            // Avisos nuevos (HU36): punto rojo sobre «Cuenta», donde está la bandeja.
+            if (route == Screen.ACCOUNT && noticeInbox.unread > 0) {
+                FrameLayout holder = new FrameLayout(this);
+                tab.removeView(icon);
+                holder.addView(icon, new FrameLayout.LayoutParams(ui.dp(56), ui.dp(30)));
+                View dot = new View(this);
+                dot.setBackground(ui.shape(Views.RED, 5, Views.WHITE));
+                FrameLayout.LayoutParams dotParams = new FrameLayout.LayoutParams(ui.dp(10), ui.dp(10), Gravity.TOP | Gravity.END);
+                dotParams.setMargins(0, ui.dp(1), ui.dp(12), 0);
+                holder.addView(dot, dotParams);
+                tab.addView(holder, 0, new LinearLayout.LayoutParams(ui.dp(56), ui.dp(30)));
+                tab.setContentDescription(labels[index] + ", " + noticeInbox.unread
+                    + (noticeInbox.unread == 1 ? " aviso nuevo" : " avisos nuevos"));
+            }
             tab.setOnClickListener(view -> go(route));
             ui.weighted(navigation, tab);
         }
@@ -357,35 +394,38 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             if (auth.user == null && !PUBLIC.contains(current)) {
                 clearWorker();
                 go(Screen.LOGIN);
-                message(result.message);
+                message(result.message, TONE_WARN);
                 return;
             }
             done.accept(result);
             if (biometricNeedsReenrollment) {
-                message("Por seguridad, activa de nuevo el acceso biométrico desde Cuenta.");
+                message("Por seguridad, activa de nuevo el acceso biométrico desde Cuenta.", TONE_WARN);
             }
             if (biometricPasswordChanged) {
-                message("La contraseña cambió. Vuelve a activar el acceso con huella desde Cuenta.");
+                message("La contraseña cambió. Vuelve a activar el acceso con huella o cara desde Cuenta.", TONE_WARN);
             }
         }, fields);
     }
 
     public void logout() {
         if (auth.busy) {
-            message("Espera a que termine la operación.");
+            message("Espera a que termine la operación.", TONE_WARN);
             return;
         }
         auth.logout();
         com.google.firebase.auth.FirebaseAuth.getInstance().signOut();
         clearWorker();
         go(Screen.LOGIN);
-        message("Has cerrado sesión.");
+        message("Has cerrado sesión.", TONE_OK);
     }
 
     private void clearWorker() {
         setSharing(false);
         ble.preferredAddress = null;
         team = CampaignTeam.empty();
+        noticeInbox = Notices.Inbox.empty();
+        noticeConversation = null;
+        noticeId = 0;
         ble.stopScan();
         ble.unlink();
         history = Collections.emptyList();
@@ -397,6 +437,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     private void refreshWorker() {
+        refreshNotices();
         refreshAssignments();
         refreshHistory();
     }
@@ -435,6 +476,82 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     private OrbAssignment selected() { return assigned(ble.selectedAddress); }
 
+    // ---------------------------------------------------------------- Avisos (HU36)
+    private NoticeScreens noticeScreens;
+    private Notices.Inbox noticeInbox = Notices.Inbox.empty();
+    private Notices.Conversation noticeConversation;
+    private String noticeStatus = "";
+    private long noticeId;
+
+    private NoticeScreens noticeScreens() {
+        if (noticeScreens == null) noticeScreens = new NoticeScreens(this, ui);
+        return noticeScreens;
+    }
+
+    /** Los avisos son para cuentas de una organización (operador, admin de campaña y admin principal). */
+    public boolean noticesAvailable() {
+        return auth.user != null && !auth.user.mustChangePassword && !auth.user.organization.isEmpty();
+    }
+
+    public int noticesUnread() { return noticeInbox.unread; }
+
+    public void renderCurrent() { render(); }
+
+    public void refreshNotices() {
+        if (!noticesAvailable()) return;
+        if (current == Screen.NOTICES && noticeInbox.notices.isEmpty()) noticeStatus = "Consultando tus avisos…";
+        field.notices((inbox, error) -> {
+            int before = noticeInbox.unread;
+            boolean hadContacts = !noticeInbox.contacts.isEmpty();
+            if (error == null) noticeInbox = inbox;
+            noticeStatus = error == null ? "" : "No se pudo consultar: " + error;
+            // Se repinta solo donde no se borra nada escrito; en el resto, el punto se actualiza en la siguiente visita.
+            if (current == Screen.NOTICES || current == Screen.ACCOUNT || (current == Screen.NOTICE_NEW && !hadContacts)) render();
+            else if (before != noticeInbox.unread && EnumSet.of(Screen.SENSOR, Screen.LEARN, Screen.PANEL, Screen.NOTICE).contains(current)) render();
+        });
+    }
+
+    public void openNotice(long id) {
+        noticeId = id;
+        noticeConversation = null;
+        noticeStatus = "";
+        go(Screen.NOTICE);
+        field.notice(id, (notice, error) -> {
+            if (noticeId != id) return;
+            noticeConversation = notice;
+            noticeStatus = error == null ? "" : "No se pudo abrir: " + error;
+            if (current == Screen.NOTICE) render();
+            if (error == null) refreshNotices(); // abrirlo lo marca como visto: baja el contador
+        });
+    }
+
+    public void createNotice(long to, String subject, String text) {
+        message("Enviando el aviso…", TONE_INFO);
+        field.createNotice(to, subject, text, (result, error) -> {
+            if (error != null) { message(error, TONE_ERROR); return; }
+            message(result, TONE_OK);
+            go(Screen.NOTICES);
+            refreshNotices();
+        });
+    }
+
+    public void replyNotice(long id, String text) {
+        message("Enviando la respuesta…", TONE_INFO);
+        field.replyNotice(id, text, (result, error) -> {
+            if (error != null) { message(error, TONE_ERROR); return; }
+            message(result, TONE_OK);
+            openNotice(id);
+        });
+    }
+
+    public void closeNotice(long id) {
+        field.closeNotice(id, (result, error) -> {
+            if (error != null) { message(error, TONE_ERROR); return; }
+            message(result, TONE_OK);
+            openNotice(id);
+        });
+    }
+
     // ---------------------------------------------------------------- Asignar Orb (admin de campaña)
     private CampaignTeam team = CampaignTeam.empty();
     private String teamStatus = "Consultando tu campaña…";
@@ -450,7 +567,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     /** Registra o reasigna el Orb al operador elegido; el servidor aplica las mismas reglas que el panel web. */
     public void assignOrb(CampaignTeam.Device existing, String address, String name, CampaignTeam.Operator operator) {
-        message("Asignando " + name + " a " + operator.name + "…");
+        message("Asignando " + name + " a " + operator.name + "…", TONE_INFO);
         field.assignOrb(existing == null ? null : existing.id, name, address, operator.id,
             existing != null && existing.simulated, error -> {
                 if (error != null) {
@@ -458,7 +575,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                         .setMessage(error).setPositiveButton("Entendido", null).show();
                     return;
                 }
-                message(name + " asignado a " + operator.name + ". Le aparecerá al abrir la app.");
+                message(name + " asignado a " + operator.name + ". Le aparecerá al abrir la app.", TONE_OK);
                 refreshTeam();
             });
     }
@@ -484,6 +601,13 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private void receive(LiveMeasurement reading) {
         OrbAssignment assignment = assigned(reading.address);
         if (!started || !sharing || assignment == null) return;
+        // HU35: se comprueba el rango antes de enviar. Se envía igualmente: el servidor la guarda como no válida.
+        if (!assignment.inRange(reading.reading.typeId, reading.reading.value)) {
+            serverStatus = "Lectura descartada: " + reading.reading.value + " " + reading.reading.unit()
+                + " está fuera del rango admitido (" + assignment.range(reading.reading.typeId) + ")";
+            field.upload(reading, assignment, location.current(), status -> serverStatus = status);
+            return;
+        }
         serverStatus = "Enviando " + reading.reading.label() + "…";
         // La posición va siempre: sin ella la lectura no puede salir en el mapa de la campaña.
         field.upload(reading, assignment, location.current(), status -> serverStatus = status);
@@ -521,7 +645,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     public void selectOrb(String address) {
         if (assigned(address) == null) {
-            message("Asigna primero el sensor a tu cuenta.");
+            message("Asigna primero el sensor a tu cuenta.", TONE_WARN);
             return;
         }
         if (!address.equalsIgnoreCase(ble.selectedAddress)) setSharing(false);
@@ -551,7 +675,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             try {
                 startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), ENABLE_BLUETOOTH);
             } catch (SecurityException | android.content.ActivityNotFoundException error) {
-                message("Activa Bluetooth desde los ajustes de Android.");
+                message("Activa Bluetooth desde los ajustes de Android.", TONE_WARN);
             }
         }
     }
@@ -576,9 +700,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         try {
             startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", getPackageName(), null)));
-            message("Desactiva la ubicación en Permisos.");
+            message("Desactiva la ubicación en Permisos.", TONE_WARN);
         } catch (android.content.ActivityNotFoundException error) {
-            message("Puedes retirar el permiso desde los ajustes de Android.");
+            message("Puedes retirar el permiso desde los ajustes de Android.", TONE_WARN);
         }
     }
 
@@ -590,7 +714,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         super.onRequestPermissionsResult(request, permissions, results);
         if (request == BLE_PERMISSION) {
             if (ble.hasScanPermissions()) scanWithBluetooth();
-            else message("No se han concedido los permisos Bluetooth");
+            else message("No se han concedido los permisos Bluetooth", TONE_ERROR);
         } else if (request == GPS_CAPTURE) {
             if (sharing && started) location.start();
             if (current == Screen.CONFIG) render();
@@ -604,7 +728,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     /** Pide el permiso de ubicación desde «Detalles del sensor» si la persona lo denegó. */
     public void requestCaptureLocation() {
-        if (location.allowed()) { message("La ubicación ya está permitida."); return; }
+        if (location.allowed()) { message("La ubicación ya está permitida.", TONE_OK); return; }
         requestPermissions(locationPermissions(), GPS_CAPTURE);
     }
 
@@ -613,7 +737,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     public void reconnectSensor() {
         ble.stopScan();
         toggleScan();
-        message("Buscando de nuevo tu sensor…");
+        message("Buscando de nuevo tu sensor…", TONE_INFO);
     }
 
     public boolean biometricAvailable() {
@@ -636,12 +760,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     /** Activates a cryptographic biometric key scoped to the signed-in AERIQ user. */
     public void enableBiometricAccess(long userId, Consumer<Boolean> done) {
         if (auth.user == null || auth.user.id != userId || auth.sessionToken() == null) {
-            message("Inicia sesión en esta cuenta antes de activar la biometría.");
+            message("Inicia sesión en esta cuenta antes de activar la biometría.", TONE_WARN);
             done.accept(false);
             return;
         }
         if (!biometricAvailable()) {
-            message("Configura una huella o biometría fuerte en el móvil antes de activarla.");
+            message("Configura una huella o biometría fuerte en el móvil antes de activarla.", TONE_WARN);
             done.accept(false);
             return;
         }
@@ -654,13 +778,13 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         passwordInput.setPadding(ui.dp(16), ui.dp(12), ui.dp(16), ui.dp(12));
         new android.app.AlertDialog.Builder(this)
             .setTitle("Confirma tu contraseña")
-            .setMessage("Se guardará cifrada en este móvil para iniciar sesión después de validar tu huella.")
+            .setMessage("Se guardará cifrada en este móvil para iniciar sesión después de validar tu huella o tu cara.")
             .setView(passwordInput)
             .setNegativeButton("Cancelar", (dialog, which) -> done.accept(false))
             .setPositiveButton("Continuar", (dialog, which) -> {
                 String password = passwordInput.getText().toString();
                 if (password.isEmpty()) {
-                    message("Escribe tu contraseña para activar el acceso biométrico.");
+                    message("Escribe tu contraseña para activar el acceso biométrico.", TONE_WARN);
                     done.accept(false);
                     return;
                 }
@@ -675,7 +799,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             cipher = biometricAccess.beginEnrollment(userId);
         } catch (Exception error) {
             biometricAccess.disable(userId);
-            message("No se pudo preparar la clave biométrica en este móvil.");
+            message("No se pudo preparar la clave biométrica en este móvil.", TONE_ERROR);
             done.accept(false);
             return;
         }
@@ -690,7 +814,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                         done.accept(true);
                     } catch (Exception error) {
                         biometricAccess.disable(userId);
-                        message("No se pudo vincular la biometría a esta cuenta.");
+                        message("No se pudo vincular la biometría a esta cuenta.", TONE_ERROR);
                         done.accept(false);
                     }
                 }
@@ -700,7 +824,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                     if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
                         && code != androidx.biometric.BiometricPrompt.ERROR_CANCELED
                         && code != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
-                        message(error.toString());
+                        message(error.toString(), TONE_ERROR);
                     }
                     done.accept(false);
                 }
@@ -722,11 +846,11 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     public void loginWithFingerprint() {
         long expectedUserId = biometricAccess.enrolledUserId();
         if (!biometricAccess.hasEnrollment(expectedUserId)) {
-            message("Entra con la cuenta que quieras vincular y activa «Acceso con huella» en Cuenta.");
+            message("Entra con la cuenta que quieras vincular y activa «Acceso con huella o cara» en Cuenta.", TONE_WARN);
             return;
         }
         if (!biometricAvailable()) {
-            message("Este móvil no permite entrar con huella. Usa tu correo.");
+            message("Este móvil no permite entrar con huella o cara. Usa tu correo.", TONE_WARN);
             return;
         }
         final Cipher cipher;
@@ -735,7 +859,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         } catch (Exception invalidKey) {
             biometricAccess.disable(expectedUserId);
             render();
-            message("La huella de esta cuenta ya no está vinculada. Entra con tu correo y actívala de nuevo.");
+            message("La huella de esta cuenta ya no está vinculada. Entra con tu correo y actívala de nuevo.", TONE_WARN);
             return;
         }
         androidx.biometric.BiometricPrompt prompt = new androidx.biometric.BiometricPrompt(this,
@@ -747,12 +871,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 @Override public void onAuthenticationError(int code, CharSequence error) {
                     if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
                         && code != androidx.biometric.BiometricPrompt.ERROR_CANCELED
-                        && code != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) message(error.toString());
+                        && code != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) message(error.toString(), TONE_ERROR);
                 }
             });
         androidx.biometric.BiometricPrompt.PromptInfo promptInfo = new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
             .setTitle("Entrar en AERIQ")
-            .setSubtitle("Usa tu huella para entrar en " + biometricAccess.enrolledEmail())
+            .setSubtitle("Usa tu huella o tu cara para entrar en " + biometricAccess.enrolledEmail())
             .setNegativeButtonText("Usar correo")
             .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build();
@@ -765,12 +889,12 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             credential = crypto == null ? null : biometricAccess.finishUnlock(expectedUserId, crypto.getCipher());
         } catch (Exception error) {
             biometricAccess.disable(expectedUserId);
-            message("No se pudieron recuperar las credenciales. Entra con tu correo y vuelve a activar la huella.");
+            message("No se pudieron recuperar las credenciales. Entra con tu correo y vuelve a activar la huella.", TONE_ERROR);
             return;
         }
         if (credential == null) {
             biometricAccess.disable(expectedUserId);
-            message("No se pudieron recuperar las credenciales. Entra con tu correo y vuelve a activar la huella.");
+            message("No se pudieron recuperar las credenciales. Entra con tu correo y vuelve a activar la huella.", TONE_ERROR);
             return;
         }
         auth.submit("login", loggedIn -> {
@@ -779,18 +903,18 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 String normalized = detail.toLowerCase(Locale.ROOT);
                 if (normalized.contains("contraseña incorrectos") || normalized.contains("no está activada")) {
                     biometricAccess.disable(expectedUserId);
-                    message("La contraseña guardada ya no es válida. Entra con correo y vuelve a activar la huella.");
+                    message("La contraseña guardada ya no es válida. Entra con correo y vuelve a activar la huella.", TONE_ERROR);
                 } else {
                     message(detail.isEmpty()
                         ? "No se pudo iniciar sesión con la huella. Entra con tu correo y contraseña."
-                        : detail);
+                        : detail, TONE_ERROR);
                 }
                 return;
             }
             if (auth.user == null || auth.user.id != expectedUserId) {
                 biometricAccess.disable(expectedUserId);
                 auth.clearLocalSession();
-                message("La cuenta vinculada no coincide. Entra con tu correo y contraseña.");
+                message("La cuenta vinculada no coincide. Entra con tu correo y contraseña.", TONE_ERROR);
                 return;
             }
             go(Screen.MAP);
@@ -863,7 +987,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                     if (rows.isEmpty()) break;
                 }
                 document.writeTo(output);
-                runOnUiThread(() -> message("PDF guardado."));
+                runOnUiThread(() -> message("PDF guardado.", TONE_OK));
             } catch (Exception error) {
                 runOnUiThread(() -> message("No se pudo exportar: " + error.getMessage()));
             } finally {
@@ -900,7 +1024,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
                     if (output == null) throw new java.io.IOException("Destino no disponible");
                     output.write(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    runOnUiThread(() -> message("CSV guardado."));
+                    runOnUiThread(() -> message("CSV guardado.", TONE_OK));
                 } catch (Exception error) {
                     runOnUiThread(() -> message("No se pudo exportar: " + error.getMessage()));
                 }
@@ -910,12 +1034,50 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     public void open(String url) {
         try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
-        catch (android.content.ActivityNotFoundException error) { message("No hay navegador disponible."); }
+        catch (android.content.ActivityNotFoundException error) { message("No hay navegador disponible.", TONE_ERROR); }
     }
 
     public boolean signedIn() { return auth.user != null; }
 
-    public void message(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
+    /** Tono de los mensajes: verde = hecho, naranja = aviso, rojo = error, oscuro = información. */
+    public static final int TONE_INFO = 0, TONE_OK = 1, TONE_WARN = 2, TONE_ERROR = 3;
+    private TextView notice;
+    private final Runnable hideNotice = () -> { if (notice != null) notice.animate().alpha(0).setDuration(200).withEndAction(() -> notice.setVisibility(View.GONE)).start(); };
+
+    public void message(String text) { message(text, TONE_INFO); }
+
+    /**
+     * Aviso abajo de la pantalla con el color de su tono (sustituye al Toast gris, que no admite colores).
+     * Los errores se quedan más tiempo. Se anuncia también al lector de pantalla.
+     */
+    public void message(String text, int tone) {
+        if (text == null || text.trim().isEmpty()) return;
+        FrameLayout content = findViewById(android.R.id.content);
+        if (notice == null) {
+            notice = new TextView(this);
+            notice.setTextColor(0xffffffff);
+            notice.setTextSize(15);
+            notice.setPadding(ui.dp(18), ui.dp(14), ui.dp(18), ui.dp(14));
+            notice.setElevation(ui.dp(8));
+            notice.setVisibility(View.GONE);
+            notice.setOnClickListener(view -> hideNotice.run());
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
+            params.setMargins(ui.dp(16), 0, ui.dp(16), ui.dp(96));
+            content.addView(notice, params);
+        }
+        int color = tone == TONE_OK ? 0xff0e6b5e : tone == TONE_WARN ? 0xffa85a00 : tone == TONE_ERROR ? 0xffb3261e : 0xff1c2522;
+        notice.setBackground(ui.shape(color, 16, 0));
+        notice.setText(text);
+        notice.setContentDescription((tone == TONE_ERROR ? "Error: " : tone == TONE_WARN ? "Aviso: " : "") + text);
+        notice.removeCallbacks(hideNotice);
+        notice.animate().cancel();
+        notice.bringToFront();
+        notice.setAlpha(0);
+        notice.setVisibility(View.VISIBLE);
+        notice.animate().alpha(1).setDuration(180).start();
+        notice.announceForAccessibility(notice.getContentDescription());
+        notice.postDelayed(hideNotice, tone == TONE_ERROR ? 6000 : 3800);
+    }
 
     @Override protected void onStart() {
         super.onStart();
@@ -923,6 +1085,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         if ((ble.selectedAddress != null || ble.preferredAddress != null) && ble.hasScanPermissions() && ble.bluetoothEnabled()) ble.startScan();
         if (sharing) location.start();
         if (mapScreen != null) mapScreen.resume();
+        if (!restoring) refreshNotices(); // al volver a la app se actualizan los avisos nuevos
         main.post(tick);
     }
 
@@ -948,13 +1111,79 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         navigateBack();
     }
 
+    private SplashView splash;
+    private SpotlightTour tutorial;
+
+    /** Animación de apertura (cada vez que se abre la app) y, si nunca se ha visto, el tutorial. */
+    private void showIntro() {
+        FrameLayout content = findViewById(android.R.id.content);
+        splash = new SplashView(this);
+        content.addView(splash, new FrameLayout.LayoutParams(-1, -1));
+        splash.start(() -> {
+            content.removeView(splash);
+            splash = null;
+            if (!prefs.tutorialSeen()) showTutorial();
+        });
+    }
+
+    /**
+     * Tutorial de la app (HU33): tour con foco sobre la app real. Se hace en el mapa, que existe con y sin cuenta.
+     * Al terminarlo o saltarlo queda marcado como visto y no vuelve a salir solo (se puede repetir desde Aprende o
+     * desde Cuenta → Ayuda y contacto).
+     */
+    public void showTutorial() {
+        if (tutorial != null || splash != null) return;
+        if (restoring) { main.postDelayed(this::showTutorial, 150); return; } // aún se está abriendo la sesión
+        if (auth.user != null && auth.user.mustChangePassword) return;       // primero, la contraseña nueva
+        if (current != Screen.MAP) go(Screen.MAP);
+        FrameLayout content = findViewById(android.R.id.content);
+        tutorial = new SpotlightTour(this, ui, tourSteps(), tag -> getWindow().getDecorView().findViewWithTag(tag), () -> {
+            prefs.setTutorialSeen();
+            content.removeView(tutorial);
+            tutorial = null;
+        });
+        content.addView(tutorial, new FrameLayout.LayoutParams(-1, -1));
+        tutorial.start();
+    }
+
+    /** Pasos del tour. Los de pestañas dependen de la cuenta: quien mide ve «Mi sensor»; quien gestiona, «Panel». */
+    private List<SpotlightTour.Step> tourSteps() {
+        boolean signedIn = auth.user != null;
+        List<SpotlightTour.Step> steps = new ArrayList<>();
+        steps.add(new SpotlightTour.Step("tour:search", "Busca cualquier sitio",
+            "Escribe una ciudad o una dirección para ver cómo está el ozono en esa zona."));
+        steps.add(new SpotlightTour.Step("tour:legend", "Qué significan los colores",
+            "Cada punto es una medición. Verde es ozono bajo, naranja moderado y rojo alto. En gris hay pocas mediciones "
+                + "para dar un nivel, y sin color no hay datos (no significa aire limpio)."));
+        steps.add(new SpotlightTour.Step("tour:layers", "Capas del mapa",
+            "Elige el periodo (últimas 24 h, 7 días o todo) y qué ver: zonas, puntos o el radio de cada zona."));
+        steps.add(new SpotlightTour.Step("tour:locate", "Tu ubicación",
+            "Centra el mapa donde estás. La app te pedirá permiso de ubicación solo cuando toques este botón."));
+        steps.add(new SpotlightTour.Step("tour:tab:" + Screen.SENSOR.name(), "Tu Orb",
+            "Si mides con un Orb, enciéndelo y acércalo al móvil: la app lo busca por Bluetooth (y te pide ese permiso "
+                + "entonces). Con un solo Orb asignado lo elige sola; con varios, lo tocas en «Vincular». Aquí ves el ozono "
+                + "en directo." + (signedIn ? "" : " Los Orb los asigna tu organización.")));
+        steps.add(new SpotlightTour.Step("tour:tab:" + Screen.PANEL.name(), "Tu panel",
+            "Lo que gestionas desde la web y, si eres admin de campaña, «Asignar un Orb con el móvil»."));
+        steps.add(new SpotlightTour.Step("tour:tab:" + Screen.LEARN.name(), "Aprende",
+            "Qué es el ozono, cómo afecta a la salud y qué dice la normativa. Desde aquí puedes repetir este tutorial."));
+        steps.add(new SpotlightTour.Step("tour:tab:" + Screen.ACCOUNT.name(), signedIn ? "Tu cuenta" : "Entra con tu cuenta",
+            signedIn ? "Tus datos, los avisos con tu admin o tu equipo, el acceso con huella o cara y la ayuda."
+                : "Las cuentas las da tu organización con los kits de AERIQ. Si te la han dado, entra aquí con tu correo. "
+                + "Sin cuenta puedes usar el mapa y Aprende."));
+        return steps;
+    }
+
     private void navigateBack() {
+        if (splash != null) return; // la animación dura menos de 2 s y termina sola
+        if (tutorial != null) { tutorial.back(); return; }
         switch (current) {
             case FORGOT: go(Screen.LOGIN); break;
             case RESET: go(Screen.FORGOT); break;
             case CONFIG: case HISTORY: case LINK: go(Screen.SENSOR); break;
             case ASSIGN: go(Screen.PANEL); break;
-            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: go(Screen.ACCOUNT); break;
+            case EDIT_PROFILE: case CHANGE_PASSWORD: case SERVICES: case NOTICES: go(Screen.ACCOUNT); break;
+            case NOTICE: case NOTICE_NEW: go(Screen.NOTICES); break;
             case MAP: case LOGIN: finish(); break;
             default: go(Screen.MAP);
         }

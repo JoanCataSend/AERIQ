@@ -154,6 +154,7 @@ public final class PublicMapScreen {
         query.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         query.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
         searchBar.addView(query, new LinearLayout.LayoutParams(0, ui.dp(56), 1));
+        searchBar.setTag("tour:search"); // elementos que ilumina el tour (HU33)
         frame.addView(searchBar, frameParams(-1, ui.dp(56), Gravity.TOP, 12, 12, 12, 0));
 
         // Aviso según el ozono de la zona seleccionada (solo moderado o alto)
@@ -178,11 +179,15 @@ public final class PublicMapScreen {
 
         // Controles: mi ubicación, capas, actualizar
         LinearLayout controls = ui.column();
-        controls.addView(control(R.drawable.ic_target, "Mostrar mi ubicación", () -> {
+        View locateButton = control(R.drawable.ic_target, "Mostrar mi ubicación", () -> {
             if (location.allowed()) locate();
             else activity.locateMap();
-        }));
-        controls.addView(control(R.drawable.ic_layers, "Capas del mapa", this::showLayers));
+        });
+        locateButton.setTag("tour:locate");
+        controls.addView(locateButton);
+        View layersButton = control(R.drawable.ic_layers, "Capas del mapa", this::showLayers);
+        layersButton.setTag("tour:layers");
+        controls.addView(layersButton);
         controls.addView(control(R.drawable.ic_refresh, "Actualizar mediciones", this::load));
 
         // Leyenda en la parte de abajo del mapa
@@ -192,6 +197,7 @@ public final class PublicMapScreen {
         legend.setBackground(ui.shape(WHITE, 22, 0));
         legend.setElevation(ui.dp(3));
         legend.setPadding(ui.dp(16), ui.dp(10), ui.dp(16), ui.dp(10));
+        legend.setTag("tour:legend");
 
         // Fila flotante encima del panel: leyenda a la izquierda y botones a la derecha.
         // Va dentro del mismo grupo que el panel para subir y bajar con él.
@@ -832,7 +838,7 @@ public final class PublicMapScreen {
                 if (closed || generation != searchRequest) return;
                 if (goToFirst) {
                     if (found.isEmpty()) {
-                        activity.message(problem != null ? "No se pudo buscar: " + problem : "No se ha encontrado \"" + clean + "\"");
+                        activity.message(problem != null ? "No se pudo buscar: " + problem : "No se ha encontrado \"" + clean + "\"", (problem != null ? MainActivity.TONE_ERROR : MainActivity.TONE_WARN));
                         return;
                     }
                     choose(found.get(0));
@@ -910,14 +916,14 @@ public final class PublicMapScreen {
     /** Centra el mapa en ti y enseña tu ciudad en la ficha. Con quiet (al abrir el mapa) no avisa de nada. */
     private void locate(boolean quiet) {
         if (!location.allowed()) {
-            if (!quiet) activity.message("No se ha concedido permiso de ubicación.");
+            if (!quiet) activity.message("No se ha concedido permiso de ubicación.", MainActivity.TONE_WARN);
             return;
         }
         Location point = location.current();
         if (point == null) {
             if (quiet) return;
             location.start();
-            activity.message("Buscando tu ubicación…");
+            activity.message("Buscando tu ubicación…", MainActivity.TONE_INFO);
             main.postDelayed(() -> { if (!closed && location.current() != null) locate(); }, 2500);
             return;
         }

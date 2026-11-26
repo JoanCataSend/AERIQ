@@ -1,6 +1,6 @@
 # Modelo de datos
 
-AERIQ usa 26 tablas y 4 vistas en MariaDB. La definición completa está en [1-instalar.sql](../src/database/1-instalar.sql) y los datos de prueba en [2-simulacion.sql](../src/database/2-simulacion.sql). Cómo instalarla o pasarla a otro ordenador: [README de la base de datos](../src/database/README.md).
+AERIQ usa 29 tablas y 4 vistas en MariaDB. La definición completa está en [1-instalar.sql](../src/database/1-instalar.sql) y los datos de prueba en [2-simulacion.sql](../src/database/2-simulacion.sql). Cómo instalarla o pasarla a otro ordenador: [README de la base de datos](../src/database/README.md).
 
 La versión 2 del esquema sustituye los `ENUM` y los textos repetidos por **tablas de catálogo**. Un catálogo es una tabla pequeña con un `id`, un `codigo` estable que usa el programa y un `nombre` legible. Para añadir un rol, un permiso, un servicio o un estado basta con insertar una fila; no hace falta modificar la tabla ni el código.
 

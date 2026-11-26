@@ -16,6 +16,8 @@ try {
     // El operador consulta su campaña (solo lectura); el resto del panel exige informes.
     if ($action==='my-campaign' && $method==='GET') auth_responder(200,aeriq_my_campaign(aeriq_ready($u,'mediciones.registrar')));
     $a=aeriq_ready($u);
+    // HU36: avisos entre personas. Para todas las cuentas de la organización (también operadores).
+    if (str_starts_with($action,'notice')) auth_responder(200,aeriq_notice_route($a,$method,$action));
     if (!aeriq_can($a,'informes.ver') && !aeriq_can($a,'campanas.gestionar')) throw new AeriqError('Tu función no permite esta operación.',403);
     if ($method==='GET' && $action==='dashboard') auth_responder(200,aeriq_dashboard($a));
     if ($method==='GET' && $action==='readings') {
@@ -23,7 +25,9 @@ try {
         aeriq_ready($u,'informes.ver');
         // El CSV se pide con export=1: solo el admin de campaña puede exportar.
         if (!empty($_GET['export'])) aeriq_ready($u,'datos.exportar');
-        auth_responder(200,['readings'=>aeriq_readings($a,$_GET)]);
+        $rows=aeriq_readings($a,$_GET);
+        // HU35: las descartadas van aparte (nunca en el CSV) para poder enseñarlas.
+        auth_responder(200,!empty($_GET['export'])?['readings'=>$rows]:['readings'=>$rows,'discarded'=>aeriq_discarded($a,$_GET)]);
     }
     if ($method==='POST') {
         $d=aeriq_json_body();

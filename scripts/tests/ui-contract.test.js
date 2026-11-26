@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,'../../src/web');
 const wait=()=>new Promise(r=>setTimeout(r,35));
 // Admin principal por defecto; las pruebas del panel cambian user.permissions para el admin de campaña.
 const ADMIN=['campanas.gestionar','solicitudes.gestionar'],ADMIN_CAMPANA=['datos.exportar','equipo.gestionar','informes.ver','mapa.organizacion'];
-const user={id:1,name:'Ana',last:'Administradora',role:'admin',roleName:'Administrador principal',permissions:[...ADMIN],organization:'Organización de prueba',campaign:'Campaña de prueba',email:'admin@example.test',mustChangePassword:false};
+const user={id:1,name:'Ana',last:'Administradora',role:'admin',roleName:'Administrador principal',permissions:[...ADMIN],organizationId:1,organization:'Organización de prueba',campaign:'Campaña de prueba',email:'admin@example.test',mustChangePassword:false};
 const worker={id:2,nombre:'Pau',apellidos:'Operador',email:'worker@example.test',rol:'trabajador',rol_nombre:'Trabajador',puede_medir:1,activo:0,cambiar_clave:1};
 const campaign={id:1,nombre:'Campaña de prueba',zona:'Campus',inicio:'2026-11-01',fin:'2026-12-01',activa:1,estado:'activa',publicar:1,radio_m:30,umbral_medio:60,umbral_alto:100};
 const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',bateria_pct:57,bateria_en:'2026-11-03 08:00:00.000',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-03 08:00:00'};
@@ -28,12 +28,16 @@ async function page(name,search=''){
   w.fetch=async(url,options={})=>{
     const u=new URL(url,'http://localhost/');const body=options.body?JSON.parse(options.body):null;calls.push({path:u.pathname,action:u.searchParams.get('action'),body});
     let data;
-    if(u.pathname==='/auth.php')data={ok:true,csrf:'test',user:globalThis.noSession?null:user};
+    if(u.pathname==='/auth.php'&&u.searchParams.get('action')==='check-reset')data=globalThis.resetExpired?{ok:true,valid:false,state:'caducado',message:'El enlace ha caducado. Pide otro.'}:{ok:true,valid:true,state:'valido',message:''};
+    else if(u.pathname==='/auth.php')data={ok:true,csrf:'test',user:globalThis.noSession?null:user};
+    else if(u.pathname==='/portal.php'&&String(u.searchParams.get('action')).startsWith('notice'))data=body?{ok:true,id:5,message:'Aviso enviado.'}:u.searchParams.get('action')==='notice-unread'?{unread:1}
+      :u.searchParams.get('action')==='notice'?{notice:{id:5,asunto:'Orb sin batería',estado:'abierto',estado_nombre:'Abierto',cerrado:false,creado_en:'2026-11-20 09:00:00',mio:false,con_id:2,con_nombre:'Pau Operador',con_rol:'Operador'},messages:[{id:1,texto:'El Orb no carga.',creado_en:'2026-11-20 09:00:00',mio:false,autor:'Pau Operador'}]}
+      :{notices:[{id:5,asunto:'Orb sin batería',creado_en:'2026-11-20 09:00:00',actualizado_en:'2026-11-20 09:00:00',estado:'abierto',estado_nombre:'Abierto',mio:false,con_id:2,con_nombre:'Pau Operador',con_rol:'Operador',ultimo:'El Orb no carga.',nuevo:true},{id:4,asunto:'Cambio de zona',creado_en:'2026-11-10 09:00:00',actualizado_en:'2026-11-11 09:00:00',estado:'cerrado',estado_nombre:'Cerrado',mio:true,con_id:2,con_nombre:'Pau Operador',con_rol:'Operador',ultimo:'Hecho.',nuevo:false}],unread:1,contacts:[{id:2,nombre:'Pau Operador',rol:'Operador',campana:'Campaña de prueba'}],states:[]};
     else if(u.pathname==='/portal.php'&&u.searchParams.get('action')==='requests')data={requests:[{id:7,entidad:'Ayto. Prueba',contacto:'Ana',email:'ana@x.es',telefono:'600000000',recibida_en:'2026-11-18 10:00:00',estado:'pendiente',estado_nombre:'Pendiente',servicio_nombre:'Estudio',municipio:'Gandia',zona:'Centro',necesidades:'Medir',objetivos:[],historial:[]},{id:8,entidad:'Colegio',contacto:'Bea',email:'bea@x.es',recibida_en:'2026-11-17 10:00:00',estado:'cerrada',estado_nombre:'Cerrada',zona:'Playa',necesidades:'—',objetivos:[],historial:[]}],states:[{codigo:'pendiente',nombre:'Pendiente'},{codigo:'cerrada',nombre:'Cerrada'}]};
     else if(u.pathname==='/portal.php'&&u.searchParams.get('action')==='my-campaign')data={campaign:{nombre:'Campaña de prueba',zona:'Gandia',inicio:'2026-01-01',fin:'2026-12-31',activa:1,publicar:1,umbral_medio:60,umbral_alto:100},admins:[{nombre:'Marta',apellidos:'Admin',email:'marta@example.test'}],orb:{nombre:'Orb original',bateria_pct:57},readings:[{capturada_en:'2026-05-15 10:00:00',magnitud:'Ozono',valor:42,unidad:'ppb'}]};
     else if(u.pathname==='/portal.php'){
       if(body){if(u.searchParams.get('action')==='device')device.nombre=body.name;data={ok:true,id:1};}
-      else data=u.searchParams.get('action')==='readings'?{readings:[measurement]}:u.searchParams.get('action')==='map'?{measurements:[measurement]}:{workers:[worker],campaigns:[campaign],devices:[device],zones:[{id:1,nombre:'Campus'}],roles:user.permissions.includes('campanas.gestionar')?[{codigo:'admin_campana',nombre:'Admin de campaña'}]:[{codigo:'trabajador',nombre:'Operador'}],thresholds:{umbral_medio:60,umbral_alto:100}};
+      else data=u.searchParams.get('action')==='readings'?{readings:[measurement],discarded:[{...measurement,id:9,valor:742,valida:0,motivo_descarte:'fuera_de_rango'}]}:u.searchParams.get('action')==='map'?{measurements:[measurement]}:{workers:[worker],campaigns:[campaign],devices:[device],zones:[{id:1,nombre:'Campus'}],roles:user.permissions.includes('campanas.gestionar')?[{codigo:'admin_campana',nombre:'Admin de campaña'}]:[{codigo:'trabajador',nombre:'Operador'}],thresholds:{umbral_medio:60,umbral_alto:100}};
     }else if(u.pathname==='/public.php')data=body?{ok:true,id:7,message:'Solicitud registrada.'}:u.searchParams.get('action')==='services'?catalogs:{measurements:[measurement],truncated:false};
     else data=[];
     return {ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>data};
@@ -76,8 +80,21 @@ async function page(name,search=''){
   p=await page('portal.html');p.document.querySelector('[data-workspace-view="devices"]').click();await wait();assert(p.document.querySelector('#add-device').hidden);assert(!p.document.querySelector('#fleet .devices-table .text-link'));assert.deepEqual(p.errors,[]);p.close();
   p=await page('portal.html');assert(!p.document.querySelector('[data-view="overview"]').hidden);p.document.querySelector('[data-workspace-view="workers"]').click();assert(!p.document.querySelector('#worker-form').closest('section').hidden);const shown=sel=>!p.document.querySelector(sel).hidden&&!p.document.querySelector(sel).closest('[hidden]');
   // Admin principal: Resumen, Campañas, Admins de campaña, AERIQ por campaña y Solicitudes. Sin informes, CSV ni registro de Orb.
-  const navShown=[...p.document.querySelectorAll('.workspace-nav a')].filter(a=>!a.hidden).map(a=>a.textContent);
-  assert.deepEqual(navShown,['Resumen','Campañas','Admins de campaña','AERIQ por campaña','Solicitudes']);
+  const navShown=[...p.document.querySelectorAll('.workspace-nav a')].filter(a=>!a.hidden).map(a=>a.firstChild.textContent.trim());
+  assert.deepEqual(navShown,['Resumen','Campañas','Admins de campaña','AERIQ por campaña','Solicitudes','Avisos']);
+  assert.equal(p.document.querySelector('#notices-badge').textContent,'1');assert(!p.document.querySelector('#notices-badge').hidden);
+  // Avisos (HU36): bandeja con filtro, punto en los nuevos, conversación, respuesta y aviso nuevo con destinatario del servidor.
+  p.document.querySelector('[data-workspace-view="notices"]').click();await wait();assert(!p.document.querySelector('#notices-panel').hidden);
+  {const rows=p.document.querySelectorAll('#notices-list .notice-row');assert.equal(rows.length,1,'por defecto solo abiertos');assert(rows[0].classList.contains('is-new'));
+  p.document.querySelectorAll('#notices-filter button')[1].click();assert.equal(p.document.querySelectorAll('#notices-list .notice-row').length,2);
+  p.document.querySelector('#notices-list .notice-row').click();await wait();const detail=p.document.querySelector('#notice-detail');
+  assert(detail.textContent.includes('El Orb no carga.'));assert.equal(p.document.querySelector('#notices-badge').hidden,true,'abrirlo lo marca como visto');
+  detail.querySelector('textarea').value='Te mando otro cable.';detail.querySelector('form').dispatchEvent(new p.w.Event('submit',{cancelable:true}));await wait();
+  assert.deepEqual(p.calls.find(c=>c.action==='notice-reply').body,{id:5,message:'Te mando otro cable.'});
+  [...detail.querySelectorAll('button')].find(b=>b.textContent==='Cerrar aviso').click();await wait();assert.deepEqual(p.calls.find(c=>c.action==='notice-close').body,{id:5});
+  p.document.querySelector('#notice-new').click();const nf=p.document.querySelector('#notice-form');assert.deepEqual([...nf.elements.to.options].map(o=>o.value),['','2']);
+  nf.elements.to.value='2';nf.elements.subject.value='Recogida';nf.elements.message.value='Pasa por el laboratorio.';nf.dispatchEvent(new p.w.Event('submit',{cancelable:true}));await wait();
+  assert.deepEqual(p.calls.find(c=>c.action==='notice-create').body,{to:2,subject:'Recogida',message:'Pasa por el laboratorio.'});assert(!p.document.querySelector('#notice-modal').open);p.document.querySelector('[data-workspace-view="workers"]').click();}
   assert.equal(p.document.querySelector('#worker-title').textContent,'Asignar admin de campaña');assert(shown('#worker-campaign'));assert(p.document.querySelector('#worker-campaign option[value="1"]'));
   assert.equal(p.document.querySelector('#worker-form').firstElementChild.querySelector('select').name,'campaign','la campaña va primero');
   p.document.querySelector('[data-workspace-view="overview"]').click();assert(p.document.querySelector('#campaigns-summary').textContent.includes('Campaña de prueba'));assert.equal(p.document.querySelector('#sum-campaigns').textContent,'1');
@@ -139,7 +156,9 @@ async function page(name,search=''){
   // Informe: cabecera con filtros, cifras, etiqueta de simulado y PDF como documento aparte (solo el informe).
   {const d=p.document,r=d.querySelector('#report-results'),pdf=d.querySelector('#print-report');assert(r.firstElementChild.classList.contains('report-header'));assert.equal(r.querySelectorAll('.report-kpi').length,5);assert.equal(r.querySelector('.report-badge').textContent,'Dato simulado');
   // Lectura de 68 ppb con umbral medio 60: un pico moderado con su hora y valor, y la franja de esa hora regular.
-  assert(r.querySelector('.report-peaks').textContent.includes('1 pico de ozono'));assert(r.querySelector('.report-peaks li').textContent.includes('68 ppb · nivel moderado'));
+  assert(r.querySelector('.report-peaks').textContent.includes('1 pico de ozono'));
+  // HU35: las descartadas se listan aparte con su motivo y no cuentan en el informe.
+  assert(r.querySelector('.report-discarded').textContent.includes('742 ppb'));assert(r.querySelector('.report-discarded').textContent.includes('Fuera de rango'));assert(r.querySelector('.report-peaks li').textContent.includes('68 ppb · nivel moderado'));
   assert.equal(r.querySelectorAll('.report-franja').length,4);assert.equal(r.querySelectorAll('.report-franja.is-regular').length,1);assert(r.querySelector('.report-verdict-text').textContent.startsWith('La calidad del aire es regular'));
   const ex=r.querySelector('.report-exceedances table');assert.equal(ex.rows[0].cells[1].textContent,'Origen');assert.equal(ex.rows[1].cells[1].textContent,'Simulado');
   assert(!pdf.hidden&&!pdf.disabled);p.w.HTMLCanvasElement.prototype.toDataURL=()=>'data:image/png;base64,AAAA';pdf.click();await wait();const doc=d.querySelector('iframe').contentDocument;
@@ -200,15 +219,20 @@ async function page(name,search=''){
     assert(menu.querySelector('a[href="perfil.html"]'));assert.deepEqual([...menu.querySelectorAll('.account-menu-list a,.account-menu-list button')].map(n=>n.textContent),['Mi cuenta','Cerrar sesión'],page_);menu.querySelector('button.danger').click();await wait();
     assert(p.calls.some(c=>c.path==='/auth.php'&&c.action==='logout'),page_);assert.deepEqual(p.errors,[]);p.close();
   }
-  // Operador: «Mi campaña» de solo consulta (su campaña, su Orb y sus últimas lecturas), sin menú lateral ni acciones.
+  // Operador: «Mi campaña» de solo consulta (su campaña, su Orb y sus últimas lecturas) y «Avisos» con su admin.
   user.permissions=['mapa.organizacion','mediciones.registrar'];p=await page('portal.html');
-  assert(p.document.querySelector('.workspace-nav').hidden);assert(!p.document.querySelector('#operator-campaign').hidden);assert(p.document.querySelector('[data-view="campaign"][data-perm="equipo.gestionar"]').hidden);
+  assert(!p.document.querySelector('.workspace-nav').hidden);assert.deepEqual([...p.document.querySelectorAll('.workspace-nav a')].filter(a=>!a.hidden).map(a=>a.firstChild.textContent.trim()),['Mi campaña','Avisos']);assert(!p.document.querySelector('#operator-campaign').hidden);assert(p.document.querySelector('[data-view="campaign"][data-perm="equipo.gestionar"]').hidden);
   assert.equal(p.document.querySelector('#op-campaign-name').textContent,'Campaña de prueba');assert.equal(p.document.querySelector('#op-orb').textContent,'Orb original');assert(p.document.querySelector('#op-battery').textContent.startsWith('Batería: 57 % · media'));assert.equal(p.document.querySelector('#op-level-mid').textContent,'60 – 100 ppb');assert(p.document.querySelector('#op-admins a').href.startsWith('mailto:marta@'));
   assert(p.document.querySelector('#op-readings').textContent.includes('42 ppb'));assert(!p.document.querySelector('#operator-campaign form,#operator-campaign button'));
   assert(!p.calls.some(c=>c.action==='dashboard'));assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
+  // Enlace de recuperación: si ha caducado, se avisa al abrirlo (en rojo) y vuelve el formulario para pedir otro.
+  globalThis.noSession=true;p=await page('recuperar.html','#email=ana@example.test&code=123456');assert(p.calls.some(c=>c.action==='check-reset'));assert(!p.document.querySelector('#reset-form').hidden);p.close();
+  globalThis.resetExpired=true;p=await page('recuperar.html','#email=ana@example.test&code=123456');assert(p.document.querySelector('#reset-form').hidden);assert(!p.document.querySelector('#forgot-form').hidden);
+  assert.equal(p.document.querySelector('#forgot-form').elements.email.value,'ana@example.test');assert.equal(p.document.querySelector('.auth-card > p').dataset.tone,'error');assert(p.document.querySelector('.auth-card > p').textContent.includes('caducado'));
+  assert.deepEqual(p.errors,[]);p.close();globalThis.resetExpired=false;globalThis.noSession=false;
   // El operador no ve en Mi cuenta enlaces al panel ni a la flota (le darían error).
   // Mi cuenta es solo tu cuenta: sin accesos al panel ni a la flota dentro de la página (eso va en el header).
   p=await page('perfil.html');assert(!p.document.querySelector('#pedidos'));assert(!p.document.querySelector('main a[href^="portal.html"],main a[href="sensores.html"]'));p.close();
   user.permissions=[...ADMIN];p=await page('perfil.html');assert(!p.document.querySelector('main a[href^="portal.html"]'));p.close();
   console.log('AERIQ DOM OK: portada/3D, galería, flota, panel por secciones, informes, formularios, presupuesto y mapa público/privado.');
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().then(()=>process.exit(0),e=>{console.error(e);process.exit(1);}); // salida explícita: el contador de avisos usa setInterval

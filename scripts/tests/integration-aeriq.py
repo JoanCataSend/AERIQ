@@ -60,7 +60,7 @@ def main():
         previous_admin=0
         for _ in range(2):
             sql('USE aeriq_install_test;'+install)
-            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_install_test' AND TABLE_TYPE='BASE TABLE'")=='26'
+            assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_install_test' AND TABLE_TYPE='BASE TABLE'")=='29'
             assert sql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aeriq_install_test' AND TABLE_TYPE='VIEW'")=='4'
             assert sql('USE aeriq_install_test; SELECT id FROM magnitudes ORDER BY id')=='12\n14'
             admin_id,email,role=sql('USE aeriq_install_test; SELECT u.id,u.email,r.codigo FROM usuarios u JOIN roles r ON r.id=u.rol_id').split('\t')
@@ -69,7 +69,7 @@ def main():
             # 2-simulacion.sql: repetible, sin duplicados, una campaña por cuenta y un AERIQ por operador.
             for _ in range(2):
                 sql('USE aeriq_install_test;'+simulation)
-                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM mediciones WHERE simulado=1')=='90'
+                assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM mediciones WHERE simulado=1')=='92'
                 assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM usuarios')=='5'
                 assert sql('USE aeriq_install_test; SELECT COUNT(*) FROM solicitudes_historial')=='6'
                 assert sql("USE aeriq_install_test; SELECT COUNT(*) FROM usuarios u JOIN roles r ON r.id=u.rol_id WHERE r.codigo<>'admin' AND u.campana_id IS NULL")=='0'

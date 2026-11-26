@@ -18,25 +18,25 @@
     document.querySelector('#first-logout').hidden=true;
   } else {
     try { if (!(await AeriqAuth.session()).user) { location.href='login.html';return; } }
-    catch(e) { feedback.textContent=e.message;return; }
+    catch(e) { aeriqStatus(feedback,e.message,'error');return; }
   }
-  document.querySelector('#first-logout').onclick=async()=>{try{await AeriqAuth.post('logout');location.href='index.html';}catch(e){feedback.textContent=e.message;}};
+  document.querySelector('#first-logout').onclick=async()=>{try{await AeriqAuth.post('logout');location.href='index.html';}catch(e){aeriqStatus(feedback,e.message,'error');}};
   form.onsubmit=async e=>{
-    e.preventDefault();const f=e.currentTarget,b=f.querySelector('button[type="submit"]');feedback.textContent='';
+    e.preventDefault();const f=e.currentTarget,b=f.querySelector('button[type="submit"]');aeriqStatus(feedback,'');
     if(!f.reportValidity())return;
-    if(f.elements.namedItem('password').value!==f.elements.namedItem('confirm').value){feedback.textContent='Las contraseñas no coinciden.';return;}
+    if(f.elements.namedItem('password').value!==f.elements.namedItem('confirm').value){aeriqStatus(feedback,'Las contraseñas no coinciden.','error');return;}
     b.disabled=true;
     try{
       const current=f.elements.namedItem('current').value;
       if(fromMail)await AeriqAuth.post('login',{email:invite.email,password:current});
       const result=await AeriqAuth.post('change-password',{current,password:f.elements.namedItem('password').value});
-      f.reset();feedback.textContent='Contraseña guardada. Entrando…';
+      f.reset();aeriqStatus(feedback,'Contraseña guardada. Entrando…','ok');
       location.href=AeriqAuth.home(result.user||(await AeriqAuth.session(true)).user);
     }
     catch(error){
-      feedback.textContent=fromMail&&/incorrect|caducad/i.test(error.message)
+      aeriqStatus(feedback,fromMail&&/incorrect|caducad/i.test(error.message)
         ?'Este enlace ya no sirve: la invitación ha caducado o ya se usó. Recupera el acceso desde «¿Has olvidado tu contraseña?».'
-        :error.message;
+        :error.message,'error');
     }finally{b.disabled=false;}
   };
 })();

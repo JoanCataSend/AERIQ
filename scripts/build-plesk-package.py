@@ -22,9 +22,11 @@ def deploy_files():
             ".png", ".jpg", ".jpeg", ".webp", ".svg", ".glb", ".ico",
         }:
             yield path
-    yield WEB / "assets" / "model-viewer-LICENSE.txt"
+    license_file = WEB / "assets" / "model-viewer-LICENSE.txt"  # opcional: no está en todas las copias
+    if license_file.is_file():
+        yield license_file
     for name in (
-        "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "SensorLink.php", "SDBaseDatos.example.php",
+        "Logica.php", "AuthCore.php", "AeriqCore.php", "AeriqHttp.php", "AeriqMail.php", "Avisos.php", "SensorLink.php", "SDBaseDatos.example.php",
         "SMTPConfig.example.php", "MailConfig.example.php", "FirebaseAuth.php", "FirebaseConfig.example.php", ".htaccess",
     ):
         yield WEB / "server" / name

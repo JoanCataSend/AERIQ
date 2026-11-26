@@ -1,7 +1,7 @@
 'use strict';
 const portalFeedback=document.querySelector('#portal-feedback');
 // Si algo falla al cargar, se dice en pantalla en vez de quedarse en «Comprobando acceso…».
-addEventListener('error',e=>{if(portalFeedback)portalFeedback.textContent='No se pudo cargar el panel ('+e.message+'). Recarga con Ctrl+F5.';});
+addEventListener('error',e=>aeriqStatus(portalFeedback,'No se pudo cargar el panel ('+e.message+'). Recarga con Ctrl+F5.','error'));
 let dashboard={},currentRows=[],lastFilters={},me={};
 const can=(user,permission)=>(user.permissions||[]).includes(permission);
 // data-perm="a b": el elemento se muestra si la cuenta tiene alguno de esos permisos.
@@ -54,8 +54,8 @@ async function refresh(){
 for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],['campaign-settings-form','campaign-settings']]){
   if(!document.getElementById(id))continue;
   document.getElementById(id).onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
-    try{const result=await Aeriq.portal(action,payload(f));f.reset();await refresh();portalFeedback.textContent=result.message||'Cambios guardados.';}
-    catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
+    try{const result=await Aeriq.portal(action,payload(f));f.reset();await refresh();aeriqStatus(portalFeedback,result.message||'Cambios guardados.','ok');}
+    catch(error){aeriqStatus(portalFeedback,error.message,'error');}finally{b.disabled=false;}
   };
 }
 // Funciones, zonas y umbrales de referencia vienen de la base de datos, no del HTML.
@@ -78,7 +78,7 @@ function renderWorkers(){
       const td=el('td');td.className='row-actions';
       if(w.rol===manages){
         const act=(text,run,cls='text-link')=>{const b=el('button',text);b.type='button';b.className=cls;b.onclick=()=>run(b);td.append(b);};
-        const call=async(b,action,body)=>{b.disabled=true;try{const r=await Aeriq.portal(action,body);portalFeedback.textContent=r.message||'Cambios guardados.';await refresh();}catch(e){portalFeedback.textContent=e.message;b.disabled=false;}};
+        const call=async(b,action,body)=>{b.disabled=true;try{const r=await Aeriq.portal(action,body);aeriqStatus(portalFeedback,r.message||'Cambios guardados.','ok');await refresh();}catch(e){aeriqStatus(portalFeedback,e.message,'error');b.disabled=false;}};
         act('Editar',()=>editWorker(w));
         if(!Number(w.verificado))act('Reenviar invitación',b=>call(b,'worker-invite',{id:w.id}));
         else if(Number(w.activo))act('Desactivar',b=>{
@@ -103,8 +103,8 @@ function editWorker(w){
 document.querySelector('#worker-modal-close')?.addEventListener('click',()=>document.querySelector('#worker-modal').close());
 document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
-  try{const r=await Aeriq.portal('worker-edit',payload(f));document.querySelector('#worker-modal').close();portalFeedback.textContent=r.message;await refresh();}
-  catch(error){portalFeedback.textContent=error.message;}finally{b.disabled=false;}
+  try{const r=await Aeriq.portal('worker-edit',payload(f));document.querySelector('#worker-modal').close();aeriqStatus(portalFeedback,r.message,'ok');await refresh();}
+  catch(error){aeriqStatus(portalFeedback,error.message,'error');}finally{b.disabled=false;}
 });
 // Barra de tiempo de una campaña: «Día 8 de 68 · quedan 61 días».
 function progress(c,prefix){
@@ -244,7 +244,19 @@ function reportKpis(stats,unit,thermal){
   return row;
 }
 let lastReport=null;
-function renderReport(rows,group,info){
+// HU35: lecturas descartadas (guardadas como no válidas). Se enseñan aparte y no cuentan en nada del informe.
+const discardReason=r=>r.motivo_descarte==='fuera_de_rango'
+  ?`Fuera de rango (admitido: ${Number(r.valor_minimo)}–${Number(r.valor_maximo)} ${r.unidad})`
+  :`Anómala (se aleja más de ${Number(r.salto_maximo)} ${r.unidad} de la media de las 5 anteriores)`;
+function discardedBlock(rows){
+  if(!rows?.length)return null;
+  const box=el('section');box.className='report-block report-discarded';
+  box.append(el('h3',`Mediciones descartadas · ${rows.length}`),el('p','Se guardan como no válidas para dejar constancia. No salen en el mapa, en este informe, en el historial ni en el CSV.'));
+  const wrap=el('div');wrap.className='table-scroll';box.append(wrap);
+  table(wrap,['Fecha','AERIQ','Valor','Motivo','Origen'],rows.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,`${r.valor} ${r.unidad}`,discardReason(r),originOf(r)]})));
+  return box;
+}
+function renderReport(rows,group,info,discarded=[]){
   const host=document.querySelector('#report-results');host.replaceChildren();
   if(group==='auto'||!group)group=AeriqDomain.autoGroup(rows);
   if(info)info.group={hour:'Horas',day:'Días',week:'Semanas'}[group];
@@ -272,6 +284,8 @@ function renderReport(rows,group,info){
     table(detail,['Fecha','AERIQ','Zona','Valor','Unidad','Nivel','Origen','Coordenadas'],set.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,r.zona,r.valor,r.unidad,thermal?'—':levelOf(r),originOf(r),r.latitud===null?'Sin ubicación':Number(r.latitud).toFixed(5)+', '+Number(r.longitud).toFixed(5)]})));
   }
   if(info)host.prepend(reportHeader(lastReport));
+  lastReport.discarded=discarded||[];
+  const lost=discardedBlock(discarded);if(lost)host.append(lost);
 }
 // Textos legibles de los filtros elegidos, para la cabecera del informe.
 function reportInfo(f,filters,group){
@@ -361,6 +375,8 @@ function printReport(){
     sec.append(tableOf(['Fecha','AERIQ','Campaña / zona','Valor','Nivel','Origen'],rows,(c,col)=>col===4&&['alto','moderado'].includes(c)?c:col===5&&c==='Simulado'?'sim':undefined));
     if(s.set.length>ANNEX_MAX)sec.append(h('p',{class:'note'},`Se muestran las primeras ${ANNEX_MAX} de ${s.set.length} lecturas. El listado completo está en «Descargar CSV».`));
   });
+  if(report.discarded?.length){const sec=h('section',{});body.append(sec);sec.append(h('h2',{},`Mediciones descartadas · ${report.discarded.length}`),h('p',{class:'note'},'Guardadas como no válidas: no se usan en ningún cálculo de este informe.'),
+    tableOf(['Fecha','AERIQ','Valor','Motivo','Origen'],report.discarded.map(r=>[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,`${r.valor} ${r.unidad}`,discardReason(r),originOf(r)])));}
   body.append(h('p',{class:'footer'},'AERIQ · Código Norte. Ozono en ppb y temperatura en °C. Solo se incluyen lecturas válidas autorizadas para esta cuenta; los datos simulados se identifican como tales.'));
   const win=frame.contentWindow,cleanup=()=>setTimeout(()=>frame.remove(),1000);
   const ready=logo.complete?Promise.resolve():new Promise(r=>{logo.onload=logo.onerror=r;setTimeout(r,2000);});
@@ -368,8 +384,8 @@ function printReport(){
   ready.then(()=>{document.title=file;win.addEventListener('afterprint',()=>{document.title=old;cleanup();},{once:true});win.focus();win.print();setTimeout(()=>{document.title=old;},5000);});
 }
 document.querySelector('#report-form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button');b.disabled=true;currentRows=[];document.querySelector('#export-report').disabled=true;document.querySelector('#print-report').disabled=true;document.querySelector('#report-results').replaceChildren();
-  try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;currentRows=(await Aeriq.portal('readings',undefined,filters)).readings;renderReport(currentRows,group,reportInfo(f,filters,group));document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;document.querySelector('#print-report').disabled=!currentRows.length;}
-  catch(error){document.querySelector('#report-summary').textContent=error.message;}finally{b.disabled=false;}
+  try{const filters=payload(f);filters.devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.value).join(',');delete filters.device;const group=filters.group;delete filters.group;lastFilters=filters;const result=await Aeriq.portal('readings',undefined,filters);currentRows=result.readings;renderReport(currentRows,group,reportInfo(f,filters,group),result.discarded||[]);document.querySelector('#report-summary').textContent=`${currentRows.length} lecturas válidas autorizadas.`;document.querySelector('#export-report').disabled=!currentRows.length;document.querySelector('#print-report').disabled=!currentRows.length;}
+  catch(error){aeriqStatus(document.querySelector('#report-summary'),error.message,'error');}finally{b.disabled=false;}
 };
 // Con un informe ya generado, cambiar el periodo o la agrupación lo vuelve a calcular (la gráfica se actualiza sola).
 document.querySelector('#report-form').addEventListener('change',e=>{if(lastReport&&['from','to','group'].includes(e.target.name)&&e.currentTarget.checkValidity())e.currentTarget.requestSubmit();});
@@ -420,8 +436,8 @@ async function setRequestState(r,code,reopen=false){
     const name=res.estado_nombre||req.states.find(s=>s.codigo===code)?.nombre||code;
     Object.assign(r,{estado:res.estado||code,estado_nombre:name});
     if(res.changed!==false)(r.historial||=[]).push({estado_nombre:name,reapertura:reopen,cambiado_en:new Date().toISOString().slice(0,19).replace('T',' '),usuario:[me.name,me.last].filter(Boolean).join(' ')});
-    req.keep.add(r.id);req.note=(res.message||`Guardado ✓ · ahora está en «${name}»`);}
-  catch(e){req.note='';portalFeedback.textContent=e.message;}
+    req.keep.add(r.id);req.note=(res.message||`Guardado ✓ · ahora está en «${name}»`);req.noteTone=res.mailed===false?'warn':'ok';}
+  catch(e){req.note='';aeriqStatus(portalFeedback,e.message,'error');}
   renderRequests();
 }
 function renderRequestDetail(r){
@@ -443,7 +459,7 @@ function renderRequestDetail(r){
   if(next){const b=el('button',next.codigo==='cerrada'?'Cerrar solicitud':`Pasar a ${next.nombre}`);b.type='button';b.className='btn btn-primary';b.onclick=()=>{b.disabled=true;setRequestState(r,next.codigo);};actions.append(b);}
   if(next&&next.codigo!=='cerrada'&&r.estado!=='cerrada'){const c=el('button','Cerrar solicitud');c.type='button';c.className='btn btn-outline';c.onclick=()=>{c.disabled=true;setRequestState(r,'cerrada');};actions.append(c);}
   if(!next||Number(req.states[at]?.final)){const o=el('button','Reabrir');o.type='button';o.className='btn btn-outline';o.title='Vuelve a «En revisión» y queda en el historial';o.onclick=()=>{o.disabled=true;setRequestState(r,'en_revision',true);};actions.append(o);}
-  const note=el('small',req.note);note.className='request-saved';note.setAttribute('role','status');actions.append(note);
+  const note=el('small');note.className='request-saved';note.setAttribute('role','status');aeriqStatus(note,req.note,req.noteTone||'ok');actions.append(note);
   host.append(actions,el('p',REQ_HELP[r.estado]||''));host.lastChild.className='note';
   // Ficha: etiqueta a la izquierda, dato a la derecha.
   const info=el('dl');info.className='request-sheet';
@@ -480,13 +496,14 @@ document.addEventListener('click',e=>{for(const m of document.querySelectorAll('
   if(!can(user,'informes.ver')&&!can(user,'campanas.gestionar')&&!operator)throw new Error('Esta cuenta no tiene acceso al panel.');
   document.querySelector('#organization-panel').hidden=false;
   for(const n of document.querySelectorAll('[data-perm]:not([data-view])'))n.hidden=!allowed(n);
-  if(operator){document.querySelector('.workspace-nav').hidden=true;await myCampaign();}
+  // El operador ve «Mi campaña» (de consulta) y «Avisos»: el resto de enlaces se ocultan por sus permisos.
+  if(operator){await myCampaign();}
   else {await refresh();if(can(user,'solicitudes.gestionar'))await commercial();
   // La flota (sección «Dispositivos AERIQ») se carga aparte; al guardar un AERIQ se refrescan los contadores.
   if(typeof initFleet==='function'&&can(user,'equipo.gestionar')){void initFleet();addEventListener('aeriq:fleet-changed',()=>void refresh());}}
-  portalFeedback.textContent='Sesión autorizada · '+(user.roleName||user.role);
+  aeriqStatus(portalFeedback,'Sesión autorizada · '+(user.roleName||user.role));
   showWorkspace(location.hash.slice(1));
-}catch(e){portalFeedback.textContent=e.message;}})();
+}catch(e){aeriqStatus(portalFeedback,e.message,'error');}})();
 
 function showWorkspace(view){
   // Primera sección: «Mi campaña» para el admin de campaña; «Resumen» para el admin principal.

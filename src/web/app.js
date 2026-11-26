@@ -2,7 +2,8 @@
 'use strict';
 // Preferencias locales del navegador (try/catch por si el almacenamiento está bloqueado).
 const store={get(k,def=null){try{let v=localStorage.getItem('aeriq_'+k);return v===null?def:JSON.parse(v)}catch{return def}},set(k,v){try{localStorage.setItem('aeriq_'+k,JSON.stringify(v))}catch{}}};
-function toast(msg){const n=document.querySelector('#toast');if(!n)return;n.textContent=msg;n.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>n.classList.remove('show'),3600)}
+// tone: 'error' rojo, 'warn' naranja, 'ok' verde, 'info' neutro. Los errores se quedan algo más en pantalla.
+function toast(msg,tone='info'){const n=document.querySelector('#toast');if(!n)return;n.textContent=msg;n.dataset.tone=tone;n.setAttribute('role',tone==='error'?'alert':'status');n.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>n.classList.remove('show'),tone==='error'?6000:3600)}
 const $=(s,root=document)=>root.querySelector(s),$$=(s,root=document)=>[...root.querySelectorAll(s)];
 function initNavigation(){
   const toggle=$('[data-menu-toggle]');
@@ -28,14 +29,14 @@ function authDestination(user){return AeriqAuth.home(user);}
 window.authDestination=authDestination;
 function authFeedback(error){
   const msg=error instanceof Error?error.message:String(error);
-  toast(msg);
+  toast(msg,'error');
 }
 function authSubmitButton(form, busy){
   const button=form?.querySelector('button[type="submit"]');
   if(button)button.disabled=Boolean(busy);
 }
 function initForms(){
-  $$('[data-demo-form]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();if(f.reportValidity())toast(f.dataset.success||'Esta función sigue en demostración.')}));
+  $$('[data-demo-form]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();if(f.reportValidity())toast(f.dataset.success||'Esta función sigue en demostración.','warn')}));
   $$('[data-toggle-password]').forEach(b=>{
   const input=document.getElementById(b.dataset.togglePassword);if(!input)return;
   const open=b.querySelector('.eye-open'),closed=b.querySelector('.eye-closed');
@@ -53,7 +54,7 @@ function initForms(){
     b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña');
   });
 });
-  $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`El acceso con ${b.dataset.social||'ese proveedor'} todavía no está disponible. Usa Google o tu correo.`)));
+  $$('[data-social]').forEach(b=>b.addEventListener('click',()=>toast(`El acceso con ${b.dataset.social||'ese proveedor'} todavía no está disponible. Usa Google o tu correo.`,'warn')));
   $('#login-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;authSubmitButton(f,true);
     try{
@@ -73,6 +74,14 @@ function initForms(){
       $('#reset-form').hidden=false;$('#forgot-form').hidden=true;
       const intro=document.querySelector('.auth-card > p');if(intro)intro.textContent='Elige tu contraseña nueva. El enlace caduca a los 10 minutos y solo sirve una vez.';
       $('#reset-password')?.focus();
+      // Si el enlace ya no sirve, se dice nada más abrirlo (no al pulsar «Guardar») y se ofrece pedir otro.
+      AeriqAuth.post('check-reset',{email:link.get('email'),code:link.get('code')}).then(r=>{
+        if(r.valid)return;
+        $('#reset-form').hidden=true;$('#forgot-form').hidden=false;
+        $('#forgot-form').elements.namedItem('email').value=link.get('email');
+        if(intro)aeriqStatus(intro,r.message,'error');
+        toast(r.message,'error');
+      }).catch(()=>{});
     }
   }
   $('#forgot-form')?.addEventListener('submit',async e=>{
@@ -82,13 +91,13 @@ function initForms(){
       const data=await AeriqAuth.post('forgot',{email});
       $('#reset-email').value=email;
       $('#reset-form').hidden=false;
-      toast(data.message||'Revisa tu correo.');
+      toast(data.message||'Revisa tu correo.','ok');
     }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
   });
   $('#reset-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;
     const password=f.elements.namedItem('password').value;
-    if(password!==f.elements.namedItem('confirm').value){toast('Las contraseñas no coinciden.');return}
+    if(password!==f.elements.namedItem('confirm').value){toast('Las contraseñas no coinciden.','error');return}
     authSubmitButton(f,true);
     try{
       await AeriqAuth.post('reset-password',{email:f.elements.namedItem('email').value,code:f.elements.namedItem('code').value,password});
@@ -138,7 +147,7 @@ async function initProfile(){
     $('#sidebar-user').textContent=[user.name,user.last].join(' ');
     $('#sidebar-email').textContent=user.email;
     form.hidden=false;
-  }catch(error){toast('No se pudo comprobar la sesión. Revisa Plesk.');return;}
+  }catch(error){toast('No se pudo comprobar la sesión. Revisa Plesk.','error');return;}
   form.addEventListener('submit',async e=>{
     e.preventDefault();if(!form.reportValidity())return;authSubmitButton(form,true);
     try{
@@ -147,26 +156,26 @@ async function initProfile(){
         phone:form.elements.namedItem('phone').value
       })).user;
       $('#sidebar-user').textContent=u.name+' '+u.last;$('#sidebar-email').textContent=u.email;
-      toast('Perfil guardado en MariaDB.');
+      toast('Datos guardados.','ok');
     }catch(error){authFeedback(error)}finally{authSubmitButton(form,false)}
   });
   $('#password-form')?.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.currentTarget;if(!f.reportValidity())return;
     const pass=f.elements.namedItem('password').value;
-    if(pass!==f.elements.namedItem('confirm').value){toast('Las contraseñas no coinciden.');return}
+    if(pass!==f.elements.namedItem('confirm').value){toast('Las contraseñas no coinciden.','error');return}
     authSubmitButton(f,true);
     try{
       await AeriqAuth.post('change-password',{current:f.elements.namedItem('current').value,password:pass});
-      f.reset();toast('Contraseña actualizada.');
+      f.reset();toast('Contraseña actualizada.','ok');
     }catch(error){authFeedback(error)}finally{authSubmitButton(f,false)}
   });
   $$('#logout').forEach(button=>button.addEventListener('click',async()=>{
     button.disabled=true;
     try{await AeriqAuth.post('logout');location.href='index.html'}catch(error){button.disabled=false;authFeedback(error)}
   }));
-  $('#delete-address')?.addEventListener('click',()=>toast('Las direcciones siguen siendo una maqueta; no se guardan en servidor.'));
-  $('#edit-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.'));
-  $('#add-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.'));
+  $('#delete-address')?.addEventListener('click',()=>toast('Las direcciones siguen siendo una maqueta; no se guardan en servidor.','warn'));
+  $('#edit-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.','warn'));
+  $('#add-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.','warn'));
 }
 /* Persisted records from Sprint 0: genuine DB rows, test values emitted by firmware. No geo/conversion. */
 function initPbioReadings() {

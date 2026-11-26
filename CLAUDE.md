@@ -50,6 +50,7 @@ HTML/CSS/JS sin framework ni build; PHP sin framework. `styles.css` es el CSS co
 | `portal.php?action=…` | Panel de organización, flota, informes, solicitudes | sesión + rol + CSRF en POST |
 | `field.php` | Asignaciones, historial e ingesta de lecturas desde Android | token móvil, rol trabajador/admin |
 | `mobile-team.php` | Admin de campaña en Android: listar operadores y Orb, registrar/asignar Orb (reutiliza `aeriq_device_save`) | token móvil + `equipo.gestionar` |
+| `mobile-avisos.php` | Avisos entre personas desde Android (misma lógica que `portal.php?action=notice…`, `server/Avisos.php`) | token móvil, cuenta de organización |
 | `public.php` | Mapa público y formularios de solicitud | anónimo |
 | `api.php?accion=…` | Adaptador de compatibilidad (solo lectura) | admin/analista para datos privados |
 
@@ -67,7 +68,7 @@ Si cambias un contrato HTTP, actualiza `doc/api.md` y los clientes (web y Androi
 
 ### Base de datos (`src/database/`)
 
-Definición única en `1-instalar.sql` (26 tablas, vistas `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`). Roles, permisos, servicios, tipos de organización, objetivos de medición, estados de solicitud, zonas, umbrales y modelos de Orb son tablas de catálogo, no `ENUM`: el código comprueba permisos (`aeriq_ready($u,'informes.ver')`), nunca nombres de rol. El diseño está en `doc/base-de-datos.md`. `mediciones` → `asignaciones` (organización + Orb + trabajador + campaña); `magnitudes` define rango/unidad usados por la validación de ingesta. `2-simulacion.sql` añade datos de prueba (repetible). Los archivos no llevan nombre de base: se importan en la seleccionada. Si cambias la estructura, edita `1-instalar.sql` y da aparte el `ALTER TABLE` para bases con datos.
+Definición única en `1-instalar.sql` (29 tablas, vistas `vista_mediciones`, `vista_flota`, `vista_usuarios` y `vista_solicitudes`). Roles, permisos, servicios, tipos de organización, objetivos de medición, estados de solicitud, zonas, umbrales y modelos de Orb son tablas de catálogo, no `ENUM`: el código comprueba permisos (`aeriq_ready($u,'informes.ver')`), nunca nombres de rol. El diseño está en `doc/base-de-datos.md`. `mediciones` → `asignaciones` (organización + Orb + trabajador + campaña); `magnitudes` define rango/unidad usados por la validación de ingesta. `2-simulacion.sql` añade datos de prueba (repetible). `3-actualizar.sql` lleva una base con datos al esquema actual sin borrar nada. Los archivos no llevan nombre de base: se importan en la seleccionada. Si cambias la estructura, edita `1-instalar.sql` y da aparte el `ALTER TABLE` para bases con datos.
 
 `1-instalar.sql` es destructivo (borra todas las tablas de la base seleccionada). No lo ejecutes contra Plesk sin que el usuario lo pida.
 

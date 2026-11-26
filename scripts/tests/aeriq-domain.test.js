@@ -216,3 +216,15 @@ console.log('AERIQ: umbrales comunes del informe correctos.');
   assert.equal(domain.verdict([{valor:20,unidad:'°C',capturada_en:at(1),umbral_medio:null,umbral_alto:null}]).franjas.every(f=>f.calidad===null),true);
 }
 console.log('AERIQ: informe por horas, picos y veredicto por franjas correctos.');
+// ---- HU39: distancia del recorrido (ignora deriva < 5 m, saltos > 2 km y los huecos entre tramos).
+{
+  const at=(lat,lon)=>({latitud:lat,longitud:lon});
+  const a=at(38.9966,-0.1662),b=at(38.9967,-0.1662),c=at(38.99671,-0.1662),far=at(39.1,-0.1662);
+  const d=domain.distance([a.latitud,a.longitud],[b.latitud,b.longitud]);
+  near(domain.routeDistance([[a,b]]),d);
+  assert.equal(domain.routeDistance([[b,c]]),0,'un paso de ~1 m es deriva del GPS');
+  assert.equal(domain.routeDistance([[a,far]]),0,'un salto de más de 2 km no cuenta');
+  near(domain.routeDistance([[a,b],[a,b]]),2*d);
+  assert.equal(domain.distanceText(850),'850 m');assert.equal(domain.distanceText(1234),'1,2 km');
+}
+console.log('AERIQ: distancia del recorrido correcta.');

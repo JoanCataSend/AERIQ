@@ -206,16 +206,23 @@ public final class WorkScreens {
 
             List<SensorWidgets.Point> points = new ArrayList<>(today);
             Double current = null;
+            boolean discarded = false;
             long lastAt = today.isEmpty() ? 0 : today.get(today.size() - 1).time;
             if (selected != null && ble.lastO3 != null) {
                 current = (double) ble.lastO3.reading.value;
-                if (ble.lastO3.receivedAtMillis > lastAt) {
+                // HU35: fuera de rango se enseña como descartada y no entra en la gráfica ni en «Tu día».
+                discarded = !selected.inRange(ble.lastO3.reading.typeId, current);
+                if (!discarded && ble.lastO3.receivedAtMillis > lastAt) {
                     points.add(new SensorWidgets.Point(ble.lastO3.receivedAtMillis, current));
                     lastAt = ble.lastO3.receivedAtMillis;
                 }
             } else if (!today.isEmpty()) current = today.get(today.size() - 1).value;
             ozone.setText(current == null ? "—" : Quality.number(current));
-            if (current == null) {
+            if (discarded) {
+                chip.setText("Descartada: fuera de rango (" + selected.range(14) + ")");
+                chip.setTextColor(Quality.MEDIUM_TEXT);
+                chip.setBackground(ui.shape(Quality.MEDIUM_SOFT, 18, 0));
+            } else if (current == null) {
                 chip.setText("Calidad: —");
                 chip.setTextColor(MUTED);
                 chip.setBackground(ui.shape(0xffeff3f1, 18, 0));
@@ -693,7 +700,7 @@ public final class WorkScreens {
         List<CampaignTeam.Operator> candidates = new ArrayList<>();
         for (CampaignTeam.Operator operator : team.operators) if (operator.active || operator.pending) candidates.add(operator);
         if (candidates.isEmpty()) {
-            activity.message("No hay operadores en tu campaña. Créalos en el panel web.");
+            activity.message("No hay operadores en tu campaña. Créalos en el panel web.", MainActivity.TONE_WARN);
             return;
         }
         LinearLayout form = ui.column();
@@ -725,8 +732,8 @@ public final class WorkScreens {
             .setPositiveButton("Asignar", (dialog, which) -> {
                 String value = name.getText().toString().trim();
                 int chosen = group.getCheckedRadioButtonId();
-                if (value.isEmpty() || value.length() > 160) { activity.message("Pon un nombre de entre 1 y 160 caracteres."); return; }
-                if (chosen < 1) { activity.message("Elige el operador."); return; }
+                if (value.isEmpty() || value.length() > 160) { activity.message("Pon un nombre de entre 1 y 160 caracteres.", MainActivity.TONE_ERROR); return; }
+                if (chosen < 1) { activity.message("Elige el operador.", MainActivity.TONE_ERROR); return; }
                 activity.assignOrb(registered, address, value, candidates.get(chosen - 1));
             }).show();
     }
@@ -737,6 +744,9 @@ public final class WorkScreens {
         service(body, "Kits para empresas", "Sensores, trabajadores y campañas de tu organización.", "empresa");
         service(body, "Estudios ambientales", "Código Norte realiza el estudio sin que tengas que comprar sensores.", "estudio");
         ui.note(body, "Los presupuestos se preparan al revisar las necesidades.");
+        // HU33: el tutorial de la primera vez también se vuelve a ver desde Ayuda.
+        LinearLayout help = section(body, "¿Cómo funciona la app?", "Vuelve a ver la introducción: el mapa, tu cuenta, el Orb y los permisos.");
+        ui.button(help, "Ver el tutorial de la app", activity::showTutorial);
     }
 
     private void service(LinearLayout body, String title, String description, String kind) {

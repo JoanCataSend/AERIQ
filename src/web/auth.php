@@ -80,6 +80,16 @@ try {
         auth_generate_code((int)$u['id'],'recuperar',$email);
         auth_responder(200,['ok'=>true,'message'=>'Te hemos enviado un correo con un enlace y un código para elegir una contraseña nueva. Caducan en 10 minutos.']);
     }
+    if ($action==='check-reset') {
+        // Al abrir el enlace del correo: ¿sigue sirviendo? No gasta el código.
+        $email=auth_email($d['email']??'');auth_rate('reset-check',$email,12);$code=trim((string)($d['code']??''));
+        $u=auth_find($email);
+        $state=$u?auth_check_code((int)$u['id'],'recuperar',$code):'caducado';
+        auth_responder(200,['ok'=>true,'valid'=>$state==='valido','state'=>$state,
+            'message'=>$state==='valido'?'Enlace válido.':($state==='caducado'
+                ?'Este enlace ha caducado o ya se ha usado. Pide uno nuevo: llega al momento y sirve 10 minutos.'
+                :'El enlace no es correcto. Pide uno nuevo desde esta página.')]);
+    }
     if ($action==='reset-password') {
         $email=auth_email($d['email']??'');auth_rate('reset',$email,12);$code=trim((string)($d['code']??''));$pass=auth_password($d['password']??'');
         $u=auth_find($email);if (!$u || (!$u['verificado_en'] && !$u['debe_cambiar_clave']) || (!$u['activo'] && !$u['debe_cambiar_clave'])) auth_responder(422,['error'=>'Código incorrecto o caducado']);

@@ -293,6 +293,21 @@
     }
     return out;
   }
-  const api={level,csv,statistics,autoGroup,peaks,verdict,FRANJAS,sharedThresholds,distance,INTERPOLACION,groupKey,support,ownRadii,estimate,describe,interpolate,ZONA,raster,route,battery,when};
+  /**
+   * Distancia recorrida (m) de una ruta partida en tramos (resultado de route): suma de los pasos entre
+   * posiciones seguidas de cada tramo. Como «Tu día» en la app, se ignoran los pasos de menos de 5 m
+   * (deriva del GPS con el móvil quieto) y los de más de 2 km (saltos del GPS); los huecos entre tramos no cuentan.
+   */
+  function routeDistance(segments,minStep=5,maxStep=2000){
+    let meters=0;
+    for(const segment of segments||[])for(let i=1;i<segment.length;i++){
+      const a=segment[i-1],b=segment[i],d=distance([Number(a.latitud),Number(a.longitud)],[Number(b.latitud),Number(b.longitud)]);
+      if(d>=minStep&&d<=maxStep)meters+=d;
+    }
+    return meters;
+  }
+  /** Distancia legible: «850 m» o «1,2 km». */
+  const distanceText=m=>m<1000?`${Math.round(m)} m`:`${(m/1000).toLocaleString('es-ES',{maximumFractionDigits:1})} km`;
+  const api={level,csv,statistics,routeDistance,distanceText,autoGroup,peaks,verdict,FRANJAS,sharedThresholds,distance,INTERPOLACION,groupKey,support,ownRadii,estimate,describe,interpolate,ZONA,raster,route,battery,when};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AeriqDomain=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

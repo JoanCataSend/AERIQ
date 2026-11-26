@@ -10,6 +10,8 @@ Web: `auth.php?action=session` devuelve `csrf,user`. Los POST `login,google,logo
 
 **Recuperar** (`forgot`, web y móvil; T34): solo para cuentas existentes. Si el correo no tiene cuenta responde 404 («No hay ninguna cuenta de AERIQ con ese correo…»); si la cuenta está desactivada, 403. Si existe, envía un correo con un código de seis cifras y un enlace a `recuperar.html#email=…&code=…` que abre el paso de la contraseña nueva ya relleno. Código y enlace caducan a los 10 minutos, admiten 5 intentos y se borran al usarse (un solo uso). El límite de 4 peticiones por hora y correo se mantiene.
 
+**Comprobar el enlace** (`auth.php?action=check-reset`, POST `email,code`): la web lo llama nada más abrir el enlace de recuperación, para decir al momento si ya no sirve en vez de esperar a «Guardar». Responde `ok,valid,state,message`; `state` es `valido`, `caducado` (también si ya se usó o no hay código) o `incorrecto`. No consume el código; un código incorrecto cuenta como intento y tiene su propio límite de peticiones (`reset-check`).
+
 **Correos** (T32, T35-T37): todos salen en texto y HTML corporativo (`server/AeriqMail.php`: logo, colores y pie de AERIQ, maquetado con tablas para Gmail y Outlook). Los enlaces y el logo usan la dirección pública de la web: variable de entorno `AERIQ_PUBLIC_URL`, `public_url` en `MailConfig.php` o, si no hay ninguna, la carpeta del script en `SERVER_NAME`. La invitación trae el botón «Establecer mi contraseña», que abre `cambiar-clave.html#email=…&temporal=…`: entra con la clave temporal y cambia la contraseña en un solo paso. Correo y clave van tras `#`, así que no llegan al servidor en la URL ni a sus registros. No hay autoregistro: las cuentas las crea un administrador desde el portal de la organización. `auth.php?action=firebase-config` devuelve la configuración pública de Firebase y si el botón de Google está listo.
 
 Móvil: `mobile-auth.php` reutiliza acciones de cuenta; las protegidas utilizan `X-AERIQ-Token`. Login y recuperación pueden devolver `token,user`; el cambio de contraseña rota el token. Los tokens se guardan como hash en `sesiones_moviles`. `google` recibe `idToken` de Firebase. `social-login` ya no acepta correos sin comprobar: responde `410` hasta que Android envíe un token real. No existe `register` móvil: las cuentas las crea la organización.
@@ -26,11 +28,13 @@ La acción `google` verifica la firma RS256 del ID token con los certificados p�
 | `worker` | POST `organizacion.gestionar` | `name,last,email,role`; `role` debe ser un código de `roles` con `asignable=1` (hoy trabajador o analista) |
 | `campaign` | POST `organizacion.gestionar` | `id?`, `name,zone,start,end,active,public,radius,medium,high`. `zone` es el nombre: se reutiliza la zona si existe. `medium/high` se guardan en `campana_umbrales` |
 | `device` | POST `organizacion.gestionar` | `id?`, `name,address,worker,campaign,active,simulated`; `worker` debe tener el permiso `mediciones.registrar` |
-| `readings` | GET `informes.ver` | `type` (14, 12 o `all`), `campaign,devices` (IDs con comas), `zone` (nombre de zona), `from,to`. Cada fila incluye `tipo`; los umbrales son `null` en magnitudes sin umbral (temperatura) |
+| `readings` | GET `informes.ver` | `type` (14, 12 o `all`), `campaign,devices` (IDs con comas), `zone` (nombre de zona), `from,to`. Cada fila incluye `tipo`; los umbrales son `null` en magnitudes sin umbral (temperatura). Solo lecturas válidas; aparte, `discarded` lista (máximo 500) las descartadas del mismo filtro con `motivo_descarte`, para el bloque «Mediciones descartadas» del informe (no se incluye al exportar CSV) |
 | `map` | GET `mapa.organizacion` | Mismo formato de mapa público y, además, `dispositivo_id` y `dispositivo` (nombre del Orb) en cada medición, para dibujar la ruta de un Orb. Sin `informes.ver` solo ve sus propias asignaciones |
 | `requests` | GET `solicitudes.gestionar` | `requests` (con `servicio`, `servicio_nombre`, `estado`, `estado_nombre` e `historial`) y `states` (catálogo ordenado) |
 | `request-status` | POST `solicitudes.gestionar` | `id,status`; `status` es un código de `estados_solicitud` (`pendiente`, `en_revision`, `respondida`, `cerrada`). Solo hacia delante en el orden del catálogo (T38): volver atrás o cambiar una cerrada devuelve 409. Cada cambio queda en `solicitudes_historial` con la persona y la fecha y envía un correo al solicitante (T37), de cierre si el estado es final. Respuesta `ok,changed,estado,estado_nombre,mailed,message`; un fallo del correo no deshace el cambio (`mailed:false`) |
 | `request-reopen` | POST `solicitudes.gestionar` | `id`. Solo para solicitudes cerradas (si no, 409): vuelve a `en_revision`, lo apunta en el historial y avisa por correo al solicitante. En `requests`, cada entrada del historial lleva `reapertura: true` cuando sale de un estado final |
+
+**Avisos (HU36)**: `notices` (GET: `notices` con `asunto,estado,estado_nombre,con_nombre,con_rol,ultimo,nuevo,actualizado_en`, `unread`, `contacts` —a quién puedes escribir— y `states`), `notice-unread` (GET: `unread`), `notice&id=` (GET: `notice` y `messages`; abrirlo lo marca como visto), `notice-create` (POST `to,subject,message`), `notice-reply` (POST `id,message`) y `notice-close` (POST `id`). Para cualquier cuenta de una organización (403 si no tiene). Quién escribe a quién lo decide el servidor (`server/Avisos.php`): el admin principal con admins de campaña y operadores; el admin de campaña con sus operadores y el admin principal; el operador con su admin y el admin principal (403 «No puedes enviar avisos a esa persona»). Solo las dos personas del aviso lo leen (404 para el resto). Estados en `estados_aviso`: abierto, respondido (contesta la otra persona) y cerrado; responder a uno cerrado lo reabre. Asunto hasta 160 caracteres y mensaje hasta 4.000.
 
 Todo POST del panel requiere CSRF. El rol, sus permisos y la organización se consultan en servidor. Las asignaciones preservan su histórico; dar de baja no borra mediciones. Fechas de campaña `YYYY-MM-DD`, radio 20–50 m y umbrales de ozono en ppb. Un informe de más de 10.000 filas devuelve 413 y pide acotar el filtro.
 
@@ -52,7 +56,9 @@ Las asignaciones del GET y los `devices` de `portal.php?action=dashboard` incluy
 
 GPS es opcional como conjunto. El servidor consulta el rango/unidad de `magnitudes`, rechaza (422) una magnitud que el modelo del Orb no mide (`modelo_magnitudes`), comprueba asignación y fechas, y toma la procedencia del Orb. `assignmentId` y `unit` se comprueban si se incluyen; la app actual siempre los envía. No se permite que un cliente elija otra organización o declare su lectura como real.
 
-El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta: `ok,id,eventId,duplicate`. Reutilizar el evento con datos diferentes devuelve 409; cambiar de asignación no reasigna lecturas históricas.
+**Validación de valores (HU35)**: la lectura se guarda siempre (cualquier entero del contrato BLE, −32768 a 65535), pero se marca `valida=0` con `motivo_descarte` cuando está fuera del rango de `magnitudes` (`fuera_de_rango`: ozono 0–500 ppb, temperatura −20–70 °C) o cuando salta más de `salto_maximo` (ozono 100 ppb, temperatura 10 °C) respecto a la media de las 5 lecturas anteriores de la misma asignación en los últimos 10 minutos, con al menos 3; la media cuenta las anómalas pero no las fuera de rango, así que un cambio real de nivel se alcanza en dos o tres lecturas (`anomala`). Las descartadas no salen en el mapa, historial, informes ni CSV; quedan registradas y se ven en el informe. Las asignaciones del GET incluyen `o3_minimo,o3_maximo,temperatura_minima,temperatura_maxima` para que la app avise al momento.
+
+El UUID de evento se genera una sola vez y se reutiliza al reintentar. Respuesta: `ok,id,eventId,duplicate,valid,reason` (`reason` es `null` o el motivo de descarte). Reutilizar el evento con datos diferentes devuelve 409; cambiar de asignación no reasigna lecturas históricas.
 
 ## Orb de la campaña desde Android: `mobile-team.php`
 
@@ -63,6 +69,10 @@ Para el admin de campaña (permiso `equipo.gestionar`) con el token del móvil (
 - Errores: 401 sin sesión, 403 sin `equipo.gestionar` (operador o admin principal), 404/409 si el Orb no es de su campaña o ya existe, 422 si la MAC o los campos no son válidos.
 
 La app Android lo usa en Panel → «Asignar un Orb con el móvil»: busca los Orb por Bluetooth para no teclear la MAC. El operador recibe la asignación en `GET field.php` al abrir su app.
+
+## Avisos desde Android: `mobile-avisos.php`
+
+Las mismas acciones y reglas que los avisos de `portal.php` (`?action=notices|notice-unread|notice&id=` por GET y `notice-create|notice-reply|notice-close` por POST JSON), con el token del móvil (`X-AERIQ-Token`) en vez de cookie y CSRF. La app lo usa en Cuenta → Avisos.
 
 ## Público: `public.php`
 

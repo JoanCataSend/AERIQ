@@ -107,3 +107,12 @@ const AeriqAuth = (() => {
 })();
 // También disponible para módulos ES (por ejemplo, google-auth.js).
 window.AeriqAuth = AeriqAuth;
+/*
+ * Tono de los mensajes: 'error' (rojo, algo ha fallado), 'warn' (naranja, aviso o algo pendiente),
+ * 'ok' (verde, guardado o hecho) e 'info' (neutro). Se indica siempre al mostrar el mensaje, no se adivina.
+ */
+function aeriqStatus(node,msg,tone='info'){
+  if(!node)return;node.textContent=msg||'';
+  if(msg&&tone!=='info')node.dataset.tone=tone;else delete node.dataset.tone;
+}
+window.aeriqStatus=aeriqStatus;

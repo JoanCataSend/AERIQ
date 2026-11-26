@@ -245,6 +245,22 @@ function auth_generate_code(int $userId,string $purpose,string $email,bool $thro
     $stmt=$db->prepare('INSERT INTO codigos_email(usuario_id,proposito,codigo_hash,vence_en,enviado_en,intentos) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE),NOW(),0) ON DUPLICATE KEY UPDATE codigo_hash=VALUES(codigo_hash),vence_en=VALUES(vence_en),enviado_en=VALUES(enviado_en),intentos=0');
     $stmt->bind_param('iss',$userId,$purpose,$hash);$stmt->execute();
 }
+/**
+ * Comprueba un código sin gastarlo (para avisar al abrir el enlace de recuperar si ya no sirve).
+ * Devuelve 'valido', 'caducado' (vencido, usado o bloqueado) o 'incorrecto'. Un código incorrecto cuenta como
+ * intento, igual que al guardar: así no sirve para adivinar códigos.
+ */
+function auth_check_code(int $id,string $purpose,string $code): string {
+    if (!preg_match('/^[0-9]{6}$/',$code)) return 'incorrecto';
+    $db=conexionBD();
+    $s=$db->prepare('SELECT codigo_hash,vence_en,intentos FROM codigos_email WHERE usuario_id=? AND proposito=?');
+    $s->bind_param('is',$id,$purpose);$s->execute();$row=$s->get_result()->fetch_assoc();
+    if (!$row || strtotime($row['vence_en'])<time() || (int)$row['intentos']>=5) return 'caducado';
+    if (password_verify($code,$row['codigo_hash'])) return 'valido';
+    $update=$db->prepare('UPDATE codigos_email SET intentos=intentos+1 WHERE usuario_id=? AND proposito=?');
+    $update->bind_param('is',$id,$purpose);$update->execute();
+    return 'incorrecto';
+}
 function auth_verify_code(int $id,string $purpose,string $code): void {
     if (!preg_match('/^[0-9]{6}$/',$code)) auth_responder(422,['error'=>'Introduce el código de seis cifras']);
     $db=conexionBD();

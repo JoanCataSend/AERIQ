@@ -104,6 +104,7 @@ SET @a3 := (SELECT id FROM asignaciones WHERE dispositivo_id=@d3 AND finalizada_
 -- veredicto por franjas sale igual se importe a la hora que se importe. Ozono en ppb, temperatura en °C, fechas UTC.
 -- Posiciones en una rejilla de unos 11 m para que el mapa pueda interpolar. Todo va con simulado = 1.
 -- Repetible: cada evento se actualiza con la hora y el valor nuevos (también los 54 de versiones anteriores).
+-- Además hay 2 lecturas descartadas de ejemplo (HU35), guardadas como no válidas.
 -- Perfil BUENO · campus (umbrales 60/100): todo por debajo de 60 ppb, sin picos
 INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
  SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(0+t.k+1,12,'0')),@a1,14,
@@ -122,6 +123,15 @@ INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,lati
 ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),magnitud_id=VALUES(magnitud_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),
  latitud=VALUES(latitud),longitud=VALUES(longitud),precision_m=VALUES(precision_m),contador=VALUES(contador),rssi=VALUES(rssi),simulado=VALUES(simulado);
 
+-- HU35 · Dos lecturas descartadas de ejemplo en el campus, para enseñar que quedan guardadas como no válidas
+-- (con su motivo) y que no salen en el mapa, el informe, el historial ni el CSV:
+-- una fuera de rango (742 ppb, el máximo admitido es 500) y otra anómala (168 ppb entre lecturas de unos 45).
+INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado,valida,motivo_descarte)
+ SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(91+t.k,12,'0')),@a1,14,ELT(t.k+1,742,168),
+  DATE_SUB(UTC_TIMESTAMP(3),INTERVAL ELT(t.k+1,185,425) MINUTE),ROUND(38.996651+0.00005,6),ROUND(-0.166009+(2+t.k)*0.00013,6),5,200+t.k,-58,1,0,ELT(t.k+1,'fuera_de_rango','anomala')
+ FROM (SELECT 0 k UNION ALL SELECT 1) t WHERE @a1 IS NOT NULL
+ON DUPLICATE KEY UPDATE asignacion_id=VALUES(asignacion_id),valor=VALUES(valor),capturada_en=VALUES(capturada_en),latitud=VALUES(latitud),longitud=VALUES(longitud),
+ valida=VALUES(valida),motivo_descarte=VALUES(motivo_descarte),simulado=VALUES(simulado);
 -- Perfil REGULAR · playa (umbrales propios 55/90): buena de madrugada y regular el resto, picos moderados
 INSERT INTO mediciones (evento,asignacion_id,magnitud_id,valor,capturada_en,latitud,longitud,precision_m,contador,rssi,simulado)
  SELECT CONCAT('ae300000-0000-4000-8000-',LPAD(30+t.k+1,12,'0')),@a2,14,

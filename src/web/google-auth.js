@@ -6,10 +6,11 @@ let firebaseConfigPromise = null;
 let firebaseSdkPromise = null;
 
 function googleToast(message) {
-  if (typeof toast === 'function') return toast(message);
+  if (typeof toast === 'function') return toast(message, 'error');
   const notice = document.getElementById('toast');
   if (notice) {
     notice.textContent = message;
+    notice.dataset.tone = 'error';
     notice.classList.add('show');
     clearTimeout(googleToast.timer);
     googleToast.timer = setTimeout(() => notice.classList.remove('show'), 4200);

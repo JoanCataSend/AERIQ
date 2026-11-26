@@ -238,7 +238,7 @@
   form.addEventListener('submit',async e=>{
     e.preventDefault();
     if(submit.disabled)return;
-    feedback.textContent='';
+    aeriqStatus(feedback,'');
     const invalid=FIELDS.filter(name=>{touched.add(name);return validate(name);});
     if(invalid.length){showSummary(invalid.length);focusField(invalid[0]);return;}
     summary.hidden=true;setBusy(true);
@@ -248,7 +248,7 @@
       clearTimeout(draftTimer);store.clear();showSuccess(result,data);
     }catch(error){
       if(error.field&&FIELDS.includes(error.field)){show(error.field,error.message);showSummary(1);focusField(error.field);}
-      else feedback.textContent=error.message||'No se ha podido enviar la solicitud. Inténtalo de nuevo.';
+      else aeriqStatus(feedback,error.message||'No se ha podido enviar la solicitud. Inténtalo de nuevo.','error');
     }finally{setBusy(false);}
   });
 

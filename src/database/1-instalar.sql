@@ -7,7 +7,7 @@
 --
 -- ⚠ BORRA todas las tablas y vistas de esa base antes de instalar.
 --
--- Crea: 26 tablas, 4 vistas, los catálogos (roles, permisos, magnitudes,
+-- Crea: 29 tablas, 4 vistas, los catálogos (roles, permisos, magnitudes,
 -- servicios…), la organización «AERIQ Gandia» y el admin principal
 --   gandia@gmail.com / 1234  (cámbiala tras el primer acceso).
 -- Después, si quieres datos de prueba, importa 2-simulacion.sql.
@@ -95,17 +95,20 @@ INSERT INTO rol_permisos (rol_id,permiso_id) VALUES
 
 -- El id coincide con el código de tipo del anuncio BLE del AERIQ (14 = O3, 12 = temperatura):
 -- es una clave natural fijada por el firmware, por eso no es AUTO_INCREMENT.
+-- valor_minimo/valor_maximo: rango admitido (HU35); fuera de él la lectura se guarda como no válida.
+-- salto_maximo: diferencia máxima con la media de las 5 lecturas anteriores; si la supera, es anómala.
 CREATE TABLE magnitudes (
  id INT PRIMARY KEY, nombre VARCHAR(60) NOT NULL, unidad VARCHAR(16) NOT NULL,
  valor_minimo DOUBLE NOT NULL, valor_maximo DOUBLE NOT NULL,
  umbral_medio_defecto DOUBLE NULL, umbral_alto_defecto DOUBLE NULL,
- CHECK (valor_maximo >= valor_minimo),
+ salto_maximo DOUBLE NULL,
+ CHECK (valor_maximo >= valor_minimo), CONSTRAINT magnitud_salto CHECK (salto_maximo IS NULL OR salto_maximo > 0),
  CHECK ((umbral_medio_defecto IS NULL AND umbral_alto_defecto IS NULL) OR
         (umbral_medio_defecto >= 0 AND umbral_alto_defecto > umbral_medio_defecto))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT INTO magnitudes VALUES
- (14,'Ozono','ppb',0,65535,60,100),
- (12,'Temperatura','°C',-32768,32767,NULL,NULL);
+INSERT INTO magnitudes (id,nombre,unidad,valor_minimo,valor_maximo,umbral_medio_defecto,umbral_alto_defecto,salto_maximo) VALUES
+ (14,'Ozono','ppb',0,500,60,100,100),
+ (12,'Temperatura','°C',-20,70,NULL,NULL,10);
 
 CREATE TABLE modelos_dispositivo (
  id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -312,6 +315,8 @@ CREATE TABLE mediciones (
  latitud DOUBLE NULL, longitud DOUBLE NULL, precision_m DOUBLE NULL,
  contador TINYINT UNSIGNED NULL, rssi TINYINT NULL,
  simulado BOOLEAN NOT NULL, valida BOOLEAN NOT NULL DEFAULT TRUE,
+ -- HU35: por qué no es válida. Se guarda para dejar constancia; mapas, informes, historial y CSV usan valida=1.
+ motivo_descarte VARCHAR(20) NULL,
  UNIQUE KEY evento_unico (evento),
  FOREIGN KEY (asignacion_id) REFERENCES asignaciones(id),
  FOREIGN KEY (magnitud_id) REFERENCES magnitudes(id),
@@ -319,6 +324,7 @@ CREATE TABLE mediciones (
    (latitud IS NOT NULL AND longitud IS NOT NULL AND precision_m IS NOT NULL AND
     latitud BETWEEN -90 AND 90 AND longitud BETWEEN -180 AND 180 AND precision_m BETWEEN 0 AND 10000)),
  CHECK (rssi BETWEEN -127 AND 20),
+ CONSTRAINT medicion_descarte CHECK ((valida = 1 AND motivo_descarte IS NULL) OR (valida = 0 AND motivo_descarte IN ('fuera_de_rango','anomala'))),
  INDEX (capturada_en), INDEX (asignacion_id,magnitud_id,capturada_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -371,6 +377,52 @@ CREATE TABLE solicitudes_historial (
  INDEX (solicitud_id,cambiado_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ============================================================ Avisos entre personas (HU36)
+-- Conversaciones tipo solicitud entre dos cuentas de la misma organización: el admin principal con
+-- admins y operadores; el admin de campaña con los operadores de su campaña (y con el admin principal).
+-- Quién puede escribir a quién lo decide el servidor (server/Avisos.php), no el formulario.
+CREATE TABLE estados_aviso (
+ id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ codigo VARCHAR(30) NOT NULL UNIQUE,
+ nombre VARCHAR(60) NOT NULL,
+ orden TINYINT UNSIGNED NOT NULL,
+ final BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO estados_aviso (id,codigo,nombre,orden,final) VALUES
+ (1,'abierto','Abierto',1,0),
+ (2,'respondido','Respondido',2,0),
+ (3,'cerrado','Cerrado',3,1);
+
+CREATE TABLE avisos (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ organizacion_id BIGINT UNSIGNED NOT NULL,
+ creado_por BIGINT UNSIGNED NOT NULL,
+ destinatario_id BIGINT UNSIGNED NOT NULL,
+ asunto VARCHAR(160) NOT NULL,
+ estado_id TINYINT UNSIGNED NOT NULL DEFAULT 1,
+ creado_en DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ actualizado_en DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ -- Última vez que cada parte abrió la conversación: lo que llegó después es «nuevo».
+ visto_creador_en DATETIME(3) NULL,
+ visto_destinatario_en DATETIME(3) NULL,
+ FOREIGN KEY (creado_por,organizacion_id) REFERENCES usuarios(id,organizacion_id),
+ FOREIGN KEY (destinatario_id,organizacion_id) REFERENCES usuarios(id,organizacion_id),
+ FOREIGN KEY (estado_id) REFERENCES estados_aviso(id),
+ CHECK (creado_por <> destinatario_id),
+ INDEX (creado_por,actualizado_en), INDEX (destinatario_id,actualizado_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE aviso_mensajes (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ aviso_id BIGINT UNSIGNED NOT NULL,
+ autor_id BIGINT UNSIGNED NOT NULL,
+ texto TEXT NOT NULL,
+ creado_en DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ FOREIGN KEY (aviso_id) REFERENCES avisos(id) ON DELETE CASCADE,
+ FOREIGN KEY (autor_id) REFERENCES usuarios(id),
+ INDEX (aviso_id,creado_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ============================================================ Seguridad técnica
 -- proposito sigue siendo ENUM: es un conjunto cerrado que solo cambia junto con el código.
 
@@ -399,7 +451,7 @@ CREATE VIEW vista_mediciones AS
  CONCAT(u.nombre,' ',u.apellidos) AS trabajador,
  t.nombre AS magnitud,m.valor,t.unidad,m.latitud,m.longitud,
  IF(m.simulado,'Simulado','Real') AS origen,
- IF(m.valida,'Válida','Pendiente o inválida') AS validacion
+ IF(m.valida,'Válida',CONCAT('Descartada: ',CASE m.motivo_descarte WHEN 'fuera_de_rango' THEN 'fuera de rango' WHEN 'anomala' THEN 'anómala' ELSE 'sin motivo' END)) AS validacion
  FROM mediciones m JOIN asignaciones a ON a.id=m.asignacion_id
  JOIN organizaciones o ON o.id=a.organizacion_id JOIN campanas c ON c.id=a.campana_id
  JOIN zonas z ON z.id=c.zona_id

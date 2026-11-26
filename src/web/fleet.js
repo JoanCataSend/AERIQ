@@ -5,7 +5,7 @@ async function initFleet(){
   const $f=sel=>root.querySelector(sel);
   const form=$f('#device-edit-form'),modal=$f('#device-modal'),host=$f('#fleet-table');
   if(!form||!host)return;
-  const say=msg=>{if(typeof toast==='function')toast(msg);else{const n=document.querySelector('#portal-feedback');if(n)n.textContent=msg;}};
+  const say=(msg,tone)=>{if(typeof toast==='function')toast(msg,tone);else aeriqStatus(document.querySelector('#portal-feedback'),msg,tone);};
   let devices=[],workers=[],campaigns=[],admin=false,current=null,view=null;
   const create=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text??'—';return n;};
   const name=$f('#device-new-name');name.name='name';
@@ -27,7 +27,7 @@ async function initFleet(){
   async function refresh(){const data=await Aeriq.portal('dashboard');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);if(!view)mountTable();view.set(devices);}
   $f('#device-modal-close').onclick=()=>modal.close();
   $f('#add-device').onclick=()=>edit(null);
-  form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await Aeriq.portal('device',{...(current?{id:current.id}:{}),name:name.value,address:address.value,worker:worker.value,active:current?active.checked:true,simulated:current?Boolean(Number(current.simulado)):false});modal.close();await refresh();window.dispatchEvent(new Event('aeriq:fleet-changed'));say('AERIQ guardado en tu campaña.');}catch(error){say(error.message);}finally{button.disabled=false;}};
+  form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await Aeriq.portal('device',{...(current?{id:current.id}:{}),name:name.value,address:address.value,worker:worker.value,active:current?active.checked:true,simulated:current?Boolean(Number(current.simulado)):false});modal.close();await refresh();window.dispatchEvent(new Event('aeriq:fleet-changed'));say('AERIQ guardado en tu campaña.','ok');}catch(error){say(error.message,'error');}finally{button.disabled=false;}};
   try{const {user}=await AeriqAuth.session();if(!user){location.href='login.html';return;}if(user.mustChangePassword){location.href='cambiar-clave.html';return;}admin=(user.permissions||[]).includes('equipo.gestionar');$f('#add-device').hidden=!admin;await refresh();}
   catch(error){host.replaceChildren(create('p',error.message));}
 }
