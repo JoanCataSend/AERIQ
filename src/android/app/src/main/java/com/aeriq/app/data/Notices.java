@@ -46,6 +46,10 @@ public final class Notices {
             campaign = data.isNull("campana") ? "" : data.optString("campana");
         }
 
+        /**
+         * Gestiona label.
+         * Diseño lógico: (sin parámetros) → label() → String; según doc/android_design.md.
+         */
         public String label() { return name + " · " + role + (campaign.isEmpty() ? "" : " · " + campaign); }
     }
 
@@ -72,8 +76,16 @@ public final class Notices {
             unread = 0;
         }
 
+        /**
+         * Gestiona empty.
+         * Diseño lógico: (sin parámetros) → empty() → Inbox; según doc/android_design.md.
+         */
         public static Inbox empty() { return new Inbox(); }
 
+        /**
+         * Abre.
+         * Diseño lógico: (sin parámetros) → open() → int; según doc/android_design.md.
+         */
         public int open() {
             int count = 0;
             for (Summary notice : notices) if (!notice.closed) count++;

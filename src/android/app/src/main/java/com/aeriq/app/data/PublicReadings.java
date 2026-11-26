@@ -28,7 +28,15 @@ public final class PublicReadings {
             this.high = high;
         }
 
+        /**
+         * Gestiona posición.
+         * Diseño lógico: (sin parámetros) → position() → GeoPoint; según doc/android_design.md.
+         */
         public GeoPoint position() { return new GeoPoint(latitude, longitude); }
+        /**
+         * Gestiona color.
+         * Diseño lógico: (double level) → color() → int; según doc/android_design.md.
+         */
         public int color(double level) { return level >= high ? 0xffe35b5d : level >= medium ? 0xffeea22d : 0xff219c72; }
     }
 
@@ -42,11 +50,18 @@ public final class PublicReadings {
         }
     }
 
+    /**
+     * Obtiene.
+     * Diseño lógico: (boolean simulated) → fetch() → Result; según doc/android_design.md.
+     */
     public static Result fetch(boolean simulated) throws Exception { return fetch(simulated, 24); }
 
     /**
      * hours: 24 (último día), 168 (última semana) o 0 (histórico, las 10.000 más recientes). Sin este parámetro el
      * servidor devuelve solo las últimas 24 h, y una comparación de 7 o 30 días quedaba vacía.
+     */
+    /**
+     * Diseño lógico: (boolean simulated, int hours) → fetch() → Result; según doc/android_design.md.
      */
     public static Result fetch(boolean simulated, int hours) throws Exception {
         if (hours != 0 && hours != 24 && hours != 168) throw new IllegalArgumentException("Periodo no admitido: " + hours);
@@ -123,11 +138,17 @@ public final class PublicReadings {
     }
 
     /** Solo se interpolan lecturas de la misma campaña, unidad y origen (real/simulado). */
+    /**
+     * Diseño lógico: (Reading reading) → groupKey() → String; según doc/android_design.md.
+     */
     public static String groupKey(Reading reading) {
         return reading.campaign + "|" + reading.unit + "|" + (reading.simulated ? 1 : 0);
     }
 
     /** Distancia haversine en metros, con el mismo radio terrestre que la web. */
+    /**
+     * Diseño lógico: (double lat1, double lon1, double lat2, double lon2) → distance() → double; según doc/android_design.md.
+     */
     public static double distance(double lat1, double lon1, double lat2, double lon2) {
         double rad = Math.PI / 180, dlat = (lat1 - lat2) * rad, dlon = (lon1 - lon2) * rad;
         double h = Math.pow(Math.sin(dlat / 2), 2)
@@ -135,11 +156,18 @@ public final class PublicReadings {
         return 6371000 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
     }
 
+    /**
+     * Gestiona support.
+     * Diseño lógico: (List<Reading> rows) → support() → List<Reading>; según doc/android_design.md.
+     */
     public static List<Reading> support(List<Reading> rows) { return support(rows, MIN_SEPARATION); }
 
     /**
      * Posiciones de soporte: una lectura (la más reciente) por cada posición separada al menos
      * {@code separation} metros de las demás de su grupo.
+     */
+    /**
+     * Diseño lógico: (List<Reading> rows, double separation) → support() → List<Reading>; según doc/android_design.md.
      */
     public static List<Reading> support(List<Reading> rows, double separation) {
         List<Reading> sorted = new ArrayList<>(), out = new ArrayList<>();
@@ -183,6 +211,9 @@ public final class PublicReadings {
      * Zona propia de cada posición de soporte (T46): la mitad de la distancia a su vecina más cercana del mismo grupo,
      * como mucho {@link #OWN_MAX} metros. Mismo cálculo que ownRadii() de aeriq-domain.js.
      */
+    /**
+     * Diseño lógico: (List<Reading> samples) → ownRadii() → Map<Reading, Double>; según doc/android_design.md.
+     */
     public static Map<Reading, Double> ownRadii(List<Reading> samples) {
         Map<Reading, Double> out = new java.util.IdentityHashMap<>();
         if (samples.isEmpty()) return out;
@@ -209,6 +240,9 @@ public final class PublicReadings {
     }
 
     /** Estimación en un punto a partir de posiciones de soporte (resultado de {@link #support}). */
+    /**
+     * Diseño lógico: (double latitude, double longitude, List<Reading> samples, int radius) → estimate() → Estimate; según doc/android_design.md.
+     */
     public static Estimate estimate(double latitude, double longitude, List<Reading> samples, int radius) {
         return estimate(latitude, longitude, samples, radius, ownRadii(samples));
     }
@@ -241,6 +275,9 @@ public final class PublicReadings {
     }
 
     /** Valor interpolado o null si el punto queda sin datos. Acepta lecturas en bruto. */
+    /**
+     * Diseño lógico: (double latitude, double longitude, List<Reading> rows, int radius) → interpolate() → Double; según doc/android_design.md.
+     */
     public static Double interpolate(double latitude, double longitude, List<Reading> rows, int radius) {
         return estimate(latitude, longitude, support(rows), radius).value;
     }
@@ -273,6 +310,10 @@ public final class PublicReadings {
         return ascending ? new int[]{a, b} : new int[]{n - 1 - b, n - 1 - a};
     }
 
+    /**
+     * Gestiona at.
+     * Diseño lógico: (double[] values, boolean ascending, int index) → at() → double; según doc/android_design.md.
+     */
     private static double at(double[] values, boolean ascending, int index) {
         return ascending ? values[index] : values[values.length - 1 - index];
     }
@@ -284,6 +325,9 @@ public final class PublicReadings {
      * cada grupo; lats/lons: latitud de cada fila y longitud de cada columna (ordenadas). Solo se evalúan los
      * puntos cercanos a alguna posición. Si varios grupos alcanzan un punto, sus estimaciones se combinan (T47) y un
      * valor estimado gana a «datos insuficientes».
+     */
+    /**
+     * Diseño lógico: (List<List<Reading>> groups, int[] radii, double[] lats, double[] lons, int maxEvaluations) → raster() → Raster; según doc/android_design.md.
      */
     public static Raster raster(List<List<Reading>> groups, int[] radii, double[] lats, double[] lons, int maxEvaluations) {
         int rows = lats.length, columns = lons.length, evaluated = 0, cells = rows * columns;
@@ -360,6 +404,9 @@ public final class PublicReadings {
      * Texto de la consulta de un punto del mapa: título y detalle. Con valor indica que es interpolado;
      * sin él, por qué no se asigna nivel. El mismo criterio que public-map.js.
      */
+    /**
+     * Diseño lógico: (Estimate estimate, int radius, String unit, double medium, double high, boolean simulated) → describe() → String[]; según doc/android_design.md.
+     */
     public static String[] describe(Estimate estimate, int radius, String unit, double medium, double high, boolean simulated) {
         String positions = estimate.positions + (estimate.positions == 1 ? " posición" : " posiciones") + " en " + radius + " m";
         if (estimate.value != null) {
@@ -383,5 +430,9 @@ public final class PublicReadings {
             + " Sin datos no significa aire limpio."};
     }
 
+    /**
+     * Comprueba si finito.
+     * Diseño lógico: (double value) → isFinite() → boolean; según doc/android_design.md.
+     */
     private static boolean isFinite(double value) { return !Double.isNaN(value) && !Double.isInfinite(value); }
 }

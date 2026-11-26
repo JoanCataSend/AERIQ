@@ -60,6 +60,9 @@ public final class SplashView extends View {
     }
 
     /** Arranca la animación; {@code onDone} se llama una sola vez al terminar (o al saltarla). */
+    /**
+     * Diseño lógico: (Runnable onDone) → start() → void; según doc/android_design.md.
+     */
     public void start(Runnable onDone) {
         done = onDone;
         if (logo == null) { post(this::finish); return; }
@@ -78,6 +81,10 @@ public final class SplashView extends View {
             invalidate();
         });
         animator.addListener(new android.animation.AnimatorListenerAdapter() {
+            /**
+             * Atiende el evento animation end.
+             * Diseño lógico: (android.animation.Animator animation) → onAnimationEnd() → void; según doc/android_design.md.
+             */
             @Override public void onAnimationEnd(android.animation.Animator animation) { finish(); }
         });
         animator.start();
@@ -87,11 +94,18 @@ public final class SplashView extends View {
      * Ángulo del logo según el avance: velocidad en forma de campana (arranca, gira rápido y frena del todo).
      * Es la integral de sin²(πt): da 3,5 vueltas en total y termina en reposo.
      */
+    /**
+     * Diseño lógico: (float t) → angleAt() → float; según doc/android_design.md.
+     */
     private static float angleAt(float t) {
         double turns = 3.5;
         return (float) (360 * turns * (t - Math.sin(2 * Math.PI * t) / (2 * Math.PI)));
     }
 
+    /**
+     * Gestiona step.
+     * Diseño lógico: (sin parámetros) → step() → void; según doc/android_design.md.
+     */
     private void step() {
         rotation = angleAt(progress);
         // Las partículas salen mientras el ventilador va rápido (de 15 % a 80 % del tiempo), 3 por aspa cada 2 %.
@@ -113,6 +127,10 @@ public final class SplashView extends View {
         }
     }
 
+    /**
+     * Atiende el evento draw.
+     * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+     */
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         float w = getWidth(), h = getHeight(), cx = w / 2f, cy = h * 0.44f;
@@ -148,6 +166,10 @@ public final class SplashView extends View {
         }
     }
 
+    /**
+     * Gestiona finish.
+     * Diseño lógico: (sin parámetros) → finish() → void; según doc/android_design.md.
+     */
     private void finish() {
         if (finished) return;
         finished = true;
@@ -155,6 +177,10 @@ public final class SplashView extends View {
         animate().alpha(0f).setDuration(reduced ? 0 : 220).withEndAction(() -> { if (done != null) done.run(); }).start();
     }
 
+    /**
+     * Atiende el evento detached from window.
+     * Diseño lógico: (sin parámetros) → onDetachedFromWindow() → void; según doc/android_design.md.
+     */
     @Override protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         if (animator != null) animator.cancel();

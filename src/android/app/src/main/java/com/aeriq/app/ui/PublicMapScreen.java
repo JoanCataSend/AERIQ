@@ -130,7 +130,15 @@ public final class PublicMapScreen {
         frame.addView(map, new FrameLayout.LayoutParams(-1, -1));
         // Las zonas dependen de la vista: se recalculan al terminar de mover o ampliar el mapa, y en el primer dibujado.
         map.addMapListener(new DelayedMapListener(new MapListener() {
+            /**
+             * Atiende el evento scroll.
+             * Diseño lógico: (ScrollEvent event) → onScroll() → boolean; según doc/android_design.md.
+             */
             @Override public boolean onScroll(ScrollEvent event) { refreshZones(); return false; }
+            /**
+             * Atiende el evento zoom.
+             * Diseño lógico: (ZoomEvent event) → onZoom() → boolean; según doc/android_design.md.
+             */
             @Override public boolean onZoom(ZoomEvent event) { refreshZones(); return false; }
         }, 150));
         map.addOnFirstLayoutListener((view, left, top, right, bottom) -> refreshZones());
@@ -240,6 +248,10 @@ public final class PublicMapScreen {
             refreshRadius();
         });
         radiusSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            /**
+             * Atiende el evento progress changed.
+             * Diseño lógico: (SeekBar bar, int progress, boolean fromUser) → onProgressChanged() → void; según doc/android_design.md.
+             */
             @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                 if (!fromUser) return;
                 // Al desmarcar el interruptor, su propio aviso aplica el radio elegido.
@@ -247,7 +259,15 @@ public final class PublicMapScreen {
                 radiusOverride = PublicReadings.RADIUS_MIN + progress * RADIUS_STEP;
                 refreshRadius();
             }
+            /**
+             * Atiende el evento start tracking touch.
+             * Diseño lógico: (SeekBar bar) → onStartTrackingTouch() → void; según doc/android_design.md.
+             */
             @Override public void onStartTrackingTouch(SeekBar bar) { }
+            /**
+             * Atiende el evento stop tracking touch.
+             * Diseño lógico: (SeekBar bar) → onStopTrackingTouch() → void; según doc/android_design.md.
+             */
             @Override public void onStopTrackingTouch(SeekBar bar) { }
         });
         showRadius();
@@ -355,8 +375,20 @@ public final class PublicMapScreen {
 
         // ---------- Búsqueda ----------
         query.addTextChangedListener(new TextWatcher() {
+            /**
+             * Gestiona before texto changed.
+             * Diseño lógico: (CharSequence s, int start, int count, int after) → beforeTextChanged() → void; según doc/android_design.md.
+             */
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            /**
+             * Atiende el evento texto changed.
+             * Diseño lógico: (CharSequence s, int start, int before, int count) → onTextChanged() → void; según doc/android_design.md.
+             */
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            /**
+             * Gestiona after texto changed.
+             * Diseño lógico: (Editable text) → afterTextChanged() → void; según doc/android_design.md.
+             */
             @Override public void afterTextChanged(Editable text) {
                 if (suppressSuggestions) return;
                 if (pendingSearch != null) main.removeCallbacks(pendingSearch);
@@ -384,6 +416,9 @@ public final class PublicMapScreen {
     private long downTime;
 
     /** Arrastre del panel: sigue al dedo y al soltar se queda abierto o cerrado. Un toque lo alterna. */
+    /**
+     * Diseño lógico: (View view, android.view.MotionEvent event) → dragSheet() → boolean; según doc/android_design.md.
+     */
     private boolean dragSheet(View view, android.view.MotionEvent event) {
         switch (event.getActionMasked()) {
             case android.view.MotionEvent.ACTION_DOWN:
@@ -415,18 +450,30 @@ public final class PublicMapScreen {
         }
     }
 
+    /**
+     * Establece expanded.
+     * Diseño lógico: (boolean open) → setExpanded() → void; según doc/android_design.md.
+     */
     private void setExpanded(boolean open) {
         expanded = open;
         bottom.animate().translationY(open ? 0 : hiddenOffset).setDuration(220)
             .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
     }
 
+    /**
+     * Gestiona frame params.
+     * Diseño lógico: (int width, int height, int gravity, int left, int top, int right, int bottom) → frameParams() → FrameLayout.LayoutParams; según doc/android_design.md.
+     */
     private FrameLayout.LayoutParams frameParams(int width, int height, int gravity, int left, int top, int right, int bottom) {
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height, gravity);
         params.setMargins(ui.dp(left), ui.dp(top), ui.dp(right), ui.dp(bottom));
         return params;
     }
 
+    /**
+     * Gestiona control.
+     * Diseño lógico: (int icon, String description, Runnable click) → control() → View; según doc/android_design.md.
+     */
     private View control(int icon, String description, Runnable click) {
         ImageView button = ui.image(icon, 52, 52);
         button.setPadding(ui.dp(14), ui.dp(14), ui.dp(14), ui.dp(14));
@@ -441,6 +488,10 @@ public final class PublicMapScreen {
         return button;
     }
 
+    /**
+     * Gestiona legend texto.
+     * Diseño lógico: (boolean clipped) → legendText() → CharSequence; según doc/android_design.md.
+     */
     private CharSequence legendText(boolean clipped) {
         SpannableStringBuilder text = new SpannableStringBuilder();
         text.append("Leyenda");
@@ -467,8 +518,15 @@ public final class PublicMapScreen {
 
     // ---------------------------------------------------------------- interpolación
 
+    /**
+     * Diseño lógico: (List<Reading> group) → radiusOf() → int; según doc/android_design.md.
+     */
     private int radiusOf(List<Reading> group) { return radiusOverride != 0 ? radiusOverride : group.get(0).radius; }
 
+    /**
+     * Muestra radio.
+     * Diseño lógico: (sin parámetros) → showRadius() → void; según doc/android_design.md.
+     */
     private void showRadius() {
         if (radiusOverride != 0) {
             radiusValue.setText(radiusOverride + " m");
@@ -486,6 +544,10 @@ public final class PublicMapScreen {
         radiusLabel.setText("El que ha fijado cada campaña. Mueve la barra para probar otro (20–50 m).");
     }
 
+    /**
+     * Actualiza radio.
+     * Diseño lógico: (sin parámetros) → refreshRadius() → void; según doc/android_design.md.
+     */
     private void refreshRadius() {
         showRadius();
         draw();
@@ -495,6 +557,9 @@ public final class PublicMapScreen {
     /**
      * Tocar el mapa explica ese punto en la ficha inferior: valor estimado, datos insuficientes o sin datos.
      * Con varias campañas gana la que estima; a igualdad, la de medición más cercana.
+     */
+    /**
+     * Diseño lógico: (GeoPoint point) → query() → void; según doc/android_design.md.
      */
     private void query(GeoPoint point) {
         Estimate best = null;
@@ -543,6 +608,10 @@ public final class PublicMapScreen {
         setExpanded(true);
     }
 
+    /**
+     * Muestra layers.
+     * Diseño lógico: (sin parámetros) → showLayers() → void; según doc/android_design.md.
+     */
     private void showLayers() {
         AppSheet sheet = new AppSheet(activity, ui, "Capas del mapa", "Qué mediciones ver y cómo pintarlas");
         sheet.section("Periodo");
@@ -575,12 +644,19 @@ public final class PublicMapScreen {
         sheet.show();
     }
 
+    /**
+     * Gestiona detach.
+     * Diseño lógico: (View view) → detach() → void; según doc/android_design.md.
+     */
     private static void detach(View view) {
         if (view.getParent() != null) ((android.view.ViewGroup) view.getParent()).removeView(view);
     }
 
     // ---------------------------------------------------------------- datos
 
+    /**
+     * Diseño lógico: (sin parámetros) → load() → void; según doc/android_design.md.
+     */
     private void load() {
         int generation = ++request;
         worker.execute(() -> {
@@ -619,15 +695,27 @@ public final class PublicMapScreen {
         });
     }
 
+    /**
+     * Dibuja.
+     * Diseño lógico: (sin parámetros) → draw() → void; según doc/android_design.md.
+     */
     private void draw() {
         updateHistoryAction();
         map.getOverlays().clear();
         // Debajo de todo: recoge los toques que no caen en un marcador y consulta ese punto.
         map.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
+            /**
+             * Gestiona single tap confirmed helper.
+             * Diseño lógico: (GeoPoint point) → singleTapConfirmedHelper() → boolean; según doc/android_design.md.
+             */
             @Override public boolean singleTapConfirmedHelper(GeoPoint point) {
                 query(point);
                 return true;
             }
+            /**
+             * Gestiona long press helper.
+             * Diseño lógico: (GeoPoint point) → longPressHelper() → boolean; según doc/android_design.md.
+             */
             @Override public boolean longPressHelper(GeoPoint point) { return false; }
         }));
         if (zones.isChecked()) map.getOverlays().add(zoneOverlay);
@@ -658,6 +746,9 @@ public final class PublicMapScreen {
      * Pinta las celdas alrededor de las mediciones. Color: tres o más posiciones dentro del radio.
      * Gris discontinuo: hay mediciones cerca pero no bastan. Sin pintar: sin datos.
      * Devuelve true si el tope de rendimiento dejó celdas sin pintar.
+     */
+    /**
+     * Diseño lógico: (sin parámetros) → refreshZones() → void; según doc/android_design.md.
      */
     private void refreshZones() {
         // Los avisos del mapa llegan después del constructor; la comprobación cubre un aviso temprano.
@@ -713,6 +804,10 @@ public final class PublicMapScreen {
             box = null;
         }
 
+        /**
+         * Dibuja.
+         * Diseño lógico: (Canvas canvas, Projection projection) → draw() → void; según doc/android_design.md.
+         */
         @Override public void draw(Canvas canvas, Projection projection) {
             if (bitmap == null || box == null) return;
             projection.toPixels(new GeoPoint(box.getLatNorth(), box.getLonWest()), corner);
@@ -726,6 +821,9 @@ public final class PublicMapScreen {
      * Rellena la ficha inferior. El título es el lugar (la ciudad de where, o el que se ha buscado), no el nombre
      * interno de la zona de la campaña. Con zona: media de las lecturas de la última hora medida en esa zona.
      * Sin zona: indica que allí aún no hay mediciones publicadas.
+     */
+    /**
+     * Diseño lógico: (String zone, String placeName, GeoPoint where) → showZone() → void; según doc/android_design.md.
      */
     private void showZone(String zone, String placeName, GeoPoint where) {
         queried = null;
@@ -781,6 +879,9 @@ public final class PublicMapScreen {
      * Pone el título de la ficha: el nombre conocido o la ciudad de where (sin calle). La ciudad se busca en
      * segundo plano; si llega tarde (ya se ha elegido otra cosa) se descarta. Si no se encuentra, fallback.
      */
+    /**
+     * Diseño lógico: (String known, GeoPoint where, String fallback) → setPlace() → void; según doc/android_design.md.
+     */
     private void setPlace(String known, GeoPoint where, String fallback) {
         int generation = ++placeRequest;
         String cached = known != null ? known : where == null ? fallback
@@ -796,6 +897,10 @@ public final class PublicMapScreen {
         });
     }
 
+    /**
+     * Muestra lugar.
+     * Diseño lógico: (String name) → showPlace() → void; según doc/android_design.md.
+     */
     private void showPlace(String name) {
         placeLabel = name;
         zoneTitle.setText(name);
@@ -810,6 +915,10 @@ public final class PublicMapScreen {
         warning.setVisibility(View.VISIBLE);
     }
 
+    /**
+     * Gestiona dot.
+     * Diseño lógico: (int color) → dot() → GradientDrawable; según doc/android_design.md.
+     */
     private GradientDrawable dot(int color) {
         GradientDrawable dot = new GradientDrawable();
         dot.setShape(GradientDrawable.OVAL);
@@ -819,6 +928,9 @@ public final class PublicMapScreen {
 
     // ---------------------------------------------------------------- búsqueda
 
+    /**
+     * Diseño lógico: (String term, boolean goToFirst) → suggest() → void; según doc/android_design.md.
+     */
     private void suggest(String term, boolean goToFirst) {
         String clean = term.trim();
         if (clean.isEmpty()) return;
@@ -849,6 +961,10 @@ public final class PublicMapScreen {
         });
     }
 
+    /**
+     * Muestra suggestions.
+     * Diseño lógico: (List<PlaceSearch.Place> places) → showSuggestions() → void; según doc/android_design.md.
+     */
     private void showSuggestions(List<PlaceSearch.Place> places) {
         suggestions.removeAllViews();
         if (places.isEmpty() || !query.hasFocus()) { hideSuggestions(); return; }
@@ -875,10 +991,18 @@ public final class PublicMapScreen {
         suggestions.setVisibility(View.VISIBLE);
     }
 
+    /**
+     * Oculta suggestions.
+     * Diseño lógico: (sin parámetros) → hideSuggestions() → void; según doc/android_design.md.
+     */
     private void hideSuggestions() {
         suggestions.setVisibility(View.GONE);
     }
 
+    /**
+     * Selecciona.
+     * Diseño lógico: (PlaceSearch.Place place) → choose() → void; según doc/android_design.md.
+     */
     private void choose(PlaceSearch.Place place) {
         hideSuggestions();
         suppressSuggestions = true;
@@ -899,6 +1023,10 @@ public final class PublicMapScreen {
         showZone(nearestZone(target), place.name, target);
     }
 
+    /**
+     * Gestiona más cercana zona.
+     * Diseño lógico: (GeoPoint point) → nearestZone() → String; según doc/android_design.md.
+     */
     private String nearestZone(GeoPoint point) {
         String best = null;
         double distance = NEAR_ZONE_METERS;
@@ -911,9 +1039,15 @@ public final class PublicMapScreen {
 
     // ---------------------------------------------------------------- ubicación
 
+    /**
+     * Diseño lógico: (sin parámetros) → locate() → void; según doc/android_design.md.
+     */
     public void locate() { locate(false); }
 
     /** Centra el mapa en ti y enseña tu ciudad en la ficha. Con quiet (al abrir el mapa) no avisa de nada. */
+    /**
+     * Diseño lógico: (boolean quiet) → locate() → void; según doc/android_design.md.
+     */
     private void locate(boolean quiet) {
         if (!location.allowed()) {
             if (!quiet) activity.message("No se ha concedido permiso de ubicación.", MainActivity.TONE_WARN);
@@ -945,6 +1079,10 @@ public final class PublicMapScreen {
         draw();
     }
 
+    /**
+     * Gestiona resume.
+     * Diseño lógico: (sin parámetros) → resume() → void; según doc/android_design.md.
+     */
     public void resume() {
         map.onResume();
         updateHistoryAction();
@@ -956,19 +1094,34 @@ public final class PublicMapScreen {
     }
 
     /** Espera la primera posición (hasta unos 15 s) y la enseña una sola vez. */
+    /**
+     * Diseño lógico: (int tries) → awaitPosition() → void; según doc/android_design.md.
+     */
     private void awaitPosition(int tries) {
         if (closed || autoLocated) return;
         if (location.current() != null) { autoLocated = true; locate(true); return; }
         if (tries > 0) main.postDelayed(() -> awaitPosition(tries - 1), 1500);
     }
 
+    /**
+     * Actualiza historial action.
+     * Diseño lógico: (sin parámetros) → updateHistoryAction() → void; según doc/android_design.md.
+     */
     private void updateHistoryAction() {
         if (historyAction == null) return;
         int visibility = activity.signedIn() ? View.VISIBLE : View.GONE;
         historyAction.setVisibility(visibility);
         historyGap.setVisibility(visibility);
     }
+    /**
+     * Gestiona pause.
+     * Diseño lógico: (sin parámetros) → pause() → void; según doc/android_design.md.
+     */
     public void pause() { location.stop(); map.onPause(); }
+    /**
+     * Cierra.
+     * Diseño lógico: (sin parámetros) → close() → void; según doc/android_design.md.
+     */
     public void close() {
         closed = true;
         if (pendingSearch != null) main.removeCallbacks(pendingSearch);

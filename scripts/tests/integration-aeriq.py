@@ -15,10 +15,14 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[2]
 
+# Gestiona port.
+# Diseño lógico: (sin parámetros) → port() → resultado de la operación; según scripts/README.md.
 def port():
     with socket.socket() as s:
         s.bind(('127.0.0.1',0));return s.getsockname()[1]
 
+# Coordina la ejecución principal del componente o script.
+# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
 def main():
     args=argparse.ArgumentParser(description=__doc__)
     args.add_argument('--php',default='C:/xampp/php/php.exe')
@@ -33,6 +37,8 @@ def main():
     flags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0
     subprocess.run([str(binary/'mysql_install_db.exe'),f'--datadir={folder / "db"}',f'--port={dbport}','--silent'],check=True,capture_output=True,creationflags=flags)
     mysql=[str(binary/'mysql.exe'),'--no-defaults','--default-character-set=utf8mb4','--host=127.0.0.1',f'--port={dbport}','--user=root','--batch','--skip-column-names']
+    # Gestiona sql.
+    # Diseño lógico: (text) → sql() → resultado de la operación; según scripts/README.md.
     def sql(text):
         r=subprocess.run(mysql,input=text,text=True,encoding='utf-8',errors='replace',capture_output=True,creationflags=flags)
         if r.returncode:raise RuntimeError(r.stderr)
@@ -106,6 +112,8 @@ class PHPMailer {
         httplog=(folder/'http.log').open('w')
         php=subprocess.Popen([opt.php,'-S',f'127.0.0.1:{httpport}','-t',str(web)],stdout=httplog,stderr=httplog,env=env,creationflags=flags)
         base=f'http://127.0.0.1:{httpport}/';cookies={};csrf={}
+        # Gestiona petición.
+        # Diseño lógico: (path,body=None,identity=None,token=None) → request() → resultado de la operación; según scripts/README.md.
         def request(path,body=None,identity=None,token=None):
             headers={'Accept':'application/json'}
             if identity and identity in cookies:headers['Cookie']=cookies[identity]
@@ -124,6 +132,8 @@ class PHPMailer {
                 if cookie:cookies[identity]=cookie.split(';')[0]
                 if 'csrf' in data:csrf[identity]=data['csrf']
             return r.status,data
+        # Gestiona expect.
+        # Diseño lógico: (code,path,body=None,identity=None,token=None) → expect() → resultado de la operación; según scripts/README.md.
         def expect(code,path,body=None,identity=None,token=None):
             status,data=request(path,body,identity,token)
             assert status==code,(path,status,code,data)

@@ -42,27 +42,62 @@ class Calibracion {
   float factor = 1.f;            // ajuste de span por comparacion con estacion oficial
   float pendiente = PENDIENTE;   // V/ppm
 
+  /**
+   * Gestiona limitar temperatura.
+   * Diseño lógico: (float t, bool &fuera) → limitarTemperatura() → resultado de la operación; según doc/firmware_design.md.
+   */
   static float limitarTemperatura(float t, bool &fuera) {
     if (t < -20.f) { fuera = true; return -20.f; }
     if (t > 50.f) { fuera = true; return 50.f; }
     return t;
   }
   // Deriva tipica del cero del O3 (ficha ULPSM-O3): 0 hasta 30 C, 0.0066 ppm/C despues.
+  /**
+   * Diseño lógico: (float tc) → ceroTermico() → resultado de la operación; según doc/firmware_design.md.
+   */
   static float ceroTermico(float tc) { return tc <= 30.f ? 0.f : .0066f * (tc - 30.f); }
 
  public:
+  /**
+   * Gestiona reiniciar filtro.
+   * Diseño lógico: (sin parámetros) → reiniciarFiltro() → resultado de la operación; según doc/firmware_design.md.
+   */
   void reiniciarFiltro() { cantidad = posicion = 0; }
+  /**
+   * Gestiona cero.
+   * Diseño lógico: (sin parámetros) → cero() → resultado de la operación; según doc/firmware_design.md.
+   */
   float cero() const { return offset; }
+  /**
+   * Gestiona span.
+   * Diseño lógico: (sin parámetros) → span() → resultado de la operación; según doc/firmware_design.md.
+   */
   float span() const { return factor; }
+  /**
+   * Gestiona sensibilidad.
+   * Diseño lógico: (sin parámetros) → sensibilidad() → resultado de la operación; según doc/firmware_design.md.
+   */
   float sensibilidad() const { return pendiente / (GANANCIA_TIA * 1.e-6f); }
+  /**
+   * Gestiona fijar cero.
+   * Diseño lógico: (float voltios) → fijarCero() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool fijarCero(float voltios) {
     if (!isfinite(voltios) || fabsf(voltios) > OFFSET_MAX_V) return false;
     offset = voltios; reiniciarFiltro(); return true;
   }
+  /**
+   * Gestiona fijar span.
+   * Diseño lógico: (float valor) → fijarSpan() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool fijarSpan(float valor) {
     if (!isfinite(valor) || valor < .3f || valor > 3.f) return false;
     factor = valor; reiniciarFiltro(); return true;
   }
+  /**
+   * Gestiona fijar sensibilidad.
+   * Diseño lógico: (float nAppm) → fijarSensibilidad() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool fijarSensibilidad(float nAppm) {
     if (!isfinite(nAppm) || fabsf(nAppm) < 5.f || fabsf(nAppm) > 300.f) return false;
     pendiente = nAppm * GANANCIA_TIA * 1.e-6f; reiniciarFiltro(); return true;
@@ -70,6 +105,9 @@ class Calibracion {
 
   // Tension de cero de una muestra tomada en aire sin ozono (filtro de carbon activo):
   // VGAS - VREF menos la deriva termica esperada. false si la referencia no es valida.
+  /**
+   * Diseño lógico: (float gas, float ref, float term, float &voltios) → muestraCero() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool muestraCero(float gas, float ref, float term, float &voltios) const {
     const float alimentacion = 2.f * ref;
     if (!isfinite(gas) || !isfinite(alimentacion) || alimentacion < VPLUS_MIN || alimentacion > VPLUS_MAX)
@@ -80,6 +118,10 @@ class Calibracion {
     return isfinite(voltios);
   }
 
+  /**
+   * Gestiona convertir.
+   * Diseño lógico: (float gas, float ref, float term, bool saturado) → convertir() → resultado de la operación; según doc/firmware_design.md.
+   */
   Medida convertir(float gas, float ref, float term, bool saturado) {
     Medida m;
     if (saturado) m.estado |= ADC_SATURADO;

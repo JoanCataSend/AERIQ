@@ -59,18 +59,28 @@ public final class CampaignTeam {
         devices = Collections.unmodifiableList(orbs);
     }
 
+    /**
+     * Gestiona empty.
+     * Diseño lógico: (sin parámetros) → empty() → CampaignTeam; según doc/android_design.md.
+     */
     public static CampaignTeam empty() {
         try { return new CampaignTeam(new JSONObject("{\"operators\":[],\"devices\":[]}")); }
         catch (JSONException impossible) { throw new IllegalStateException(impossible); }
     }
 
     /** El Orb registrado con esa dirección BLE, o null si aún no está en la campaña. */
+    /**
+     * Diseño lógico: (String address) → byAddress() → Device; según doc/android_design.md.
+     */
     public Device byAddress(String address) {
         for (Device device : devices) if (device.address.equalsIgnoreCase(address)) return device;
         return null;
     }
 
     /** El operador que lleva ahora ese Orb, o null. */
+    /**
+     * Diseño lógico: (Device device) → holder() → Operator; según doc/android_design.md.
+     */
     public Operator holder(Device device) {
         if (device == null || device.workerId == null) return null;
         for (Operator operator : operators) if (operator.id == device.workerId) return operator;

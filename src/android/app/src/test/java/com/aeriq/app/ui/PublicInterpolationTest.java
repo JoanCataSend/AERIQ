@@ -20,19 +20,34 @@ public final class PublicInterpolationTest {
     private static final double[] A = {38.9966, -0.1662};
     private static final int[] O3 = {38, 42, 47, 51, 56, 61, 66, 72, 78, 84, 91, 97, 103, 108, 114};
 
+    /**
+     * Prueba el comportamiento de reading con los casos descritos en el cuerpo.
+     * Diseño lógico: (double lat, double lon, double value, boolean simulated) → reading() → Reading; según doc/android_design.md.
+     */
     private static Reading reading(double lat, double lon, double value, boolean simulated) {
         return reading("campaign", "ppb", lat, lon, value, "2026-11-02", simulated);
     }
 
+    /**
+     * Prueba el comportamiento de reading con los casos descritos en el cuerpo.
+     * Diseño lógico: (String campaign, String unit, double lat, double lon, double value, String date, boolean simulated) → reading() → Reading; según doc/android_design.md.
+     */
     private static Reading reading(String campaign, String unit, double lat, double lon, double value, String date, boolean simulated) {
         return new Reading("1", campaign, "UPV", lat, lon, value, unit, date, simulated, 30, 60, 100);
     }
 
+    /**
+     * Prueba el comportamiento de stamp con los casos descritos en el cuerpo.
+     * Diseño lógico: (int minutes) → stamp() → String; según doc/android_design.md.
+     */
     private static String stamp(int minutes) {
         return String.format(Locale.ROOT, "2026-11-10 %02d:%02d:00.000", 12 + minutes / 60, minutes % 60);
     }
 
     /** La rejilla 5 × 3 de la simulación (03-simulacion.sql), posiciones a ~11 m. */
+    /**
+     * Diseño lógico: (boolean simulated) → dense() → List<Reading>; según doc/android_design.md.
+     */
     private static List<Reading> dense(boolean simulated) {
         List<Reading> rows = new ArrayList<>();
         for (int i = 0; i < 3; i++) for (int j = 0; j < 5; j++) {
@@ -47,6 +62,10 @@ public final class PublicInterpolationTest {
         double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY, sum;
     }
 
+    /**
+     * Prueba el comportamiento de sweep con los casos descritos en el cuerpo.
+     * Diseño lógico: (List<Reading> rows, int radius) → sweep() → Sweep; según doc/android_design.md.
+     */
     private static Sweep sweep(List<Reading> rows, int radius) {
         List<Reading> support = PublicReadings.support(rows);
         Sweep result = new Sweep();
@@ -70,6 +89,10 @@ public final class PublicInterpolationTest {
         return result;
     }
 
+    /**
+     * Prueba el comportamiento de parametersMatchTheWeb con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → parametersMatchTheWeb() → void; según doc/android_design.md.
+     */
     @Test public void parametersMatchTheWeb() {
         assertEquals(20, PublicReadings.RADIUS_MIN);
         assertEquals(50, PublicReadings.RADIUS_MAX);
@@ -83,6 +106,10 @@ public final class PublicInterpolationTest {
         assertEquals(10, PublicReadings.CELL, 0);
     }
 
+    /**
+     * Prueba el comportamiento de noCoverageOrRepeatedLocationStaysWithoutData con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → noCoverageOrRepeatedLocationStaysWithoutData() → void; según doc/android_design.md.
+     */
     @Test public void noCoverageOrRepeatedLocationStaysWithoutData() {
         Reading row = reading(38.99665, -.166, 50, false);
         assertNull(PublicReadings.interpolate(38.99665, -.166, Arrays.asList(row, row, row), 30));
@@ -92,6 +119,10 @@ public final class PublicInterpolationTest {
         assertTrue(Double.isInfinite(empty.nearest));
     }
 
+    /**
+     * Prueba el comportamiento de compatibleNearbyPositionsInterpolateWithoutMixingSimulated con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → compatibleNearbyPositionsInterpolateWithoutMixingSimulated() → void; según doc/android_design.md.
+     */
     @Test public void compatibleNearbyPositionsInterpolateWithoutMixingSimulated() {
         Reading first = reading(38.99665, -.166, 50, false);
         Reading second = reading(38.99670, -.166, 70, false);
@@ -104,6 +135,10 @@ public final class PublicInterpolationTest {
         assertNull(PublicReadings.interpolate(38.99666, -.16599, rows, 51));
     }
 
+    /**
+     * Prueba el comportamiento de denseCaseColoursOnlyWhatIsCovered con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → denseCaseColoursOnlyWhatIsCovered() → void; según doc/android_design.md.
+     */
     @Test public void denseCaseColoursOnlyWhatIsCovered() {
         List<Reading> rows = dense(false);
         List<Reading> support = PublicReadings.support(rows);
@@ -134,6 +169,10 @@ public final class PublicInterpolationTest {
         assertEquals(8, estimate.positions);
     }
 
+    /**
+     * Prueba el comportamiento de coverageGrowsWithTheConfiguredRadiusAndStopsAtItsLimits con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → coverageGrowsWithTheConfiguredRadiusAndStopsAtItsLimits() → void; según doc/android_design.md.
+     */
     @Test public void coverageGrowsWithTheConfiguredRadiusAndStopsAtItsLimits() {
         List<Reading> rows = dense(false);
         int[] expected = {30, 53, 87, 126}, radii = {20, 30, 40, 50};
@@ -153,6 +192,10 @@ public final class PublicInterpolationTest {
         }
     }
 
+    /**
+     * Prueba el comportamiento de sparseCasesStayWithoutData con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → sparseCasesStayWithoutData() → void; según doc/android_design.md.
+     */
     @Test public void sparseCasesStayWithoutData() {
         // Tres puntos a ~90 m no se unen con ningún radio admitido.
         List<Reading> sparse = Arrays.asList(reading(A[0], A[1], 50, false),
@@ -172,6 +215,10 @@ public final class PublicInterpolationTest {
         }
     }
 
+    /**
+     * Prueba el comportamiento de gpsDriftCountsAsOnePosition con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → gpsDriftCountsAsOnePosition() → void; según doc/android_design.md.
+     */
     @Test public void gpsDriftCountsAsOnePosition() {
         // Tres lecturas a menos de 5 m son una sola posición (la más reciente).
         List<Reading> jitter = Arrays.asList(
@@ -187,6 +234,10 @@ public final class PublicInterpolationTest {
         assertNotNull(PublicReadings.estimate(A[0], A[1], PublicReadings.support(jitter, 1), 30).value);
     }
 
+    /**
+     * Prueba el comportamiento de simulatedInterpolatesAloneAndNeverMixed con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → simulatedInterpolatesAloneAndNeverMixed() → void; según doc/android_design.md.
+     */
     @Test public void simulatedInterpolatesAloneAndNeverMixed() {
         assertEquals(3932.380126722633, sweep(dense(true), 30).sum, TOLERANCE);
         List<Reading> simulated = dense(true), real = dense(false);
@@ -202,6 +253,10 @@ public final class PublicInterpolationTest {
         assertEquals(Reason.MIXED, PublicReadings.estimate(38.99682, -0.16552, PublicReadings.support(campaigns), 30).reason);
     }
 
+    /**
+     * Prueba el comportamiento de repeatedReadingsUseTheMostRecentWhateverTheOrder con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → repeatedReadingsUseTheMostRecentWhateverTheOrder() → void; según doc/android_design.md.
+     */
     @Test public void repeatedReadingsUseTheMostRecentWhateverTheOrder() {
         List<Reading> rows = Arrays.asList(
             reading("campaign", "ppb", A[0], A[1], 10, stamp(0), false),
@@ -217,6 +272,10 @@ public final class PublicInterpolationTest {
         assertEquals(99, PublicReadings.interpolate(lat, lon, reversed, 30), TOLERANCE);
     }
 
+    /**
+     * Prueba el comportamiento de pointQueryExplainsValueOrLackOfData con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → pointQueryExplainsValueOrLackOfData() → void; según doc/android_design.md.
+     */
     @Test public void pointQueryExplainsValueOrLackOfData() {
         List<Reading> support = PublicReadings.support(dense(true));
         String[] text = PublicReadings.describe(PublicReadings.estimate(38.9967, -0.1658, support, 30), 30, "ppb", 60, 100, true);
@@ -235,28 +294,47 @@ public final class PublicInterpolationTest {
 
     // ---- Rejilla de pintado (zonas redondas): mismos casos y recuentos que aeriq-domain.test.js ----
 
+    /**
+     * Diseño lógico: (sin parámetros) → gridLats() → double[]; según doc/android_design.md.
+     */
     private static double[] gridLats() {
         double[] lats = new double[ROWS];
         for (int i = 0; i < ROWS; i++) lats[i] = LAT0 + (i + .5) * LAT_STEP;
         return lats;
     }
 
+    /**
+     * Prueba el comportamiento de gridLons con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → gridLons() → double[]; según doc/android_design.md.
+     */
     private static double[] gridLons() {
         double[] lons = new double[COLS];
         for (int j = 0; j < COLS; j++) lons[j] = LON0 + (j + .5) * LON_STEP;
         return lons;
     }
 
+    /**
+     * Prueba el comportamiento de tally con los casos descritos en el cuerpo.
+     * Diseño lógico: (PublicReadings.Raster raster) → tally() → int[]; según doc/android_design.md.
+     */
     private static int[] tally(PublicReadings.Raster raster) {
         int[] counts = new int[5];
         for (byte state : raster.states) counts[state]++;
         return counts;
     }
 
+    /**
+     * Prueba el comportamiento de raster con los casos descritos en el cuerpo.
+     * Diseño lógico: (List<Reading> rows, int radius, double[] lats, double[] lons, int max) → raster() → PublicReadings.Raster; según doc/android_design.md.
+     */
     private static PublicReadings.Raster raster(List<Reading> rows, int radius, double[] lats, double[] lons, int max) {
         return PublicReadings.raster(Collections.singletonList(PublicReadings.support(rows)), new int[]{radius}, lats, lons, max);
     }
 
+    /**
+     * Prueba el comportamiento de rasterMatchesThePointEstimateEverywhere con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → rasterMatchesThePointEstimateEverywhere() → void; según doc/android_design.md.
+     */
     @Test public void rasterMatchesThePointEstimateEverywhere() {
         double[] lats = gridLats(), lons = gridLons();
         List<Reading> rows = dense(false), support = PublicReadings.support(rows);
@@ -286,6 +364,10 @@ public final class PublicInterpolationTest {
         }
     }
 
+    /**
+     * Prueba el comportamiento de rasterWorksTopDownLimitsRadiusAndReportsClipping con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → rasterWorksTopDownLimitsRadiusAndReportsClipping() → void; según doc/android_design.md.
+     */
     @Test public void rasterWorksTopDownLimitsRadiusAndReportsClipping() {
         double[] lats = gridLats(), lons = gridLons(), topDown = new double[ROWS];
         for (int i = 0; i < ROWS; i++) topDown[i] = lats[ROWS - 1 - i];
@@ -305,6 +387,10 @@ public final class PublicInterpolationTest {
         assertTrue(clipped.clipped);
     }
 
+    /**
+     * Prueba el comportamiento de aSingleMeasurementPaintsACircleOfTheRadiusNotASquare con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → aSingleMeasurementPaintsACircleOfTheRadiusNotASquare() → void; según doc/android_design.md.
+     */
     @Test public void aSingleMeasurementPaintsACircleOfTheRadiusNotASquare() {
         // Rejilla de ~4 m alrededor de un punto: lo pintado es un disco de 30 m (un cuadrado llegaría a ~42 m).
         int n = 41;
@@ -330,6 +416,9 @@ public final class PublicInterpolationTest {
 
     // ---- T46: el color junto a cada punto coincide con su medición (mismos casos que aeriq-domain.test.js) ----
 
+    /**
+     * Diseño lógico: (PublicReadings.Raster grid, double[] lats, double[] lons, double lat, double lon) → levelAt() → byte; según doc/android_design.md.
+     */
     private static byte levelAt(PublicReadings.Raster grid, double[] lats, double[] lons, double lat, double lon) {
         int i = 0, j = 0;
         for (int k = 1; k < lats.length; k++) if (Math.abs(lats[k] - lat) < Math.abs(lats[i] - lat)) i = k;
@@ -337,6 +426,10 @@ public final class PublicInterpolationTest {
         return grid.states[i * lons.length + j];
     }
 
+    /**
+     * Prueba el comportamiento de range con los casos descritos en el cuerpo.
+     * Diseño lógico: (double from, double to, double step) → range() → double[]; según doc/android_design.md.
+     */
     private static double[] range(double from, double to, double step) {
         int n = (int) Math.floor((to - from) / step) + 1;
         double[] out = new double[n];
@@ -344,10 +437,18 @@ public final class PublicInterpolationTest {
         return out;
     }
 
+    /**
+     * Prueba el comportamiento de zoneOf con los casos descritos en el cuerpo.
+     * Diseño lógico: (double value) → zoneOf() → byte; según doc/android_design.md.
+     */
     private static byte zoneOf(double value) {
         return value >= 100 ? PublicReadings.ZONE_HIGH : value >= 60 ? PublicReadings.ZONE_MEDIUM : PublicReadings.ZONE_LOW;
     }
 
+    /**
+     * Prueba el comportamiento de redPointIsNotSurroundedByYellow con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → redPointIsNotSurroundedByYellow() → void; según doc/android_design.md.
+     */
     @Test public void redPointIsNotSurroundedByYellow() {
         List<Reading> ring = new ArrayList<>();
         ring.add(reading("campaign", "ppb", A[0], A[1], 110, stamp(0), false));
@@ -365,6 +466,10 @@ public final class PublicInterpolationTest {
         for (Reading r : ring) assertEquals(zoneOf(r.value), levelAt(grid, lats, lons, r.latitude, r.longitude));
     }
 
+    /**
+     * Prueba el comportamiento de simulatedProfilesKeepTheColourOfEachPoint con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → simulatedProfilesKeepTheColourOfEachPoint() → void; según doc/android_design.md.
+     */
     @Test public void simulatedProfilesKeepTheColourOfEachPoint() {
         int[][] profiles = {
             {24, 22, 21, 20, 20, 22, 26, 30, 34, 38, 41, 44, 47, 49, 51, 52, 50, 46, 41, 36, 32, 29, 27, 25},
@@ -385,6 +490,9 @@ public final class PublicInterpolationTest {
 
     // ---- T47: donde se solapan dos campañas no gana la primera ----
 
+    /**
+     * Diseño lógico: (sin parámetros) → overlappingCampaignsAreInterpolatedTogether() → void; según doc/android_design.md.
+     */
     @Test public void overlappingCampaignsAreInterpolatedTogether() {
         List<Reading> left = new ArrayList<>(), right = new ArrayList<>();
         for (int k = 0; k < 4; k++) {

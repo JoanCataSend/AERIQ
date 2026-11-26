@@ -46,15 +46,28 @@ public final class AeriqAuthManager implements AutoCloseable {
             mustChangePassword = data.optBoolean("mustChangePassword");
         }
 
+        /**
+         * Gestiona full name.
+         * Diseño lógico: (sin parámetros) → fullName() → String; según doc/android_design.md.
+         */
         public String fullName() { return (name + " " + last).trim(); }
 
         /** Mide con un Orb: Mi sensor, historial y envío de lecturas (operador). */
+        /**
+         * Diseño lógico: (sin parámetros) → collects() → boolean; según doc/android_design.md.
+         */
         public boolean collects() { return can(PERMISSION_COLLECT); }
 
         /** Gestiona desde el panel web (admin de campaña o admin principal). En la app ve la pestaña Panel. */
+        /**
+         * Diseño lógico: (sin parámetros) → manages() → boolean; según doc/android_design.md.
+         */
         public boolean manages() { return can(PERMISSION_TEAM) || can(PERMISSION_CAMPAIGNS); }
 
         /** La app no decide por el nombre del rol: pregunta si la cuenta tiene el permiso. */
+        /**
+         * Diseño lógico: (String permission) → can() → boolean; según doc/android_design.md.
+         */
         public boolean can(String permission) { return can(permissionsFromServer, permissions, role, permission); }
 
         /** Un servidor anterior al esquema v2 solo envía el rol; entonces se usa la regla antigua. */
@@ -84,11 +97,31 @@ public final class AeriqAuthManager implements AutoCloseable {
 
     public AeriqAuthManager(Context context) { store = new AeriqTokenStore(context.getApplicationContext()); }
 
+    /**
+     * Gestiona sesión token.
+     * Diseño lógico: (sin parámetros) → sessionToken() → String; según doc/android_design.md.
+     */
     public String sessionToken() { return store.read(); }
+    /**
+     * Gestiona saved usuario id.
+     * Diseño lógico: (sin parámetros) → savedUserId() → long; según doc/android_design.md.
+     */
     public long savedUserId() { return store.ownerUserId(); }
+    /**
+     * Obtiene last correo.
+     * Diseño lógico: (sin parámetros) → getLastEmail() → String; según doc/android_design.md.
+     */
     public String getLastEmail() { return store.getLastEmail(); }
+    /**
+     * Comprueba si existe saved token.
+     * Diseño lógico: (sin parámetros) → hasSavedToken() → boolean; según doc/android_design.md.
+     */
     public boolean hasSavedToken() { return store.read() != null; }
 
+    /**
+     * Gestiona restore.
+     * Diseño lógico: (Consumer<Result> done) → restore() → void; según doc/android_design.md.
+     */
     public void restore(Consumer<Result> done) {
         String token = store.read();
         if (token == null) {
@@ -98,6 +131,10 @@ public final class AeriqAuthManager implements AutoCloseable {
         execute("session", null, true, done);
     }
 
+    /**
+     * Envía.
+     * Diseño lógico: (String action, Consumer<Result> done, Object... fields) → submit() → void; según doc/android_design.md.
+     */
     public void submit(String action, Consumer<Result> done, Object... fields) {
         boolean authorized = "profile".equals(action) || "change-password".equals(action);
         for (int i = 0; i < fields.length; i += 2) {
@@ -109,6 +146,10 @@ public final class AeriqAuthManager implements AutoCloseable {
         execute(action, JsonHttp.object(fields), authorized, done);
     }
 
+    /**
+     * Gestiona execute.
+     * Diseño lógico: (String action, JSONObject body, boolean authorized, Consumer<Result> done) → execute() → void; según doc/android_design.md.
+     */
     private void execute(String action, JSONObject body, boolean authorized, Consumer<Result> done) {
         if (busy || closed) return;
         busy = true;
@@ -150,6 +191,10 @@ public final class AeriqAuthManager implements AutoCloseable {
         });
     }
 
+    /**
+     * Gestiona cierre de sesión.
+     * Diseño lógico: (sin parámetros) → logout() → void; según doc/android_design.md.
+     */
     public void logout() {
         if (busy || closed) return;
         String token = store.read();
@@ -163,12 +208,19 @@ public final class AeriqAuthManager implements AutoCloseable {
     }
 
     /** Clears a locally unusable session without sending a remote logout request. */
+    /**
+     * Diseño lógico: (sin parámetros) → clearLocalSession() → void; según doc/android_design.md.
+     */
     public void clearLocalSession() {
         store.clear();
         user = null;
         pendingEmail = store.getLastEmail();
     }
 
+    /**
+     * Cierra.
+     * Diseño lógico: (sin parámetros) → close() → void; según doc/android_design.md.
+     */
     @Override public void close() {
         closed = true;
         worker.shutdown();

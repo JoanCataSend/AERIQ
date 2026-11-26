@@ -37,6 +37,9 @@ public final class OrbAssignment {
      * La app lo comprueba antes de enviar para avisar al momento; el servidor vuelve a comprobarlo y guarda la
      * lectura como no válida si está fuera, para dejar constancia.
      */
+    /**
+     * Diseño lógico: (int typeId, double value) → inRange() → boolean; según doc/android_design.md.
+     */
     public boolean inRange(int typeId, double value) {
         if (typeId == 14) return value >= o3Min && value <= o3Max;
         if (typeId == 12) return value >= temperatureMin && value <= temperatureMax;
@@ -44,11 +47,18 @@ public final class OrbAssignment {
     }
 
     /** Texto del rango admitido para una magnitud, p. ej. «0–500 ppb». */
+    /**
+     * Diseño lógico: (int typeId) → range() → String; según doc/android_design.md.
+     */
     public String range(int typeId) {
         if (typeId == 12) return number(temperatureMin) + "–" + number(temperatureMax) + " °C";
         return number(o3Min) + "–" + number(o3Max) + " ppb";
     }
 
+    /**
+     * Gestiona number.
+     * Diseño lógico: (double value) → number() → String; según doc/android_design.md.
+     */
     private static String number(double value) {
         return value == Math.rint(value) ? String.valueOf((long) value) : String.valueOf(value);
     }

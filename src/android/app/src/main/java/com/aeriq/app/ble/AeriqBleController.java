@@ -59,18 +59,30 @@ public final class AeriqBleController {
         this.onReading = onReading;
     }
 
+    /**
+     * Gestiona dispositivos.
+     * Diseño lógico: (sin parámetros) → devices() → List<FoundDevice>; según doc/android_design.md.
+     */
     public List<FoundDevice> devices() {
         List<FoundDevice> result = new ArrayList<>(devices.values());
         result.sort(Comparator.comparingLong((FoundDevice device) -> device.lastSeen).reversed());
         return result;
     }
 
+    /**
+     * Gestiona required scan permisos.
+     * Diseño lógico: (sin parámetros) → requiredScanPermissions() → String[]; según doc/android_design.md.
+     */
     public String[] requiredScanPermissions() {
         return Build.VERSION.SDK_INT >= 31
             ? new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT}
             : new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
     }
 
+    /**
+     * Comprueba si existe scan permisos.
+     * Diseño lógico: (sin parámetros) → hasScanPermissions() → boolean; según doc/android_design.md.
+     */
     public boolean hasScanPermissions() {
         for (String permission : requiredScanPermissions()) {
             if (context.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) return false;
@@ -78,11 +90,19 @@ public final class AeriqBleController {
         return true;
     }
 
+    /**
+     * Gestiona adapter.
+     * Diseño lógico: (sin parámetros) → adapter() → BluetoothAdapter; según doc/android_design.md.
+     */
     private BluetoothAdapter adapter() {
         BluetoothManager manager = context.getSystemService(BluetoothManager.class);
         return manager == null ? null : manager.getAdapter();
     }
 
+    /**
+     * Gestiona bluetooth enabled.
+     * Diseño lógico: (sin parámetros) → bluetoothEnabled() → boolean; según doc/android_design.md.
+     */
     public boolean bluetoothEnabled() {
         try {
             BluetoothAdapter adapter = adapter();
@@ -92,6 +112,10 @@ public final class AeriqBleController {
         }
     }
 
+    /**
+     * Inicia scan.
+     * Diseño lógico: (sin parámetros) → startScan() → void; según doc/android_design.md.
+     */
     public void startScan() {
         if (scanning) return;
         if (!hasScanPermissions() || !bluetoothEnabled()) {
@@ -105,6 +129,10 @@ public final class AeriqBleController {
                 return;
             }
             ScanCallback scan = new ScanCallback() {
+                /**
+                 * Atiende el evento scan resultado.
+                 * Diseño lógico: (int callbackType, ScanResult result) → onScanResult() → void; según doc/android_design.md.
+                 */
                 @Override public void onScanResult(int callbackType, ScanResult result) {
                     ScanRecord record = result.getScanRecord();
                     if (record == null || result.getDevice() == null) return;
@@ -121,6 +149,10 @@ public final class AeriqBleController {
                     });
                 }
 
+                /**
+                 * Atiende el evento scan failed.
+                 * Diseño lógico: (int code) → onScanFailed() → void; según doc/android_design.md.
+                 */
                 @Override public void onScanFailed(int code) {
                     main.post(() -> {
                         if (callback != this) return;
@@ -143,6 +175,10 @@ public final class AeriqBleController {
         }
     }
 
+    /**
+     * Gestiona accept.
+     * Diseño lógico: (ScanRecord record, String address, int rssi, BeaconReading reading, long received) → accept() → void; según doc/android_design.md.
+     */
     private void accept(ScanRecord record, String address, int rssi, BeaconReading reading, long received) {
         String name = record.getDeviceName();
         int diagnostic = reading.typeId == IBeaconParser.STATUS_ID ? reading.value
@@ -184,6 +220,10 @@ public final class AeriqBleController {
         onReading.accept(live);
     }
 
+    /**
+     * Detiene scan.
+     * Diseño lógico: (sin parámetros) → stopScan() → void; según doc/android_design.md.
+     */
     public void stopScan() {
         if (callback != null && scanner != null) {
             try { scanner.stopScan(callback); } catch (SecurityException | IllegalStateException ignored) {}
@@ -193,6 +233,10 @@ public final class AeriqBleController {
         status = "Escaneo detenido";
     }
 
+    /**
+     * Selecciona.
+     * Diseño lógico: (String address) → select() → void; según doc/android_design.md.
+     */
     public void select(String address) {
         if (!devices.containsKey(address)) return;
         if (address.equalsIgnoreCase(selectedAddress)) return;
@@ -201,6 +245,10 @@ public final class AeriqBleController {
         status = "Sensor seleccionado. Esperando nueva medición…";
     }
 
+    /**
+     * Gestiona unlink.
+     * Diseño lógico: (sin parámetros) → unlink() → void; según doc/android_design.md.
+     */
     public void unlink() {
         selectedAddress = null;
         lastAdvertisementAt = 0;

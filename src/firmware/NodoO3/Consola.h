@@ -39,6 +39,10 @@ class Consola {
   uint16_t ciclos = 0, descartados = 0;
   double suma = 0, sumaCuadrados = 0;
 
+  /**
+   * Gestiona control.
+   * Diseño lógico: (const Guardado &g) → control() → resultado de la operación; según doc/firmware_design.md.
+   */
   static uint32_t control(const Guardado &g) {
     const uint8_t *p = reinterpret_cast<const uint8_t*>(&g);
     uint32_t h = 2166136261u; // FNV-1a
@@ -46,8 +50,16 @@ class Consola {
     return h;
   }
 
+  /**
+   * Gestiona imprimir.
+   * Diseño lógico: (const char *texto) → imprimir() → resultado de la operación; según doc/firmware_design.md.
+   */
   void imprimir(const char *texto) { if (Serial) Serial.println(texto); }
 
+  /**
+   * Gestiona mostrar.
+   * Diseño lógico: (Calibracion &c) → mostrar() → resultado de la operación; según doc/firmware_design.md.
+   */
   void mostrar(Calibracion &c) {
     if (!Serial) return;
     Serial.print(F("CAL cero=")); Serial.print(c.cero() * 1000.f, 3);
@@ -58,10 +70,18 @@ class Consola {
     Serial.println(F(" mV/ppm"));
   }
 
+  /**
+   * Guarda.
+   * Diseño lógico: (Calibracion &c) → guardar() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool guardar(Calibracion &c) {
     Guardado g{MAGIA, c.cero(), c.span(), c.sensibilidad(), 0};
     g.control = control(g);
     InternalFS.remove(ruta());
+    /**
+     * Gestiona f.
+     * Diseño lógico: (InternalFS) → f() → resultado de la operación; según doc/firmware_design.md.
+     */
     Adafruit_LittleFS_Namespace::File f(InternalFS);
     if (!f.open(ruta(), Adafruit_LittleFS_Namespace::FILE_O_WRITE)) return false;
     const bool ok = f.write(reinterpret_cast<const uint8_t*>(&g), sizeof(g)) == sizeof(g);
@@ -69,6 +89,10 @@ class Consola {
     return ok;
   }
 
+  /**
+   * Gestiona ejecutar.
+   * Diseño lógico: (Calibracion &c) → ejecutar() → resultado de la operación; según doc/firmware_design.md.
+   */
   void ejecutar(Calibracion &c) {
     for (uint8_t i = 0; i < largo; ++i) linea[i] = toupper(static_cast<unsigned char>(linea[i]));
     const char *valor = strchr(linea, '=');
@@ -104,10 +128,22 @@ class Consola {
   }
 
  public:
+  /**
+   * Gestiona midiendo cero.
+   * Diseño lógico: (sin parámetros) → midiendoCero() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool midiendoCero() const { return midiendo; }
 
+  /**
+   * Gestiona begin.
+   * Diseño lógico: (Calibracion &c) → begin() → resultado de la operación; según doc/firmware_design.md.
+   */
   void begin(Calibracion &c) {
     if (!InternalFS.begin()) return;
+    /**
+     * Gestiona f.
+     * Diseño lógico: (InternalFS) → f() → resultado de la operación; según doc/firmware_design.md.
+     */
     Adafruit_LittleFS_Namespace::File f(InternalFS);
     if (!f.open(ruta(), Adafruit_LittleFS_Namespace::FILE_O_READ)) return;
     Guardado g{};
@@ -120,6 +156,9 @@ class Consola {
   }
 
   // Lee caracteres sin bloquear; ejecuta al recibir fin de linea.
+  /**
+   * Diseño lógico: (Calibracion &c) → atender() → resultado de la operación; según doc/firmware_design.md.
+   */
   void atender(Calibracion &c) {
     while (Serial && Serial.available() > 0) {
       const int ch = Serial.read();
@@ -134,6 +173,9 @@ class Consola {
   }
 
   // Llamar con las tensiones de cada ciclo completo mientras se mide el cero.
+  /**
+   * Diseño lógico: (Calibracion &c, float gas, float ref, float term, bool saturado) → ciclo() → resultado de la operación; según doc/firmware_design.md.
+   */
   void ciclo(Calibracion &c, float gas, float ref, float term, bool saturado) {
     if (!midiendo) return;
     float v;

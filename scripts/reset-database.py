@@ -12,6 +12,8 @@ import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 SYSTEM={'mysql','sys','performance_schema','information_schema'}
 
+# Coordina la ejecución principal del componente o script.
+# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--database',required=True,help='Nombre exacto de la base que se recreará')
@@ -27,6 +29,8 @@ def main():
     print('Plan: copia de seguridad si existe -> DROP de esa base -> CREATE -> schema.sql'+(' -> seed-demo.sql' if args.demo else ''))
     if args.dry_run:return
     if args.confirm!='RECREAR:'+args.database:p.error('No se ha borrado nada. Repite con --confirm RECREAR:'+args.database)
+    # Gestiona búsqueda binaria.
+    # Diseño lógico: (name) → binary() → resultado de la operación; según scripts/README.md.
     def binary(name):
         value=str(Path(args.mysql_bin)/(name+('.exe' if os.name=='nt' else ''))) if args.mysql_bin else shutil.which(name)
         if not value or not Path(value).is_file():p.error('No se encuentra '+name+'; configura --mysql-bin')
@@ -36,11 +40,15 @@ def main():
     password=os.environ['AERIQ_DB_PASSWORD'] if 'AERIQ_DB_PASSWORD' in os.environ else getpass.getpass('Contraseña de MariaDB: ')
     if any(c in args.host+args.user for c in '\r\n'):p.error('Host/usuario no válidos')
     backups=ROOT/'.local-backups';backups.mkdir(exist_ok=True)
+    # Gestiona quote.
+    # Diseño lógico: (v) → quote() → resultado de la operación; según scripts/README.md.
     def quote(v):return '"'+str(v).replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','\\r')+'"'
     fd,config=tempfile.mkstemp(prefix='mysql-',suffix='.cnf',dir=backups)
     try:
         with os.fdopen(fd,'w',encoding='utf-8') as f:f.write('[client]\nhost='+quote(args.host)+'\nport='+str(args.port)+'\nuser='+quote(args.user)+'\npassword='+quote(password)+'\n')
         connection=['--defaults-extra-file='+config,'--default-character-set=utf8mb4']
+        # Ejecuta.
+        # Diseño lógico: (sql) → run() → resultado de la operación; según scripts/README.md.
         def run(sql):
             r=subprocess.run([mysql,*connection,'--batch','--skip-column-names'],input=sql,encoding='utf-8',capture_output=True)
             if r.returncode:raise RuntimeError(r.stderr.strip())

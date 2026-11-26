@@ -5,15 +5,31 @@ if (PHP_SAPI!=='cli') {http_response_code(404);exit;}
 $opt=getopt('',['source:','target:','apply']);
 if (!isset($opt['source'],$opt['target'])) {fwrite(STDERR,"Uso: php migrate-legacy.php --source=CONFIG_ORIGEN.php --target=CONFIG_DESTINO.php [--apply]\nSin --apply solo muestra el inventario.\n");exit(1);}
 mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);
+/**
+ * Abre database.
+ * Diseño lógico: (string $file) → open_database() → array; según scripts/README.md.
+ */
 function open_database(string $file): array {
     $cfg=require $file;
     $db=new mysqli($cfg['host'],$cfg['user'],$cfg['password'],$cfg['database'],(int)$cfg['port']);
     $db->set_charset('utf8mb4');$db->query("SET time_zone='+00:00'");return [$db,$cfg];
 }
+/**
+ * Gestiona command.
+ * Diseño lógico: (mysqli $db,string $sql,array $params=[]) → command() → mysqli_stmt; según scripts/README.md.
+ */
 function command(mysqli $db,string $sql,array $params=[]): mysqli_stmt {
     $s=$db->prepare($sql);if ($params) {$types='';foreach ($params as $v)$types.=is_int($v)?'i':(is_float($v)?'d':'s');$s->bind_param($types,...$params);}$s->execute();return $s;
 }
+/**
+ * Gestiona filas.
+ * Diseño lógico: (mysqli $db,string $sql,array $p=[]) → rows() → array; según scripts/README.md.
+ */
 function rows(mysqli $db,string $sql,array $p=[]): array {return command($db,$sql,$p)->get_result()->fetch_all(MYSQLI_ASSOC);}
+/**
+ * Gestiona evento id.
+ * Diseño lógico: (string $key) → event_id() → string; según scripts/README.md.
+ */
 function event_id(string $key): string {$h=md5($key);return substr($h,0,8).'-'.substr($h,8,4).'-4'.substr($h,13,3).'-8'.substr($h,17,3).'-'.substr($h,20,12);}
 try {
     [$source,$s]=open_database($opt['source']);[$target,$t]=open_database($opt['target']);

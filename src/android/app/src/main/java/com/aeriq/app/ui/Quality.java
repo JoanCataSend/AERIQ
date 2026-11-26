@@ -12,16 +12,38 @@ public final class Quality {
     private Quality() {}
 
     /** 0 = bajo/buena, 1 = moderado, 2 = alto/mala. */
+    /**
+     * Diseño lógico: (double value, double medium, double high) → level() → int; según doc/android_design.md.
+     */
     public static int level(double value, double medium, double high) {
         return value >= high ? 2 : value >= medium ? 1 : 0;
     }
 
+    /**
+     * Gestiona color.
+     * Diseño lógico: (int level) → color() → int; según doc/android_design.md.
+     */
     public static int color(int level) { return level == 2 ? HIGH : level == 1 ? MEDIUM : LOW; }
+    /**
+     * Gestiona soft.
+     * Diseño lógico: (int level) → soft() → int; según doc/android_design.md.
+     */
     public static int soft(int level) { return level == 2 ? HIGH_SOFT : level == 1 ? MEDIUM_SOFT : LOW_SOFT; }
+    /**
+     * Gestiona texto.
+     * Diseño lógico: (int level) → text() → int; según doc/android_design.md.
+     */
     public static int text(int level) { return level == 2 ? HIGH_TEXT : level == 1 ? MEDIUM_TEXT : LOW_TEXT; }
+    /**
+     * Gestiona label.
+     * Diseño lógico: (int level) → label() → String; según doc/android_design.md.
+     */
     public static String label(int level) { return level == 2 ? "Mala" : level == 1 ? "Moderada" : "Buena"; }
 
     /** Fecha UTC del servidor ("yyyy-MM-dd HH:mm:ss") a milisegundos; 0 si no se entiende. */
+    /**
+     * Diseño lógico: (String date) → utc() → long; según doc/android_design.md.
+     */
     public static long utc(String date) {
         if (date == null) return 0;
         try {
@@ -35,6 +57,9 @@ public final class Quality {
     }
 
     /** "hoy, 12:45", "ayer, 09:10" o "3 nov, 18:00" en hora local. */
+    /**
+     * Diseño lógico: (long millis) → when() → String; según doc/android_design.md.
+     */
     public static String when(long millis) {
         if (millis <= 0) return "—";
         Calendar today = Calendar.getInstance();
@@ -48,6 +73,9 @@ public final class Quality {
     }
 
     /** "5 s", "3 min", "2 h", "4 días". */
+    /**
+     * Diseño lógico: (long millis) → ago() → String; según doc/android_design.md.
+     */
     public static String ago(long millis) {
         long seconds = Math.max(0, millis / 1000);
         if (seconds < 60) return seconds + " s";
@@ -59,6 +87,10 @@ public final class Quality {
         return days + (days == 1 ? " día" : " días");
     }
 
+    /**
+     * Inicia of today.
+     * Diseño lógico: (sin parámetros) → startOfToday() → long; según doc/android_design.md.
+     */
     public static long startOfToday() {
         Calendar day = Calendar.getInstance();
         day.set(Calendar.HOUR_OF_DAY, 0);
@@ -68,10 +100,18 @@ public final class Quality {
         return day.getTimeInMillis();
     }
 
+    /**
+     * Gestiona same day.
+     * Diseño lógico: (Calendar a, Calendar b) → sameDay() → boolean; según doc/android_design.md.
+     */
     private static boolean sameDay(Calendar a, Calendar b) {
         return a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
     }
 
+    /**
+     * Gestiona number.
+     * Diseño lógico: (double value) → number() → String; según doc/android_design.md.
+     */
     public static String number(double value) {
         return Math.abs(value - Math.rint(value)) < 0.05
             ? String.valueOf(Math.round(value))

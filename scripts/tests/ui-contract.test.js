@@ -4,6 +4,10 @@ process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {JSDOM,VirtualConsole}=require(path.resolve(process.argv[2]||'.local-backups/test-tools/node_modules/jsdom'));
 const root=path.resolve(__dirname,'../../src/web');
+/**
+ * Gestiona wait.
+ * Diseño lógico: (sin parámetros) → wait() → resultado de la operación; según scripts/README.md.
+ */
 const wait=()=>new Promise(r=>setTimeout(r,35));
 // Admin principal por defecto; las pruebas del panel cambian user.permissions para el admin de campaña.
 const ADMIN=['campanas.gestionar','solicitudes.gestionar'],ADMIN_CAMPANA=['datos.exportar','equipo.gestionar','informes.ver','mapa.organizacion'];
@@ -14,7 +18,15 @@ const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',bater
 // Catálogos del formulario comercial: incluye un servicio nuevo con datos de estudio para comprobar que manda la base de datos.
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros.',mide_superficie:true},{codigo:'auditoria',nombre:'Servicio nuevo de prueba',descripcion:'',mide_superficie:true}],orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad'}],objectives:[{codigo:'espacios_publicos',nombre:'Calidad del aire en espacios públicos'},{codigo:'otro',nombre:'Otro'}],provinces:['Madrid','Valencia'],durations:['1 semana','2 semanas','A definir con Código Norte']};
 const measurement={id:1,campaignId:1,valor:68,unidad:'ppb',capturada_en:'2026-11-03 08:00:00.000',latitud:38.99665,longitud:-.166,simulado:true,zona:'Campus',radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:'Orb original',campana:'Campaña de prueba'};
+/**
+ * Gestiona page.
+ * Diseño lógico: (name,search='') → page() → Promise; según scripts/README.md.
+ */
 async function page(name,search=''){
+  /**
+   * Gestiona errors.
+   * Diseño lógico: (sin parámetros) → errors() → resultado de la operación; según scripts/README.md.
+   */
   const errors=[],calls=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});
   const dom=new JSDOM(fs.readFileSync(path.join(root,name),'utf8'),{url:'http://localhost/'+name+search,runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window;
@@ -22,7 +34,14 @@ async function page(name,search=''){
   w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
   w.HTMLCanvasElement.prototype.getContext=()=>({beginPath(){},moveTo(){},lineTo(){},fillRect(){},fillText(){},setLineDash(){},stroke(){},fill(){},arc(){},closePath(){},save(){},restore(){},translate(){},rotate(){},clearRect(){},drawImage(){},putImageData(){},createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}});
   // El mapa pinta las zonas en un lienzo propio (public-map.js): proyección lineal de ~1 m por píxel en el campus.
+  /**
+   * Diseño lógico: (sin parámetros) → chain() → resultado de la operación; según scripts/README.md.
+   */
   const chain=()=>({addTo(){return this;},on(){return this;},setView(){return this;},setCenter(){},clearLayers(){},addLayer(){},getBounds(){return {pad(){return this;},contains(){return true;}};},getCenter(){return {lat:38.99665};},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){},bindTooltip(){return this;},
+    /**
+     * Obtiene size.
+     * Diseño lógico: (sin parámetros) → getSize() → resultado de la operación; según scripts/README.md.
+     */
     getSize(){return {x:800,y:600};},containerPointToLatLng([x,y]){return {lat:38.9984-y*9e-6,lng:-0.1704+x*11.6e-6};},containerPointToLayerPoint(){return {x:0,y:0};},createPane(){return w.document.createElement('div');}});
   w.L={map:chain,layerGroup:chain,tileLayer:chain,circleMarker:chain,rectangle:chain,polyline:chain,latLngBounds:chain,DomUtil:{setPosition(){}}};
   w.fetch=async(url,options={})=>{
@@ -71,15 +90,26 @@ async function page(name,search=''){
   const estado=fleet.querySelector('select[name=estado]');estado.value='baja';estado.dispatchEvent(new p.w.Event('change'));assert(fleet.querySelector('.devices-table').textContent.includes('No hay dispositivos que coincidan'));
   fleet.querySelector('.device-filters .text-link').click();assert.equal(estado.value,'');assert(fleet.querySelector('.devices-table').textContent.includes('Orb original'));
   assert(fleet.querySelector('select[name=operador] option[value="2"]'));assert(fleet.querySelector('select[name=actividad] option[value="sin_uso"]'));
+  /**
+   * Gestiona th.
+   * Diseño lógico: ('.devices-table th') → th() → resultado de la operación; según scripts/README.md.
+   */
   const th=[...fleet.querySelectorAll('.devices-table th')].find(t=>t.textContent.startsWith('Última medición'));th.querySelector('button').click();assert.equal(th.getAttribute('aria-sort'),'ascending');assert.equal(th.querySelector('.sort-arrow').textContent,'▲');
   th.querySelector('button').click();assert.equal(th.getAttribute('aria-sort'),'descending');assert.equal(th.querySelector('.sort-arrow').textContent,'▼');}
   assert(!p.document.querySelector('#add-device').hidden);fleet.querySelector('.devices-table .text-link').click();assert(p.document.querySelector('#device-modal').open);assert(fleet.querySelector('select[name=worker] option[value="2"]'));assert(!fleet.querySelector('select[name=campaign]'));
   p.document.querySelector('#device-new-name').value='Orb actualizado';p.document.querySelector('#device-edit-form').dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+  /**
+   * Gestiona sent.
+   * Diseño lógico: (c=>c.action==='device'&&c.body) → sent() → resultado de la operación; según scripts/README.md.
+   */
   const sent=p.calls.find(c=>c.action==='device'&&c.body);assert.equal(sent.body.name,'Orb actualizado');assert(!('campaign' in sent.body));assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
   // El admin principal consulta la flota pero no registra ni edita Orb.
   p=await page('portal.html');p.document.querySelector('[data-workspace-view="devices"]').click();await wait();assert(p.document.querySelector('#add-device').hidden);assert(!p.document.querySelector('#fleet .devices-table .text-link'));assert.deepEqual(p.errors,[]);p.close();
   p=await page('portal.html');assert(!p.document.querySelector('[data-view="overview"]').hidden);p.document.querySelector('[data-workspace-view="workers"]').click();assert(!p.document.querySelector('#worker-form').closest('section').hidden);const shown=sel=>!p.document.querySelector(sel).hidden&&!p.document.querySelector(sel).closest('[hidden]');
   // Admin principal: Resumen, Campañas, Admins de campaña, AERIQ por campaña y Solicitudes. Sin informes, CSV ni registro de Orb.
+  /**
+   * Diseño lógico: ('.workspace-nav a') → navShown() → resultado de la operación; según scripts/README.md.
+   */
   const navShown=[...p.document.querySelectorAll('.workspace-nav a')].filter(a=>!a.hidden).map(a=>a.firstChild.textContent.trim());
   assert.deepEqual(navShown,['Resumen','Campañas','Admins de campaña','AERIQ por campaña','Solicitudes','Avisos']);
   assert.equal(p.document.querySelector('#notices-badge').textContent,'1');assert(!p.document.querySelector('#notices-badge').hidden);
@@ -103,6 +133,9 @@ async function page(name,search=''){
   p.document.querySelector('[data-workspace-view="reports"]').click();assert(p.document.querySelector('[data-view="reports"]').hidden,'sin informes');assert(!p.calls.some(c=>c.action==='readings'));
   p.document.querySelector('[data-workspace-view="campaigns"]').click();assert(shown('#campaign-form'));
   // Crear campaña: solo nombre, zona (texto libre), fechas y activa. Umbrales, distancia y publicación son del admin de campaña.
+  /**
+   * Diseño lógico: ('#campaign-form') → cf() → resultado de la operación; según scripts/README.md.
+   */
   const cf=p.document.querySelector('#campaign-form');assert.deepEqual([...cf.elements].filter(e=>e.name).map(e=>e.name),['id','name','zone','start','end']);assert(!cf.elements.zone.getAttribute('list'));
   assert.equal(p.document.querySelector('#campaign-submit').textContent,'Crear campaña');assert(p.document.querySelector('#campaign-cancel').hidden);
   p.document.querySelector('#campaigns-list .text-link').click();assert.equal(p.document.querySelector('#campaign-form-title').textContent,'Editar campaña: Campaña de prueba');assert.equal(p.document.querySelector('#campaign-submit').textContent,'Editar campaña');
@@ -115,6 +148,10 @@ async function page(name,search=''){
   {const d=p.document,rows=()=>d.querySelectorAll('#requests-list .inbox-row');d.querySelector('[data-workspace-view="requests"]').click();
   assert.deepEqual([...d.querySelectorAll('#requests-filter button')].map(b=>b.textContent),['Pendiente 1','Cerrada 1','Todas 2']);
   assert.equal(rows().length,1);assert(d.querySelector('#request-detail').textContent.includes('Ayto. Prueba'));assert(!d.querySelector('#request-detail').textContent.includes('UTC'));
+  /**
+   * Gestiona replies.
+   * Diseño lógico: ('#request-detail .reply-list a') → replies() → resultado de la operación; según scripts/README.md.
+   */
   const replies=[...d.querySelectorAll('#request-detail .reply-list a')].map(a=>a.href);assert(replies[0].startsWith('https://mail.google.com/'));assert(replies.some(h=>h.startsWith('mailto:ana@x.es?subject=')));
   d.querySelectorAll('#requests-filter button')[2].click();assert.equal(rows().length,2);
   const q=d.querySelector('#requests-search');q.value='#8';q.dispatchEvent(new p.w.Event('input'));assert.equal(rows().length,1);assert(d.querySelector('#request-detail').textContent.includes('Colegio'));
@@ -127,6 +164,10 @@ async function page(name,search=''){
   assert.equal(d.querySelector('#requests-filter button').textContent,'Pendiente 0');
   // Una solicitud no vuelve atrás (T38): los pasos anteriores no se pueden pulsar y «Reabrir» usa su propia acción.
   assert([...d.querySelectorAll('#request-detail .request-steps button')].every(b=>b.disabled));
+  /**
+   * Gestiona reopen.
+   * Diseño lógico: ('#request-detail .request-actions button') → reopen() → resultado de la operación; según scripts/README.md.
+   */
   const reopen=[...d.querySelectorAll('#request-detail .request-actions button')].find(b=>b.textContent==='Reabrir');assert(reopen);reopen.click();await new Promise(r=>setTimeout(r,20));
   assert.deepEqual(p.calls.filter(c=>c.action==='request-reopen').map(c=>c.body),[{id:7}]);assert.equal(p.calls.filter(c=>c.action==='request-status').length,1);
   assert(d.querySelector('#request-detail .request-history').textContent.includes('Reabierta'));}
@@ -146,6 +187,10 @@ async function page(name,search=''){
   // Equipo del admin de campaña: sus operadores con su Orb y acciones (editar, reenviar invitación).
   p.document.querySelector('[data-workspace-view="workers"]').click();const team=p.document.querySelector('#workers-list');
   assert.equal(p.document.querySelector('#workers-title').textContent,'Operadores de tu campaña');assert([...team.querySelectorAll('th')].some(th=>th.textContent==='AERIQ'));
+  /**
+   * Gestiona buttons.
+   * Diseño lógico: ('.row-actions button') → buttons() → resultado de la operación; según scripts/README.md.
+   */
   const buttons=[...team.querySelectorAll('.row-actions button')].map(b=>b.textContent);assert.deepEqual(buttons,['Editar','Reenviar invitación']);
   team.querySelectorAll('.row-actions button')[1].click();await wait();assert.deepEqual(p.calls.find(c=>c.action==='worker-invite').body,{id:2});
   team.querySelector('.row-actions button').click();assert(p.document.querySelector('#worker-modal').open);
@@ -167,6 +212,10 @@ async function page(name,search=''){
   assert(p.calls.some(c=>c.action==='readings'&&c.body===null)&&p.calls.filter(c=>c.action==='readings').length===2);assert.deepEqual(p.errors,[]);p.close();user.permissions=[...ADMIN];
   // Formulario comercial: catálogos de la BD, preselección por URL, campos de estudio, teléfono y validación en línea.
   p=await page('solicitar.html','?interes=kits&org=empresa');await wait();{
+    /**
+     * Gestiona d.
+     * Diseño lógico: ('#service-form') → d() → resultado de la operación; según scripts/README.md.
+     */
     const d=p.document,f=d.querySelector('#service-form'),radios=()=>[...d.querySelectorAll('[name=interest]')];
     assert.deepEqual(radios().map(r=>r.value),['kits','estudio','auditoria']);assert(radios()[0].checked);
     assert.equal(d.querySelector('#org-type').value,'empresa');assert(!d.querySelector('[name=quantity]'));
@@ -190,6 +239,10 @@ async function page(name,search=''){
     for(const [name,value] of Object.entries({entity:'Ayuntamiento de prueba',contact:'Ana Pérez',email:'ana@example.test',municipality:'Gandia',province:'Valencia',zone:'Parque central',needs:'Medir el ozono en verano.'}))f.elements[name].value=value;
     d.querySelector('[name=objectives][value=otro]').checked=true;f.elements.consent.checked=true;
     f.dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));await wait();
+    /**
+     * Gestiona sent.
+     * Diseño lógico: (c=>c.path==='/public.php'&&c.body) → sent() → resultado de la operación; según scripts/README.md.
+     */
     const sent=p.calls.find(c=>c.path==='/public.php'&&c.body)?.body;
     assert.deepEqual({interest:sent.interest,orgType:sent.orgType,phone:sent.phone,objectives:sent.objectives,consent:sent.consent},{interest:'kits',orgType:'empresa',phone:'612345678',objectives:['otro'],consent:true});
     assert(!('quantity' in sent)&&!('duration' in sent));
@@ -207,6 +260,10 @@ async function page(name,search=''){
   assert(p.document.querySelector('.site-header').hasAttribute('data-ready'));assert.equal(link.textContent,'Iniciar sesión');assert(!p.document.querySelector('.account-menu'));
   // Sin sesión: el menú empieza por «El AERIQ» (sin «Mapa»); al mapa se va con el botón «Ver el mapa».
   assert.deepEqual([...p.document.querySelectorAll('.main-nav a')].map(a=>a.textContent),['El AERIQ','Organizaciones','Nosotros','Contacto']);assert(!p.document.querySelector('.header-actions .btn').hidden);p.close();globalThis.noSession=false;
+  /**
+   * Gestiona nav texto.
+   * Diseño lógico: ('.main-nav a') → navText() → resultado de la operación; según scripts/README.md.
+   */
   const navText=p=>[...p.document.querySelectorAll('.main-nav a')].map(a=>a.textContent);
   for(const [perms,page_,items] of [[ADMIN,'index.html',['Inicio','Mapa','Mi panel']],[ADMIN_CAMPANA,'solicitar.html',['Inicio','Mapa','Mi campaña']],[['mapa.organizacion','mediciones.registrar'],'mapa.html',['Inicio','Mapa','Mi campaña']]]){
     user.permissions=[...perms];p=await page(page_);link=p.document.querySelector('#account-link');

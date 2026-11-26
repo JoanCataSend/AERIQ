@@ -20,10 +20,18 @@ require_once __DIR__.'/server/FirebaseAuth.php';
 require_once __DIR__.'/server/AeriqCore.php';
 require_once __DIR__.'/communication/HttpErrorMapper.php';
 
+/**
+ * Gestiona mobile token.
+ * Diseño lógico: (sin parámetros) → mobile_token() → ?string; según doc/frontend_business_logic_design.md.
+ */
 function mobile_token(): ?string {
     $raw=(string)($_SERVER['HTTP_X_AERIQ_TOKEN']??'');
     return preg_match('/^[a-f0-9]{64}$/D',$raw) ? $raw : null;
 }
+/**
+ * Gestiona mobile current.
+ * Diseño lógico: (sin parámetros) → mobile_current() → ?array; según doc/frontend_business_logic_design.md.
+ */
 function mobile_current(): ?array {
     $token=mobile_token();
     if ($token===null) return null;
@@ -32,11 +40,19 @@ function mobile_current(): ?array {
     $s->bind_param('s',$hash);$s->execute();
     return $s->get_result()->fetch_assoc()?:null;
 }
+/**
+ * Gestiona mobile require.
+ * Diseño lógico: (sin parámetros) → mobile_require() → array; según doc/frontend_business_logic_design.md.
+ */
 function mobile_require(): array {
     $u=mobile_current();
     if (!$u) auth_responder(401,['error'=>'Sesión caducada. Inicia sesión de nuevo.']);
     auth_login_allowed($u);return $u;
 }
+/**
+ * Gestiona mobile issue.
+ * Diseño lógico: (int $id) → mobile_issue() → string; según doc/frontend_business_logic_design.md.
+ */
 function mobile_issue(int $id): string {
     // Caducidad absoluta de 30 días. No guardamos la credencial en texto claro.
     $token=bin2hex(random_bytes(32));$hash=hash('sha256',$token);
@@ -44,6 +60,10 @@ function mobile_issue(int $id): string {
     $s->bind_param('si',$hash,$id);$s->execute();
     return $token;
 }
+/**
+ * Gestiona mobile usuario.
+ * Diseño lógico: (int $id) → mobile_user() → array; según doc/frontend_business_logic_design.md.
+ */
 function mobile_user(int $id): array {
     $s=conexionBD()->prepare('SELECT * FROM usuarios WHERE id=? LIMIT 1');
     $s->bind_param('i',$id);$s->execute();
@@ -51,6 +71,10 @@ function mobile_user(int $id): array {
     if (!$u) auth_responder(404,['error'=>'Cuenta no disponible']);
     return auth_public($u);
 }
+/**
+ * Gestiona mobile cuerpo.
+ * Diseño lógico: (sin parámetros) → mobile_body() → array; según doc/frontend_business_logic_design.md.
+ */
 function mobile_body(): array {
     if (stripos((string)($_SERVER['CONTENT_TYPE']??''),'application/json')!==0) auth_responder(415,['error'=>'Usa application/json']);
     return auth_body();

@@ -30,6 +30,10 @@ public final class NoticeScreens {
         this.ui = ui;
     }
 
+    /**
+     * Gestiona panel.
+     * Diseño lógico: (LinearLayout body, int padding) → panel() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout panel(LinearLayout body, int padding) {
         LinearLayout panel = ui.column();
         panel.setBackground(ui.shape(WHITE, 24, LINE));
@@ -40,6 +44,10 @@ public final class NoticeScreens {
         return panel;
     }
 
+    /**
+     * Gestiona pill.
+     * Diseño lógico: (String state, String label) → pill() → TextView; según doc/android_design.md.
+     */
     private TextView pill(String state, String label) {
         int bg = "abierto".equals(state) ? OPEN_BG : "respondido".equals(state) ? ANSWERED_BG : CLOSED_BG;
         int fg = "abierto".equals(state) ? OPEN_TEXT : "respondido".equals(state) ? ANSWERED_TEXT : MUTED;
@@ -49,6 +57,10 @@ public final class NoticeScreens {
         return pill;
     }
 
+    /**
+     * Gestiona estado.
+     * Diseño lógico: (LinearLayout parent, String status) → status() → TextView; según doc/android_design.md.
+     */
     private TextView status(LinearLayout parent, String status) {
         TextView view = ui.text(status, 13, true, status.startsWith("No se pudo") ? RED : GREEN);
         view.setPadding(0, ui.dp(10), 0, 0);
@@ -57,6 +69,9 @@ public final class NoticeScreens {
     }
 
     /** Campo de texto de varias líneas con límite de caracteres. */
+    /**
+     * Diseño lógico: (LinearLayout parent, String label, String hint, int lines) → area() → EditText; según doc/android_design.md.
+     */
     private EditText area(LinearLayout parent, String label, String hint, int lines) {
         EditText input = ui.field(parent, label, "", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE
             | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
@@ -71,6 +86,9 @@ public final class NoticeScreens {
 
     // ================================================================= Bandeja
 
+    /**
+     * Diseño lógico: (LinearLayout body, Notices.Inbox inbox, String status) → inbox() → void; según doc/android_design.md.
+     */
     public void inbox(LinearLayout body, Notices.Inbox inbox, String status) {
         LinearLayout intro = panel(body, 18);
         intro.addView(ui.text("Avisos de tu equipo", 19, true, INK));
@@ -128,6 +146,10 @@ public final class NoticeScreens {
         }
     }
 
+    /**
+     * Gestiona fila.
+     * Diseño lógico: (Notices.Summary notice) → row() → View; según doc/android_design.md.
+     */
     private View row(Notices.Summary notice) {
         LinearLayout row = ui.row();
         row.setGravity(Gravity.TOP);
@@ -160,6 +182,9 @@ public final class NoticeScreens {
 
     // ================================================================= Conversación
 
+    /**
+     * Diseño lógico: (LinearLayout body, Notices.Conversation notice, String status) → conversation() → void; según doc/android_design.md.
+     */
     public void conversation(LinearLayout body, Notices.Conversation notice, String status) {
         if (notice == null) {
             LinearLayout wait = panel(body, 18);
@@ -210,6 +235,9 @@ public final class NoticeScreens {
 
     // ================================================================= Nuevo aviso
 
+    /**
+     * Diseño lógico: (LinearLayout body, Notices.Inbox inbox) → compose() → void; según doc/android_design.md.
+     */
     public void compose(LinearLayout body, Notices.Inbox inbox) {
         LinearLayout form = panel(body, 18);
         form.addView(ui.text("¿A quién escribes?", 17, true, INK));

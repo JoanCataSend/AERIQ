@@ -5,6 +5,10 @@ import static org.junit.Assert.*;
 import java.nio.charset.StandardCharsets;
 
 public final class IBeaconParserTest {
+    /**
+     * Prueba el comportamiento de packet con los casos descritos en el cuerpo.
+     * Diseño lógico: (int type, int count, int minor) → packet() → byte[]; según doc/android_design.md.
+     */
     private byte[] packet(int type, int count, int minor) {
         byte[] packet = {2, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             (byte) type, (byte) count, (byte) (minor >>> 8), (byte) minor, -53};
@@ -12,6 +16,10 @@ public final class IBeaconParserTest {
         return packet;
     }
 
+    /**
+     * Prueba el comportamiento de ozonePpb con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → ozonePpb() → void; según doc/android_design.md.
+     */
     @Test public void ozonePpb() {
         BeaconReading data = IBeaconParser.parse(packet(14, 7, 123));
         assertEquals(14, data.typeId);
@@ -20,12 +28,20 @@ public final class IBeaconParserTest {
         assertEquals("ppb", data.unit());
     }
 
+    /**
+     * Prueba el comportamiento de negativeTemperature con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → negativeTemperature() → void; según doc/android_design.md.
+     */
     @Test public void negativeTemperature() {
         BeaconReading data = IBeaconParser.parse(packet(12, 8, 0xfff4));
         assertEquals(-12, data.value);
         assertEquals("°C", data.unit());
     }
 
+    /**
+     * Prueba el comportamiento de batteryIsNotAMeasurement con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → batteryIsNotAMeasurement() → void; según doc/android_design.md.
+     */
     @Test public void batteryIsNotAMeasurement() {
         assertNull(IBeaconParser.parse(packet(16, 3, 57)));
         assertNull(IBeaconParser.parseStatus(packet(16, 3, 57)));
@@ -37,17 +53,29 @@ public final class IBeaconParserTest {
         assertNull(IBeaconParser.parseBattery(packet(14, 3, 57)));
     }
 
+    /**
+     * Prueba el comportamiento de rejectsWrongUuid con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → rejectsWrongUuid() → void; según doc/android_design.md.
+     */
     @Test public void rejectsWrongUuid() {
         byte[] data = packet(14, 2, 20);
         data[2] = 'X';
         assertNull(IBeaconParser.parse(data));
     }
 
+    /**
+     * Prueba el comportamiento de rejectsTruncatedOrWrongType con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → rejectsTruncatedOrWrongType() → void; según doc/android_design.md.
+     */
     @Test public void rejectsTruncatedOrWrongType() {
         assertNull(IBeaconParser.parse(new byte[]{2, 21}));
         assertNull(IBeaconParser.parse(packet(99, 2, 20)));
     }
 
+    /**
+     * Prueba el comportamiento de discoversStatusWithoutTreatingItAsMeasurement con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → discoversStatusWithoutTreatingItAsMeasurement() → void; según doc/android_design.md.
+     */
     @Test public void discoversStatusWithoutTreatingItAsMeasurement() {
         byte[] data = packet(15, 255, 0x8018);
         assertNull(IBeaconParser.parse(data));
@@ -58,6 +86,10 @@ public final class IBeaconParserTest {
         assertEquals(0x8018, status.value);
     }
 
+    /**
+     * Prueba el comportamiento de statusRequiresValidProjectAndCompleteFrame con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → statusRequiresValidProjectAndCompleteFrame() → void; según doc/android_design.md.
+     */
     @Test public void statusRequiresValidProjectAndCompleteFrame() {
         assertNull(IBeaconParser.parseStatus(null));
         assertNull(IBeaconParser.parseStatus(new byte[]{2, 21}));
@@ -67,6 +99,10 @@ public final class IBeaconParserTest {
         assertNull(IBeaconParser.parseStatus(data));
     }
 
+    /**
+     * Prueba el comportamiento de diagnosticRequiresMatchingCycleAndVersion con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → diagnosticRequiresMatchingCycleAndVersion() → void; según doc/android_design.md.
+     */
     @Test public void diagnosticRequiresMatchingCycleAndVersion() {
         byte[] state = {1,7,1,2,3,4,5,6,7,8,0,3};
         assertEquals(3, IBeaconParser.parseDiagnostic(state,7));

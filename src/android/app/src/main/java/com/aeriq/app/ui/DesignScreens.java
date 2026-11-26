@@ -33,6 +33,9 @@ public final class DesignScreens {
 
     // ================================================================= utilidades comunes
 
+    /**
+     * Diseño lógico: (LinearLayout body, int padding) → panel() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout panel(LinearLayout body, int padding) {
         LinearLayout panel = ui.column();
         panel.setBackground(ui.shape(WHITE, 24, LINE));
@@ -43,6 +46,10 @@ public final class DesignScreens {
         return panel;
     }
 
+    /**
+     * Gestiona texto.
+     * Diseño lógico: (LinearLayout parent, String value, int size, boolean bold, int color, int top) → text() → TextView; según doc/android_design.md.
+     */
     private TextView text(LinearLayout parent, String value, int size, boolean bold, int color, int top) {
         TextView view = ui.text(value, size, bold, color);
         view.setPadding(0, ui.dp(top), 0, 0);
@@ -50,6 +57,10 @@ public final class DesignScreens {
         return view;
     }
 
+    /**
+     * Gestiona tile.
+     * Diseño lógico: (int icon, int size, int background, int tint) → tile() → ImageView; según doc/android_design.md.
+     */
     private ImageView tile(int icon, int size, int background, int tint) {
         ImageView image = ui.image(icon, size, size);
         int pad = Math.round(size * .26f);
@@ -59,18 +70,30 @@ public final class DesignScreens {
         return image;
     }
 
+    /**
+     * Gestiona divider.
+     * Diseño lógico: (sin parámetros) → divider() → View; según doc/android_design.md.
+     */
     private View divider() {
         View line = new View(activity);
         line.setBackgroundColor(LINE);
         return line;
     }
 
+    /**
+     * Gestiona add divider.
+     * Diseño lógico: (LinearLayout parent, int top, int bottom) → addDivider() → void; según doc/android_design.md.
+     */
     private void addDivider(LinearLayout parent, int top, int bottom) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, ui.dp(1));
         params.setMargins(0, ui.dp(top), 0, ui.dp(bottom));
         parent.addView(divider(), params);
     }
 
+    /**
+     * Gestiona chip.
+     * Diseño lógico: (String label, int background, int color) → chip() → TextView; según doc/android_design.md.
+     */
     private TextView chip(String label, int background, int color) {
         TextView chip = ui.text(label, 13, true, color);
         chip.setPadding(ui.dp(12), ui.dp(5), ui.dp(12), ui.dp(5));
@@ -78,6 +101,10 @@ public final class DesignScreens {
         return chip;
     }
 
+    /**
+     * Gestiona underline.
+     * Diseño lógico: (String value) → underline() → CharSequence; según doc/android_design.md.
+     */
     private CharSequence underline(String value) {
         SpannableString text = new SpannableString(value);
         text.setSpan(new UnderlineSpan(), 0, value.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -85,6 +112,9 @@ public final class DesignScreens {
     }
 
     /** Selector de pestañas: fondo gris, pestaña activa blanca. */
+    /**
+     * Diseño lógico: (LinearLayout body, String[] labels, int initial, java.util.function.IntConsumer selected) → tabs() → TextView[]; según doc/android_design.md.
+     */
     private TextView[] tabs(LinearLayout body, String[] labels, int initial, java.util.function.IntConsumer selected) {
         LinearLayout strip = ui.row();
         strip.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
@@ -108,6 +138,10 @@ public final class DesignScreens {
         return items;
     }
 
+    /**
+     * Selecciona.
+     * Diseño lógico: (TextView[] items, int active) → select() → void; según doc/android_design.md.
+     */
     private void select(TextView[] items, int active) {
         for (int i = 0; i < items.length; i++) {
             items[i].setSelected(i == active);
@@ -118,6 +152,9 @@ public final class DesignScreens {
     }
 
     /** Fila de menú: icono en baldosa, título, subtítulo opcional y elemento final. */
+    /**
+     * Diseño lógico: (parámetros de la firma) → menuRow() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout menuRow(LinearLayout parent, int icon, int tint, int background, String title, int titleColor,
                                  String subtitle, View trailing, Runnable click) {
         LinearLayout row = ui.row();
@@ -141,6 +178,10 @@ public final class DesignScreens {
         return row;
     }
 
+    /**
+     * Gestiona chevron.
+     * Diseño lógico: (sin parámetros) → chevron() → ImageView; según doc/android_design.md.
+     */
     private ImageView chevron() {
         ImageView image = ui.image(R.drawable.ic_chevron, 18, 18);
         image.setColorFilter(MUTED);
@@ -148,6 +189,10 @@ public final class DesignScreens {
         return image;
     }
 
+    /**
+     * Gestiona dark promo.
+     * Diseño lógico: (LinearLayout body, String title, String subtitle, Runnable click) → darkPromo() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout darkPromo(LinearLayout body, String title, String subtitle, Runnable click) {
         LinearLayout card = ui.row();
         card.setBackground(ui.shape(DARK, 22, 0));
@@ -170,6 +215,10 @@ public final class DesignScreens {
         return card;
     }
 
+    /**
+     * Gestiona footer.
+     * Diseño lógico: (LinearLayout body, String value) → footer() → void; según doc/android_design.md.
+     */
     private void footer(LinearLayout body, String value) {
         TextView note = ui.text(value, 12, false, MUTED);
         note.setGravity(Gravity.CENTER);
@@ -179,6 +228,9 @@ public final class DesignScreens {
 
     // ================================================================= Aprende
 
+    /**
+     * Diseño lógico: (LinearLayout body) → learn() → void; según doc/android_design.md.
+     */
     public void learn(LinearLayout body) {
         LinearLayout hero = ui.column();
         hero.setBackground(ui.shape(GREEN, 26, 0));
@@ -247,6 +299,10 @@ public final class DesignScreens {
             + "oficiales ni constituyen un diagnóstico de exposición personal.");
     }
 
+    /**
+     * Gestiona info card.
+     * Diseño lógico: (LinearLayout body, int icon, String title, String description, String[] bullets) → infoCard() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout infoCard(LinearLayout body, int icon, String title, String description, String[] bullets) {
         LinearLayout card = panel(body, 18);
         LinearLayout head = ui.row();
@@ -280,6 +336,9 @@ public final class DesignScreens {
 
     // ================================================================= Historial
 
+    /**
+     * Diseño lógico: (LinearLayout body, List<StoredReading> history, String status, OrbAssignment sensor) → history() → void; según doc/android_design.md.
+     */
     public void history(LinearLayout body, List<StoredReading> history, String status, OrbAssignment sensor) {
         double medium = sensor == null ? 60 : sensor.medium, high = sensor == null ? 100 : sensor.high;
         List<StoredReading> ozone = new ArrayList<>();
@@ -295,6 +354,10 @@ public final class DesignScreens {
         showHistory(content, ozone, 0, medium, high, status);
     }
 
+    /**
+     * Muestra historial.
+     * Diseño lógico: (LinearLayout content, List<StoredReading> all, int period, double medium, double high, String status) → showHistory() → void; según doc/android_design.md.
+     */
     private void showHistory(LinearLayout content, List<StoredReading> all, int period, double medium, double high, String status) {
         content.removeAllViews();
         long now = System.currentTimeMillis();
@@ -442,6 +505,10 @@ public final class DesignScreens {
             () -> activity.go(Screen.COMPARE));
     }
 
+    /**
+     * Gestiona legend item.
+     * Diseño lógico: (String name, int color) → legendItem() → View; según doc/android_design.md.
+     */
     private View legendItem(String name, int color) {
         LinearLayout item = ui.row();
         item.setPadding(0, 0, ui.dp(16), 0);
@@ -457,6 +524,10 @@ public final class DesignScreens {
         return item;
     }
 
+    /**
+     * Gestiona stat tile.
+     * Diseño lógico: (LinearLayout row, String label, String value, boolean gap) → statTile() → void; según doc/android_design.md.
+     */
     private void statTile(LinearLayout row, String label, String value, boolean gap) {
         LinearLayout tile = ui.column();
         tile.setBackground(ui.shape(0xffeaefed, 18, 0));
@@ -475,6 +546,9 @@ public final class DesignScreens {
     /**
      * Detalles del sensor para el operador: solo consulta. El nombre del Orb, su campaña y si se publica los
      * gestiona el admin de campaña en el panel web; el envío y la posición van siempre. Reconectar sí se ofrece.
+     */
+    /**
+     * Diseño lógico: (LinearLayout body, AeriqBleController ble, OrbAssignment sensor, boolean locationAllowed) → details() → void; según doc/android_design.md.
      */
     public void details(LinearLayout body, AeriqBleController ble, OrbAssignment sensor, boolean locationAllowed) {
         LinearLayout state = panel(body, 18);
@@ -533,6 +607,10 @@ public final class DesignScreens {
         });
     }
 
+    /**
+     * Gestiona info fila.
+     * Diseño lógico: (LinearLayout parent, String label, String value, boolean line) → infoRow() → TextView; según doc/android_design.md.
+     */
     private TextView infoRow(LinearLayout parent, String label, String value, boolean line) {
         LinearLayout row = ui.row();
         row.setPadding(0, ui.dp(12), 0, ui.dp(12));
@@ -544,6 +622,10 @@ public final class DesignScreens {
         return view;
     }
 
+    /**
+     * Gestiona wide botón.
+     * Diseño lógico: (int icon, String label, int color, int background, int border) → wideButton() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout wideButton(int icon, String label, int color, int background, int border) {
         LinearLayout button = ui.row();
         button.setGravity(Gravity.CENTER);
@@ -560,6 +642,9 @@ public final class DesignScreens {
 
     // ================================================================= Comparar zonas
 
+    /**
+     * Diseño lógico: (LinearLayout body, ExecutorService worker) → compare() → void; según doc/android_design.md.
+     */
     public void compare(LinearLayout body, ExecutorService worker) {
         // Función libre: usa las mismas mediciones públicas que el mapa, sin cuenta.
         TextView subtitle = ui.text("Media de ozono de cada zona con mediciones publicadas.", 13, false, MUTED);
@@ -604,6 +689,10 @@ public final class DesignScreens {
         double average() { return sum / Math.max(1, rows.size()); }
     }
 
+    /**
+     * Representa compare.
+     * Diseño lógico: (LinearLayout results, List<PublicReadings.Reading> all, int period) → renderCompare() → void; según doc/android_design.md.
+     */
     private void renderCompare(LinearLayout results, List<PublicReadings.Reading> all, int period) {
         if (all == null) return;
         results.removeAllViews();
@@ -698,12 +787,19 @@ public final class DesignScreens {
         footer(results, "Solo se comparan zonas con datos suficientes (al menos 3 puntos de medida).");
     }
 
+    /**
+     * Gestiona capitalize.
+     * Diseño lógico: (String value) → capitalize() → String; según doc/android_design.md.
+     */
     private static String capitalize(String value) {
         return value.isEmpty() ? value : value.substring(0, 1).toUpperCase(ES) + value.substring(1);
     }
 
     // ================================================================= Cuenta
 
+    /**
+     * Diseño lógico: (LinearLayout body, AeriqAuthManager.User user, OrbAssignment sensor, boolean sharing, AppPrefs prefs) → account() → void; según doc/android_design.md.
+     */
     public void account(LinearLayout body, AeriqAuthManager.User user, OrbAssignment sensor, boolean sharing, AppPrefs prefs) {
         LinearLayout profile = panel(body, 18);
         LinearLayout identity = ui.row();
@@ -790,6 +886,10 @@ public final class DesignScreens {
         menuRow(logout, R.drawable.ic_logout, RED, 0xfffde8e7, "Cerrar sesión", RED, null, null, activity::logout);
     }
 
+    /**
+     * Gestiona initial.
+     * Diseño lógico: (String name) → initial() → String; según doc/android_design.md.
+     */
     private String initial(String name) {
         return name == null || name.isEmpty() ? "" : name.substring(0, 1).toUpperCase(ES);
     }

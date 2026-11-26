@@ -6,23 +6,39 @@ require_once __DIR__ . '/../business_logic/DomainError.php';
 require_once __DIR__ . '/../communication/MailTransport.php';
 require_once __DIR__ . '/../database/AuthRepository.php';
 
+/**
+ * Serializa la respuesta HTTP y finaliza la petición.
+ * Diseño lógico: (int $status, array $payload) → auth_responder() → never; según doc/aeriq_business_logic_design.md.
+ */
 function auth_responder(int $status, array $payload): never {
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
+/**
+ * Lee y valida el cuerpo JSON de la petición.
+ * Diseño lógico: (sin parámetros) → auth_body() → array; según doc/aeriq_business_logic_design.md.
+ */
 function auth_body(): array {
     if ((int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 16384) auth_responder(413, ['error'=>'Petición demasiado grande']);
     $obj=json_decode(file_get_contents('php://input') ?: '');
     if (!$obj instanceof stdClass) auth_responder(400,['error'=>'Se esperaba un objeto JSON']);
     return get_object_vars($obj);
 }
+/**
+ * Normaliza y valida una dirección de correo.
+ * Diseño lógico: (mixed $value) → auth_email() → string; según doc/aeriq_business_logic_design.md.
+ */
 function auth_email(mixed $value): string {
     if (!is_string($value)) auth_responder(422,['error'=>'Correo electrónico no válido']);
     $email=strtolower(trim((string)$value));
     if (strlen($email)>254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) auth_responder(422,['error'=>'Correo electrónico no válido']);
     return $email;
 }
+/**
+ * Gestiona string.
+ * Diseño lógico: (mixed $value, int $limit) → auth_string() → string; según doc/aeriq_business_logic_design.md.
+ */
 function auth_string(mixed $value, int $limit): string {
     if (!is_string($value)) auth_responder(422,['error'=>'Texto no válido']);
     $s=trim((string)$value);
@@ -34,6 +50,9 @@ function auth_string(mixed $value, int $limit): string {
  * símbolo (máximo 256). Devuelve lo que falta, vacío si cumple. Los mismos requisitos están en auth-client.js
  * (web) y en PasswordRules.java (Android), pero el que decide es el servidor.
  */
+/**
+ * Diseño lógico: (string $p) → auth_password_missing() → array; según doc/aeriq_business_logic_design.md.
+ */
 function auth_password_missing(string $p): array {
     $missing=[];
     $length=function_exists('mb_strlen')?mb_strlen($p,'UTF-8'):strlen($p);
@@ -44,6 +63,10 @@ function auth_password_missing(string $p): array {
     if (!preg_match('/[^\p{L}\p{Nd}\s]/u',$p)) $missing[]='un símbolo (por ejemplo ! ? # @ . -)';
     return $missing;
 }
+/**
+ * Gestiona contraseña.
+ * Diseño lógico: (mixed $value) → auth_password() → string; según doc/aeriq_business_logic_design.md.
+ */
 function auth_password(mixed $value): string {
     if (!is_string($value)) auth_responder(422,['error'=>'Contraseña no válida','field'=>'password']);
     $p=(string)$value;
@@ -57,20 +80,36 @@ function auth_password(mixed $value): string {
     }
     return $p;
 }
+/**
+ * Gestiona límite.
+ * Diseño lógico: (string $action, string $subject, int $limit, int $interval=900) → auth_rate() → void; según doc/aeriq_business_logic_design.md.
+ */
 function auth_rate(string $action, string $subject, int $limit, int $interval=900): void {
     $key=hash('sha256',$action.'|'.($_SERVER['REMOTE_ADDR']??'unknown').'|'.$subject);
     $cutoff=date('Y-m-d H:i:s',time()-$interval);
     if (aeriq_auth_rate_attempts($key,$cutoff)>$limit) auth_responder(429,['error'=>'Demasiados intentos. Vuelve a intentarlo más tarde.']);
 }
+/**
+ * Busca.
+ * Diseño lógico: (string $email) → auth_find() → ?array; según doc/aeriq_business_logic_design.md.
+ */
 function auth_find(string $email): ?array {
     return aeriq_auth_user_by_email($email);
 }
+/**
+ * Gestiona login allowed.
+ * Diseño lógico: (array $user) → auth_login_allowed() → void; según doc/aeriq_business_logic_design.md.
+ */
 function auth_login_allowed(array $user): void {
     $a=aeriq_access((int)$user['id']);
     if ((int)$a['cambiar_clave']) {
         if (!$a['invitacion_expira_en'] || strtotime($a['invitacion_expira_en'])<=time()) throw new AeriqError('La invitación ha caducado. Recupera el acceso para activar tu cuenta.','forbidden');
     } elseif (!(int)$a['activo']) throw new AeriqError('Cuenta desactivada. Contacta con tu organización.','forbidden');
 }
+/**
+ * Gestiona público.
+ * Diseño lógico: (array $user) → auth_public() → array; según doc/aeriq_business_logic_design.md.
+ */
 function auth_public(array $user): array {
     $a=aeriq_access((int)$user['id']);
     auth_login_allowed($user);
@@ -79,6 +118,10 @@ function auth_public(array $user): array {
         'organizationId'=>$a['organizacion_id'],'organization'=>$a['organizacion'],'campaign'=>$a['campana'],
         'mustChangePassword'=>(bool)$a['cambiar_clave']];
 }
+/**
+ * Gestiona current.
+ * Diseño lógico: (sin parámetros) → auth_current() → ?array; según doc/aeriq_business_logic_design.md.
+ */
 function auth_current(): ?array {
     if (empty($_SESSION['user_id'])) return null;
     $id=(int)$_SESSION['user_id'];
@@ -89,9 +132,17 @@ function auth_current(): ?array {
     if (!$user) {unset($_SESSION['user_id']);return null;}
     $_SESSION['last_seen']=time();return $user;
 }
+/**
+ * Gestiona require usuario.
+ * Diseño lógico: (sin parámetros) → auth_require_user() → array; según doc/aeriq_business_logic_design.md.
+ */
 function auth_require_user(): array {
     $u=auth_current(); if (!$u) auth_responder(401,['error'=>'Debes iniciar sesión']);auth_login_allowed($u);return $u;
 }
+/**
+ * Gestiona login sesión.
+ * Diseño lógico: (int $id) → auth_login_session() → void; según doc/aeriq_business_logic_design.md.
+ */
 function auth_login_session(int $id): void {
     session_regenerate_id(true);
     $_SESSION['user_id']=$id;
@@ -102,6 +153,9 @@ function auth_login_session(int $id): void {
  * Correo de recuperación (T34, T35): código de seis cifras y enlace que abre recuperar.html con el correo y el
  * código ya puestos. El código caduca a los 10 minutos y se borra al usarse, así que el enlace también.
  * Que mail() acepte el mensaje no garantiza que llegue a la bandeja de entrada.
+ */
+/**
+ * Diseño lógico: (string $recipient,string $code,string $purpose) → auth_send_mail() → void; según doc/aeriq_business_logic_design.md.
  */
 function auth_send_mail(string $recipient,string $code,string $purpose): void {
     if (!filter_var($recipient,FILTER_VALIDATE_EMAIL) || !preg_match('/^[0-9]{6}$/',$code)) {
@@ -117,6 +171,10 @@ function auth_send_mail(string $recipient,string $code,string $purpose): void {
     ],'Tu código para recuperar el acceso a AERIQ');
     aeriq_mail($recipient,'AERIQ · Recupera tu contraseña',$mail['text'],null,$mail['html']);
 }
+/**
+ * Gestiona generate código.
+ * Diseño lógico: (int $userId,string $purpose,string $email,bool $throttle=true) → auth_generate_code() → void; según doc/aeriq_business_logic_design.md.
+ */
 function auth_generate_code(int $userId,string $purpose,string $email,bool $throttle=true): void {
     if ($throttle) {
         $old=aeriq_auth_code_sent_at($userId,$purpose);
@@ -134,6 +192,9 @@ function auth_generate_code(int $userId,string $purpose,string $email,bool $thro
  * Devuelve 'valido', 'caducado' (vencido, usado o bloqueado) o 'incorrecto'. Un código incorrecto cuenta como
  * intento, igual que al guardar: así no sirve para adivinar códigos.
  */
+/**
+ * Diseño lógico: (int $id,string $purpose,string $code) → auth_check_code() → string; según doc/aeriq_business_logic_design.md.
+ */
 function auth_check_code(int $id,string $purpose,string $code): string {
     if (!preg_match('/^[0-9]{6}$/',$code)) return 'incorrecto';
     $row=aeriq_auth_code($id,$purpose);
@@ -142,6 +203,10 @@ function auth_check_code(int $id,string $purpose,string $code): string {
     aeriq_auth_increment_code_attempt($id,$purpose);
     return 'incorrecto';
 }
+/**
+ * Verifica código.
+ * Diseño lógico: (int $id,string $purpose,string $code) → auth_verify_code() → void; según doc/aeriq_business_logic_design.md.
+ */
 function auth_verify_code(int $id,string $purpose,string $code): void {
     if (!preg_match('/^[0-9]{6}$/',$code)) auth_responder(422,['error'=>'Introduce el código de seis cifras']);
     $row=aeriq_auth_code($id,$purpose);

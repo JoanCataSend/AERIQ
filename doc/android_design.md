@@ -17,6 +17,6 @@ La aplicación Android permite iniciar/cerrar sesión, vincular un Orb asignado,
 - **Programming Language:** Java 11 para la app Android; XML para recursos y layouts.
 - Respetar permisos por versión Android, ciclo de vida y accesibilidad; no bloquear el hilo principal con I/O.
 - Mantener compatibilidad con el formato iBeacon del firmware y contratos de `doc/api.md`.
-- **Function/Method Headers:** documentar el diseño lógico de nuevas funciones/métodos en un bloque entre líneas `--------------------`.
+- **Function/Method Headers:** cada función o método debe tener antes un comentario con su propósito y diseño lógico `entradas → función → salida`; conservar el bloque entre líneas `--------------------` para contratos formales.
 - **Code Readability:** funciones enfocadas, nombres explícitos y comentarios para invariantes no obvias.
 - **Automated Testing:** generar pruebas JVM para parser, deduplicación, cola/reintentos, CSV y transformaciones de dominio.

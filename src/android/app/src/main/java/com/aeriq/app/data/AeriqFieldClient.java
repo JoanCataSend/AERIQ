@@ -29,6 +29,10 @@ public final class AeriqFieldClient implements AutoCloseable {
         outbox = new ReadingOutbox(context.getApplicationContext());
     }
 
+    /**
+     * Gestiona petición.
+     * Diseño lógico: (String credential, String action, JSONObject body) → request() → JSONObject; según doc/android_design.md.
+     */
     private JSONObject request(String credential, String action, JSONObject body) throws Exception {
         if (!credential.equals(token.get())) throw new IllegalStateException("La sesión ha cambiado");
         String endpoint = ApiRoutes.FIELD + (action.isEmpty() ? "" : "?action=" + action);
@@ -39,6 +43,10 @@ public final class AeriqFieldClient implements AutoCloseable {
 
     private interface Decoder<T> { T decode(JSONObject row) throws JSONException; }
 
+    /**
+     * Gestiona list.
+     * Diseño lógico: (String action, String key, Decoder<T> decoder, BiConsumer<List<T>, String> done) → list() → <T> void; según doc/android_design.md.
+     */
     private <T> void list(String action, String key, Decoder<T> decoder, BiConsumer<List<T>, String> done) {
         String credential = token.get();
         if (credential == null) {
@@ -59,14 +67,26 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    /**
+     * Gestiona asignaciones.
+     * Diseño lógico: (BiConsumer<List<OrbAssignment>, String> done) → assignments() → void; según doc/android_design.md.
+     */
     public void assignments(BiConsumer<List<OrbAssignment>, String> done) {
         list("", "assignments", OrbAssignment::new, done);
     }
 
+    /**
+     * Gestiona historial.
+     * Diseño lógico: (BiConsumer<List<StoredReading>, String> done) → history() → void; según doc/android_design.md.
+     */
     public void history(BiConsumer<List<StoredReading>, String> done) {
         list("history", "readings", StoredReading::fromJson, done);
     }
 
+    /**
+     * Gestiona upload.
+     * Diseño lógico: (LiveMeasurement reading, OrbAssignment assignment, Location location, Consumer<String> done) → upload() → void; según doc/android_design.md.
+     */
     public void upload(LiveMeasurement reading, OrbAssignment assignment, Location location, Consumer<String> done) {
         String credential = token.get();
         long account = owner.get();
@@ -108,6 +128,9 @@ public final class AeriqFieldClient implements AutoCloseable {
     }
 
     /** Admin de campaña: operadores y Orb de su campaña (mobile-team.php, mismas reglas que el panel web). */
+    /**
+     * Diseño lógico: (BiConsumer<CampaignTeam, String> done) → team() → void; según doc/android_design.md.
+     */
     public void team(BiConsumer<CampaignTeam, String> done) {
         String credential = token.get();
         if (credential == null) { done.accept(CampaignTeam.empty(), "Inicia sesión"); return; }
@@ -129,6 +152,10 @@ public final class AeriqFieldClient implements AutoCloseable {
 
     private interface Parser<T> { T parse(JSONObject data) throws JSONException; }
 
+    /**
+     * Gestiona avisos.
+     * Diseño lógico: (String action, JSONObject body, Parser<T> parser, T fallback, BiConsumer<T, String> done) → notices() → <T> void; según doc/android_design.md.
+     */
     private <T> void notices(String action, JSONObject body, Parser<T> parser, T fallback, BiConsumer<T, String> done) {
         String credential = token.get();
         if (credential == null) { done.accept(fallback, "Inicia sesión"); return; }
@@ -147,27 +174,43 @@ public final class AeriqFieldClient implements AutoCloseable {
     }
 
     /** Bandeja: tus avisos, a quién puedes escribir y cuántos tienen algo nuevo. */
+    /**
+     * Diseño lógico: (BiConsumer<Notices.Inbox, String> done) → notices() → void; según doc/android_design.md.
+     */
     public void notices(BiConsumer<Notices.Inbox, String> done) {
         notices("notices", null, Notices::inbox, Notices.Inbox.empty(), done);
     }
 
     /** Un aviso con sus mensajes; abrirlo lo marca como visto. */
+    /**
+     * Diseño lógico: (long id, BiConsumer<Notices.Conversation, String> done) → notice() → void; según doc/android_design.md.
+     */
     public void notice(long id, BiConsumer<Notices.Conversation, String> done) {
         notices("notice&id=" + id, null, Notices::conversation, null, done);
     }
 
     /** Crea un aviso. El servidor comprueba que puedes escribir a esa persona. Devuelve el mensaje del servidor. */
+    /**
+     * Diseño lógico: (long to, String subject, String text, BiConsumer<String, String> done) → createNotice() → void; según doc/android_design.md.
+     */
     public void createNotice(long to, String subject, String text, BiConsumer<String, String> done) {
         notices("notice-create", JsonHttp.object("to", to, "subject", subject, "message", text),
             data -> data.optString("message", "Aviso enviado."), null, done);
     }
 
     /** Responde a un aviso (si estaba cerrado, se vuelve a abrir). */
+    /**
+     * Diseño lógico: (long id, String text, BiConsumer<String, String> done) → replyNotice() → void; según doc/android_design.md.
+     */
     public void replyNotice(long id, String text, BiConsumer<String, String> done) {
         notices("notice-reply", JsonHttp.object("id", id, "message", text),
             data -> data.optString("message", "Respuesta enviada."), null, done);
     }
 
+    /**
+     * Cierra aviso.
+     * Diseño lógico: (long id, BiConsumer<String, String> done) → closeNotice() → void; según doc/android_design.md.
+     */
     public void closeNotice(long id, BiConsumer<String, String> done) {
         notices("notice-close", JsonHttp.object("id", id),
             data -> data.optString("message", "Aviso cerrado."), null, done);
@@ -176,6 +219,9 @@ public final class AeriqFieldClient implements AutoCloseable {
     /**
      * Admin de campaña: registra el Orb (deviceId null) o lo reasigna, siempre a un operador de su campaña.
      * El servidor aplica las reglas del panel web: un Orb por operador y la asignación anterior se cierra.
+     */
+    /**
+     * Diseño lógico: (Long deviceId, String name, String address, long workerId, boolean simulated, Consumer<String> done) → assignOrb() → void; según doc/android_design.md.
      */
     public void assignOrb(Long deviceId, String name, String address, long workerId, boolean simulated, Consumer<String> done) {
         String credential = token.get();
@@ -198,6 +244,9 @@ public final class AeriqFieldClient implements AutoCloseable {
      * Envía la batería del Orb asignado. No pasa por la cola de lecturas: si falla, el Orb
      * la vuelve a anunciar en el siguiente ciclo y se reintenta más tarde.
      */
+    /**
+     * Diseño lógico: (OrbAssignment assignment, String address, int percent, long capturedAtMillis) → battery() → void; según doc/android_design.md.
+     */
     public void battery(OrbAssignment assignment, String address, int percent, long capturedAtMillis) {
         String credential = token.get();
         if (credential == null || assignment == null || assignment.simulated) return;
@@ -213,12 +262,20 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    /**
+     * Envía estado.
+     * Diseño lógico: (String credential, long account, String status, Consumer<String> done) → postStatus() → void; según doc/android_design.md.
+     */
     private void postStatus(String credential, long account, String status, Consumer<String> done) {
         main.post(() -> {
             if (!closed && credential.equals(token.get()) && account == owner.get()) done.accept(status);
         });
     }
 
+    /**
+     * Gestiona flush pending.
+     * Diseño lógico: (Consumer<String> done) → flushPending() → void; según doc/android_design.md.
+     */
     public void flushPending(Consumer<String> done) {
         String credential = token.get();
         long account = owner.get();
@@ -261,6 +318,10 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    /**
+     * Gestiona retry pending.
+     * Diseño lógico: (Consumer<String> done) → retryPending() → void; según doc/android_design.md.
+     */
     public void retryPending(Consumer<String> done) {
         long account = owner.get();
         if (closed || account == 0) return;
@@ -270,6 +331,10 @@ public final class AeriqFieldClient implements AutoCloseable {
         });
     }
 
+    /**
+     * Cierra.
+     * Diseño lógico: (sin parámetros) → close() → void; según doc/android_design.md.
+     */
     @Override public void close() {
         closed = true;
         worker.shutdownNow();

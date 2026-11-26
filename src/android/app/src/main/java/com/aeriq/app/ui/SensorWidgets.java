@@ -39,12 +39,20 @@ public final class SensorWidgets {
             setContentDescription("Gráfica de ozono de hoy");
         }
 
+        /**
+         * Establece points.
+         * Diseño lógico: (List<Point> values) → setPoints() → void; según doc/android_design.md.
+         */
         public void setPoints(List<Point> values) {
             points = new ArrayList<>(values);
             points.sort(Comparator.comparingLong(point -> point.time));
             invalidate();
         }
 
+        /**
+         * Atiende el evento draw.
+         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float width = getWidth(), height = getHeight();
@@ -108,6 +116,10 @@ public final class SensorWidgets {
             setContentDescription("Calidad del aire respirado hoy por tramos");
         }
 
+        /**
+         * Establece points.
+         * Diseño lógico: (List<Point> points, double medium, double high) → setPoints() → void; según doc/android_design.md.
+         */
         public void setPoints(List<Point> points, double medium, double high) {
             long start = Quality.startOfToday();
             long span = Math.max(1, System.currentTimeMillis() - start);
@@ -125,6 +137,10 @@ public final class SensorWidgets {
             invalidate();
         }
 
+        /**
+         * Atiende el evento draw.
+         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float gap = 3 * density, height = getHeight();
@@ -161,6 +177,10 @@ public final class SensorWidgets {
             setContentDescription("Gráfica de barras de ozono");
         }
 
+        /**
+         * Establece.
+         * Diseño lógico: (Double[] values, boolean[] future, String[] labels, double medium, double high) → set() → void; según doc/android_design.md.
+         */
         public void set(Double[] values, boolean[] future, String[] labels, double medium, double high) {
             this.values = values;
             this.future = future;
@@ -170,6 +190,10 @@ public final class SensorWidgets {
             invalidate();
         }
 
+        /**
+         * Atiende el evento draw.
+         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float width = getWidth(), labelArea = 26 * density, chart = getHeight() - labelArea;
@@ -227,6 +251,10 @@ public final class SensorWidgets {
             setContentDescription("Comparación de zonas");
         }
 
+        /**
+         * Establece.
+         * Diseño lógico: (List<Double[]> values, List<Integer> lineColors, String[] labels) → set() → void; según doc/android_design.md.
+         */
         public void set(List<Double[]> values, List<Integer> lineColors, String[] labels) {
             series.clear();
             series.addAll(values);
@@ -236,6 +264,10 @@ public final class SensorWidgets {
             invalidate();
         }
 
+        /**
+         * Atiende el evento draw.
+         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float width = getWidth(), labelArea = 28 * density, chart = getHeight() - labelArea;

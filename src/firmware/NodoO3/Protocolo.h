@@ -10,6 +10,9 @@ constexpr uint8_t UUID_ESTADO[16] = {
   0x76,0x4d,0x02,0x3f,0x20,0x4c,0xb4,0xe3
 };
 // Incluye los dos bytes del fabricante; Android los separa del payload.
+/**
+ * Diseño lógico: (uint8_t tipo, uint8_t secuencia, uint16_t valor, uint8_t out[25]) → anuncio() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline void anuncio(uint8_t tipo, uint8_t secuencia, uint16_t valor, uint8_t out[25]) {
   out[0] = 0x4c; out[1] = 0; out[2] = 2; out[3] = 0x15;
   memcpy(out + 4, "EPSG-GTI-PROY-3A", 16);
@@ -17,6 +20,10 @@ inline void anuncio(uint8_t tipo, uint8_t secuencia, uint16_t valor, uint8_t out
   out[22] = valor >> 8; out[23] = valor & 255;
   out[24] = static_cast<uint8_t>(-53); // RSSI de referencia; potencia radio +4 dBm.
 }
+/**
+ * Gestiona extension.
+ * Diseño lógico: (uint64_t id, uint8_t secuencia, uint16_t estado, uint8_t out[28]) → extension() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline void extension(uint64_t id, uint8_t secuencia, uint16_t estado, uint8_t out[28]) {
   memcpy(out, UUID_ESTADO, 16);
   out[16] = 1; // Version del protocolo de estado.
@@ -24,6 +31,10 @@ inline void extension(uint64_t id, uint8_t secuencia, uint16_t estado, uint8_t o
   for (uint8_t i = 0; i < 8; ++i) out[18+i] = id >> (56-8*i);
   out[26] = estado >> 8; out[27] = estado & 255;
 }
+/**
+ * Gestiona transcurrido.
+ * Diseño lógico: (uint32_t ahora, uint32_t inicio, uint32_t intervalo) → transcurrido() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline bool transcurrido(uint32_t ahora, uint32_t inicio, uint32_t intervalo) {
   return static_cast<uint32_t>(ahora - inicio) >= intervalo;
 }
@@ -37,26 +48,42 @@ constexpr uint32_t EXTRAS_PERIODO_MS = 30000;
 // Reposo tras un ciclo invalido: no se repite el estado sin parar mientras se revisa el cableado.
 constexpr uint32_t REPOSO_ERROR_MS = 1500;
 // true si toca anunciar temperatura y bateria: en el primer ciclo y despues cada EXTRAS_PERIODO_MS.
+/**
+ * Diseño lógico: (uint32_t ahora, uint32_t ultimo, bool algunaVez) → tocaExtras() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline bool tocaExtras(uint32_t ahora, uint32_t ultimo, bool algunaVez) {
   return !algunaVez || transcurrido(ahora, ultimo, EXTRAS_PERIODO_MS);
 }
 
 // ---- Bateria: medidor MAX17048 por I2C (Qwiic) ----
 // Registro SOC: porcentaje en 1/256 %. Se redondea y se limita a 0..100.
+/**
+ * Diseño lógico: (uint16_t soc) → porcentajeMax17048() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline uint8_t porcentajeMax17048(uint16_t soc) {
   const uint32_t redondeado = (static_cast<uint32_t>(soc) + 128) >> 8;
   return redondeado > 100 ? 100 : static_cast<uint8_t>(redondeado);
 }
 // Registro VCELL: 78.125 uV por unidad = 5/64 mV.
+/**
+ * Diseño lógico: (uint16_t vcell) → milivoltiosMax17048() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline uint16_t milivoltiosMax17048(uint16_t vcell) {
   return static_cast<uint16_t>((static_cast<uint32_t>(vcell) * 5) / 64);
 }
 // Registro VERSION: la familia MAX17048/49 responde 0x001X.
+/**
+ * Diseño lógico: (uint16_t version) → esMax1704x() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline bool esMax1704x(uint16_t version) { return (version & 0xfff0) == 0x0010; }
 
 // Color del LED segun la bateria: verde > 60 %, azul 20..60 %, rojo < 20 %.
 // Sin medidor o sin lectura (porcentaje < 0) no se enciende ninguno: no se inventa el nivel.
 enum class Color : uint8_t { NINGUNO, ROJO, AZUL, VERDE };
+/**
+ * Gestiona color bateria.
+ * Diseño lógico: (int16_t porcentaje) → colorBateria() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline Color colorBateria(int16_t porcentaje) {
   if (porcentaje < 0) return Color::NINGUNO;
   if (porcentaje > 60) return Color::VERDE;
@@ -65,6 +92,10 @@ inline Color colorBateria(int16_t porcentaje) {
 }
 // Destello corto cada periodo: casi no gasta bateria y se ve igual.
 constexpr uint32_t DESTELLO_PERIODO_MS = 5000, DESTELLO_DURACION_MS = 80;
+/**
+ * Gestiona destello encendido.
+ * Diseño lógico: (uint32_t ahora, uint32_t inicio) → destelloEncendido() → resultado de la operación; según doc/firmware_design.md.
+ */
 inline bool destelloEncendido(uint32_t ahora, uint32_t inicio) {
   return static_cast<uint32_t>(ahora - inicio) % DESTELLO_PERIODO_MS < DESTELLO_DURACION_MS;
 }

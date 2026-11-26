@@ -7,6 +7,10 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public final class ReadingOutboxTest {
+    /**
+     * Prueba el comportamiento de persistsAcrossReopenAndKeepsAccountsIsolated con los casos descritos en el cuerpo.
+     * Diseño lógico: (sin parámetros) → persistsAcrossReopenAndKeepsAccountsIsolated() → void; según doc/android_design.md.
+     */
     @Test public void persistsAcrossReopenAndKeepsAccountsIsolated() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         String name = "test-outbox-" + UUID.randomUUID() + ".db";

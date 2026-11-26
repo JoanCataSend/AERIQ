@@ -35,13 +35,29 @@ public final class BiometricAccessStore {
         prefs = context.getApplicationContext().getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE);
     }
 
+    /**
+     * Gestiona alias.
+     * Diseño lógico: (long userId) → alias() → String; según doc/android_design.md.
+     */
     private static String alias(long userId) { return KEY_PREFIX + userId; }
+    /**
+     * Gestiona record key.
+     * Diseño lógico: (long userId) → recordKey() → String; según doc/android_design.md.
+     */
     private static String recordKey(long userId) { return RECORD_PREFIX + userId; }
 
+    /**
+     * Comprueba si existe enrollment.
+     * Diseño lógico: (long userId) → hasEnrollment() → boolean; según doc/android_design.md.
+     */
     public synchronized boolean hasEnrollment(long userId) {
         return userId > 0 && prefs.contains(recordKey(userId));
     }
 
+    /**
+     * Gestiona enrolled usuario id.
+     * Diseño lógico: (sin parámetros) → enrolledUserId() → long; según doc/android_design.md.
+     */
     public synchronized long enrolledUserId() {
         long last = prefs.getLong(LAST_USER, 0L);
         if (hasEnrollment(last)) return last;
@@ -55,12 +71,19 @@ public final class BiometricAccessStore {
         return 0L;
     }
 
+    /**
+     * Gestiona enrolled correo.
+     * Diseño lógico: (sin parámetros) → enrolledEmail() → String; según doc/android_design.md.
+     */
     public synchronized String enrolledEmail() {
         long userId = enrolledUserId();
         return userId > 0 ? prefs.getString(EMAIL_PREFIX + userId, "") : "";
     }
 
     /** Creates a per-use, biometric-authenticated cipher for the enrollment prompt. */
+    /**
+     * Diseño lógico: (long userId) → beginEnrollment() → Cipher; según doc/android_design.md.
+     */
     public synchronized Cipher beginEnrollment(long userId) throws Exception {
         requireUser(userId);
         deleteKey(userId);
@@ -88,6 +111,9 @@ public final class BiometricAccessStore {
     }
 
     /** Saves account credentials only after the prompt authorizes the cipher. */
+    /**
+     * Diseño lógico: (long userId, Cipher authorizedCipher, String email, String password) → finishEnrollment() → void; según doc/android_design.md.
+     */
     public synchronized void finishEnrollment(long userId, Cipher authorizedCipher, String email, String password) throws Exception {
         requireUser(userId);
         if (authorizedCipher == null || authorizedCipher.getIV() == null || email == null || email.trim().isEmpty()
@@ -107,6 +133,9 @@ public final class BiometricAccessStore {
     }
 
     /** Prepares the stored account credentials for biometric-gated decryption. */
+    /**
+     * Diseño lógico: (long userId) → beginUnlock() → Cipher; según doc/android_design.md.
+     */
     public synchronized Cipher beginUnlock(long userId) throws Exception {
         requireUser(userId);
         String value = prefs.getString(recordKey(userId), null);
@@ -120,6 +149,9 @@ public final class BiometricAccessStore {
     }
 
     /** Verifies both the cryptographic proof and the account ID after authentication. */
+    /**
+     * Diseño lógico: (long userId, Cipher authorizedCipher) → finishUnlock() → Credential; según doc/android_design.md.
+     */
     public synchronized Credential finishUnlock(long userId, Cipher authorizedCipher) throws Exception {
         requireUser(userId);
         String value = prefs.getString(recordKey(userId), null);
@@ -135,6 +167,10 @@ public final class BiometricAccessStore {
         return email.isEmpty() || password.isEmpty() ? null : new Credential(email, password);
     }
 
+    /**
+     * Gestiona disable.
+     * Diseño lógico: (long userId) → disable() → void; según doc/android_design.md.
+     */
     public synchronized void disable(long userId) {
         if (userId <= 0) return;
         SharedPreferences.Editor editor = prefs.edit().remove(recordKey(userId)).remove(EMAIL_PREFIX + userId);
@@ -143,6 +179,10 @@ public final class BiometricAccessStore {
         deleteKey(userId);
     }
 
+    /**
+     * Obtiene key.
+     * Diseño lógico: (long userId) → getKey() → SecretKey; según doc/android_design.md.
+     */
     private SecretKey getKey(long userId) throws Exception {
         KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
@@ -152,6 +192,10 @@ public final class BiometricAccessStore {
         return (SecretKey) keyStore.getKey(alias(userId), null);
     }
 
+    /**
+     * Elimina key.
+     * Diseño lógico: (long userId) → deleteKey() → void; según doc/android_design.md.
+     */
     private void deleteKey(long userId) {
         try {
             KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
@@ -162,13 +206,29 @@ public final class BiometricAccessStore {
         }
     }
 
+    /**
+     * Gestiona proof.
+     * Diseño lógico: (long userId) → proof() → byte[]; según doc/android_design.md.
+     */
     private static byte[] proof(long userId) {
         return (PROOF_PREFIX + userId).getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Codifica.
+     * Diseño lógico: (byte[] value) → encode() → String; según doc/android_design.md.
+     */
     private static String encode(byte[] value) { return Base64.encodeToString(value, Base64.NO_WRAP); }
+    /**
+     * Decodifica.
+     * Diseño lógico: (String value) → decode() → byte[]; según doc/android_design.md.
+     */
     private static byte[] decode(String value) { return Base64.decode(value, Base64.NO_WRAP); }
 
+    /**
+     * Gestiona require usuario.
+     * Diseño lógico: (long userId) → requireUser() → void; según doc/android_design.md.
+     */
     private static void requireUser(long userId) {
         if (userId <= 0) throw new IllegalArgumentException("La cuenta no tiene un ID válido");
     }

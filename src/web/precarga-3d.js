@@ -6,6 +6,10 @@
 (function(){
   const connection=navigator.connection;
   if(connection&&(connection.saveData||/(^|-)2g$/.test(connection.effectiveType||'')))return;
+  /**
+   * Gestiona preload.
+   * Diseño lógico: (sin parámetros) → preload() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function preload(){
     const viewer=document.createElement('link');
     viewer.rel='prefetch';viewer.as='script';viewer.crossOrigin='anonymous';
@@ -13,6 +17,10 @@
     document.head.appendChild(viewer);
     fetch('assets/aeriq_sensor_3d.glb',{credentials:'same-origin',priority:'low'}).then(r=>r.ok?r.arrayBuffer():null).catch(()=>{});
   }
+  /**
+   * Gestiona later.
+   * Diseño lógico: (sin parámetros) → later() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const later=()=>('requestIdleCallback' in window)?requestIdleCallback(preload,{timeout:4000}):setTimeout(preload,1500);
   if(document.readyState==='complete')later();else addEventListener('load',later,{once:true});
 })();

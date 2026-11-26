@@ -15,9 +15,25 @@ public final class ForegroundCaptureLocation {
     private final LocationManager manager;
     private Location last;
     private final LocationListener listener = new LocationListener() {
+        /**
+         * Atiende el evento ubicación changed.
+         * Diseño lógico: (Location location) → onLocationChanged() → void; según doc/android_design.md.
+         */
         @Override public void onLocationChanged(Location location) { if (better(location, last)) last = location; }
+        /**
+         * Atiende el evento provider enabled.
+         * Diseño lógico: (String provider) → onProviderEnabled() → void; según doc/android_design.md.
+         */
         @Override public void onProviderEnabled(String provider) {}
+        /**
+         * Atiende el evento provider disabled.
+         * Diseño lógico: (String provider) → onProviderDisabled() → void; según doc/android_design.md.
+         */
         @Override public void onProviderDisabled(String provider) {}
+        /**
+         * Atiende el evento estado changed.
+         * Diseño lógico: (String provider, int status, Bundle extras) → onStatusChanged() → void; según doc/android_design.md.
+         */
         @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
     };
 
@@ -26,14 +42,26 @@ public final class ForegroundCaptureLocation {
         manager = context.getSystemService(LocationManager.class);
     }
 
+    /**
+     * Gestiona fine.
+     * Diseño lógico: (sin parámetros) → fine() → boolean; según doc/android_design.md.
+     */
     private boolean fine() {
         return context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /**
+     * Gestiona allowed.
+     * Diseño lógico: (sin parámetros) → allowed() → boolean; según doc/android_design.md.
+     */
     public boolean allowed() {
         return fine() || context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /**
+     * Inicia.
+     * Diseño lógico: (sin parámetros) → start() → void; según doc/android_design.md.
+     */
     @SuppressLint("MissingPermission")
     public void start() {
         stop();
@@ -66,12 +94,20 @@ public final class ForegroundCaptureLocation {
         return newer >= 0 ? a <= b + 5 : a < b;
     }
 
+    /**
+     * Gestiona current.
+     * Diseño lógico: (sin parámetros) → current() → Location; según doc/android_design.md.
+     */
     public Location current() {
         if (!allowed() || last == null || !last.hasAccuracy()) return null;
         long age = System.currentTimeMillis() - last.getTime();
         return age >= 0 && age <= 60_000 ? last : null;
     }
 
+    /**
+     * Detiene.
+     * Diseño lógico: (sin parámetros) → stop() → void; según doc/android_design.md.
+     */
     public void stop() {
         if (manager != null) {
             try { manager.removeUpdates(listener); }

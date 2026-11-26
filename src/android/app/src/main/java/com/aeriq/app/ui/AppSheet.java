@@ -74,6 +74,10 @@ final class AppSheet {
 
         // La hoja ocupa como mucho el 85 % de la pantalla; si el contenido es más largo, se desplaza.
         FrameLayout holder = new FrameLayout(activity) {
+            /**
+             * Atiende el evento measure.
+             * Diseño lógico: (int widthSpec, int heightSpec) → onMeasure() → void; según doc/android_design.md.
+             */
             @Override protected void onMeasure(int widthSpec, int heightSpec) {
                 int max = Math.round(getResources().getDisplayMetrics().heightPixels * 0.85f);
                 super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST));
@@ -152,6 +156,10 @@ final class AppSheet {
         return text;
     }
 
+    /**
+     * Gestiona divider.
+     * Diseño lógico: (LinearLayout group) → divider() → void; según doc/android_design.md.
+     */
     private void divider(LinearLayout group) {
         if (group.getChildCount() == 0) return;
         View line = new View(group.getContext());
@@ -165,6 +173,10 @@ final class AppSheet {
     /** Botón blanco con borde. */
     void secondary(String label, Runnable click) { action(label, WHITE, INK, click); }
 
+    /**
+     * Gestiona action.
+     * Diseño lógico: (String label, int background, int foreground, Runnable click) → action() → void; según doc/android_design.md.
+     */
     private void action(String label, int background, int foreground, Runnable click) {
         if (actions.getChildCount() > 0) actions.addView(new View(actions.getContext()), new LinearLayout.LayoutParams(ui.dp(10), 1));
         TextView button = ui.text(label, 15, true, foreground);
@@ -183,6 +195,9 @@ final class AppSheet {
     void show() { dialog.show(); }
 
     /** Arrastrar hacia abajo la cabecera: sigue al dedo y, pasado un tercio o con un gesto rápido, se cierra. */
+    /**
+     * Diseño lógico: (View view, MotionEvent event) → drag() → boolean; según doc/android_design.md.
+     */
     private boolean drag(View view, MotionEvent event) {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:

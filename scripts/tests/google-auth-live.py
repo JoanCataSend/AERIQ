@@ -28,6 +28,8 @@ class Response:
     body: str
 
 
+# Gestiona petición.
+# Diseño lógico: (url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) → request() → Response; según scripts/README.md.
 def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) -> Response:
     payload = None
     headers = {"Accept": "application/json", "User-Agent": "AERIQ-Google-Test/1.0"}
@@ -45,6 +47,8 @@ def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict
         return Response(error.code, error.headers.get("content-type", ""), error.read().decode("utf-8", "replace"))
 
 
+# Coordina la ejecución principal del componente o script.
+# Diseño lógico: (sin parámetros) → main() → int; según scripts/README.md.
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default="https://jcatsen.upv.edu.es/AERIQ/")
@@ -56,6 +60,8 @@ def main() -> int:
     passed = 0
     failed = 0
 
+    # Registra un fallo si la condición de auditoría no se cumple.
+    # Diseño lógico: (condition: bool, label: str, detail: str = "") → check() → None; según scripts/README.md.
     def check(condition: bool, label: str, detail: str = "") -> None:
         nonlocal passed, failed
         if condition:

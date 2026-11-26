@@ -7,6 +7,9 @@ require_once __DIR__.'/../business_logic/DomainError.php';
  * Adaptador de correo. Resuelve la configuración y encapsula SMTP, PHPMailer y mail()
  * para que los servicios solo dependan de la operación de envío.
  */
+/**
+ * Diseño lógico: ($socket,array $expected) → auth_smtp_read() → string; según doc/web_communication_design.md.
+ */
 function auth_smtp_read($socket,array $expected): string {
     $response='';$code=null;
     do {
@@ -19,6 +22,10 @@ function auth_smtp_read($socket,array $expected): string {
     return $response;
 }
 
+/**
+ * Gestiona SMTP write.
+ * Diseño lógico: ($socket,string $data) → auth_smtp_write() → void; según doc/web_communication_design.md.
+ */
 function auth_smtp_write($socket,string $data): void {
     $offset=0;$length=strlen($data);
     while ($offset<$length) {
@@ -28,11 +35,19 @@ function auth_smtp_write($socket,string $data): void {
     }
 }
 
+/**
+ * Gestiona SMTP command.
+ * Diseño lógico: ($socket,string $command,array $expected) → auth_smtp_command() → string; según doc/web_communication_design.md.
+ */
 function auth_smtp_command($socket,string $command,array $expected): string {
     auth_smtp_write($socket,$command."\r\n");
     return auth_smtp_read($socket,$expected);
 }
 
+/**
+ * Gestiona SMTP send.
+ * Diseño lógico: (array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null,?string $html=null) → auth_smtp_send() → void; según doc/web_communication_design.md.
+ */
 function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null,?string $html=null): void {
     $host=(string)$smtp['host'];$port=(int)$smtp['port'];$encryption=(string)($smtp['encryption']??'tls');
     $endpoint=($encryption==='ssl'?'ssl://':'').$host.':'.$port;
@@ -72,6 +87,9 @@ function auth_smtp_send(array $smtp,string $recipient,string $subject,string $bo
 }
 
 /** Selecciona SMTP configurado o el transporte mail() disponible en el alojamiento. */
+/**
+ * Diseño lógico: (sin parámetros) → auth_mail_config_ok() → array; según doc/web_communication_design.md.
+ */
 function auth_mail_config_ok(): array {
     $server=dirname(__DIR__).'/server';
     $smtpFile=$server.'/SMTPConfig.php';
@@ -106,11 +124,17 @@ function auth_mail_config_ok(): array {
 }
 
 /** Puerto de prevalidación para confirmar que hay un transporte de correo disponible. */
+/**
+ * Diseño lógico: (sin parámetros) → aeriq_mailer_ready() → void; según doc/web_communication_design.md.
+ */
 function aeriq_mailer_ready(): void {
     auth_mail_config_ok();
 }
 
 /** Envía texto plano y, si existe, su alternativa HTML usando el transporte configurado. */
+/**
+ * Diseño lógico: (string $recipient,string $subject,string $text,?string $replyTo=null,?string $html=null) → aeriq_mail() → void; según doc/web_communication_design.md.
+ */
 function aeriq_mail(string $recipient,string $subject,string $text,?string $replyTo=null,?string $html=null): void {
     $cfg=auth_mail_config_ok();
     if ($replyTo!==null && !filter_var($replyTo,FILTER_VALIDATE_EMAIL)) $replyTo=null;
@@ -143,6 +167,9 @@ function aeriq_mail(string $recipient,string $subject,string $text,?string $repl
 }
 
 /** Construye el cuerpo MIME de texto o la alternativa multiparte texto/HTML. */
+/**
+ * Diseño lógico: (string $text,?string $html) → aeriq_mail_body() → array; según doc/web_communication_design.md.
+ */
 function aeriq_mail_body(string $text,?string $html): array {
     $text=str_replace(["\r\n","\r"],"\n",$text);
     if ($html===null) return ['text/plain; charset=UTF-8',str_replace("\n","\r\n",$text)];

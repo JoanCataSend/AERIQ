@@ -17,6 +17,9 @@ public final class PasswordRules {
     private PasswordRules() {}
 
     /** Lo que le falta a la contraseña, en el orden de {@link #ALL}; vacío si cumple todo. */
+    /**
+     * Diseño lógico: (String password) → missing() → List<String>; según doc/android_design.md.
+     */
     public static List<String> missing(String password) {
         String value = password == null ? "" : password;
         boolean upper = false, lower = false, digit = false, symbol = false;
@@ -39,6 +42,9 @@ public final class PasswordRules {
     }
 
     /** Frase para avisar de lo que falta: «Le falta: una mayúscula y un símbolo…». Vacía si cumple. */
+    /**
+     * Diseño lógico: (String password) → problem() → String; según doc/android_design.md.
+     */
     public static String problem(String password) {
         List<String> missing = missing(password);
         if (missing.isEmpty()) return "";

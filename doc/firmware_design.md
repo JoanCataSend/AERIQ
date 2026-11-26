@@ -15,6 +15,6 @@ El firmware en `src/firmware/NodoO3/` lee ozono y temperatura, valida las lectur
 - **Programming Language:** C++ Arduino para el firmware nRF52840, con placa/procesador especificados en `src/firmware/README.md`.
 - Evitar `delay()`; mantener tareas no bloqueantes y compatibilidad BLE con la app Android.
 - Validar unidades, rangos, rollover de contadores y comportamiento ante sensor desconectado.
-- **Function/Method Headers:** documentar el diseño lógico de nuevas funciones/métodos en un bloque entre líneas `--------------------`.
+- **Function/Method Headers:** cada función o método debe tener antes un comentario con su propósito y diseño lógico `entradas → función → salida`; conservar el bloque entre líneas `--------------------` para contratos formales.
 - **Code Readability:** separar adquisición, validación y publicación BLE con nombres explícitos.
 - **Automated Testing:** generar pruebas lógicas para parser/paquetes, rangos, secuencias y transiciones; completar con pruebas físicas documentadas.

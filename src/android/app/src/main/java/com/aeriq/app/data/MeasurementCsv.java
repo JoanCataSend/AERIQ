@@ -5,6 +5,10 @@ import java.util.List;
 public final class MeasurementCsv {
     private MeasurementCsv() {}
 
+    /**
+     * Formatea.
+     * Diseño lógico: (List<StoredReading> rows) → format() → String; según doc/android_design.md.
+     */
     public static String format(List<StoredReading> rows) {
         StringBuilder csv = new StringBuilder("\uFEFFfecha_utc;valor;unidad;dispositivo;campana;zona;latitud;longitud;simulado\r\n");
         for (StoredReading row : rows) {

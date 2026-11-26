@@ -13,11 +13,23 @@ class Medidor {
   bool activo = false, descartar = true, saturado = false, ultimoSaturado = false;
   Calibracion calibracion;
  public:
+  /**
+   * Gestiona voltaje.
+   * Diseño lógico: (uint8_t canalAdc) → voltaje() → resultado de la operación; según doc/firmware_design.md.
+   */
   float voltaje(uint8_t canalAdc) const {
     return canalAdc < 3 ? ultimoCiclo[canalAdc] : 0.f;
   }
+  /**
+   * Gestiona saturado ultimo ciclo.
+   * Diseño lógico: (sin parámetros) → saturadoUltimoCiclo() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool saturadoUltimoCiclo() const { return ultimoSaturado; }
   Calibracion &calibrado() { return calibracion; }
+  /**
+   * Gestiona begin.
+   * Diseño lógico: (sin parámetros) → begin() → resultado de la operación; según doc/firmware_design.md.
+   */
   void begin() {
     for (uint8_t pin : pines) pinMode(pin, INPUT);
     analogReference(AR_DEFAULT); // 0.6 V interna x ganancia inversa 6 = 3.6 V
@@ -26,10 +38,18 @@ class Medidor {
     analogOversampling(16);
     analogCalibrateOffset();
   }
+  /**
+   * Inicia.
+   * Diseño lógico: (sin parámetros) → iniciar() → resultado de la operación; según doc/firmware_design.md.
+   */
   void iniciar() {
     canal = muestras = 0; suma = 0;
     activo = descartar = true; saturado = false;
   }
+  /**
+   * Gestiona actualizar.
+   * Diseño lógico: (Medida &resultado) → actualizar() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool actualizar(Medida &resultado) {
     if (!activo) return false;
     if (descartar) {

@@ -11,6 +11,10 @@ class Leds {
   uint32_t inicio = 0;
   Color encendido = Color::NINGUNO;
 
+  /**
+   * Gestiona mostrar.
+   * Diseño lógico: (Color color) → mostrar() → resultado de la operación; según doc/firmware_design.md.
+   */
   void mostrar(Color color) {
     if (color == encendido) return;
     digitalWrite(PIN_ROJO, color == Color::ROJO ? HIGH : LOW);
@@ -20,6 +24,10 @@ class Leds {
   }
 
  public:
+  /**
+   * Gestiona begin.
+   * Diseño lógico: (uint32_t ahora) → begin() → resultado de la operación; según doc/firmware_design.md.
+   */
   void begin(uint32_t ahora) {
     const uint8_t pines[3] = {PIN_ROJO, PIN_VERDE, PIN_AZUL};
     for (uint8_t pin : pines) {
@@ -29,6 +37,9 @@ class Leds {
     inicio = ahora;
   }
   // Destello de 80 ms cada 5 s con el color del nivel; apagado si no se conoce.
+  /**
+   * Diseño lógico: (uint32_t ahora, int16_t porcentaje) → actualizar() → resultado de la operación; según doc/firmware_design.md.
+   */
   void actualizar(uint32_t ahora, int16_t porcentaje) {
     mostrar(destelloEncendido(ahora, inicio) ? colorBateria(porcentaje) : Color::NINGUNO);
   }

@@ -103,11 +103,19 @@ public final class SpotlightTour extends FrameLayout {
 
     private final android.view.ViewTreeObserver.OnGlobalLayoutListener follow = this::follow;
 
+    /**
+     * Atiende el evento attached to window.
+     * Diseño lógico: (sin parámetros) → onAttachedToWindow() → void; según doc/android_design.md.
+     */
     @Override protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         getViewTreeObserver().addOnGlobalLayoutListener(follow);
     }
 
+    /**
+     * Atiende el evento detached from window.
+     * Diseño lógico: (sin parámetros) → onDetachedFromWindow() → void; según doc/android_design.md.
+     */
     @Override protected void onDetachedFromWindow() {
         getViewTreeObserver().removeOnGlobalLayoutListener(follow);
         if (move != null) move.cancel();
@@ -115,6 +123,9 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /** Si el elemento iluminado se ha movido (la pantalla aún se estaba colocando), el foco y la tarjeta lo siguen. */
+    /**
+     * Diseño lógico: (sin parámetros) → follow() → void; según doc/android_design.md.
+     */
     private void follow() {
         if (index < 0 || closing || (move != null && move.isRunning())) return;
         View view = target(steps.get(index));
@@ -128,6 +139,9 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /** Empieza por el primer paso cuyo elemento esté en pantalla. */
+    /**
+     * Diseño lógico: (sin parámetros) → start() → void; según doc/android_design.md.
+     */
     public void start() {
         setAlpha(0f);
         animate().alpha(1f).setDuration(200).start();
@@ -135,27 +149,49 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /** Botón atrás del móvil: paso anterior; en el primero no hace nada (para salir está «Saltar tutorial»). */
+    /**
+     * Diseño lógico: (sin parámetros) → back() → void; según doc/android_design.md.
+     */
     public void back() { previous(); }
 
+    /**
+     * Gestiona next.
+     * Diseño lógico: (sin parámetros) → next() → void; según doc/android_design.md.
+     */
     private void next() {
         if (nextAvailable(index + 1, 1) < 0) close(); else show(index + 1, 1);
     }
 
+    /**
+     * Gestiona previous.
+     * Diseño lógico: (sin parámetros) → previous() → void; según doc/android_design.md.
+     */
     private void previous() {
         if (nextAvailable(index - 1, -1) >= 0) show(index - 1, -1);
     }
 
     /** Índice del siguiente paso con elemento visible en esa dirección, o -1. */
+    /**
+     * Diseño lógico: (int from, int direction) → nextAvailable() → int; según doc/android_design.md.
+     */
     private int nextAvailable(int from, int direction) {
         for (int i = from; i >= 0 && i < steps.size(); i += direction) if (target(steps.get(i)) != null) return i;
         return -1;
     }
 
+    /**
+     * Gestiona target.
+     * Diseño lógico: (Step step) → target() → View; según doc/android_design.md.
+     */
     private View target(Step step) {
         View view = finder.apply(step.tag);
         return view != null && view.isShown() && view.getWidth() > 0 ? view : null;
     }
 
+    /**
+     * Muestra.
+     * Diseño lógico: (int wanted, int direction) → show() → void; según doc/android_design.md.
+     */
     private void show(int wanted, int direction) {
         int found = nextAvailable(wanted, direction);
         if (found < 0) {
@@ -211,6 +247,9 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /** Rectángulo del elemento en coordenadas de esta capa, con un margen alrededor. */
+    /**
+     * Diseño lógico: (View view, RectF out) → locate() → void; según doc/android_design.md.
+     */
     private void locate(View view, RectF out) {
         if (view == null) return;
         int[] mine = new int[2], theirs = new int[2];
@@ -221,28 +260,47 @@ public final class SpotlightTour extends FrameLayout {
             theirs[0] - mine[0] + view.getWidth() + pad, theirs[1] - mine[1] + view.getHeight() + pad);
     }
 
+    /**
+     * Gestiona inset top.
+     * Diseño lógico: (sin parámetros) → insetTop() → int; según doc/android_design.md.
+     */
     private int insetTop() {
         WindowInsets insets = getRootWindowInsets();
         return insets == null ? 0 : insets.getSystemWindowInsetTop();
     }
 
+    /**
+     * Gestiona inset bottom.
+     * Diseño lógico: (sin parámetros) → insetBottom() → int; según doc/android_design.md.
+     */
     private int insetBottom() {
         WindowInsets insets = getRootWindowInsets();
         return insets == null ? 0 : insets.getSystemWindowInsetBottom();
     }
 
+    /**
+     * Atiende el evento measure.
+     * Diseño lógico: (int widthSpec, int heightSpec) → onMeasure() → void; según doc/android_design.md.
+     */
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
         int width = MeasureSpec.getSize(widthSpec);
         card.getLayoutParams().width = Math.min(width - ui.dp(32), ui.dp(360));
         super.onMeasure(widthSpec, heightSpec);
     }
 
+    /**
+     * Atiende el evento layout.
+     * Diseño lógico: (boolean changed, int left, int top, int right, int bottom) → onLayout() → void; según doc/android_design.md.
+     */
     @Override protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
         placeCard();
     }
 
     /** Debajo del elemento si cabe; si no, encima; y si tampoco, centrada. Siempre dentro de la pantalla. */
+    /**
+     * Diseño lógico: (sin parámetros) → placeCard() → void; según doc/android_design.md.
+     */
     private void placeCard() {
         if (to.isEmpty() || card.getHeight() == 0) return;
         float gap = ui.dp(16), margin = ui.dp(16), w = getWidth(), h = getHeight(), cw = card.getWidth(), ch = card.getHeight();
@@ -256,6 +314,10 @@ public final class SpotlightTour extends FrameLayout {
         invalidate();
     }
 
+    /**
+     * Atiende el evento draw.
+     * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+     */
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         float radius = ui.dp(14);
@@ -283,15 +345,27 @@ public final class SpotlightTour extends FrameLayout {
         }
     }
 
+    /**
+     * Gestiona dispatch draw.
+     * Diseño lógico: (Canvas canvas) → dispatchDraw() → void; según doc/android_design.md.
+     */
     @Override protected void dispatchDraw(Canvas canvas) {
         super.dispatchDraw(canvas);
         invalidateIfCardFading();
     }
 
+    /**
+     * Gestiona invalidate if card fading.
+     * Diseño lógico: (sin parámetros) → invalidateIfCardFading() → void; según doc/android_design.md.
+     */
     private void invalidateIfCardFading() {
         if (card.getAlpha() > 0 && card.getAlpha() < 1) postInvalidateOnAnimation();
     }
 
+    /**
+     * Cierra.
+     * Diseño lógico: (sin parámetros) → close() → void; según doc/android_design.md.
+     */
     private void close() {
         if (closing) return;
         closing = true;

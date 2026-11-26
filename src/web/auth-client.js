@@ -1,7 +1,15 @@
 /* AERIQ · cliente de sesión. Las contraseñas y códigos nunca se almacenan en localStorage. */
 'use strict';
+/**
+ * Crea el adaptador de autenticación del navegador para sesión, perfil, formularios y peticiones a auth.php.
+ * Diseño lógico: (sin parámetros) → AeriqAuth() → cliente de autenticación; según doc/frontend_business_logic_design.md.
+ */
 const AeriqAuth = (() => {
   let sessionPromise = null;
+  /**
+   * Gestiona sesión.
+   * Diseño lógico: (force=false) → session() → Promise; según doc/frontend_business_logic_design.md.
+   */
   async function session(force=false){
     if (!sessionPromise || force) {
       sessionPromise = fetch('auth.php?action=session',{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}})
@@ -10,6 +18,10 @@ const AeriqAuth = (() => {
     }
     return sessionPromise;
   }
+  /**
+   * Envía.
+   * Diseño lógico: (action, payload={}) → post() → Promise; según doc/frontend_business_logic_design.md.
+   */
   async function post(action, payload={}) {
     let state=await session();
     const response=await fetch('auth.php?action='+encodeURIComponent(action),{
@@ -26,6 +38,9 @@ const AeriqAuth = (() => {
     return data;
   }
   /** Página de inicio de cada cuenta: el panel si tiene permisos de gestión; si no, Mi cuenta. */
+  /**
+   * Diseño lógico: (user) → home() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function home(user){
     if(!user)return 'login.html';
     if(user.mustChangePassword)return 'cambiar-clave.html';
@@ -39,11 +54,22 @@ const AeriqAuth = (() => {
    * Con sesión, el CSS oculta el header hasta pintarlo ya privado; después se confirma con el servidor.
    */
   const KEY='aeriq-user';
+  /**
+   * Gestiona cached.
+   * Diseño lógico: (sin parámetros) → cached() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const cached=()=>{try{return JSON.parse(sessionStorage.getItem(KEY)||'null');}catch{return null;}};
+  /**
+   * Gestiona remember.
+   * Diseño lógico: (KEY,JSON.stringify(user)) → remember() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const remember=user=>{try{user?sessionStorage.setItem(KEY,JSON.stringify(user)):sessionStorage.removeItem(KEY);}catch{}};
   document.documentElement.dataset.session=cached()?'user':'guest';
   let publicNav=null;
   /** Pinta el header: sin sesión, menú público e «Iniciar sesión»; con sesión, Inicio · Mapa · Mi panel · Mi cuenta y menú con tu nombre. */
+  /**
+   * Diseño lógico: (user) → render() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function render(user){
     const header=document.querySelector('.site-header'),link=document.querySelector('#account-link'),nav=document.querySelector('.main-nav');
     if(!header)return;
@@ -54,6 +80,10 @@ const AeriqAuth = (() => {
     for(const b of header.querySelectorAll('.header-actions .btn'))b.hidden=priv;
     if(link){link.hidden=priv;link.href=user?.mustChangePassword?'cambiar-clave.html':'login.html';link.textContent=user?.mustChangePassword?'Elegir contraseña':'Iniciar sesión';}
     if(priv){
+      /**
+       * Gestiona el.
+       * Diseño lógico: (tag,cls,text) → el() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       */
       const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
       const panel=home(user)==='portal.html',page=location.pathname.split('/').pop()||'index.html';
       // El admin de campaña administra una sola campaña: su acceso se llama «Mi campaña».
@@ -67,6 +97,10 @@ const AeriqAuth = (() => {
       summary.setAttribute('aria-label','Menú de la cuenta');
       const initials=((user.name||'')[0]||'')+((user.last||'')[0]||'');
       const who=el('div','account-menu-who');who.append(el('span','account-avatar',initials),el('strong','',[user.name,user.last].filter(Boolean).join(' ')),el('span','account-role',user.roleName||''));
+      /**
+       * Gestiona go.
+       * Diseño lógico: (text,href) → go() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       */
       const go=(text,href)=>{const a=el('a','',text);a.href=href;if(page===href.split('#')[0])a.setAttribute('aria-current','page');return a;};
       const out=el('button','danger','Cerrar sesión');out.type='button';
       out.onclick=async()=>{out.disabled=true;try{await post('logout');location.href='index.html';}catch(e){out.disabled=false;out.textContent=e.message;}};
@@ -74,6 +108,10 @@ const AeriqAuth = (() => {
     }
     document.documentElement.dataset.session=priv?'user':'guest';header.dataset.ready='';
   }
+  /**
+   * Gestiona header.
+   * Diseño lógico: (sin parámetros) → header() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function header(){
     const start=cached();render(start);
     session().then(({user})=>{remember(user);if(JSON.stringify(user)!==JSON.stringify(start))render(user);}).catch(()=>{});
@@ -84,16 +122,34 @@ const AeriqAuth = (() => {
    * Requisitos de la contraseña nueva (T33). Son los mismos que comprueba el servidor (auth_password_missing):
    * aquí solo sirven para avisar mientras se escribe; el servidor vuelve a comprobarlos siempre.
    */
+  /**
+   * Diseño lógico: (p) → RULES() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const RULES=[['al menos 8 caracteres',p=>[...p].length>=8],['una mayúscula',p=>/\p{Lu}/u.test(p)],['una minúscula',p=>/\p{Ll}/u.test(p)],
     ['un número',p=>/\p{Nd}/u.test(p)],['un símbolo (por ejemplo ! ? # @ . -)',p=>/[^\p{L}\p{Nd}\s]/u.test(p)]];
+  /**
+   * Gestiona contraseña missing.
+   * Diseño lógico: (([,ok])=>!ok(String(p||''))) → passwordMissing() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const passwordMissing=p=>RULES.filter(([,ok])=>!ok(String(p||''))).map(([text])=>text);
   /** Lista de requisitos debajo del campo, marcada en vivo. El formulario no se envía mientras falte alguno. */
+  /**
+   * Diseño lógico: (input) → passwordRules() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function passwordRules(input){
     if(!input||input.dataset.rulesReady)return;input.dataset.rulesReady='1';
     const list=document.createElement('ul');list.className='password-rules';list.id=(input.id||input.name)+'-rules';
     const title=document.createElement('li');title.className='password-rules-title';title.textContent='Tu contraseña necesita:';list.append(title);
+    /**
+     * Gestiona items.
+     * Diseño lógico: (([text])=>{const li=document.createElement('li');li.textContent=text;list.append(li);return li;}) → items() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const items=RULES.map(([text])=>{const li=document.createElement('li');li.textContent=text;list.append(li);return li;});
     input.setAttribute('aria-describedby',list.id);(input.closest('label')||input).after(list);
+    /**
+     * Actualiza.
+     * Diseño lógico: (sin parámetros) → update() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const update=()=>{
       const p=input.value,missing=passwordMissing(p);
       RULES.forEach(([text],i)=>items[i].classList.toggle('is-ok',!missing.includes(text)));
@@ -101,6 +157,10 @@ const AeriqAuth = (() => {
     };
     input.addEventListener('input',update);update();
   }
+  /**
+   * Gestiona attach reglas.
+   * Diseño lógico: (sin parámetros) → attachRules() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const attachRules=()=>document.querySelectorAll('input[data-password-rules]').forEach(passwordRules);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{header();attachRules();});else{header();attachRules();}
   return {session,post,home,passwordMissing,passwordRules};
@@ -110,6 +170,9 @@ window.AeriqAuth = AeriqAuth;
 /*
  * Tono de los mensajes: 'error' (rojo, algo ha fallado), 'warn' (naranja, aviso o algo pendiente),
  * 'ok' (verde, guardado o hecho) e 'info' (neutro). Se indica siempre al mostrar el mensaje, no se adivina.
+ */
+/**
+ * Diseño lógico: (node,msg,tone='info') → aeriqStatus() → resultado de la operación; según doc/frontend_business_logic_design.md.
  */
 function aeriqStatus(node,msg,tone='info'){
   if(!node)return;node.textContent=msg||'';

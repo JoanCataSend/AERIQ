@@ -18,6 +18,9 @@ declare(strict_types=1);
  * Descripción: crea una única conexión MariaDB usando la configuración local.
  * --------------------
  */
+/**
+ * Diseño lógico: (sin parámetros) → conexionBD() → mysqli; según doc/aeriq_business_logic_design.md.
+ */
 function conexionBD(): mysqli
 {
     static $conexion = null;

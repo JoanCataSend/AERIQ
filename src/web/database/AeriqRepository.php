@@ -6,27 +6,54 @@ require_once __DIR__.'/SqlGateway.php';
 /** Repositorio SQL de AERIQ: único punto de ejecución para consultas del servicio de aplicación. */
 final class AeriqRepository {
     /** Ejecuta una escritura parametrizada del catálogo o del caso de uso. */
+    /**
+     * Diseño lógico: (string $query,array $params=[]) → execute() → mysqli_stmt; según doc/database_design.md.
+     */
     public static function execute(string $query,array $params=[]): mysqli_stmt { return aeriq_sql($query,$params); }
     /** Ejecuta una lectura parametrizada y devuelve todas sus filas. */
+    /**
+     * Diseño lógico: (string $query,array $params=[]) → rows() → array; según doc/database_design.md.
+     */
     public static function rows(string $query,array $params=[]): array { return aeriq_rows($query,$params); }
     /** Ejecuta una lectura parametrizada y devuelve la primera fila disponible. */
+    /**
+     * Diseño lógico: (string $query,array $params=[]) → one() → ?array; según doc/database_design.md.
+     */
     public static function one(string $query,array $params=[]): ?array { return aeriq_one($query,$params); }
     /** Identificador generado en la conexión por la última escritura. */
+    /**
+     * Diseño lógico: (sin parámetros) → lastInsertId() → int; según doc/database_design.md.
+     */
     public static function lastInsertId(): int { return aeriq_last_insert_id(); }
     /** Inicia la transacción de un caso de uso atómico. */
+    /**
+     * Diseño lógico: (sin parámetros) → begin() → void; según doc/database_design.md.
+     */
     public static function begin(): void { aeriq_transaction_begin(); }
     /** Confirma la transacción de un caso de uso atómico. */
+    /**
+     * Diseño lógico: (sin parámetros) → commit() → void; según doc/database_design.md.
+     */
     public static function commit(): void { aeriq_transaction_commit(); }
     /** Revierte la transacción de un caso de uso atómico. */
+    /**
+     * Diseño lógico: (sin parámetros) → rollback() → void; según doc/database_design.md.
+     */
     public static function rollback(): void { aeriq_transaction_rollback(); }
 
     /** Lee una campaña o dispositivo de una organización; el nombre de tabla es una lista cerrada. */
+    /**
+     * Diseño lógico: (string $table,int $id,int $organizationId) → ownedResource() → ?array; según doc/database_design.md.
+     */
     public static function ownedResource(string $table,int $id,int $organizationId): ?array {
         if (!in_array($table,['dispositivos','campanas'],true)) throw new LogicException('Tabla no permitida');
         return self::one(sprintf(AeriqQueryCatalog::OWNED_RESOURCE,$table),[$id,$organizationId]);
     }
 
     /** Recupera el historial de estados de las solicitudes dadas. */
+    /**
+     * Diseño lógico: (array $ids) → requestHistory() → array; según doc/database_design.md.
+     */
     public static function requestHistory(array $ids): array {
         if (!$ids) return [];
         $query=sprintf(AeriqQueryCatalog::REQUEST_HISTORY,implode(',',array_fill(0,count($ids),'?')));
@@ -34,6 +61,9 @@ final class AeriqRepository {
     }
 
     /** Recupera los objetivos asociados a las solicitudes dadas. */
+    /**
+     * Diseño lógico: (array $ids) → requestObjectives() → array; según doc/database_design.md.
+     */
     public static function requestObjectives(array $ids): array {
         if (!$ids) return [];
         $query=sprintf(AeriqQueryCatalog::REQUEST_OBJECTIVES,implode(',',array_fill(0,count($ids),'?')));
@@ -41,6 +71,9 @@ final class AeriqRepository {
     }
 
     /** Consultas complementarias del espacio de campaña del operador. */
+    /**
+     * Diseño lógico: (int $campaignId,int $organizationId,int $workerId) → myCampaign() → array; según doc/database_design.md.
+     */
     public static function myCampaign(int $campaignId,int $organizationId,int $workerId): array {
         return [
             'campaign'=>self::one(AeriqQueryCatalog::Q_AERIQ_MY_CAMPAIGN_1.AeriqQueryCatalog::UMBRALES_O3.AeriqQueryCatalog::Q_AERIQ_MY_CAMPAIGN_2.AeriqQueryCatalog::ESTADO_CAMPANA.AeriqQueryCatalog::Q_AERIQ_MY_CAMPAIGN_3.AeriqQueryCatalog::JOIN_UMBRALES_O3.AeriqQueryCatalog::Q_AERIQ_MY_CAMPAIGN_4,[$campaignId,$organizationId]),
@@ -51,16 +84,25 @@ final class AeriqRepository {
     }
 
     /** Lista asignaciones activas del usuario autenticado. */
+    /**
+     * Diseño lógico: (int $organizationId,int $workerId) → assignments() → array; según doc/database_design.md.
+     */
     public static function assignments(int $organizationId,int $workerId): array {
         return self::rows(AeriqQueryCatalog::Q_AERIQ_ASSIGNMENTS_1.AeriqQueryCatalog::UMBRALES_O3.AeriqQueryCatalog::Q_AERIQ_ASSIGNMENTS_2.AeriqQueryCatalog::BATERIA.AeriqQueryCatalog::Q_AERIQ_ASSIGNMENTS_3.AeriqQueryCatalog::JOIN_UMBRALES_O3.AeriqQueryCatalog::Q_AERIQ_ASSIGNMENTS_4,[$organizationId,$workerId]);
     }
 
     /** Historial de mediciones autorizadas del usuario autenticado. */
+    /**
+     * Diseño lógico: (int $organizationId,int $workerId) → workerHistory() → array; según doc/database_design.md.
+     */
     public static function workerHistory(int $organizationId,int $workerId): array {
         return self::rows(AeriqQueryCatalog::Q_AERIQ_WORKER_HISTORY_1.AeriqQueryCatalog::UMBRALES_LECTURA.AeriqQueryCatalog::Q_AERIQ_WORKER_HISTORY_2,[$organizationId,$workerId]);
     }
 
     /** Lecturas del panel con el ámbito de campaña aplicado en la consulta de persistencia. */
+    /**
+     * Diseño lógico: (int $organizationId,?int $campaignScope) → dashboard() → array; según doc/database_design.md.
+     */
     public static function dashboard(int $organizationId,?int $campaignScope): array {
         $only=static fn(string $column)=>$campaignScope? ' AND '.$column.'='.$campaignScope:'';
         $ref=self::one(AeriqQueryCatalog::Q_AERIQ_DASHBOARD_1);
@@ -75,6 +117,9 @@ final class AeriqRepository {
     }
 
     /** Ejecuta la consulta de lecturas válidas o descartadas con filtros ya validados. */
+    /**
+     * Diseño lógico: (array $where,array $params,bool $discarded=false) → reportRows() → array; según doc/database_design.md.
+     */
     public static function reportRows(array $where,array $params,bool $discarded=false): array {
         array_unshift($where,$discarded?AeriqQueryCatalog::REPORT_INVALID_FILTER:AeriqQueryCatalog::REPORT_VALID_FILTER);
         if ($discarded) {
@@ -84,6 +129,9 @@ final class AeriqRepository {
     }
 
     /** Consulta el mapa aplicando filtros de publicación, organización, campaña, usuario y periodo. */
+    /**
+     * Diseño lógico: (string $mode,int $hours,array $authorization,bool $private,int $limit) → mapMeasurements() → array; según doc/database_design.md.
+     */
     public static function mapMeasurements(string $mode,int $hours,array $authorization,bool $private,int $limit): array {
         $where=[AeriqQueryCatalog::MAP_VALID_FILTER,AeriqQueryCatalog::MAP_OZONE_FILTER,AeriqQueryCatalog::MAP_LATITUDE_FILTER,AeriqQueryCatalog::MAP_LONGITUDE_FILTER,AeriqQueryCatalog::MAP_SOURCE_FILTER];
         $params=[$mode==='simulated'?1:0];
@@ -100,6 +148,9 @@ final class AeriqRepository {
     }
 
     /** Construye predicados de lectura desde filtros de dominio ya validados. */
+    /**
+     * Diseño lógico: (array $criteria) → readingFilters() → array; según doc/database_design.md.
+     */
     public static function readingFilters(array $criteria): array {
         $where=[AeriqQueryCatalog::REPORT_ORG_FILTER,AeriqQueryCatalog::REPORT_MAGNITUDE_FILTER];
         $params=[(int)$criteria['organizationId']];
@@ -123,6 +174,9 @@ final class AeriqRepository {
     }
 
     /** Busca objetivos activos por los códigos seleccionados en el formulario comercial. */
+    /**
+     * Diseño lógico: (array $codes) → objectivesByCode() → array; según doc/database_design.md.
+     */
     public static function objectivesByCode(array $codes): array {
         if (!$codes) return [];
         $query=AeriqQueryCatalog::Q_AERIQ_REQUEST_3.implode(AeriqQueryCatalog::Q_AERIQ_REQUEST_4,array_fill(0,count($codes),AeriqQueryCatalog::Q_AERIQ_REQUEST_5)).AeriqQueryCatalog::Q_AERIQ_REQUEST_6;
@@ -130,12 +184,18 @@ final class AeriqRepository {
     }
 
     /** Comprueba que el dispositivo pertenece a la organización y campaña permitidas. */
+    /**
+     * Diseño lógico: (int $deviceId,int $organizationId,?int $campaignId) → deviceBelongsToCampaign() → bool; según doc/database_design.md.
+     */
     public static function deviceBelongsToCampaign(int $deviceId,int $organizationId,?int $campaignId): bool {
         $query=AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_1.AeriqQueryCatalog::CAMPANA_ORB.AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_2;
         return self::one($query,[$deviceId,$organizationId,$campaignId])!==null;
     }
 
     /** Comprueba que el trabajador es asignable a la campaña y tiene permiso de medición. */
+    /**
+     * Diseño lógico: (int $workerId,int $organizationId,int $campaignId) → workerEligibleForCampaign() → bool; según doc/database_design.md.
+     */
     public static function workerEligibleForCampaign(int $workerId,int $organizationId,int $campaignId): bool {
         $query=AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_3.AeriqQueryCatalog::PUEDE_MEDIR.AeriqQueryCatalog::Q_AERIQ_DEVICE_SAVE_4;
         return self::one($query,[$workerId,$organizationId,$campaignId])!==null;

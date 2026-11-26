@@ -10,6 +10,10 @@ public final class IBeaconParser {
     public static final int BATTERY_ID = 16;
     public static final String STATUS_UUID = "e3b44c20-3f02-4d76-9cb2-bdcb3105a001";
 
+    /**
+     * Interpreta diagnostic.
+     * Diseño lógico: (byte[] data, int counter) → parseDiagnostic() → int; según doc/android_design.md.
+     */
     public static int parseDiagnostic(byte[] data, int counter) {
         if (data == null || data.length != 12 || data[0] != 1 || (data[1] & 255) != counter) return -1;
         return (data[10] & 255) << 8 | (data[11] & 255);
@@ -17,26 +21,43 @@ public final class IBeaconParser {
 
     private IBeaconParser() {}
 
+    /**
+     * Interpreta.
+     * Diseño lógico: (byte[] data) → parse() → BeaconReading; según doc/android_design.md.
+     */
     public static BeaconReading parse(byte[] data) {
         return parseType(data, false);
     }
 
     /** Estado del firmware: sirve para descubrir/diagnosticar, nunca para publicar medidas. */
+    /**
+     * Diseño lógico: (byte[] data) → parseStatus() → BeaconReading; según doc/android_design.md.
+     */
     public static BeaconReading parseStatus(byte[] data) {
         return parseType(data, true);
     }
 
     /** Nivel de batería del Orb; null si no es ese anuncio o el valor está fuera de 0..100. */
+    /**
+     * Diseño lógico: (byte[] data) → parseBattery() → BeaconReading; según doc/android_design.md.
+     */
     public static BeaconReading parseBattery(byte[] data) {
         BeaconReading reading = parseType(data, BATTERY_ID);
         return reading != null && reading.value <= 100 ? reading : null;
     }
 
+    /**
+     * Interpreta type.
+     * Diseño lógico: (byte[] data, boolean statusOnly) → parseType() → BeaconReading; según doc/android_design.md.
+     */
     private static BeaconReading parseType(byte[] data, boolean statusOnly) {
         return statusOnly ? parseType(data, STATUS_ID) : parseType(data, -1);
     }
 
     /** wanted = -1 acepta las medidas (O3 y temperatura); otro valor, solo ese tipo. */
+    /**
+     * Diseño lógico: (byte[] data, int wanted) → parseType() → BeaconReading; según doc/android_design.md.
+     */
     private static BeaconReading parseType(byte[] data, int wanted) {
         if (data == null || data.length < 23 || data[0] != 2 || data[1] != 21) return null;
         String uuid = new String(data, 2, 16, StandardCharsets.ISO_8859_1);

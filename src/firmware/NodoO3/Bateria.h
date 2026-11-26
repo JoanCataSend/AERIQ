@@ -17,6 +17,9 @@ class Bateria {
   uint16_t milivoltiosActual = 0;
 
   // Una lectura I2C de 2 bytes: llamada sincronica acotada (< 1 ms a 100 kHz).
+  /**
+   * Diseño lógico: (uint8_t registro, uint16_t &valor) → leer() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool leer(uint8_t registro, uint16_t &valor) {
     Wire.beginTransmission(DIRECCION);
     Wire.write(registro);
@@ -28,11 +31,18 @@ class Bateria {
   }
 
  public:
+  /**
+   * Gestiona begin.
+   * Diseño lógico: (sin parámetros) → begin() → resultado de la operación; según doc/firmware_design.md.
+   */
   void begin() {
     Wire.begin();
     Wire.setClock(100000);
   }
   // Lee al arrancar y despues cada 30 s. Se llama en cada vuelta de loop().
+  /**
+   * Diseño lógico: (uint32_t ahora) → actualizar() → resultado de la operación; según doc/firmware_design.md.
+   */
   void actualizar(uint32_t ahora) {
     if (!pendiente && !transcurrido(ahora, ultima, PERIODO_MS)) return;
     pendiente = false;
@@ -46,8 +56,20 @@ class Bateria {
     porcentajeActual = porcentajeMax17048(soc);
     milivoltiosActual = milivoltiosMax17048(vcell);
   }
+  /**
+   * Gestiona conocida.
+   * Diseño lógico: (sin parámetros) → conocida() → resultado de la operación; según doc/firmware_design.md.
+   */
   bool conocida() const { return porcentajeActual >= 0; }
+  /**
+   * Gestiona porcentaje.
+   * Diseño lógico: (sin parámetros) → porcentaje() → resultado de la operación; según doc/firmware_design.md.
+   */
   int16_t porcentaje() const { return porcentajeActual; }
+  /**
+   * Gestiona milivoltios.
+   * Diseño lógico: (sin parámetros) → milivoltios() → resultado de la operación; según doc/firmware_design.md.
+   */
   uint16_t milivoltios() const { return conocida() ? milivoltiosActual : 0; }
 };
 }

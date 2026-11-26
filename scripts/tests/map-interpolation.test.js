@@ -7,10 +7,21 @@ process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {JSDOM,VirtualConsole}=require(path.resolve(process.argv[2]||'.local-backups/test-tools/node_modules/jsdom'));
 const root=path.resolve(__dirname,'../../src/web'),domain=require(path.join(root,'aeriq-domain.js'));
+/**
+ * Gestiona wait.
+ * Diseño lógico: (sin parámetros) → wait() → resultado de la operación; según scripts/README.md.
+ */
 const wait=()=>new Promise(r=>setTimeout(r,35));
 // Los arrays creados dentro de jsdom tienen otro prototipo: se comparan como JSON.
+/**
+ * Diseño lógico: (JSON.stringify(v)) → plain() → resultado de la operación; según scripts/README.md.
+ */
 const plain=v=>JSON.parse(JSON.stringify(v));
 const base={campaignId:1,unidad:'ppb',simulado:true,zona:'Campus',radio_m:30,umbral_medio:60,umbral_alto:100};
+/**
+ * Gestiona stamp.
+ * Diseño lógico: (12+Math.floor(m/60)) → stamp() → resultado de la operación; según scripts/README.md.
+ */
 const stamp=m=>`2026-11-10 ${String(12+Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}:00.000`;
 // Caso denso: la rejilla 5 × 3 de la simulación. Caso disperso: un punto aislado a ~170 m.
 const O3=[38,42,47,51,56,61,66,72,78,84,91,97,103,108,114],dense=[];
@@ -18,11 +29,23 @@ for(let i=0;i<3;i++)for(let j=0;j<5;j++)dense.push({...base,id:i*5+j+1,latitud:3
 const isolated={...base,id:99,latitud:38.9982,longitud:-0.1662,valor:70,capturada_en:stamp(400)};
 // Vista falsa de 800 × 600 px a 1 m por píxel, centrada en el campus.
 const W=800,H=600,DLAT=1/111320,DLNG=DLAT/Math.cos(38.99675*Math.PI/180),TOP=38.99675+H/2*DLAT,LEFT=-0.16575-W/2*DLNG;
+/**
+ * Gestiona to lat lng.
+ * Diseño lógico: ([x,y]) → toLatLng() → resultado de la operación; según scripts/README.md.
+ */
 const toLatLng=([x,y])=>({lat:TOP-y*DLAT,lng:LEFT+x*DLNG});
 // Colores RGB del lienzo → estado y color de la leyenda.
 const STATE={'104,109,107':'insuficiente','33,156,114':'#219c72','238,162,45':'#eea22d','227,91,93':'#e35b5d'};
 
+/**
+ * Gestiona page.
+ * Diseño lógico: (measurements,{organization=false,mine=measurements}={}) → page() → Promise; según scripts/README.md.
+ */
 async function page(measurements,{organization=false,mine=measurements}={}){
+  /**
+   * Gestiona errors.
+   * Diseño lógico: (sin parámetros) → errors() → resultado de la operación; según scripts/README.md.
+   */
   const errors=[],handlers={},paint={image:null},routes=[],ends=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});
   const dom=new JSDOM(fs.readFileSync(path.join(root,'mapa.html'),'utf8'),{url:'http://localhost/mapa.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window;
@@ -30,7 +53,15 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   w.HTMLElement.prototype.scrollIntoView=()=>{};
   // Lienzo falso: borrar descarta lo pintado; putImageData guarda la imagen de la rejilla.
   w.HTMLCanvasElement.prototype.getContext=function(){return {clearRect(){paint.image=null;},drawImage(){},putImageData(image){paint.image=image;},
+    /**
+     * Crea image datos.
+     * Diseño lógico: (width,height) → createImageData() → resultado de la operación; según scripts/README.md.
+     */
     createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}};};
+  /**
+   * Gestiona layer.
+   * Diseño lógico: (sin parámetros) → layer() → resultado de la operación; según scripts/README.md.
+   */
   const layer=()=>({addTo(){return this;},on(){return this;},setView(){return this;},addLayer(){},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){},bindTooltip(text){this.tooltip=text;return this;}});
   w.L={tileLayer:layer,latLngBounds:layer,DomUtil:{setPosition(){}},
     circleMarker:(position,options)=>{assert.equal(options.bubblingMouseEvents,false);const m=layer();m.position=position;m.addTo=function(g){if(g&&g.route)ends.push(this);return this;};return m;},
@@ -50,8 +81,15 @@ async function page(measurements,{organization=false,mine=measurements}={}){
     vm.runInContext(fs.readFileSync(path.join(root,src),'utf8'),dom.getInternalVMContext(),{filename:src});
   }
   await wait();
+  /**
+   * Gestiona q.
+   * Diseño lógico: (s) → q() → resultado de la operación; según scripts/README.md.
+   */
   const q=s=>w.document.querySelector(s);
   // Puntos pintados de la rejilla, con su centro en coordenadas y su color.
+  /**
+   * Diseño lógico: (sin parámetros) → cells() → resultado de la operación; según scripts/README.md.
+   */
   const cells=()=>{
     const out={colour:[],grey:[]},img=paint.image;if(!img)return out;
     const step=W/img.width;
@@ -63,8 +101,20 @@ async function page(measurements,{organization=false,mine=measurements}={}){
     }
     return out;
   };
+  /**
+   * Gestiona click.
+   * Diseño lógico: (lat,lng) → click() → resultado de la operación; según scripts/README.md.
+   */
   const click=(lat,lng)=>{handlers.click({latlng:{lat,lng}});return q('#map-info').textContent;};
+  /**
+   * Establece radio.
+   * Diseño lógico: ('#radius-range') → setRadius() → resultado de la operación; según scripts/README.md.
+   */
   const setRadius=value=>{q('#radius-range').value=String(value);q('#radius-range').dispatchEvent(new w.Event('input',{bubbles:true}));};
+  /**
+   * Gestiona cambio.
+   * Diseño lógico: (sel,checked) → change() → resultado de la operación; según scripts/README.md.
+   */
   const change=(sel,checked)=>{const el=q(sel);if(checked!==undefined)el.checked=checked;el.dispatchEvent(new w.Event('change'));};
   return {w,q,cells,click,setRadius,change,routes,ends,errors,close:()=>w.close()};
 }
@@ -78,6 +128,9 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   assert(p.click(isolated.latitud,isolated.longitud).includes('1 posición en 30 m; hacen falta 3.'));
   // La zona es un círculo del radio, no un cuadrado: todo lo pintado está a ≤ 30 m y el disco está lleno.
   // Un cuadrado de 60 m de lado llegaría a ~42 m en las esquinas.
+  /**
+   * Diseño lógico: (cell=>domain.distance(cell.centre,[isolated.latitud,isolated.longitud])) → far() → resultado de la operación; según scripts/README.md.
+   */
   const far=c.grey.map(cell=>domain.distance(cell.centre,[isolated.latitud,isolated.longitud]));
   assert(Math.max(...far)<=30);assert(Math.max(...far)>28);
   const disc=Math.PI*30*30/16;assert(Math.abs(c.grey.length-disc)/disc<.05,`${c.grey.length} puntos para un disco de ~${Math.round(disc)}`);
@@ -138,6 +191,9 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   assert.deepEqual(p.errors,[]);p.close();
 
   // Ruta del Orb en «Mi organización»: posiciones en orden de captura, tramos partidos por huecos > 10 min.
+  /**
+   * Diseño lógico: (id,name) → orb() → resultado de la operación; según scripts/README.md.
+   */
   const orb=(id,name)=>({dispositivo_id:id,dispositivo:name});
   const walk=[
     {...dense[2],...orb(7,'Orb Norte'),id:201,capturada_en:'2026-11-10 12:02:00.000'},

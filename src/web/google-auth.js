@@ -5,6 +5,10 @@ const googleButton = document.getElementById('google-signin');
 let firebaseConfigPromise = null;
 let firebaseSdkPromise = null;
 
+/**
+ * Gestiona Google aviso temporal.
+ * Diseño lógico: (message) → googleToast() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function googleToast(message) {
   if (typeof toast === 'function') return toast(message, 'error');
   const notice = document.getElementById('toast');
@@ -17,6 +21,10 @@ function googleToast(message) {
   }
 }
 
+/**
+ * Gestiona Google destino.
+ * Diseño lógico: (user) → googleDestination() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function googleDestination(user) {
   if (typeof window.authDestination === 'function') return window.authDestination(user);
   if (!user) return 'login.html';
@@ -24,6 +32,10 @@ function googleDestination(user) {
   return AeriqAuth.home(user);
 }
 
+/**
+ * Gestiona Google error mensaje.
+ * Diseño lógico: (error) → googleErrorMessage() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function googleErrorMessage(error) {
   const code = String(error?.code || '');
   if (code === 'auth/unauthorized-domain') {
@@ -47,6 +59,10 @@ function googleErrorMessage(error) {
   return error instanceof Error ? error.message : 'No se ha podido iniciar sesión con Google.';
 }
 
+/**
+ * Carga Firebase config.
+ * Diseño lógico: (sin parámetros) → loadFirebaseConfig() → Promise; según doc/frontend_business_logic_design.md.
+ */
 async function loadFirebaseConfig() {
   if (!firebaseConfigPromise) {
     firebaseConfigPromise = fetch('auth.php?action=firebase-config', {
@@ -68,6 +84,10 @@ async function loadFirebaseConfig() {
   return firebaseConfigPromise;
 }
 
+/**
+ * Carga Firebase sdk.
+ * Diseño lógico: (sin parámetros) → loadFirebaseSdk() → Promise; según doc/frontend_business_logic_design.md.
+ */
 async function loadFirebaseSdk() {
   if (!firebaseSdkPromise) {
     firebaseSdkPromise = Promise.all([
@@ -81,6 +101,10 @@ async function loadFirebaseSdk() {
   return firebaseSdkPromise;
 }
 
+/**
+ * Gestiona sign in with Google.
+ * Diseño lógico: (sin parámetros) → signInWithGoogle() → Promise; según doc/frontend_business_logic_design.md.
+ */
 async function signInWithGoogle() {
   const config = await loadFirebaseConfig();
   if (!config.configured) {

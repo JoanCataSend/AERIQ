@@ -78,7 +78,7 @@ La definición exhaustiva de campos y restricciones está en `doc/database_desig
 - **Programming Language:** PHP 8.1+; firmas lógicas independientes del lenguaje conforme a `Software_Engineering_Spec.md`.
 - La lógica de negocio no depende de rutas, solicitudes/respuestas HTTP, sesiones PHP ni códigos de estado HTTP.
 - El acceso SQL se parametriza; las operaciones que cambian varias entidades se ejecutan en una transacción.
-- Los correos y la persistencia se invocan mediante adaptadores inyectados al completar la separación pendiente.
-- **Function/Method Headers:** cada función o método nuevo debe incluir diseño lógico en un bloque delimitado por líneas `--------------------`.
+- La persistencia se invoca mediante `AeriqRepository.php` y `AuthRepository.php`; ambos usan `AeriqQueryCatalog.php` y `SqlGateway.php`. El correo se envía mediante `MailTransport.php`. Los servicios no ejecutan SQL ni configuran SMTP.
+- **Function/Method Headers:** cada función o método debe tener antes un comentario con su responsabilidad y diseño lógico `entradas → función → salida`; conservar el formato delimitado por líneas `--------------------` cuando se documenten contratos de dominio.
 - **Code Readability:** código claro y autoexplicativo, con comentarios para reglas no obvias.
 - **Automated Testing:** generar pruebas para autorización entre organizaciones, idempotencia, límites, fechas, procedencia de datos y transacciones.

@@ -18,13 +18,24 @@ const v=domain.interpolate([38.99666,-.16599],points,30);assert(v>=50&&v<=90);
 
 // ---- T25: validación con casos densos, dispersos y simulados ----
 // Los mismos casos y valores esperados están en PublicInterpolationTest.java: si cambias uno, cambia el otro.
+/**
+ * Diseño lógico: (a,b) → near() → resultado de la operación; según scripts/README.md.
+ */
 const near=(a,b)=>assert(Math.abs(a-b)<1e-6,`${a} ≠ ${b}`);
 const P=domain.INTERPOLACION;
 assert.deepEqual([P.radioMin,P.radioMax,P.radio,P.minPosiciones,P.separacionMin,P.potencia,P.distanciaMin,P.celda,P.zonaPropia,P.zonaPropiaMax],[20,50,30,3,5,3,1,10,.5,15]);
 assert(Object.isFrozen(P));
+/**
+ * Gestiona stamp.
+ * Diseño lógico: (12+Math.floor(m/60)) → stamp() → resultado de la operación; según scripts/README.md.
+ */
 const stamp=m=>`2026-11-10 ${String(12+Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}:00.000`;
 // Rejilla de evaluación de 18 × 21 celdas de ~10 m alrededor del campus (centros de celda).
 const LAT0=38.9960,LON0=-0.1670,LAT_STEP=0.00009,LON_STEP=0.0001156,ROWS=18,COLS=21;
+/**
+ * Gestiona sweep.
+ * Diseño lógico: (rows,radius,options) → sweep() → resultado de la operación; según scripts/README.md.
+ */
 function sweep(rows,radius,options){
   const s=domain.support(rows,options),c={valor:0,insuficiente:0,lejos:0,mezcla:0,radio:0,min:Infinity,max:-Infinity,sum:0};
   for(let i=0;i<ROWS;i++)for(let j=0;j<COLS;j++){
@@ -71,6 +82,9 @@ assert(domain.interpolate(A,jitter,30,{separacionMin:1})!==null);
 const tri=[{...base,latitud:A[0],longitud:A[1],valor:50},{...base,latitud:A[0]+0.00036,longitud:A[1],valor:70},{...base,latitud:A[0]+0.00018,longitud:A[1]+0.0004,valor:90}];
 assert.deepEqual([20,30,40,50].map(r=>sweep(tri,r).valor),[0,3,11,27]);
 // Simulado: se interpola igual que lo real, pero nunca mezclado con ello.
+/**
+ * Diseño lógico: (r=>({...r,simulado:true})) → simulated() → resultado de la operación; según scripts/README.md.
+ */
 const simulated=dense.map(r=>({...r,simulado:true}));
 near(sweep(simulated,30).sum,3932.380126722633);
 const mixed=[...simulated.slice(0,14),{...simulated[14],simulado:false}];
@@ -95,8 +109,19 @@ assert.equal(domain.support([{...base,latitud:null,longitud:null,valor:50}]).len
 assert.equal(domain.estimate(A,[],30).motivo,'lejos');assert.equal(domain.estimate(A,[],30).cercana,null);
 // ---- Rejilla de pintado (zonas redondas): raster() da en cada punto lo mismo que estimate() ----
 // Los mismos casos y recuentos están en PublicInterpolationTest.java.
+/**
+ * Diseño lógico: ({length:ROWS},(_,i)=>LAT0+(i+.5)*LAT_STEP) → lats() → resultado de la operación; según scripts/README.md.
+ */
 const lats=Array.from({length:ROWS},(_,i)=>LAT0+(i+.5)*LAT_STEP),lngs=Array.from({length:COLS},(_,j)=>LON0+(j+.5)*LON_STEP);
+/**
+ * Gestiona z.
+ * Diseño lógico: (rows,radius) → Z() → resultado de la operación; según scripts/README.md.
+ */
 const Z=domain.ZONA,group=(rows,radius)=>({samples:domain.support(rows),radius,umbral_medio:60,umbral_alto:100});
+/**
+ * Gestiona tally.
+ * Diseño lógico: (const s of g.estados) → tally() → resultado de la operación; según scripts/README.md.
+ */
 const tally=g=>{const t=[0,0,0,0,0];for(const s of g.estados)t[s]++;return t;};
 let g=domain.raster([group(dense,30)],lats,lngs);
 assert.deepEqual([g.filas,g.columnas,g.recortado],[ROWS,COLS,false]);
@@ -116,11 +141,17 @@ assert.deepEqual(tally(domain.raster([group(dense,30)],[...lats].reverse(),lngs)
 assert.deepEqual(tally(domain.raster([group(dense,51)],lats,lngs)),[ROWS*COLS,0,0,0,0]);
 assert.equal(domain.raster([],lats,lngs).evaluadas,0);
 // Dos grupos que se tocan: donde uno estima y el otro no basta, gana el valor estimado.
+/**
+ * Diseño lógico: (0,1) → other() → resultado de la operación; según scripts/README.md.
+ */
 const other=dense.slice(0,1).map(r=>({...r,campaignId:2}));
 assert.deepEqual(tally(domain.raster([group(other,30),group(dense,30)],lats,lngs)),tally(g));
 // Tope de evaluaciones: se marca recortado para avisarlo en el mapa.
 g=domain.raster([group(dense,30)],lats,lngs,{maxEvaluaciones:10});assert.deepEqual([g.evaluadas,g.recortado],[10,true]);
 // ---- Ruta de un Orb: orden de captura y tramos partidos por huecos de más de 10 minutos ----
+/**
+ * Diseño lógico: (id,t,lat=A[0]) → at() → resultado de la operación; según scripts/README.md.
+ */
 const at=(id,t,lat=A[0])=>({id,latitud:lat,longitud:A[1],capturada_en:`2026-11-10 ${t}:00.000`});
 const legs=domain.route([at(3,'12:09'),at(1,'12:00'),at(2,'12:05'),at(4,'12:30'),{...at(5,'12:31'),latitud:null},at(6,'12:40')]);
 assert.deepEqual(legs.map(l=>l.map(r=>r.id)),[[1,2,3],[4,6]]);
@@ -128,6 +159,10 @@ assert.deepEqual(domain.route([at(1,'12:00'),at(2,'12:30')],60).map(l=>l.length)
 assert.deepEqual(domain.route([]),[]);
 const rows=[{...base,valor:50,capturada_en:'2026-11-02 12:00:00.000'}, {...base,valor:100,capturada_en:'2026-11-03 12:00:00.000'}];
 const stats=domain.statistics(rows);assert.equal(stats.min,50);assert.equal(stats.max,100);assert.equal(stats.mean,75);assert.equal(stats.exceedances.length,1);assert.equal(stats.series.length,2);
+/**
+ * Gestiona thermal.
+ * Diseño lógico: (rows.map((row,i)=>({...row,unidad:'°C',valor:i?100:-12}))) → thermal() → resultado de la operación; según scripts/README.md.
+ */
 const thermal=domain.statistics(rows.map((row,i)=>({...row,unidad:'°C',valor:i?100:-12})));
 assert.equal(thermal.min,-12);assert.equal(thermal.mean,44);assert.equal(thermal.exceedances.length,0);
 assert.equal(domain.statistics(rows,'week').series.length,1);
@@ -139,17 +174,37 @@ assert.equal(domain.battery(null),'Sin datos');assert.equal(domain.battery(61),'
 assert.equal(domain.battery(20),'20 % · media');assert.equal(domain.battery(19,'2026-11-11 10:05:00.000'),'19 % · baja · 11 nov 2026, 10:05');assert.equal(domain.battery(0),'0 % · baja');
 // ---- T46: el color junto a cada punto coincide con su medición.
 {
+  /**
+   * Gestiona fine.
+   * Diseño lógico: (rows,step=0.000009) → fine() → resultado de la operación; según scripts/README.md.
+   */
   const fine=(rows,step=0.000009)=>{ // rejilla de ~1 m alrededor de las posiciones
+    /**
+     * Gestiona la.
+     * Diseño lógico: (r=>r.latitud) → la() → resultado de la operación; según scripts/README.md.
+     */
     const la=rows.map(r=>r.latitud),lo=rows.map(r=>r.longitud);
     const lats=[],lngs=[];for(let v=Math.min(...la)-0.0004;v<=Math.max(...la)+0.0004;v+=step)lats.push(v);for(let v=Math.min(...lo)-0.0005;v<=Math.max(...lo)+0.0005;v+=step*1.28)lngs.push(v);
     return {lats,lngs};
   };
+  /**
+   * Gestiona level at.
+   * Diseño lógico: (grid,lats,lngs,lat,lng) → levelAt() → resultado de la operación; según scripts/README.md.
+   */
   const levelAt=(grid,lats,lngs,lat,lng)=>{let i=0,j=0;for(let k=1;k<lats.length;k++)if(Math.abs(lats[k]-lat)<Math.abs(lats[i]-lat))i=k;for(let k=1;k<lngs.length;k++)if(Math.abs(lngs[k]-lng)<Math.abs(lngs[j]-lng))j=k;return grid.estados[i*lngs.length+j];};
+  /**
+   * Gestiona zona of.
+   * Diseño lógico: (sin parámetros) → zoneOf() → resultado de la operación; según scripts/README.md.
+   */
   const zoneOf=v=>v>=100?Z.alto:v>=60?Z.moderado:Z.bajo;
   // Punto rojo (110) rodeado de seis vecinos amarillos (70) a ~11 m: alrededor del rojo no queda zona amarilla.
   const center={...base,latitud:38.9966,longitud:-0.1662,valor:110,capturada_en:stamp(0)};
   const ring=[center];for(let k=0;k<6;k++){const a=k*Math.PI/3;ring.push({...base,latitud:38.9966+0.0001*Math.sin(a),longitud:-0.1662+0.000128*Math.cos(a),valor:70,capturada_en:stamp(k+1)});}
   const own=domain.ownRadii(domain.support(ring));
+  /**
+   * Gestiona r110.
+   * Diseño lógico: (domain.support(ring).find(r=>r.valor===110)) → r110() → resultado de la operación; según scripts/README.md.
+   */
   const r110=own.get(domain.support(ring).find(r=>r.valor===110));assert(r110>5&&r110<6,'zona propia = mitad de la distancia a la vecina (~11 m)');
   const {lats,lngs}=fine(ring),grid=domain.raster([group(ring,30)],lats,lngs);
   for(const [dlat,dlng] of [[0,0],[0.00003,0],[-0.00003,0],[0,0.00004],[0,-0.00004],[0.00002,0.00003]])
@@ -160,6 +215,10 @@ assert.equal(domain.battery(20),'20 % · media');assert.equal(domain.battery(19,
     regular:[38,36,35,34,35,37,45,52,60,66,70,74,79,84,87,86,82,76,70,66,62,58,54,48],
     malo:[66,62,60,58,61,65,84,94,102,110,116,121,126,131,134,129,120,112,104,98,92,86,78,72]};
   for(const [name,values] of Object.entries(PERFILES)){
+    /**
+     * Gestiona filas.
+     * Diseño lógico: ((v,k)=>({...base,latitud:38.9966+Math.floor(k/6)*0.0001,longitud:-0.1662+(k%6)*0.00013,valor:v,capturada_en:stamp(k)})) → rows() → resultado de la operación; según scripts/README.md.
+     */
     const rows=values.map((v,k)=>({...base,latitud:38.9966+Math.floor(k/6)*0.0001,longitud:-0.1662+(k%6)*0.00013,valor:v,capturada_en:stamp(k)}));
     const box=fine(rows),g=domain.raster([group(rows,30)],box.lats,box.lngs);
     for(const r of rows)assert.equal(levelAt(g,box.lats,box.lngs,r.latitud,r.longitud),zoneOf(r.valor),`perfil ${name}: punto de ${r.valor} ppb`);
@@ -186,8 +245,16 @@ assert.equal(domain.sharedThresholds([{umbral_medio:null,umbral_alto:null}]),nul
 console.log('AERIQ: umbrales comunes del informe correctos.');
 // ---- Informe (T39-T41): agrupación automática, picos y veredicto por franjas.
 {
+  /**
+   * Gestiona at.
+   * Diseño lógico: (h,m=5) → at() → resultado de la operación; según scripts/README.md.
+   */
   const at=(h,m=5)=>`2026-11-20 ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00.000`;
   const MALO=[66,62,60,58,61,65,84,94,102,110,116,121,126,131,134,129,120,112,104,98,92,86,78,72];
+  /**
+   * Gestiona hourly.
+   * Diseño lógico: ((v,h)=>({id:h,valor:v,unidad:'ppb',capturada_en:at(h),umbral_medio:60,umbral_alto:100,dispositivo:'AERIQ'})) → hourly() → resultado de la operación; según scripts/README.md.
+   */
   const hourly=MALO.map((v,h)=>({id:h,valor:v,unidad:'ppb',capturada_en:at(h),umbral_medio:60,umbral_alto:100,dispositivo:'AERIQ'}));
   // T39: dos días o menos se agrupan por horas (la gráfica no sale con un solo punto); hasta 60 días, por días; más, por semanas.
   assert.equal(domain.autoGroup(hourly),'hour');assert.equal(domain.statistics(hourly,'hour').series.length,24);
@@ -199,18 +266,31 @@ console.log('AERIQ: umbrales comunes del informe correctos.');
   const p=domain.peaks(hourly);
   assert.deepEqual(p.map(x=>[x.capturada_en,x.valor,x.nivel,x.lecturas]),[[at(0),66,'moderado',3],[at(14),134,'alto',20]]);
   // Lecturas seguidas cada pocos segundos: un hueco de más de 30 min corta el tramo.
+  /**
+   * Diseño lógico: (([m,v],i)=>({id:i,valor:v,unidad:'ppb',capturada_en:at(10,m),umbral_medio:60,umbral_alto:100})) → dense() → resultado de la operación; según scripts/README.md.
+   */
   const dense=[[0,70],[1,80],[2,75],[40,90],[41,50]].map(([m,v],i)=>({id:i,valor:v,unidad:'ppb',capturada_en:at(10,m),umbral_medio:60,umbral_alto:100}));
   assert.deepEqual(domain.peaks(dense).map(x=>[x.valor,x.lecturas]),[[80,3],[90,1]]);
   // Sin lecturas sobre el umbral no hay picos; la temperatura nunca tiene.
   assert.deepEqual(domain.peaks(hourly.map(r=>({...r,valor:30}))),[]);
   assert.deepEqual(domain.peaks([{valor:40,unidad:'°C',capturada_en:at(1),umbral_medio:null,umbral_alto:null}]),[]);
   // T41: franjas de 6 h con la media frente a los umbrales de la campaña.
+  /**
+   * Diseño lógico: (hourly,{hour:r=>Number(r.capturada_en.slice(11,13))}) → v() → resultado de la operación; según scripts/README.md.
+   */
   const v=domain.verdict(hourly,{hour:r=>Number(r.capturada_en.slice(11,13))});
   assert.deepEqual(v.franjas.map(f=>[f.codigo,f.lecturas,Math.round(f.media),f.calidad]),[['madrugada',6,62,'regular'],['manana',6,105,'mala'],['tarde',6,125,'mala'],['noche',6,88,'regular']]);
   assert.equal(v.texto,'La calidad del aire es regular de madrugada y por la noche (media 62 / 88 ppb) y mala por la mañana y por la tarde (media 105 / 125 ppb). Evita la actividad física intensa al aire libre en las franjas malas.');
+  /**
+   * Gestiona good.
+   * Diseño lógico: (hourly.slice(0,12).map(r=>({...r,valor:30})),{hour:r=>Number(r.capturada_en.slice(11,13))}) → good() → resultado de la operación; según scripts/README.md.
+   */
   const good=domain.verdict(hourly.slice(0,12).map(r=>({...r,valor:30})),{hour:r=>Number(r.capturada_en.slice(11,13))});
   assert.deepEqual(good.franjas.map(f=>f.calidad),['buena','buena',null,null]);assert(good.texto.includes('Sin lecturas: tarde y noche.'));
   // Umbrales distintos en una franja (varias campañas): manda el nivel más repetido.
+  /**
+   * Diseño lógico: ([{valor:70,unidad:'ppb',capturada_en:at(1),umbral_medio:60,umbral_alto:100},{valor:70,unidad:'ppb',capturada_en:at(2),umbral_medio:80,umbral_alto:120},{valor:90,unidad:'ppb',capturada_en:at(3),umbral_medio:80,umbral_alto:120}],{hour:r=>Number(r.capturada_en.slice(11,13))}) → mixed() → resultado de la operación; según scripts/README.md.
+   */
   const mixed=domain.verdict([{valor:70,unidad:'ppb',capturada_en:at(1),umbral_medio:60,umbral_alto:100},{valor:70,unidad:'ppb',capturada_en:at(2),umbral_medio:80,umbral_alto:120},{valor:90,unidad:'ppb',capturada_en:at(3),umbral_medio:80,umbral_alto:120}],{hour:r=>Number(r.capturada_en.slice(11,13))});
   assert.equal(mixed.franjas[0].calidad,'regular');
   assert.equal(domain.verdict([{valor:20,unidad:'°C',capturada_en:at(1),umbral_medio:null,umbral_alto:null}]).franjas.every(f=>f.calidad===null),true);
@@ -218,6 +298,10 @@ console.log('AERIQ: umbrales comunes del informe correctos.');
 console.log('AERIQ: informe por horas, picos y veredicto por franjas correctos.');
 // ---- HU39: distancia del recorrido (ignora deriva < 5 m, saltos > 2 km y los huecos entre tramos).
 {
+  /**
+   * Gestiona at.
+   * Diseño lógico: (lat,lon) → at() → resultado de la operación; según scripts/README.md.
+   */
   const at=(lat,lon)=>({latitud:lat,longitud:lon});
   const a=at(38.9966,-0.1662),b=at(38.9967,-0.1662),c=at(38.99671,-0.1662),far=at(39.1,-0.1662);
   const d=domain.distance([a.latitud,a.longitud],[b.latitud,b.longitud]);

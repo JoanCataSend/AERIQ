@@ -23,6 +23,9 @@ public final class WorkScreens {
 
     // ===================================================================== Mi sensor
 
+    /**
+     * Diseño lógico: (parámetros de la firma) → sensor() → void; según doc/android_design.md.
+     */
     public void sensor(LinearLayout body, AeriqBleController ble, List<OrbAssignment> assignments,
                        String assignmentStatus, String serverStatus, boolean sending, List<StoredReading> history) {
         OrbAssignment found = null;
@@ -249,6 +252,9 @@ public final class WorkScreens {
     }
 
     /** Distancia recorrida hoy según las posiciones GPS guardadas con tus mediciones. */
+    /**
+     * Diseño lógico: (List<StoredReading> readings) → distanceToday() → String; según doc/android_design.md.
+     */
     private String distanceToday(List<StoredReading> readings) {
         List<StoredReading> located = new ArrayList<>();
         for (StoredReading reading : readings) if (reading.latitude != null && reading.longitude != null) located.add(reading);
@@ -265,6 +271,10 @@ public final class WorkScreens {
             : String.format(Locale.getDefault(), "%.1f km", meters / 1000);
     }
 
+    /**
+     * Gestiona panel.
+     * Diseño lógico: (LinearLayout body, int padding) → panel() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout panel(LinearLayout body, int padding) {
         LinearLayout panel = ui.column();
         panel.setBackground(ui.shape(WHITE, 26, LINE));
@@ -276,6 +286,10 @@ public final class WorkScreens {
         return panel;
     }
 
+    /**
+     * Gestiona tile.
+     * Diseño lógico: (LinearLayout row, String label) → tile() → TextView; según doc/android_design.md.
+     */
     private TextView tile(LinearLayout row, String label) {
         LinearLayout tile = ui.column();
         tile.setBackground(ui.shape(0xfff1f4f3, 18, 0));
@@ -288,6 +302,10 @@ public final class WorkScreens {
         return value;
     }
 
+    /**
+     * Gestiona shortcut.
+     * Diseño lógico: (int icon, String label, boolean soft, Runnable click) → shortcut() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout shortcut(int icon, String label, boolean soft, Runnable click) {
         LinearLayout card = ui.column();
         card.setBackground(ui.shape(WHITE, 26, LINE));
@@ -306,6 +324,10 @@ public final class WorkScreens {
         return card;
     }
 
+    /**
+     * Gestiona arrow botón.
+     * Diseño lógico: (String label, Runnable click) → arrowButton() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout arrowButton(String label, Runnable click) {
         LinearLayout button = ui.row();
         button.setGravity(android.view.Gravity.CENTER);
@@ -322,6 +344,9 @@ public final class WorkScreens {
     }
 
     /** Detalle técnico en una hoja de la app: resumen, Bluetooth, diagnóstico, temperatura y envío. */
+    /**
+     * Diseño lógico: (AeriqBleController ble, OrbAssignment selected) → sensorStatus() → void; según doc/android_design.md.
+     */
     private void sensorStatus(AeriqBleController ble, OrbAssignment selected) {
         int flags = ble.sensorDiagnostic;
         // 0 = sin datos, 1 = correcto, 2 = a revisar, 3 = fallo.
@@ -370,6 +395,9 @@ public final class WorkScreens {
 
     // ===================================================================== Vincular sensor
 
+    /**
+     * Diseño lógico: (LinearLayout body, AeriqBleController ble, List<OrbAssignment> assignments) → link() → void; según doc/android_design.md.
+     */
     public void link(LinearLayout body, AeriqBleController ble, List<OrbAssignment> assignments) {
         ImageView hero = ui.photo(R.drawable.pbio_sensor_hero, 26);
         LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, ui.dp(176));
@@ -474,6 +502,10 @@ public final class WorkScreens {
         });
     }
 
+    /**
+     * Gestiona permiso fila.
+     * Diseño lógico: (LinearLayout parent, int icon, String title, String description) → permissionRow() → Switch; según doc/android_design.md.
+     */
     private Switch permissionRow(LinearLayout parent, int icon, String title, String description) {
         LinearLayout row = ui.row();
         ImageView picture = ui.image(icon, 52, 52);
@@ -494,10 +526,18 @@ public final class WorkScreens {
         return toggle;
     }
 
+    /**
+     * Gestiona signal.
+     * Diseño lógico: (int rssi) → signal() → String; según doc/android_design.md.
+     */
     private String signal(int rssi) {
         return rssi >= -65 ? "Señal fuerte" : rssi >= -80 ? "Señal media" : "Señal débil";
     }
 
+    /**
+     * Gestiona dispositivo card.
+     * Diseño lógico: (parámetros de la firma) → deviceCard() → void; según doc/android_design.md.
+     */
     private void deviceCard(LinearLayout parent, AeriqBleController ble, AeriqBleController.FoundDevice device,
                             OrbAssignment assigned, boolean highlighted) {
         boolean selected = device.address.equalsIgnoreCase(ble.selectedAddress);
@@ -550,6 +590,9 @@ public final class WorkScreens {
     /**
      * Pestaña Panel para quien gestiona y no mide (admin de campaña o admin principal). Lo que muestra sale de
      * los permisos del servidor, como el panel web: la gestión se hace allí, la app solo la explica y la abre.
+     */
+    /**
+     * Diseño lógico: (LinearLayout body, AeriqAuthManager.User user) → panel() → void; según doc/android_design.md.
      */
     public void panel(LinearLayout body, AeriqAuthManager.User user) {
         if (user == null) return;
@@ -610,6 +653,9 @@ public final class WorkScreens {
     /**
      * Asignar Orb (admin de campaña): busca los Orb cercanos por Bluetooth para no teclear la MAC, y registra o
      * reasigna el elegido a un operador de su campaña. El operador lo recibe solo al abrir su app.
+     */
+    /**
+     * Diseño lógico: (LinearLayout body, AeriqBleController ble, CampaignTeam team, String status) → assign() → void; según doc/android_design.md.
      */
     public void assign(LinearLayout body, AeriqBleController ble, CampaignTeam team, String status) {
         LinearLayout intro = panel(body, 18);
@@ -674,6 +720,10 @@ public final class WorkScreens {
         if (!ble.scanning) activity.toggleScan();
     }
 
+    /**
+     * Gestiona nearby Orb.
+     * Diseño lógico: (AeriqBleController.FoundDevice device, CampaignTeam team) → nearbyOrb() → android.view.View; según doc/android_design.md.
+     */
     private android.view.View nearbyOrb(AeriqBleController.FoundDevice device, CampaignTeam team) {
         CampaignTeam.Device registered = team.byAddress(device.address);
         CampaignTeam.Operator holder = team.holder(registered);
@@ -696,6 +746,10 @@ public final class WorkScreens {
         return card;
     }
 
+    /**
+     * Selecciona operator.
+     * Diseño lógico: (String address, CampaignTeam.Device registered, CampaignTeam team) → chooseOperator() → void; según doc/android_design.md.
+     */
     private void chooseOperator(String address, CampaignTeam.Device registered, CampaignTeam team) {
         List<CampaignTeam.Operator> candidates = new ArrayList<>();
         for (CampaignTeam.Operator operator : team.operators) if (operator.active || operator.pending) candidates.add(operator);
@@ -738,6 +792,10 @@ public final class WorkScreens {
             }).show();
     }
 
+    /**
+     * Gestiona servicios.
+     * Diseño lógico: (LinearLayout body) → services() → void; según doc/android_design.md.
+     */
     public void services(LinearLayout body) {
         section(body, "Tu campaña, a tu medida.", "Código Norte desarrolla AERIQ y el sensor Orb. La consulta del mapa público es gratuita.");
         service(body, "Kits para administraciones", "Para campañas municipales y estudios del territorio.", "administracion");
@@ -749,11 +807,19 @@ public final class WorkScreens {
         ui.button(help, "Ver el tutorial de la app", activity::showTutorial);
     }
 
+    /**
+     * Gestiona servicio.
+     * Diseño lógico: (LinearLayout body, String title, String description, String kind) → service() → void; según doc/android_design.md.
+     */
     private void service(LinearLayout body, String title, String description, String kind) {
         LinearLayout card = section(body, title, description);
         ui.button(card, "Solicitar información", () -> activity.open(ApiRoutes.BASE + "solicitar.html?service=" + kind));
     }
 
+    /**
+     * Gestiona section.
+     * Diseño lógico: (LinearLayout body, String title, String description) → section() → LinearLayout; según doc/android_design.md.
+     */
     private LinearLayout section(LinearLayout body, String title, String description) {
         LinearLayout card = ui.card(body);
         ui.label(card, title, 19, true, INK);

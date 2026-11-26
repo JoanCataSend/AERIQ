@@ -42,6 +42,10 @@ public final class AuthScreens {
         this.auth = auth;
     }
 
+    /**
+     * Muestra.
+     * Diseño lógico: (Screen screen, LinearLayout body) → show() → void; según doc/android_design.md.
+     */
     public void show(Screen screen, LinearLayout body) {
         ImageView logo = ui.image(R.drawable.aeriq_logo, 99, 34);
         FrameLayout brand = new FrameLayout(activity);
@@ -98,6 +102,9 @@ public final class AuthScreens {
     }
 
     // ── LOGIN ──────────────────────────────────────────────────────────────
+    /**
+     * Diseño lógico: (LinearLayout body, LinearLayout card) → login() → void; según doc/android_design.md.
+     */
     private void login(LinearLayout body, LinearLayout card) {
         // Campos
         EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
@@ -195,6 +202,9 @@ public final class AuthScreens {
 
     // ── BIOMETRÍA ──────────────────────────────────────────────────────────
     // ── SOCIAL ─────────────────────────────────────────────────────────────
+    /**
+     * Diseño lógico: (String provider) → socialLogin() → void; según doc/android_design.md.
+     */
     private void socialLogin(String provider) {
         boolean isApple = "apple".equalsIgnoreCase(provider);
         if (isApple) {
@@ -204,6 +214,10 @@ public final class AuthScreens {
         signInWithGoogle();
     }
 
+    /**
+     * Gestiona sign in with Google.
+     * Diseño lógico: (sin parámetros) → signInWithGoogle() → void; según doc/android_design.md.
+     */
     private void signInWithGoogle() {
         try {
             GetGoogleIdOption googleOption = new GetGoogleIdOption.Builder()
@@ -218,9 +232,17 @@ public final class AuthScreens {
             manager.getCredentialAsync(activity, request, new CancellationSignal(),
                 androidx.core.content.ContextCompat.getMainExecutor(activity),
                 new CredentialManagerCallback<androidx.credentials.GetCredentialResponse, GetCredentialException>() {
+                    /**
+                     * Atiende el evento resultado.
+                     * Diseño lógico: (androidx.credentials.GetCredentialResponse response) → onResult() → void; según doc/android_design.md.
+                     */
                     @Override public void onResult(androidx.credentials.GetCredentialResponse response) {
                         handleGoogleCredential(response.getCredential());
                     }
+                    /**
+                     * Atiende el evento error.
+                     * Diseño lógico: (GetCredentialException error) → onError() → void; según doc/android_design.md.
+                     */
                     @Override public void onError(GetCredentialException error) {
                         if (!(error instanceof GetCredentialCancellationException)) {
                             showGoogleError("No se pudo elegir la cuenta de Google", error);
@@ -232,6 +254,10 @@ public final class AuthScreens {
         }
     }
 
+    /**
+     * Gestiona Google credential.
+     * Diseño lógico: (Credential credential) → handleGoogleCredential() → void; según doc/android_design.md.
+     */
     private void handleGoogleCredential(Credential credential) {
         if (!(credential instanceof CustomCredential)
                 || !GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(credential.getType())) {
@@ -270,6 +296,10 @@ public final class AuthScreens {
         }
     }
 
+    /**
+     * Muestra Google error.
+     * Diseño lógico: (String message, Throwable error) → showGoogleError() → void; según doc/android_design.md.
+     */
     private void showGoogleError(String message, Throwable error) {
         String detail = error == null ? "" : "\n\n" + error.getClass().getSimpleName()
             + (error.getMessage() == null ? "" : ": " + error.getMessage());
@@ -286,6 +316,9 @@ public final class AuthScreens {
 
 
     // ── RECOVERY ───────────────────────────────────────────────────────────
+    /**
+     * Diseño lógico: (Screen screen, LinearLayout body, LinearLayout card) → recovery() → void; según doc/android_design.md.
+     */
     private void recovery(Screen screen, LinearLayout body, LinearLayout card) {
         EditText email = ui.field(card, "Correo electrónico", auth.pendingEmail, EMAIL);
         email.setHint("nombre@ejemplo.com");
@@ -310,6 +343,9 @@ public final class AuthScreens {
     }
 
     // ── PROFILE / PASSWORD ─────────────────────────────────────────────────
+    /**
+     * Diseño lógico: (LinearLayout body, LinearLayout card) → profile() → void; según doc/android_design.md.
+     */
     private void profile(LinearLayout body, LinearLayout card) {
         EditText name  = ui.field(card, "Nombre", auth.user.name, TEXT);
         EditText last  = ui.field(card, "Apellidos", auth.user.last, TEXT);
@@ -320,6 +356,10 @@ public final class AuthScreens {
         ui.label(body, "Correo de la cuenta: " + auth.user.email, 11, false, MUTED);
     }
 
+    /**
+     * Gestiona contraseña.
+     * Diseño lógico: (LinearLayout card) → password() → void; según doc/android_design.md.
+     */
     private void password(LinearLayout card) {
         EditText current  = ui.field(card, "Contraseña actual", "", PASSWORD);
         EditText password = ui.field(card, "Nueva contraseña", "", PASSWORD);
@@ -335,6 +375,9 @@ public final class AuthScreens {
 
     // ── HELPERS ────────────────────────────────────────────────────────────
     /** problem: devuelve qué falta para poder enviar (null o vacío si todo está bien). */
+    /**
+     * Diseño lógico: (parámetros de la firma) → submit() → Button; según doc/android_design.md.
+     */
     private Button submit(LinearLayout card, String caption, String action, Screen next,
                         java.util.function.Supplier<String> problem, java.util.function.Supplier<Object[]> fields) {
         Button button = ui.action(caption, GREEN, WHITE, () -> {});
@@ -356,9 +399,20 @@ public final class AuthScreens {
         return button;
     }
 
+    /**
+     * Gestiona valor.
+     * Diseño lógico: (EditText input) → value() → String; según doc/android_design.md.
+     */
     private static String value(EditText input) { return input.getText().toString(); }
+    /**
+     * Gestiona válido correo.
+     * Diseño lógico: (EditText input) → validEmail() → boolean; según doc/android_design.md.
+     */
     private static boolean validEmail(EditText input) { return value(input).contains("@"); }
     /** Qué le falta a la contraseña nueva (los requisitos los vuelve a comprobar el servidor). */
+    /**
+     * Diseño lógico: (EditText password, EditText confirm) → newPassword() → String; según doc/android_design.md.
+     */
     private static String newPassword(EditText password, EditText confirm) {
         String problem = PasswordRules.problem(value(password));
         if (!problem.isEmpty()) return problem;
@@ -366,6 +420,9 @@ public final class AuthScreens {
     }
 
     /** Lista de requisitos bajo la contraseña nueva, marcada en verde según se cumplen mientras se escribe. */
+    /**
+     * Diseño lógico: (LinearLayout card, EditText password, EditText confirm) → rules() → void; según doc/android_design.md.
+     */
     private void rules(LinearLayout card, EditText password, EditText confirm) {
         LinearLayout box = ui.column();
         box.setBackground(ui.shape(0xfff1f4f3, 12, 0));
@@ -388,8 +445,20 @@ public final class AuthScreens {
                 : "A la contraseña le falta: " + String.join(", ", missing));
         };
         password.addTextChangedListener(new android.text.TextWatcher() {
+            /**
+             * Gestiona before texto changed.
+             * Diseño lógico: (CharSequence s, int a, int b, int c) → beforeTextChanged() → void; según doc/android_design.md.
+             */
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            /**
+             * Atiende el evento texto changed.
+             * Diseño lógico: (CharSequence s, int a, int b, int c) → onTextChanged() → void; según doc/android_design.md.
+             */
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            /**
+             * Gestiona after texto changed.
+             * Diseño lógico: (android.text.Editable e) → afterTextChanged() → void; según doc/android_design.md.
+             */
             @Override public void afterTextChanged(android.text.Editable e) { update.run(); }
         });
         update.run();

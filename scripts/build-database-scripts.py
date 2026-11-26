@@ -12,13 +12,19 @@ schema = (DB / 'schema.sql').read_text(encoding='utf-8')
 seed = (DB / 'seed-demo.sql').read_text(encoding='utf-8')
 names = re.findall(r'CREATE (?:TABLE|VIEW) (\w+)', schema)
 
+# Gestiona qualify.
+# Diseño lógico: (sql, db='jcatsen_pbio') → qualify() → resultado de la operación; según scripts/README.md.
 def qualify(sql, db='jcatsen_pbio'):
     pattern = r'\b(CREATE TABLE|CREATE VIEW|INSERT INTO|REFERENCES|FROM|JOIN) (' + '|'.join(names) + r')\b'
     return re.sub(pattern, lambda m: f'{m.group(1)} `{db}`.`{m.group(2)}`', sql)
 
+# Escribe.
+# Diseño lógico: (path, text) → write() → resultado de la operación; según scripts/README.md.
 def write(path, text):
     path.write_bytes(text.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
 
+# Gestiona drop all.
+# Diseño lógico: (db_expr, qualified_db=None) → drop_all() → resultado de la operación; según scripts/README.md.
 def drop_all(db_expr, qualified_db=None):
     where = f"TABLE_SCHEMA = {db_expr}"
     return f"""SET @aeriq_old_fk = @@FOREIGN_KEY_CHECKS;

@@ -1,5 +1,13 @@
 'use strict';
+/**
+ * Crea el adaptador de dominio web: traduce las operaciones lógicas a rutas y gestiona transporte, CSRF y respuestas.
+ * Diseño lógico: (sin parámetros) → Aeriq() → cliente de operaciones de dominio; según doc/frontend_business_logic_design.md.
+ */
 const Aeriq = (() => {
+  /**
+   * Gestiona petición.
+   * Diseño lógico: (endpoint, action, payload, filters = {}) → request() → Promise; según doc/frontend_business_logic_design.md.
+   */
   async function request(endpoint, action, payload, filters = {}) {
     const params = new URLSearchParams({action, ...filters});
     const headers = {Accept:'application/json'};
@@ -27,6 +35,9 @@ const Aeriq = (() => {
    * Descripción: consulta una vista lógica; la cookie de sesión y el servidor aportan el contexto de autorización.
    * --------------------
    */
+  /**
+   * Diseño lógico: (action, filters={}) → consultar_panel() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function consultar_panel(action, filters={}) {
     const routes={resumen:'dashboard',lecturas:'readings',solicitudes:'requests'};
     if(!routes[action])throw new Error('Consulta de panel no disponible.');
@@ -44,6 +55,9 @@ const Aeriq = (() => {
    * Descripción: selecciona la ruta pública o autenticada; el servidor resuelve el acceso de la sesión.
    * --------------------
    */
+  /**
+   * Diseño lógico: (scope, source='real', hours=24) → consultar_mapa() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function consultar_mapa(scope, source='real', hours=24) {
     const endpoint=scope==='publico'?'public.php':'portal.php';
     const mode=source==='simulada'?'simulated':source;
@@ -55,6 +69,9 @@ const Aeriq = (() => {
    * Descripción: envía una solicitud comercial al endpoint público.
    * --------------------
    */
+  /**
+   * Diseño lógico: (payload) → enviar_solicitud() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function enviar_solicitud(payload) { return request('public.php','request',payload); }
   /*
    * --------------------
@@ -62,8 +79,14 @@ const Aeriq = (() => {
    * Descripción: obtiene servicios y catálogos del formulario público.
    * --------------------
    */
+  /**
+   * Diseño lógico: (sin parámetros) → consultar_servicios() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function consultar_servicios() { return request('public.php','services'); }
   /* Compatibilidad con vistas antiguas: traduce los selectores de interfaz al contrato lógico del mapa. */
+  /**
+   * Diseño lógico: (mode,source='all',hours=24) → map() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function map(mode,source='all',hours=24) {
     const mine=source==='mine';
     return consultar_mapa(mine?'organizacion':'publico',mode==='simulated'?'simulada':'real',hours);

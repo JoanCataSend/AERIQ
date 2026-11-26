@@ -44,6 +44,6 @@ La interfaz conserva `portal`, `map`, `submit` y `services` como alias compatibl
 - **Programming Language:** JavaScript ES2020+ en navegador; HTML y CSS para presentación.
 - La GUI invoca proxy de dominio y autenticación; solo los adaptadores construyen solicitudes HTTP de aplicación.
 - No confiar en filtros, permisos ni identificadores enviados por el navegador; validar en servidor.
-- **Function/Method Headers:** cada función o método nuevo debe incluir diseño lógico en bloque delimitado por líneas `--------------------`.
+- **Function/Method Headers:** cada función o método debe tener antes un comentario con su propósito y diseño lógico `entradas → función → salida`; conservar el formato delimitado por líneas `--------------------` cuando se documenten contratos compartidos.
 - **Code Readability:** mantener funciones enfocadas, cálculos puros reutilizables y DOM seguro (`textContent`, nodos y valores escapados).
 - **Automated Testing:** generar pruebas unitarias de cálculos y pruebas de contrato para adaptadores, errores y permisos visibles.

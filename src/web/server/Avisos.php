@@ -17,11 +17,17 @@ declare(strict_types=1);
 const AERIQ_AVISO_MAX=4000;
 
 /** SQL: la cuenta del alias $u tiene el permiso $p (los permisos van por rol, nunca por nombre de rol). */
+/**
+ * Diseño lógico: (string $u,string $p) → aeriq_notice_perm() → string; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_perm(string $u,string $p): string {
     return "EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos pp ON pp.id=rp.permiso_id WHERE rp.rol_id=$u.rol_id AND pp.codigo='$p')";
 }
 
 /** Personas a las que la cuenta puede escribir: id, nombre, función y campaña. */
+/**
+ * Diseño lógico: (array $a,?int $only=null) → aeriq_notice_contacts() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_contacts(array $a,?int $only=null): array {
     $org=aeriq_org($a);
     if (aeriq_can($a,'campanas.gestionar')) {
@@ -39,12 +45,19 @@ function aeriq_notice_contacts(array $a,?int $only=null): array {
 }
 
 /** Aviso del que la cuenta es una de las dos partes, con bloqueo opcional; si no, 404. */
+/**
+ * Diseño lógico: (array $a,int $id,bool $lock=false) → aeriq_notice_own() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_own(array $a,int $id,bool $lock=false): array {
     $n=aeriq_one('SELECT * FROM avisos WHERE id=? AND organizacion_id=? AND (creado_por=? OR destinatario_id=?)'.($lock?' FOR UPDATE':''),[$id,aeriq_org($a),(int)$a['usuario_id'],(int)$a['usuario_id']]);
     if (!$n) throw new AeriqError('Aviso no encontrado.','not_found');
     return $n;
 }
 
+/**
+ * Gestiona aviso texto.
+ * Diseño lógico: (array $d,string $key,int $max,string $message) → aeriq_notice_text() → string; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_text(array $d,string $key,int $max,string $message): string {
     $v=is_string($d[$key]??null)?trim($d[$key]):'';
     $length=function_exists('mb_strlen')?mb_strlen($v,'UTF-8'):strlen($v);
@@ -53,6 +66,9 @@ function aeriq_notice_text(array $d,string $key,int $max,string $message): strin
 }
 
 /** Bandeja: los avisos de la cuenta (más recientes primero), cuántos tienen algo nuevo y a quién puede escribir. */
+/**
+ * Diseño lógico: (array $a) → aeriq_notices() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notices(array $a): array {
     $me=(int)$a['usuario_id'];
     $rows=aeriq_rows("SELECT n.id,n.asunto,n.creado_en,n.actualizado_en,e.codigo AS estado,e.nombre AS estado_nombre,(n.creado_por=?) AS mio,"
@@ -74,6 +90,9 @@ function aeriq_notices(array $a): array {
 }
 
 /** Solo el número de avisos con algo nuevo (para el aviso de la navegación). */
+/**
+ * Diseño lógico: (array $a) → aeriq_notices_unread() → int; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notices_unread(array $a): int {
     $me=(int)$a['usuario_id'];
     return (int)(aeriq_one("SELECT COUNT(*) AS n FROM avisos n WHERE n.organizacion_id=? AND (n.creado_por=? OR n.destinatario_id=?) AND EXISTS(SELECT 1 FROM aviso_mensajes m WHERE m.aviso_id=n.id AND m.autor_id<>? AND m.creado_en>COALESCE(IF(n.creado_por=?,n.visto_creador_en,n.visto_destinatario_en),'1970-01-01'))",
@@ -81,6 +100,9 @@ function aeriq_notices_unread(array $a): int {
 }
 
 /** Un aviso con todos sus mensajes. Abrirlo lo marca como visto para quien lo abre. */
+/**
+ * Diseño lógico: (array $a,int $id) → aeriq_notice() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice(array $a,int $id): array {
     $me=(int)$a['usuario_id'];$n=aeriq_notice_own($a,$id);
     aeriq_sql('UPDATE avisos SET '.((int)$n['creado_por']===$me?'visto_creador_en':'visto_destinatario_en').'=UTC_TIMESTAMP(3) WHERE id=?',[$id]);
@@ -95,6 +117,9 @@ function aeriq_notice(array $a,int $id): array {
 }
 
 /** Crea un aviso para una persona a la que la cuenta puede escribir. */
+/**
+ * Diseño lógico: (array $a,array $d) → aeriq_notice_create() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_create(array $a,array $d): array {
     $to=aeriq_int($d['to']??null);
     $subject=aeriq_notice_text($d,'subject',160,'Escribe el asunto (máximo 160 caracteres).');
@@ -111,6 +136,9 @@ function aeriq_notice_create(array $a,array $d): array {
 }
 
 /** Responde a un aviso. Si responde la otra persona queda «respondido»; si responde quien lo creó, «abierto». */
+/**
+ * Diseño lógico: (array $a,array $d) → aeriq_notice_reply() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_reply(array $a,array $d): array {
     $id=aeriq_int($d['id']??null);$me=(int)$a['usuario_id'];
     $text=aeriq_notice_text($d,'message',AERIQ_AVISO_MAX,'Escribe el mensaje (máximo '.AERIQ_AVISO_MAX.' caracteres).');
@@ -125,6 +153,9 @@ function aeriq_notice_reply(array $a,array $d): array {
 }
 
 /** Cierra un aviso (cualquiera de las dos personas). Se puede reabrir respondiendo. */
+/**
+ * Diseño lógico: (array $a,array $d) → aeriq_notice_close() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_close(array $a,array $d): array {
     $id=aeriq_int($d['id']??null);aeriq_notice_own($a,$id);
     aeriq_sql("UPDATE avisos SET estado_id=(SELECT id FROM estados_aviso WHERE codigo='cerrado'),actualizado_en=UTC_TIMESTAMP(3) WHERE id=?",[$id]);
@@ -132,6 +163,9 @@ function aeriq_notice_close(array $a,array $d): array {
 }
 
 /** Rutas comunes de portal.php (sesión web) y mobile-avisos.php (token del móvil). */
+/**
+ * Diseño lógico: (array $a,string $method,string $action) → aeriq_notice_route() → array; según doc/aeriq_business_logic_design.md.
+ */
 function aeriq_notice_route(array $a,string $method,string $action): array {
     if (!aeriq_org($a)) throw new AeriqError('Los avisos son para cuentas de una organización.','forbidden');
     if ($method==='GET' && $action==='notices') return aeriq_notices($a);

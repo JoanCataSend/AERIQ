@@ -18,6 +18,10 @@ public final class AeriqTokenStore {
         prefs = context.getSharedPreferences("aeriq_mobile_auth_private", Context.MODE_PRIVATE);
     }
 
+    /**
+     * Gestiona key.
+     * Diseño lógico: (sin parámetros) → key() → SecretKey; según doc/android_design.md.
+     */
     private SecretKey key() throws Exception {
         KeyStore store = KeyStore.getInstance("AndroidKeyStore");
         store.load(null);
@@ -46,8 +50,16 @@ public final class AeriqTokenStore {
         }
     }
 
+    /**
+     * Gestiona owner usuario id.
+     * Diseño lógico: (sin parámetros) → ownerUserId() → long; según doc/android_design.md.
+     */
     public synchronized long ownerUserId() { return prefs.getLong("session_user_id", 0L); }
 
+    /**
+     * Lee.
+     * Diseño lógico: (sin parámetros) → read() → String; según doc/android_design.md.
+     */
     public synchronized String read() {
         String saved = prefs.getString("session", null);
         if (saved == null) return null;
@@ -62,16 +74,28 @@ public final class AeriqTokenStore {
         }
     }
 
+    /**
+     * Guarda last correo.
+     * Diseño lógico: (String email) → saveLastEmail() → void; según doc/android_design.md.
+     */
     public synchronized void saveLastEmail(String email) {
         if (email != null && !email.trim().isEmpty()) {
             prefs.edit().putString("last_email", email.trim()).apply();
         }
     }
 
+    /**
+     * Obtiene last correo.
+     * Diseño lógico: (sin parámetros) → getLastEmail() → String; según doc/android_design.md.
+     */
     public synchronized String getLastEmail() {
         return prefs.getString("last_email", "");
     }
 
+    /**
+     * Gestiona clear.
+     * Diseño lógico: (sin parámetros) → clear() → void; según doc/android_design.md.
+     */
     public synchronized void clear() {
         prefs.edit().remove("session").remove("session_user_id").apply();
     }

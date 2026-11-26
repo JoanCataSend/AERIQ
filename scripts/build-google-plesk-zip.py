@@ -34,6 +34,8 @@ FILES = [
 ]
 
 
+# Coordina la ejecución principal del componente o script.
+# Diseño lógico: (sin parámetros) → main() → None; según scripts/README.md.
 def main() -> None:
     missing = [path for path in FILES if not (WEB / path).is_file()]
     if missing:

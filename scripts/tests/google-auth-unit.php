@@ -19,6 +19,10 @@ require_once $root . '/src/web/server/FirebaseAuth.php';
 $passed = 0;
 $failed = 0;
 
+/**
+ * Registra un fallo si la condición de auditoría no se cumple.
+ * Diseño lógico: (bool $condition, string $label) → check() → void; según scripts/README.md.
+ */
 function check(bool $condition, string $label): void {
     global $passed, $failed;
     if ($condition) {
@@ -30,6 +34,10 @@ function check(bool $condition, string $label): void {
     echo "FALLO {$label}\n";
 }
 
+/**
+ * Gestiona expect autenticación error.
+ * Diseño lógico: (callable $fn, int $status, string $label) → expect_auth_error() → void; según scripts/README.md.
+ */
 function expect_auth_error(callable $fn, int $status, string $label): void {
     $category=match ($status) {
         401=>'unauthenticated', 403=>'forbidden', 404=>'not_found', 409=>'conflict',

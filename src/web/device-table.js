@@ -4,10 +4,20 @@
  * La usan «Dispositivos AERIQ» (admin de campaña, fleet.js) y «AERIQ por campaña» (admin principal, portal.js).
  * Todo se calcula en el navegador con los datos de portal.php?action=dashboard: no cambia la API.
  */
+/**
+ * Diseño lógico: (parámetros de la firma) → AeriqDeviceTable() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 const AeriqDeviceTable=(()=>{
   const DAY=86400000,RECENT=15*60000,IDLE=30*DAY;
+  /**
+   * Gestiona hora.
+   * Diseño lógico: (String(v).replace(' ','T')+'Z') → time() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const time=v=>v?Date.parse(String(v).replace(' ','T')+'Z'):NaN;
   /** Actividad de un AERIQ: dado de baja, recibiendo ahora (15 min), sin uso en más de 30 días o sin lecturas recientes. */
+  /**
+   * Diseño lógico: (d,now=Date.now()) → activity() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function activity(d,now=Date.now()){
     if(!Number(d.activo))return 'baja';
     const received=time(d.ultima_recepcion),measured=time(d.ultima_medicion);
@@ -25,10 +35,17 @@ const AeriqDeviceTable=(()=>{
     ultima:{label:'Última medición',key:d=>Number.isFinite(time(d.ultima_medicion))?time(d.ultima_medicion):null},
     bateria:{label:'Batería',key:d=>d.bateria_pct===null||d.bateria_pct===undefined||d.bateria_pct===''?null:Number(d.bateria_pct)},
   };
+  /**
+   * Crea.
+   * Diseño lógico: (tag,text,cls) → create() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const create=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=text;if(cls)n.className=cls;return n;};
   /**
    * mount(host, {columns, campaigns:bool, action:(d)=>Node|null, empty})
    * Devuelve {set(devices)}: llamar con la lista de dispositivos cada vez que cambie.
+   */
+  /**
+   * Diseño lógico: (host,opts) → mount() → resultado de la operación; según doc/frontend_business_logic_design.md.
    */
   function mount(host,opts){
     const columns=opts.columns,state={q:'',estado:'',actividad:'',operador:'',campana:'',sort:'nombre',dir:1};
@@ -37,11 +54,19 @@ const AeriqDeviceTable=(()=>{
     // Paneles (T45): cuentan sobre todos los AERIQ y, al pulsarlos, filtran la tabla.
     const panels=create('div',null,'stats-grid device-panels');
     const PANELS=[['En servicio','estado','alta'],['Dados de baja','estado','baja'],['Recibiendo ahora','actividad','recibiendo'],['Sin uso en más de 30 días','actividad','sin_uso']];
+    /**
+     * Gestiona panel buttons.
+     * Diseño lógico: (parámetros de la firma) → panelButtons() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const panelButtons=PANELS.map(([label,field,value])=>{const b=create('button',null,'stat stat-button');b.type='button';b.append(create('strong','—'),create('small',label));
       b.onclick=()=>{const on=state[field]===value;state.estado='';state.actividad='';if(!on)state[field]=value;sync();render();};panels.append(b);return {b,field,value};});
     // Filtros (T43): buscador, estado, actividad, operador y (en la vista del admin principal) campaña.
     const controls=create('div',null,'device-filters');
     const search=create('input');search.type='search';search.placeholder='Buscar por nombre o dirección BLE';search.setAttribute('aria-label','Buscar dispositivo');
+    /**
+     * Selecciona.
+     * Diseño lógico: (label,name,options) → select() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const select=(label,name,options)=>{const wrap=create('label',null,'device-filter');wrap.append(create('span',label));const s=create('select');s.name=name;
       for(const [v,t] of options)s.add(new Option(t,v));wrap.append(s);s.onchange=()=>{state[name]=s.value;sync();render();};controls.append(wrap);return s;};
     const searchWrap=create('label',null,'search-control device-search');searchWrap.append(search);controls.append(searchWrap);
@@ -49,20 +74,36 @@ const AeriqDeviceTable=(()=>{
     const actividad=select('Actividad','actividad',[['','Todas'],['recibiendo',ACTIVITY.recibiendo],['sin_datos',ACTIVITY.sin_datos],['sin_uso',ACTIVITY.sin_uso]]);
     const operador=select('Operador','operador',[['','Todos']]);
     const campana=opts.campaigns?select('Campaña','campana',[['','Todas']]):null;
+    /**
+     * Gestiona clear.
+     * Diseño lógico: ('button','Quitar filtros','text-link') → clear() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const clear=create('button','Quitar filtros','text-link');clear.type='button';clear.onclick=()=>{Object.assign(state,{q:'',estado:'',actividad:'',operador:'',campana:''});search.value='';sync();render();};controls.append(clear);
     search.oninput=()=>{state.q=search.value.trim().toLowerCase();render();};
     // Tabla con cabeceras que ordenan (T44): una pulsación ascendente, otra descendente, flecha en la activa.
     const scroll=create('div',null,'table-scroll'),table=create('table',null,'devices-table'),thead=create('thead'),tbody=create('tbody'),bottom=create('div',null,'table-bottom');
     const headRow=create('tr');
+    /**
+     * Gestiona headers.
+     * Diseño lógico: (parámetros de la firma) → headers() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const headers=columns.map(c=>{const th=create('th');const b=create('button',null,'sort-button');b.type='button';b.append(create('span',COLUMNS[c].label),create('span','','sort-arrow'));
       b.onclick=()=>{if(state.sort===c)state.dir*=-1;else{state.sort=c;state.dir=1;}render();};th.append(b);headRow.append(th);return {th,b,c};});
     if(opts.action)headRow.append(create('th','Acciones'));
     thead.append(headRow);table.append(thead,tbody);scroll.append(table);
     host.append(panels,controls,scroll,bottom);
+    /**
+     * Sincroniza.
+     * Diseño lógico: (sin parámetros) → sync() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     function sync(){
       estado.value=state.estado;actividad.value=state.actividad;operador.value=state.operador;if(campana)campana.value=state.campana;
       for(const p of panelButtons){const on=state[p.field]===p.value;p.b.classList.toggle('selected',on);p.b.setAttribute('aria-pressed',String(on));}
     }
+    /**
+     * Gestiona matches.
+     * Diseño lógico: (d) → matches() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     function matches(d){
       const act=activity(d);
       if(state.estado==='alta'&&!Number(d.activo))return false;
@@ -74,6 +115,10 @@ const AeriqDeviceTable=(()=>{
       if(state.campana&&state.campana!=='__none'&&String(d.campana_id)!==state.campana)return false;
       return !state.q||`${d.nombre} ${d.id} ${d.direccion_ble||''}`.toLowerCase().includes(state.q);
     }
+    /**
+     * Gestiona celda.
+     * Diseño lógico: (d,c) → cell() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     function cell(d,c){
       const td=create('td');
       if(c==='nombre'){td.className='device-name';td.append(create('strong',d.nombre),create('small',d.direccion_ble||''));}
@@ -84,9 +129,16 @@ const AeriqDeviceTable=(()=>{
       else if(c==='bateria')td.textContent=AeriqDomain.battery(d.bateria_pct,d.bateria_en);
       return td;
     }
+    /**
+     * Representa.
+     * Diseño lógico: (sin parámetros) → render() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     function render(){
       const key=COLUMNS[state.sort].key;
       // Los vacíos (sin operador, sin medición…) van siempre al final, en los dos sentidos.
+      /**
+       * Diseño lógico: (matches) → shown() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       */
       const shown=devices.filter(matches).sort((a,b)=>{const x=key(a),y=key(b);if(x===null&&y===null)return 0;if(x===null)return 1;if(y===null)return -1;
         return (x<y?-1:x>y?1:0)*state.dir||a.nombre.localeCompare(b.nombre,'es');});
       tbody.replaceChildren();
@@ -94,13 +146,25 @@ const AeriqDeviceTable=(()=>{
       if(!shown.length){const tr=create('tr'),td=create('td',devices.length?'No hay dispositivos que coincidan con los filtros.':(opts.empty||'Todavía no hay dispositivos AERIQ.'));td.colSpan=columns.length+(opts.action?1:0);tr.append(td);tbody.append(tr);}
       for(const h of headers){const on=state.sort===h.c;h.th.setAttribute('aria-sort',on?(state.dir>0?'ascending':'descending'):'none');h.b.querySelector('.sort-arrow').textContent=on?(state.dir>0?'▲':'▼'):'';
         h.b.setAttribute('aria-label',`Ordenar por ${COLUMNS[h.c].label}`+(on?(state.dir>0?', ahora ascendente':', ahora descendente'):''));}
+      /**
+       * Gestiona counts.
+       * Diseño lógico: (d=>Number(d.activo)) → counts() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       */
       const counts={alta:devices.filter(d=>Number(d.activo)).length,baja:devices.filter(d=>!Number(d.activo)).length,recibiendo:devices.filter(d=>activity(d)==='recibiendo').length,sin_uso:devices.filter(d=>activity(d)==='sin_uso').length};
       for(const p of panelButtons)p.b.querySelector('strong').textContent=counts[p.value];
       bottom.textContent=`${shown.length} de ${devices.length} AERIQ · «Recibiendo ahora» = ha enviado datos en los últimos 15 minutos.`;
       clear.hidden=!(state.q||state.estado||state.actividad||state.operador||state.campana);
     }
+    /**
+     * Establece.
+     * Diseño lógico: (list) → set() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     function set(list){
       devices=list||[];
+      /**
+       * Gestiona people.
+       * Diseño lógico: (devices.filter(d=>d.trabajador_id).map(d=>[String(d.trabajador_id),d.trabajador])) → people() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       */
       const people=[...new Map(devices.filter(d=>d.trabajador_id).map(d=>[String(d.trabajador_id),d.trabajador])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'es'));
       operador.replaceChildren(new Option('Todos',''),new Option('Sin operador','__none'),...people.map(([id,name])=>new Option(name,id)));
       if(campana){const camps=[...new Map(devices.filter(d=>d.campana_id).map(d=>[String(d.campana_id),d.campana])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'es'));

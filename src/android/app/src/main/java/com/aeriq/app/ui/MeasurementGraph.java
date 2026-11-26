@@ -22,6 +22,10 @@ public final class MeasurementGraph extends View {
         setContentDescription("Gráfica de " + values.size() + " mediciones");
     }
 
+    /**
+     * Atiende el evento draw.
+     * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+     */
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         float width = getWidth(), height = getHeight();

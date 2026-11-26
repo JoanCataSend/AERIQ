@@ -25,6 +25,10 @@ bool bateriaEnAnuncio = false; // Anuncio de bateria activo durante el reposo tr
 uint32_t ultimosExtras = 0;    // Ultima vez que se anunciaron temperatura y bateria.
 bool extrasAlgunaVez = false;
 
+/**
+ * Emite por serie el diagnóstico disponible del sensor y la batería.
+ * Diseño lógico: (sin parámetros) → diagnosticar() → resultado de la operación; según doc/firmware_design.md.
+ */
 void diagnosticar() {
   static uint32_t ultimo = 0;
   const uint32_t ahora = millis();
@@ -57,6 +61,10 @@ void diagnosticar() {
   }
 }
 
+/**
+ * Anuncia por BLE una medición usando el formato del protocolo.
+ * Diseño lógico: (uint8_t tipo, uint16_t valor) → publicar() → resultado de la operación; según doc/firmware_design.md.
+ */
 bool publicar(uint8_t tipo, uint16_t valor) {
   Bluefruit.Advertising.stop();
   Bluefruit.Advertising.clearData();
@@ -71,6 +79,10 @@ bool publicar(uint8_t tipo, uint16_t valor) {
   return Bluefruit.Advertising.start(0);
 }
 
+/**
+ * Configura.
+ * Diseño lógico: (sin parámetros) → setup() → resultado de la operación; según doc/firmware_design.md.
+ */
 void setup() {
   Serial.begin(115200);
   // LED y medidor de bateria funcionan aunque falle la radio.
@@ -89,6 +101,10 @@ void setup() {
   medidor.iniciar();
 }
 
+/**
+ * Gestiona loop.
+ * Diseño lógico: (sin parámetros) → loop() → resultado de la operación; según doc/firmware_design.md.
+ */
 void loop() {
   consola.atender(medidor.calibrado());
   diagnosticar();
@@ -165,6 +181,9 @@ void loop() {
 }
 
 // Vuelve a medir. La publicidad ya esta parada: el ADC adquiere siempre con la radio en silencio.
+/**
+ * Diseño lógico: (sin parámetros) → siguienteCiclo() → resultado de la operación; según doc/firmware_design.md.
+ */
 void siguienteCiclo() {
   medidor.iniciar(); fase = Fase::LEER;
 }

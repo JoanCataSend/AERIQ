@@ -8,6 +8,9 @@ declare(strict_types=1);
  * Descripción: asigna el estado HTTP que corresponde a la categoría semántica.
  * --------------------
  */
+/**
+ * Diseño lógico: (Throwable $error) → aeriq_http_status() → int; según doc/web_communication_design.md.
+ */
 function aeriq_http_status(Throwable $error): int {
     if (!$error instanceof DomainError) return 500;
     return match ($error->category) {

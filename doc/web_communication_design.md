@@ -10,7 +10,7 @@ Las firmas compartidas se definen en `doc/aeriq_business_logic_design.md`. La ca
 
 ### Estado actual y delegación
 
-Las rutas eligen el contrato y método HTTP; `portal.php` delega autorización a `aeriq_portal_access()` y las lecturas de panel, mapa, catálogos y solicitudes a operaciones de `AeriqCore.php`. `api.php` ya delega sus consultas de compatibilidad. `AuthCore.php` mantiene las reglas de sesión y autenticación, y delega la persistencia de cuentas/códigos a `AuthRepository.php`. La ejecución parametrizada común está en `SqlGateway.php`; el envío SMTP/PHPMailer/mail() está en `MailTransport.php`. `AeriqCore.php` conserva SQL específico de sus casos de uso y transacciones, pendiente de migración a repositorios por entidad.
+Las rutas eligen el contrato y método HTTP; `portal.php` delega autorización a `aeriq_portal_access()` y las lecturas de panel, mapa, catálogos y solicitudes a operaciones de `AeriqCore.php`. `api.php` delega sus consultas de compatibilidad. `AuthCore.php` mantiene las reglas de sesión y autenticación y delega la persistencia de cuentas/códigos a `AuthRepository.php`. La persistencia AERIQ corresponde a `AeriqRepository.php`, cuyas consultas y fragmentos SQL están en `AeriqQueryCatalog.php`; la ejecución parametrizada y las transacciones se implementan en `SqlGateway.php`. El transporte SMTP/PHPMailer/mail() está en `MailTransport.php`. `AeriqCore.php` valida y coordina casos de uso sin contener sentencias SQL ni acceso directo a MySQLi.
 
 | Interfaz | Transporte y autorización | Delegación actual | Contrato |
 |---|---|---|---|
@@ -32,7 +32,7 @@ Las rutas eligen el contrato y método HTTP; `portal.php` delega autorización a
 - Las rutas, parámetros y respuestas HTTP exactos permanecen en `doc/api.md`.
 - Nunca se acepta la organización, rol o permiso del cliente como autoridad. La identidad se relee y autoriza en servidor.
 - El mapa público solo incluye mediciones válidas, geolocalizadas y autorizadas para publicación.
-- Las rutas y los casos de uso no deben depender de detalles del transporte ni de la conexión. El transporte de correo y la conexión SQL tienen adaptadores; las consultas específicas de AeriqCore están en migración a repositorios.
+- Las rutas y los casos de uso no deben depender de detalles del transporte ni de la conexión. El transporte de correo, la ejecución SQL y los repositorios son componentes separados; las reglas de dominio se mantienen en sus servicios.
 
 ## General Rules
 
@@ -40,6 +40,6 @@ Las rutas eligen el contrato y método HTTP; `portal.php` delega autorización a
 - Las rutas solo deben encargarse de transporte, validación del protocolo y serialización; las reglas se delegan a servicios de negocio.
 - Los parámetros SQL se enlazan; no interpolar datos de usuario en consultas.
 - Los errores no deben exponer credenciales, tokens, rutas del servidor ni consultas SQL.
-- **Function/Method Headers:** cada función o método nuevo debe incluir su diseño lógico en un bloque delimitado por líneas `--------------------`.
+- **Function/Method Headers:** cada función o método debe tener antes un comentario con su propósito y diseño lógico `entradas → función → salida`; conservar el bloque delimitado por líneas `--------------------` para contratos formales.
 - **Code Readability:** nombres y flujo claros; evitar comentarios que repitan el código.
 - **Automated Testing:** generar pruebas unitarias/de integración para rutas críticas, autenticación, autorización, errores y contratos.

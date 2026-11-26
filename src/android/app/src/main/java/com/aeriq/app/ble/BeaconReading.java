@@ -12,6 +12,14 @@ public final class BeaconReading {
         this.txPower = txPower;
     }
 
+    /**
+     * Gestiona unit.
+     * Diseño lógico: (sin parámetros) → unit() → String; según doc/android_design.md.
+     */
     public String unit() { return typeId == IBeaconParser.O3_ID ? "ppb" : "°C"; }
+    /**
+     * Gestiona label.
+     * Diseño lógico: (sin parámetros) → label() → String; según doc/android_design.md.
+     */
     public String label() { return typeId == IBeaconParser.O3_ID ? "Ozono" : "Temperatura"; }
 }

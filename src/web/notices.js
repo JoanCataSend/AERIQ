@@ -7,17 +7,41 @@
  */
 (()=>{
   const panel=document.querySelector('#notices-panel');if(!panel)return;
+  /**
+   * Gestiona $.
+   * Diseño lógico: (s) → $() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const $=s=>document.querySelector(s);
+  /**
+   * Gestiona node.
+   * Diseño lógico: (tag,text,cls) → node() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(cls)n.className=cls;return n;};
+  /**
+   * Gestiona when.
+   * Diseño lógico: (s) → when() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const when=s=>AeriqDomain.when(s);
   const PILL={abierto:'pill-soon',respondido:'pill-info',cerrado:'pill-off'};
   const state={list:[],contacts:[],filter:'open',selected:null,unread:0,loaded:false};
+  /**
+   * Gestiona estado.
+   * Diseño lógico: (msg,tone) → status() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const status=(msg,tone)=>aeriqStatus($('#notices-status'),msg,tone);
 
+  /**
+   * Gestiona badge.
+   * Diseño lógico: (n) → badge() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function badge(n){
     state.unread=n;const b=$('#notices-badge');if(!b)return;
     b.hidden=!n;b.textContent=n;b.setAttribute('aria-label',`${n} ${n===1?'aviso nuevo':'avisos nuevos'}`);
   }
+  /**
+   * Carga.
+   * Diseño lógico: (keep) → load() → Promise; según doc/frontend_business_logic_design.md.
+   */
   async function load(keep){
     try{
       const d=await Aeriq.portal('notices');state.list=d.notices;state.contacts=d.contacts;state.loaded=true;badge(d.unread);
@@ -26,11 +50,23 @@
       if(keep&&state.selected)await open(state.selected,false);else if(!state.selected)renderEmpty();
     }catch(e){status(e.message,'error');}
   }
+  /**
+   * Representa empty.
+   * Diseño lógico: (sin parámetros) → renderEmpty() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function renderEmpty(){
     const host=$('#notice-detail');host.replaceChildren();
     host.append(node('p',state.list.length?'Elige un aviso de la lista.':'Todavía no tienes avisos. Pulsa «Nuevo aviso» para escribir a alguien de tu equipo.'));
   }
+  /**
+   * Representa list.
+   * Diseño lógico: (sin parámetros) → renderList() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function renderList(){
+    /**
+     * Gestiona pending.
+     * Diseño lógico: (n=>n.estado!=='cerrado') → pending() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const pending=state.list.filter(n=>n.estado!=='cerrado'),shown=state.filter==='open'?pending:state.list;
     const filter=$('#notices-filter');filter.replaceChildren();
     for(const [code,label,count] of [['open','Abiertos',pending.length],['all','Todos',state.list.length]]){
@@ -48,6 +84,10 @@
       row.onclick=()=>open(n.id,true);host.append(row);
     }
   }
+  /**
+   * Abre.
+   * Diseño lógico: (id,refreshList) → open() → Promise; según doc/frontend_business_logic_design.md.
+   */
   async function open(id,refreshList){
     state.selected=id;renderList();
     const host=$('#notice-detail');

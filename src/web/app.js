@@ -1,14 +1,34 @@
 /* AERIQ · JavaScript GLOBAL · Interacciones de demostración, sin backend ni cobros. */
 'use strict';
 // Preferencias locales del navegador (try/catch por si el almacenamiento está bloqueado).
-const store={get(k,def=null){try{let v=localStorage.getItem('aeriq_'+k);return v===null?def:JSON.parse(v)}catch{return def}},set(k,v){try{localStorage.setItem('aeriq_'+k,JSON.stringify(v))}catch{}}};
+const store={
+  /** Lee una preferencia local; diseño lógico: (clave, valorPorDefecto) → get() → valor. */
+  get(k,def=null){try{let v=localStorage.getItem('aeriq_'+k);return v===null?def:JSON.parse(v)}catch{return def}},
+  /** Guarda una preferencia local serializada; diseño lógico: (clave, valor) → set() → sin valor. */
+  set(k,v){try{localStorage.setItem('aeriq_'+k,JSON.stringify(v))}catch{}}
+};
 // tone: 'error' rojo, 'warn' naranja, 'ok' verde, 'info' neutro. Los errores se quedan algo más en pantalla.
+/**
+ * Diseño lógico: (msg,tone='info') → toast() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function toast(msg,tone='info'){const n=document.querySelector('#toast');if(!n)return;n.textContent=msg;n.dataset.tone=tone;n.setAttribute('role',tone==='error'?'alert':'status');n.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>n.classList.remove('show'),tone==='error'?6000:3600)}
+/**
+ * Gestiona $.
+ * Diseño lógico: (s,root=document) → $() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 const $=(s,root=document)=>root.querySelector(s),$$=(s,root=document)=>[...root.querySelectorAll(s)];
+/**
+ * Inicializa navegación.
+ * Diseño lógico: (sin parámetros) → initNavigation() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initNavigation(){
   const toggle=$('[data-menu-toggle]');
   const nav=toggle?.getAttribute('aria-controls')?document.getElementById(toggle.getAttribute('aria-controls')):$('.main-nav');
   if(toggle&&nav){
+    /**
+     * Establece menú.
+     * Diseño lógico: ('open',open) → setMenu() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const setMenu=open=>{nav.classList.toggle('open',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Cerrar menú':'Abrir menú');};
     toggle.addEventListener('click',()=>setMenu(!nav.classList.contains('open')));
     nav.addEventListener('click',event=>{if(event.target.closest('a'))setMenu(false);});
@@ -19,22 +39,45 @@ function initNavigation(){
   const header=$('.site-header'),darks=$$('.dark');
   if(header&&darks.length){
     let frame=0;
+    /**
+     * Actualiza.
+     * Diseño lógico: (sin parámetros) → update() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const update=()=>{frame=0;const mid=header.offsetHeight/2;header.classList.toggle('on-dark',darks.some(s=>{const r=s.getBoundingClientRect();return r.top<=mid&&r.bottom>=mid;}));};
+    /**
+     * Gestiona schedule.
+     * Diseño lógico: (sin parámetros) → schedule() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     */
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(update);};
     addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule);update();
   }
 }
 // La página de inicio de cada cuenta se decide en un solo sitio: AeriqAuth.home (auth-client.js).
+/**
+ * Diseño lógico: (user) → authDestination() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function authDestination(user){return AeriqAuth.home(user);}
 window.authDestination=authDestination;
+/**
+ * Gestiona feedback.
+ * Diseño lógico: (error) → authFeedback() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function authFeedback(error){
   const msg=error instanceof Error?error.message:String(error);
   toast(msg,'error');
 }
+/**
+ * Envía botón.
+ * Diseño lógico: (form, busy) → authSubmitButton() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function authSubmitButton(form, busy){
   const button=form?.querySelector('button[type="submit"]');
   if(button)button.disabled=Boolean(busy);
 }
+/**
+ * Inicializa formularios.
+ * Diseño lógico: (sin parámetros) → initForms() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initForms(){
   $$('[data-demo-form]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();if(f.reportValidity())toast(f.dataset.success||'Esta función sigue en demostración.','warn')}));
   $$('[data-toggle-password]').forEach(b=>{
@@ -107,6 +150,10 @@ function initForms(){
     }finally{authSubmitButton(f,false)}
   });
 }
+/**
+ * Inicializa sensor product.
+ * Diseño lógico: (sin parámetros) → initSensorProduct() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initSensorProduct(){
  const main=$('#product-main-image');
  $$('[data-angle]').forEach(button=>button.addEventListener('click',()=>{
@@ -115,11 +162,23 @@ function initSensorProduct(){
  }));
  $$('[data-angle]').forEach(b=>b.setAttribute('aria-pressed',String(b.classList.contains('active'))));
 }
+/**
+ * Inicializa mapa.
+ * Diseño lógico: (sin parámetros) → initMap() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initMap(){ if(typeof initAeriqMap==='function')initAeriqMap(); }
+/**
+ * Inicializa model viewer.
+ * Diseño lógico: (sin parámetros) → initModelViewer() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initModelViewer(){
  // Cada visor muestra su foto provisional (poster) hasta cargar; el aviso pequeño se apaga al terminar.
  for(const model of document.querySelectorAll('.sensor-model-viewer')){
   const label=model.parentElement.querySelector('.mv-loading');
+  /**
+   * Gestiona ready.
+   * Diseño lógico: (sin parámetros) → ready() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   const ready=()=>{model.closest('.sensor-3d-shell')?.classList.add('is-ready');label?.classList.add('is-ready');};
   model.addEventListener('load',ready,{once:true});
   model.addEventListener('progress',e=>{if(e.detail?.totalProgress>=1)ready();});
@@ -128,7 +187,15 @@ function initModelViewer(){
   if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)model.removeAttribute('auto-rotate');
  }
 }
+/**
+ * Inicializa dispositivos.
+ * Diseño lógico: (sin parámetros) → initDevices() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initDevices(){if(typeof initFleet==='function')void initFleet();}
+/**
+ * Inicializa perfil.
+ * Diseño lógico: (sin parámetros) → initProfile() → Promise; según doc/frontend_business_logic_design.md.
+ */
 async function initProfile(){
   const form=$('#profile-form');if(!form)return;
   try{
@@ -178,12 +245,19 @@ async function initProfile(){
   $('#add-address')?.addEventListener('click',()=>toast('Gestión de direcciones pendiente de backend.','warn'));
 }
 /* Persisted records from Sprint 0: genuine DB rows, test values emitted by firmware. No geo/conversion. */
+/**
+ * Diseño lógico: (sin parámetros) → initPbioReadings() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function initPbioReadings() {
   const panel = $('#pbio-live-panel');
   if (!panel) return;
   const label = $('#pbio-api-status');
   const rows = $('#pbio-live-readings');
   let activeRequest = false;
+  /**
+   * Gestiona celda.
+   * Diseño lógico: (parent, tag, cls, value) → cell() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   */
   function cell(parent, tag, cls, value) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -191,6 +265,10 @@ function initPbioReadings() {
     parent.appendChild(n);
     return n;
   }
+  /**
+   * Actualiza.
+   * Diseño lógico: (sin parámetros) → refresh() → Promise; según doc/frontend_business_logic_design.md.
+   */
   async function refresh() {
     if (activeRequest || document.hidden) return;
     activeRequest = true;
@@ -242,5 +320,9 @@ function initPbioReadings() {
   document.addEventListener('visibilitychange', () => {if (!document.hidden) refresh()});
 }
 
+/**
+ * Inicializa.
+ * Diseño lógico: (sin parámetros) → init() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ */
 function init(){initNavigation();initForms();initSensorProduct();initMap();initModelViewer();initDevices();initProfile();initPbioReadings();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();

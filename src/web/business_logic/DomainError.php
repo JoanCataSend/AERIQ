@@ -9,6 +9,9 @@ class DomainError extends RuntimeException {
      * Descripción: crea un error de negocio sin depender de HTTP ni de la capa de comunicación.
      * --------------------
      */
+    /**
+     * Diseño lógico: (parámetros de la firma) → __construct() → resultado de la operación; según doc/aeriq_business_logic_design.md.
+     */
     public function __construct(
         string $message,
         public readonly string $category = 'invalid_input',

@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web"
 
 
+# Gestiona deploy files.
+# Diseño lógico: (sin parámetros) → deploy_files() → resultado de la operación; según scripts/README.md.
 def deploy_files():
     """Lista explícita de código y recursos; no recorre configuración privada."""
     for path in sorted(WEB.iterdir()):
@@ -40,6 +42,8 @@ def deploy_files():
     yield WEB / "vendor" / ".htaccess"
 
 
+# Coordina la ejecución principal del componente o script.
+# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default=".dist/plesk/web")

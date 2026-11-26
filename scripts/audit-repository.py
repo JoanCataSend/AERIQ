@@ -16,17 +16,23 @@ failures = []
 skipped = []
 
 
+# Registra un fallo si la condición de auditoría no se cumple.
+# Diseño lógico: (condition, message) → check() → resultado de la operación; según scripts/README.md.
 def check(condition, message):
     if not condition:
         failures.append(message)
 
 
 class References(HTMLParser):
+    # Inicializa el objeto y sus dependencias.
+    # Diseño lógico: (self) → __init__() → resultado de la operación; según scripts/README.md.
     def __init__(self):
         super().__init__()
         self.refs = []
         self.scripts = []
 
+    # Gestiona starttag.
+    # Diseño lógico: (self, tag, attrs) → handle_starttag() → resultado de la operación; según scripts/README.md.
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         for key in ("src", "href"):
@@ -36,6 +42,8 @@ class References(HTMLParser):
             self.scripts.append(attrs["src"])
 
 
+# Comprueba reference.
+# Diseño lógico: (source, reference) → check_reference() → resultado de la operación; según scripts/README.md.
 def check_reference(source, reference):
     link = urlsplit(reference)
     if link.scheme or link.netloc or not link.path or link.path.startswith("/"):
@@ -44,6 +52,8 @@ def check_reference(source, reference):
     check(target.exists(), f"Referencia inexistente: {source.relative_to(ROOT)} -> {reference}")
 
 
+# Ejecuta syntax.
+# Diseño lógico: (binary, paths, flag) → run_syntax() → resultado de la operación; según scripts/README.md.
 def run_syntax(binary, paths, flag):
     executable = shutil.which(binary)
     if binary == "php" and not executable and Path("C:/xampp/php/php.exe").is_file():
@@ -59,6 +69,8 @@ def run_syntax(binary, paths, flag):
         check(result.returncode == 0, f"Sintaxis: {path.relative_to(ROOT)}\n{result.stderr or result.stdout}")
 
 
+# Coordina la ejecución principal del componente o script.
+# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
 def main():
     required = [
         "README.md", "src/README.md", "src/android/README.md",
