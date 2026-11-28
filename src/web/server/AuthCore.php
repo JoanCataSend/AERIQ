@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: AuthCore.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 declare(strict_types=1);
 date_default_timezone_set('UTC');
 

@@ -1,5 +1,10 @@
-package com.aeriq.app.ui;
-
+/*
+ * Fichero: Views.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
@@ -17,6 +22,8 @@ public final class Views {
     public static final int SOFT = 0xffe4f0ed, LINE = 0xffe3eae7, RED = 0xffc8433d;
     public static final int BANNER_BG = 0xffe8f3ef;
     private final Context context;
+
+
 
     public Views(Context context) { this.context = context; }
     /**

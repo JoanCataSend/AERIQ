@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: CampaignTeam.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,6 +36,8 @@ public final class CampaignTeam {
         public final String name, address, worker, lastReading;
         public final boolean active, simulated;
 
+
+
         Device(JSONObject data) throws JSONException {
             id = data.getLong("id");
             name = data.optString("nombre");
@@ -45,6 +53,8 @@ public final class CampaignTeam {
     public final String campaign;
     public final List<Operator> operators;
     public final List<Device> devices;
+
+
 
     CampaignTeam(JSONObject data) throws JSONException {
         JSONObject c = data.optJSONObject("campaign");

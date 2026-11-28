@@ -1,5 +1,10 @@
-package com.aeriq.app.data;
-
+/*
+ * Fichero: PublicReadings.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.json.*;
 import org.osmdroid.util.GeoPoint;
 import java.util.*;
@@ -11,6 +16,15 @@ public final class PublicReadings {
         public final boolean simulated;
         public final int radius;
 
+        /**
+
+
+         * Reading(String id, String campaign, String zone, double latitude, double longitude,
+                       double value, String unit, String date, boolean simulated, int radius,
+                       double medium, double high) → Implementa la operación Reading del módulo.
+
+
+         */
         public Reading(String id, String campaign, String zone, double latitude, double longitude,
                        double value, String unit, String date, boolean simulated, int radius,
                        double medium, double high) {
@@ -43,6 +57,8 @@ public final class PublicReadings {
     public static final class Result {
         public final List<Reading> rows;
         public final boolean truncated;
+
+
 
         Result(List<Reading> rows, boolean truncated) {
             this.rows = rows;
@@ -126,6 +142,8 @@ public final class PublicReadings {
         public final boolean own;
 
         Estimate(Double value, int positions, double nearest, Reason reason) { this(value, positions, nearest, reason, 0, false); }
+
+
 
         Estimate(Double value, int positions, double nearest, Reason reason, double weight, boolean own) {
             this.value = value;
@@ -287,6 +305,8 @@ public final class PublicReadings {
         public final int rows, columns, evaluated;
         public final byte[] states;
         public final boolean clipped;
+
+
 
         Raster(int rows, int columns, byte[] states, int evaluated, boolean clipped) {
             this.rows = rows;

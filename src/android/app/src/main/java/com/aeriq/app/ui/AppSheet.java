@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: AppSheet.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.res.ColorStateList;
@@ -26,6 +32,8 @@ final class AppSheet {
     private final Views ui;
     private final LinearLayout sheet, actions;
     private float downY;
+
+
 
     AppSheet(Activity activity, Views ui, String title, String subtitle) {
         this.ui = ui;
@@ -191,6 +199,8 @@ final class AppSheet {
         actions.addView(button, new LinearLayout.LayoutParams(0, ui.dp(52), 1));
         actions.setVisibility(View.VISIBLE);
     }
+
+
 
     void show() { dialog.show(); }
 

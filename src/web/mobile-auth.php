@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: mobile-auth.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 /**
  * AERIQ – Autenticación para Android (independiente de las cookies web).
  * Usa los mismos usuarios y codigos_email de auth.php.

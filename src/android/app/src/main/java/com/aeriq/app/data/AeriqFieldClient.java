@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: AeriqFieldClient.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.location.Location;
 import android.content.Context;
 import android.os.Handler;
@@ -23,6 +29,8 @@ public final class AeriqFieldClient implements AutoCloseable {
     private final Supplier<Long> owner;
     private final ReadingOutbox outbox;
     private volatile boolean closed;
+
+
 
     public AeriqFieldClient(Context context, Supplier<String> token, Supplier<Long> owner) {
         this.token = token; this.owner = owner;

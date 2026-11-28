@@ -1,3 +1,12 @@
+/*
+ * Fichero: aeriq-domain.test.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts/scripts/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 const assert=require('node:assert/strict');
@@ -25,6 +34,7 @@ assert(Object.isFrozen(P));
 const stamp=m=>`2026-11-10 ${String(12+Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}:00.000`;
 // Rejilla de evaluación de 18 × 21 celdas de ~10 m alrededor del campus (centros de celda).
 const LAT0=38.9960,LON0=-0.1670,LAT_STEP=0.00009,LON_STEP=0.0001156,ROWS=18,COLS=21;
+
 function sweep(rows,radius,options){
   const s=domain.support(rows,options),c={valor:0,insuficiente:0,lejos:0,mezcla:0,radio:0,min:Infinity,max:-Infinity,sum:0};
   for(let i=0;i<ROWS;i++)for(let j=0;j<COLS;j++){

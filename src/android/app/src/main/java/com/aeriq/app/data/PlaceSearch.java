@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: PlaceSearch.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
@@ -51,6 +57,8 @@ public final class PlaceSearch {
             }
         }
     }
+
+
 
     private PlaceSearch() {}
 
@@ -155,6 +163,7 @@ public final class PlaceSearch {
             connection.setRequestProperty("User-Agent", "AERIQ-Android/1.0");
             if (connection.getResponseCode() != 200) throw new IOException("HTTP " + connection.getResponseCode());
             StringBuilder content = new StringBuilder();
+
             try (Reader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
                 char[] buffer = new char[4096];
                 int count;

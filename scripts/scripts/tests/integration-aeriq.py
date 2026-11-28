@@ -1,3 +1,16 @@
+# Fichero: integration-aeriq.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Integración aislada de PHP/MariaDB. No usa configuraciones ni correo de Plesk."""
 import argparse
 import datetime as dt
@@ -15,9 +28,15 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[2]
 
+# port() → Implementa la operación port del módulo.
+
+
 def port():
     with socket.socket() as s:
         s.bind(('127.0.0.1',0));return s.getsockname()[1]
+
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 
 def main():
     args=argparse.ArgumentParser(description=__doc__)
@@ -33,6 +52,8 @@ def main():
     flags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0
     subprocess.run([str(binary/'mysql_install_db.exe'),f'--datadir={folder / "db"}',f'--port={dbport}','--silent'],check=True,capture_output=True,creationflags=flags)
     mysql=[str(binary/'mysql.exe'),'--no-defaults','--default-character-set=utf8mb4','--host=127.0.0.1',f'--port={dbport}','--user=root','--batch','--skip-column-names']
+    # sql(text) → Implementa la operación sql del módulo.
+
     def sql(text):
         r=subprocess.run(mysql,input=text,text=True,encoding='utf-8',errors='replace',capture_output=True,creationflags=flags)
         if r.returncode:raise RuntimeError(r.stderr)
@@ -106,6 +127,8 @@ class PHPMailer {
         httplog=(folder/'http.log').open('w')
         php=subprocess.Popen([opt.php,'-S',f'127.0.0.1:{httpport}','-t',str(web)],stdout=httplog,stderr=httplog,env=env,creationflags=flags)
         base=f'http://127.0.0.1:{httpport}/';cookies={};csrf={}
+        # request(path,body=None,identity=None,token=None) → Envía una petición al servicio y procesa su respuesta.
+
         def request(path,body=None,identity=None,token=None):
             headers={'Accept':'application/json'}
             if identity and identity in cookies:headers['Cookie']=cookies[identity]
@@ -124,6 +147,8 @@ class PHPMailer {
                 if cookie:cookies[identity]=cookie.split(';')[0]
                 if 'csrf' in data:csrf[identity]=data['csrf']
             return r.status,data
+        # expect(code,path,body=None,identity=None,token=None) → Implementa la operación expect del módulo.
+
         def expect(code,path,body=None,identity=None,token=None):
             status,data=request(path,body,identity,token)
             assert status==code,(path,status,code,data)

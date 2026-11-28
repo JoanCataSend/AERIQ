@@ -1,3 +1,12 @@
+/*
+ * Fichero: map-interpolation.test.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts/scripts/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* T25 · Prueba DOM del mapa: zonas estimadas (círculos del radio, no cuadrados), datos insuficientes, sin datos,
    radio configurable, consulta de un punto y ruta del Orb en «Mi organización».
@@ -21,6 +30,8 @@ const W=800,H=600,DLAT=1/111320,DLNG=DLAT/Math.cos(38.99675*Math.PI/180),TOP=38.
 const toLatLng=([x,y])=>({lat:TOP-y*DLAT,lng:LEFT+x*DLNG});
 // Colores RGB del lienzo → estado y color de la leyenda.
 const STATE={'104,109,107':'insuficiente','33,156,114':'#219c72','238,162,45':'#eea22d','227,91,93':'#e35b5d'};
+
+
 
 async function page(measurements,{organization=false,mine=measurements}={}){
   const errors=[],handlers={},paint={image:null},routes=[],ends=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});

@@ -1,3 +1,16 @@
+# Fichero: build-google-plesk-zip.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Genera .dist/airiq-google-plesk.zip para extraer sobre httpdocs/."""
 
 from pathlib import Path
@@ -36,6 +49,8 @@ FILES = [
 
 # Coordina la ejecución principal del componente o script.
 # Diseño lógico: (sin parámetros) → main() → None; según scripts/README.md.
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 def main() -> None:
     missing = [path for path in FILES if not (WEB / path).is_file()]
     if missing:

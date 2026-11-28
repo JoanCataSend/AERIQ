@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: MeasurementGraph.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.graphics.*;
 import android.view.View;
@@ -11,9 +17,13 @@ public final class MeasurementGraph extends View {
     private final Path path = new Path();
     private final boolean bars;
 
+
+
     public MeasurementGraph(Context context, List<Double> values) {
         this(context, values, false);
     }
+
+
 
     public MeasurementGraph(Context context, List<Double> values, boolean bars) {
         super(context);

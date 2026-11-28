@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: UserPermissionTest.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/test/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -17,6 +23,7 @@ public class UserPermissionTest {
      * Diseño lógico: (sin parámetros) → serverPermissionsDecideEvenForNewRoles() → void; según doc/android_design.md.
      */
     @Test
+
     public void serverPermissionsDecideEvenForNewRoles() {
         Set<String> granted = new HashSet<>(Arrays.asList(COLLECT, "mapa.organizacion"));
         assertTrue(AeriqAuthManager.User.can(true, granted, "tecnico_de_campo", COLLECT));
@@ -28,6 +35,7 @@ public class UserPermissionTest {
      * Diseño lógico: (sin parámetros) → emptyServerPermissionsDenyEvenForOldRoleNames() → void; según doc/android_design.md.
      */
     @Test
+
     public void emptyServerPermissionsDenyEvenForOldRoleNames() {
         assertFalse(AeriqAuthManager.User.can(true, Collections.emptySet(), "trabajador", COLLECT));
     }
@@ -37,6 +45,7 @@ public class UserPermissionTest {
      * Diseño lógico: (sin parámetros) → olderServerFallsBackToRoleCodes() → void; según doc/android_design.md.
      */
     @Test
+
     public void olderServerFallsBackToRoleCodes() {
         assertTrue(AeriqAuthManager.User.can(false, Collections.emptySet(), "trabajador", COLLECT));
         assertTrue(AeriqAuthManager.User.can(false, Collections.emptySet(), "admin", COLLECT));

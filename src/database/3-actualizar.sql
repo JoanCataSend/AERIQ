@@ -1,3 +1,16 @@
+# Fichero: 3-actualizar.sql
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 -- =====================================================================
 -- AERIQ · 3-actualizar.sql
 -- Pone al día una base que ya tiene datos, SIN borrar nada, con los cambios

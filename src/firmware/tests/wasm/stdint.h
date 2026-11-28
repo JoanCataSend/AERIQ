@@ -1,3 +1,12 @@
+/*
+ * Fichero: stdint.h
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/firmware/tests/wasm.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 #pragma once
 typedef __UINT8_TYPE__ uint8_t;
 typedef __UINT16_TYPE__ uint16_t;

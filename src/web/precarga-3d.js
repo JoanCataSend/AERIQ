@@ -1,3 +1,12 @@
+/*
+ * Fichero: precarga-3d.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* AERIQ · Precarga discreta del visor 3D y del modelo del AERIQ.
    Se incluye en las páginas que no muestran el modelo para que, al abrir la ficha del AERIQ,
    el visor y el archivo GLB ya estén en la caché del navegador. No se ejecuta con ahorro

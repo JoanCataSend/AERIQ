@@ -1,3 +1,16 @@
+# Fichero: 1-instalar.sql
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 -- =====================================================================
 -- AERIQ · 1-instalar.sql
 -- Instala la base de datos completa de AERIQ en la base que tengas

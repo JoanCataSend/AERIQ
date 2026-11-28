@@ -1,5 +1,11 @@
 <?php
-
+/*
+ * Fichero: SDBaseDatos.example.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 /*
  * Archivo: SDBaseDatos.example.php
  * Descripción: plantilla de configuración privada de MariaDB.

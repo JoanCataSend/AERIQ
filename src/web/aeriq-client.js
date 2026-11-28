@@ -1,3 +1,12 @@
+/*
+ * Fichero: aeriq-client.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 /**
  * Crea el adaptador de dominio web: traduce las operaciones lógicas a rutas y gestiona transporte, CSRF y respuestas.

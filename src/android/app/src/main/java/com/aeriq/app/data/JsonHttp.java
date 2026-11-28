@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: JsonHttp.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.json.JSONObject;
 import org.json.JSONException;
 import java.io.*;
@@ -12,16 +18,23 @@ final class JsonHttp {
         final int status;
         final JSONObject json;
 
+
+
         Response(int status, JSONObject json) {
             this.status = status;
             this.json = json;
         }
 
+
+
         boolean ok() { return status >= 200 && status < 300; }
+
         String message() {
             return json.optString("error", json.optString("message", "HTTP " + status));
         }
     }
+
+
 
     static Response request(String endpoint, JSONObject body, String token) throws IOException {
         URL url = new URL(endpoint);
@@ -40,11 +53,13 @@ final class JsonHttp {
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 connection.setFixedLengthStreamingMode(bytes.length);
+
                 try (OutputStream output = connection.getOutputStream()) { output.write(bytes); }
             }
             int status = connection.getResponseCode();
             InputStream stream = status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream();
             if (stream == null) throw new IOException("Respuesta vacía (HTTP " + status + ")");
+
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 StringBuilder content = new StringBuilder();
                 char[] buffer = new char[4096];
@@ -61,6 +76,8 @@ final class JsonHttp {
             connection.disconnect();
         }
     }
+
+
 
     static JSONObject object(Object... pairs) {
         JSONObject object = new JSONObject();

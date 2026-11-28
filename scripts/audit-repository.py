@@ -1,3 +1,16 @@
+# Fichero: audit-repository.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Audita estructura, enlaces y sintaxis disponible sin contactar con servicios."""
 
 import json
@@ -18,6 +31,8 @@ skipped = []
 
 # Registra un fallo si la condición de auditoría no se cumple.
 # Diseño lógico: (condition, message) → check() → resultado de la operación; según scripts/README.md.
+# check(condition, message) → Implementa la operación check del módulo.
+
 def check(condition, message):
     if not condition:
         failures.append(message)
@@ -26,6 +41,8 @@ def check(condition, message):
 class References(HTMLParser):
     # Inicializa el objeto y sus dependencias.
     # Diseño lógico: (self) → __init__() → resultado de la operación; según scripts/README.md.
+    # __init__(self) → Implementa la operación   init   del módulo.
+
     def __init__(self):
         super().__init__()
         self.refs = []
@@ -33,6 +50,8 @@ class References(HTMLParser):
 
     # Gestiona starttag.
     # Diseño lógico: (self, tag, attrs) → handle_starttag() → resultado de la operación; según scripts/README.md.
+    # handle_starttag(self, tag, attrs) → Implementa la operación handle starttag del módulo.
+
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         for key in ("src", "href"):
@@ -44,6 +63,8 @@ class References(HTMLParser):
 
 # Comprueba reference.
 # Diseño lógico: (source, reference) → check_reference() → resultado de la operación; según scripts/README.md.
+# check_reference(source, reference) → Implementa la operación check reference del módulo.
+
 def check_reference(source, reference):
     link = urlsplit(reference)
     if link.scheme or link.netloc or not link.path or link.path.startswith("/"):
@@ -54,6 +75,8 @@ def check_reference(source, reference):
 
 # Ejecuta syntax.
 # Diseño lógico: (binary, paths, flag) → run_syntax() → resultado de la operación; según scripts/README.md.
+# run_syntax(binary, paths, flag) → Implementa la operación run syntax del módulo.
+
 def run_syntax(binary, paths, flag):
     executable = shutil.which(binary)
     if binary == "php" and not executable and Path("C:/xampp/php/php.exe").is_file():
@@ -71,6 +94,8 @@ def run_syntax(binary, paths, flag):
 
 # Coordina la ejecución principal del componente o script.
 # Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 def main():
     required = [
         "README.md", "src/README.md", "src/android/README.md",

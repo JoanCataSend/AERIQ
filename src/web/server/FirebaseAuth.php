@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: FirebaseAuth.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 declare(strict_types=1);
 
 // Las librerías solo se cargan desde auth.php/mobile-auth.php. Si alguien pide

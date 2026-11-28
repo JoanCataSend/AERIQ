@@ -1,3 +1,16 @@
+# Fichero: integration-aeriq.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Integración aislada de PHP/MariaDB. No usa configuraciones ni correo de Plesk."""
 import argparse
 import datetime as dt
@@ -17,12 +30,16 @@ ROOT=Path(__file__).resolve().parents[2]
 
 # Gestiona port.
 # Diseño lógico: (sin parámetros) → port() → resultado de la operación; según scripts/README.md.
+# port() → Implementa la operación port del módulo.
+
 def port():
     with socket.socket() as s:
         s.bind(('127.0.0.1',0));return s.getsockname()[1]
 
 # Coordina la ejecución principal del componente o script.
 # Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 def main():
     args=argparse.ArgumentParser(description=__doc__)
     args.add_argument('--php',default='C:/xampp/php/php.exe')
@@ -39,6 +56,8 @@ def main():
     mysql=[str(binary/'mysql.exe'),'--no-defaults','--default-character-set=utf8mb4','--host=127.0.0.1',f'--port={dbport}','--user=root','--batch','--skip-column-names']
     # Gestiona sql.
     # Diseño lógico: (text) → sql() → resultado de la operación; según scripts/README.md.
+    # sql(text) → Implementa la operación sql del módulo.
+
     def sql(text):
         r=subprocess.run(mysql,input=text,text=True,encoding='utf-8',errors='replace',capture_output=True,creationflags=flags)
         if r.returncode:raise RuntimeError(r.stderr)
@@ -114,6 +133,8 @@ class PHPMailer {
         base=f'http://127.0.0.1:{httpport}/';cookies={};csrf={}
         # Gestiona petición.
         # Diseño lógico: (path,body=None,identity=None,token=None) → request() → resultado de la operación; según scripts/README.md.
+        # request(path,body=None,identity=None,token=None) → Envía una petición al servicio y procesa su respuesta.
+
         def request(path,body=None,identity=None,token=None):
             headers={'Accept':'application/json'}
             if identity and identity in cookies:headers['Cookie']=cookies[identity]
@@ -134,6 +155,8 @@ class PHPMailer {
             return r.status,data
         # Gestiona expect.
         # Diseño lógico: (code,path,body=None,identity=None,token=None) → expect() → resultado de la operación; según scripts/README.md.
+        # expect(code,path,body=None,identity=None,token=None) → Implementa la operación expect del módulo.
+
         def expect(code,path,body=None,identity=None,token=None):
             status,data=request(path,body,identity,token)
             assert status==code,(path,status,code,data)

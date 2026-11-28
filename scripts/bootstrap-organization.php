@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: bootstrap-organization.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 /** Solo CLI: bootstrap explícito de una cuenta existente y verificada. */
 declare(strict_types=1);
 if (PHP_SAPI!=='cli') { http_response_code(404);exit; }

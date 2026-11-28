@@ -1,5 +1,11 @@
 package com.aeriq.app;
-
+/*
+ * Fichero: MainActivity.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
@@ -1171,6 +1177,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private void writePdf(Uri uri, List<StoredReading> rows, String title) {
         maps.execute(() -> {
             android.graphics.pdf.PdfDocument document = new android.graphics.pdf.PdfDocument();
+
             try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
                 if (output == null) throw new java.io.IOException("Destino no disponible");
                 android.graphics.Paint bold = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
@@ -1270,6 +1277,7 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             String csv = MeasurementCsv.format(exportRows);
             exportRows = null;
             maps.execute(() -> {
+
                 try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
                     if (output == null) throw new java.io.IOException("Destino no disponible");
                     output.write(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));

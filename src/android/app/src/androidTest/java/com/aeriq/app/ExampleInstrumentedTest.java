@@ -1,5 +1,11 @@
 package com.aeriq.app;
-
+/*
+ * Fichero: ExampleInstrumentedTest.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/androidTest/java/com/aeriq/app.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -31,6 +37,7 @@ public final class ExampleInstrumentedTest {
      * Diseño lógico: (sin parámetros) → opensPublicMapAndKeepsAccountBehindLogin() → void; según doc/android_design.md.
      */
     @Test public void opensPublicMapAndKeepsAccountBehindLogin() {
+
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             onView(withText("Iniciar sesión")).check(matches(isDisplayed()));
             onView(withText("Crear cuenta")).check(doesNotExist());

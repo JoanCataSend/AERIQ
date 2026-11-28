@@ -1,3 +1,12 @@
+/*
+ * Fichero: app.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* AERIQ · JavaScript GLOBAL · Interacciones de demostración, sin backend ni cobros. */
 'use strict';
 // Preferencias locales del navegador (try/catch por si el almacenamiento está bloqueado).

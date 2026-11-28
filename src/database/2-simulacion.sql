@@ -1,3 +1,16 @@
+# Fichero: 2-simulacion.sql
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/database.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 -- =====================================================================
 -- AERIQ · 2-simulacion.sql  (OPCIONAL)
 -- Datos de prueba para enseñar la web y la app: tres perfiles de calidad del aire

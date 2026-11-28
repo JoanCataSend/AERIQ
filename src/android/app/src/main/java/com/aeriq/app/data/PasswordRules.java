@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: PasswordRules.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,6 +19,8 @@ public final class PasswordRules {
     public static final String LENGTH = "al menos 8 caracteres", UPPER = "una mayúscula", LOWER = "una minúscula",
         DIGIT = "un número", SYMBOL = "un símbolo (por ejemplo ! ? # @ . -)";
     public static final List<String> ALL = Collections.unmodifiableList(java.util.Arrays.asList(LENGTH, UPPER, LOWER, DIGIT, SYMBOL));
+
+
 
     private PasswordRules() {}
 

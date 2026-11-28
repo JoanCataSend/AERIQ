@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: BiometricAccessStore.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
@@ -28,8 +34,11 @@ public final class BiometricAccessStore {
     public static final class Credential {
         public final String email;
         public final String password;
+
         Credential(String email, String password) { this.email = email; this.password = password; }
     }
+
+
 
     public BiometricAccessStore(Context context) {
         prefs = context.getApplicationContext().getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE);

@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: ReadingOutboxTest.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/androidTest/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;

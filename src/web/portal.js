@@ -1,3 +1,12 @@
+/*
+ * Fichero: portal.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 const portalFeedback=document.querySelector('#portal-feedback');
 // Si algo falla al cargar, se dice en pantalla en vez de quedarse en «Comprobando acceso…».

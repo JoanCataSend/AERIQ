@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: DesignScreens.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.text.SpannableString;
@@ -25,6 +31,8 @@ public final class DesignScreens {
     private static final int FIELD = 0xfff1f4f3, PANEL_SOFT = 0xffe6efec, CHIP = 0xffeef1f0;
     private final MainActivity activity;
     private final Views ui;
+
+
 
     public DesignScreens(MainActivity activity, Views ui) {
         this.activity = activity;
@@ -684,8 +692,11 @@ public final class DesignScreens {
         final List<PublicReadings.Reading> rows = new ArrayList<>();
         final Set<String> points = new HashSet<>();
         double sum;
+
         Zone(String name) { this.name = name; }
+
         boolean enough() { return points.size() >= 3 && rows.size() >= 3; }
+
         double average() { return sum / Math.max(1, rows.size()); }
     }
 

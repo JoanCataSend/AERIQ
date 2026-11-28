@@ -1,3 +1,12 @@
+/*
+ * Fichero: checks.cpp
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/firmware/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 #include "../NodoO3/Calibracion.h"
 #include "../NodoO3/Protocolo.h"
 

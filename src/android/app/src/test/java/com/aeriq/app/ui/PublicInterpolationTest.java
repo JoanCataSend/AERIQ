@@ -1,5 +1,10 @@
-package com.aeriq.app.ui;
-
+/*
+ * Fichero: PublicInterpolationTest.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/test/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import com.aeriq.app.data.PublicReadings;
 import com.aeriq.app.data.PublicReadings.Estimate;
 import com.aeriq.app.data.PublicReadings.Reading;
@@ -32,6 +37,7 @@ public final class PublicInterpolationTest {
      * Prueba el comportamiento de reading con los casos descritos en el cuerpo.
      * Diseño lógico: (String campaign, String unit, double lat, double lon, double value, String date, boolean simulated) → reading() → Reading; según doc/android_design.md.
      */
+
     private static Reading reading(String campaign, String unit, double lat, double lon, double value, String date, boolean simulated) {
         return new Reading("1", campaign, "UPV", lat, lon, value, unit, date, simulated, 30, 60, 100);
     }
@@ -327,6 +333,7 @@ public final class PublicInterpolationTest {
      * Prueba el comportamiento de raster con los casos descritos en el cuerpo.
      * Diseño lógico: (List<Reading> rows, int radius, double[] lats, double[] lons, int max) → raster() → PublicReadings.Raster; según doc/android_design.md.
      */
+
     private static PublicReadings.Raster raster(List<Reading> rows, int radius, double[] lats, double[] lons, int max) {
         return PublicReadings.raster(Collections.singletonList(PublicReadings.support(rows)), new int[]{radius}, lats, lons, max);
     }

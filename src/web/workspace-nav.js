@@ -1,3 +1,12 @@
+/*
+ * Fichero: workspace-nav.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 const menuToggle=document.querySelector('[data-menu-toggle]');
 const mainNavigation=menuToggle?.getAttribute('aria-controls')?document.getElementById(menuToggle.getAttribute('aria-controls')):document.querySelector('.main-nav');

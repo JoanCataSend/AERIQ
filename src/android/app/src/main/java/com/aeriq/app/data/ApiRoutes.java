@@ -1,6 +1,13 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: ApiRoutes.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 public final class ApiRoutes {
+
     private ApiRoutes() {}
     public static final String BASE = "https://jcatsen.upv.edu.es/AERIQ/";
     public static final String AUTH = BASE + "mobile-auth.php";

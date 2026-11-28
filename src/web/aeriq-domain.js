@@ -1,3 +1,12 @@
+/*
+ * Fichero: aeriq-domain.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* Cálculos compartidos sin DOM: informes, CSV e interpolación local IDW acotada. */
 (function(root){
   'use strict';

@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: PublicMapScreen.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.graphics.Color;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Bitmap;
@@ -102,6 +108,8 @@ public final class PublicMapScreen {
     private int placeRequest, warningLevel;
     private boolean autoLocated;
     private Runnable pendingSearch;
+
+
 
     public PublicMapScreen(MainActivity activity, Views ui, FrameLayout stage, ExecutorService worker) {
         this.activity = activity;
@@ -792,11 +800,15 @@ public final class PublicMapScreen {
         private Bitmap bitmap;
         private BoundingBox box;
 
+
+
         void set(Bitmap image, BoundingBox bounds) {
             clear();
             bitmap = image;
             box = bounds;
         }
+
+
 
         void clear() {
             if (bitmap != null) bitmap.recycle();

@@ -1,5 +1,11 @@
 package com.aeriq.app.ble;
-
+/*
+ * Fichero: AeriqBleController.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ble.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -21,6 +27,8 @@ public final class AeriqBleController {
         public final int rssi;
         public final int diagnostic;
         public final long lastSeen;
+
+
 
         FoundDevice(String address, String name, int rssi, long lastSeen, int diagnostic) {
             this.address = address;
@@ -53,6 +61,8 @@ public final class AeriqBleController {
     private final Map<String, Integer> counters = new HashMap<>();
     private BluetoothLeScanner scanner;
     private ScanCallback callback;
+
+
 
     public AeriqBleController(Context context, Consumer<LiveMeasurement> onReading) {
         this.context = context;

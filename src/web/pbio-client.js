@@ -1,3 +1,12 @@
+/*
+ * Fichero: pbio-client.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* Cliente de dominio web AERIQ. Basado en src/frontend_business_logic/web/LogicaFake.js.
    La GUI usa AeriqPbio; la red queda encapsulada aquí. */
 'use strict';

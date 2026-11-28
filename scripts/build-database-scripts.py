@@ -1,3 +1,16 @@
+# Fichero: build-database-scripts.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Regenera los SQL de recreación y reinstalación a partir de schema.sql y seed-demo.sql.
 
 Uso: python scripts/build-database-scripts.py
@@ -14,17 +27,23 @@ names = re.findall(r'CREATE (?:TABLE|VIEW) (\w+)', schema)
 
 # Gestiona qualify.
 # Diseño lógico: (sql, db='jcatsen_pbio') → qualify() → resultado de la operación; según scripts/README.md.
+# qualify(sql, db='jcatsen_pbio') → Implementa la operación qualify del módulo.
+
 def qualify(sql, db='jcatsen_pbio'):
     pattern = r'\b(CREATE TABLE|CREATE VIEW|INSERT INTO|REFERENCES|FROM|JOIN) (' + '|'.join(names) + r')\b'
     return re.sub(pattern, lambda m: f'{m.group(1)} `{db}`.`{m.group(2)}`', sql)
 
 # Escribe.
 # Diseño lógico: (path, text) → write() → resultado de la operación; según scripts/README.md.
+# write(path, text) → Implementa la operación write del módulo.
+
 def write(path, text):
     path.write_bytes(text.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
 
 # Gestiona drop all.
 # Diseño lógico: (db_expr, qualified_db=None) → drop_all() → resultado de la operación; según scripts/README.md.
+# drop_all(db_expr, qualified_db=None) → Implementa la operación drop all del módulo.
+
 def drop_all(db_expr, qualified_db=None):
     where = f"TABLE_SCHEMA = {db_expr}"
     return f"""SET @aeriq_old_fk = @@FOREIGN_KEY_CHECKS;

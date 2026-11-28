@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: api.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 /** Adaptador de consulta PBIO sobre el esquema único AERIQ. Escrituras: field.php. */
 declare(strict_types=1);
 require_once __DIR__.'/server/AeriqHttp.php';

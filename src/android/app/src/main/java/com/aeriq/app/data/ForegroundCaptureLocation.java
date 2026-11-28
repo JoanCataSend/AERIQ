@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: ForegroundCaptureLocation.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -36,6 +42,8 @@ public final class ForegroundCaptureLocation {
          */
         @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
     };
+
+
 
     public ForegroundCaptureLocation(Context context) {
         this.context = context;

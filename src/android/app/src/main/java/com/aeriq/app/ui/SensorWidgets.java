@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: SensorWidgets.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.graphics.*;
 import android.view.View;
@@ -24,6 +30,8 @@ public final class SensorWidgets {
         private final Path stroke = new Path(), area = new Path();
         private List<Point> points = new ArrayList<>();
         private final float density;
+
+
 
         public DayAreaChart(Context context) {
             super(context);
@@ -109,6 +117,8 @@ public final class SensorWidgets {
         private final int[] colors = new int[SEGMENTS];
         private final float density;
 
+
+
         public QualityStrip(Context context) {
             super(context);
             density = context.getResources().getDisplayMetrics().density;
@@ -168,6 +178,8 @@ public final class SensorWidgets {
         private String[] labels = new String[0];
         private double medium = 60, high = 100;
         private final float density;
+
+
 
         public HistoryBars(Context context) {
             super(context);
@@ -242,6 +254,8 @@ public final class SensorWidgets {
         private final List<Integer> colors = new ArrayList<>();
         private String[] labels = new String[0];
         private final float density;
+
+
 
         public CompareChart(Context context) {
             super(context);

@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: google-auth-unit.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 declare(strict_types=1);
 
 /**

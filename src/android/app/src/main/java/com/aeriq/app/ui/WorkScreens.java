@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: WorkScreens.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.widget.*;
 import com.aeriq.app.MainActivity;
 import com.aeriq.app.MainActivity.Screen;
@@ -15,6 +21,8 @@ import static com.aeriq.app.ui.Views.*;
 public final class WorkScreens {
     private final MainActivity activity;
     private final Views ui;
+
+
 
     public WorkScreens(MainActivity activity, Views ui) {
         this.activity = activity;

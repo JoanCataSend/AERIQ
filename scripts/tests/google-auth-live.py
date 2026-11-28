@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Fichero: google-auth-live.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/tests.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Comprueba el despliegue web de Google/Firebase sin usar una cuenta real.
 
 Uso:
@@ -30,6 +43,8 @@ class Response:
 
 # Gestiona petición.
 # Diseño lógico: (url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) → request() → Response; según scripts/README.md.
+# request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) → Envía una petición al servicio y procesa su respuesta.
+
 def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) -> Response:
     payload = None
     headers = {"Accept": "application/json", "User-Agent": "AERIQ-Google-Test/1.0"}
@@ -49,6 +64,8 @@ def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict
 
 # Coordina la ejecución principal del componente o script.
 # Diseño lógico: (sin parámetros) → main() → int; según scripts/README.md.
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default="https://jcatsen.upv.edu.es/AERIQ/")
@@ -62,6 +79,8 @@ def main() -> int:
 
     # Registra un fallo si la condición de auditoría no se cumple.
     # Diseño lógico: (condition: bool, label: str, detail: str = "") → check() → None; según scripts/README.md.
+    # check(condition: bool, label: str, detail: str = "") → Implementa la operación check del módulo.
+
     def check(condition: bool, label: str, detail: str = "") -> None:
         nonlocal passed, failed
         if condition:

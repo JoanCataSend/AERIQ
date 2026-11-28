@@ -1,3 +1,12 @@
+/*
+ * Fichero: Consola.h
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/firmware/NodoO3.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 #pragma once
 // Calibracion por monitor serie (115200 baudios, fin de linea "Nueva linea").
 // Los ajustes se guardan en la flash interna (LittleFS) y se cargan al arrancar.

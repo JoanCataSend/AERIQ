@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: Quality.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -8,6 +14,8 @@ public final class Quality {
     public static final int LOW = 0xff219c72, MEDIUM = 0xffeea22d, HIGH = 0xffe35b5d, NONE = 0xffd5dcd9;
     public static final int LOW_SOFT = 0xffdcefe8, MEDIUM_SOFT = 0xfffbe8cc, HIGH_SOFT = 0xfff9dcdc;
     public static final int LOW_TEXT = 0xff0e6b5e, MEDIUM_TEXT = 0xff94580a, HIGH_TEXT = 0xffb3302f;
+
+
 
     private Quality() {}
 

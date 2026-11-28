@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: FirebaseConfig.example.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 // Este archivo se incluye desde FirebaseAuth.php; nunca debe servirse directo.
 if (isset($_SERVER['SCRIPT_FILENAME']) && realpath((string)$_SERVER['SCRIPT_FILENAME']) === __FILE__) {
     http_response_code(404);

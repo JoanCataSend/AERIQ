@@ -1,3 +1,16 @@
+# Fichero: build.gradle.kts
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android/app.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android/app.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android/app.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.gms.google-services")

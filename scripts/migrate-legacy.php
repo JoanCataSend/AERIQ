@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: migrate-legacy.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 /** Importación no destructiva a una base AERIQ NUEVA y VACÍA. Solo CLI. */
 declare(strict_types=1);
 if (PHP_SAPI!=='cli') {http_response_code(404);exit;}

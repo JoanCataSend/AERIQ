@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: SpotlightTour.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.graphics.Canvas;
@@ -45,6 +51,8 @@ public final class SpotlightTour extends FrameLayout {
     private ValueAnimator move;
     private int index = -1, retries;
     private boolean above, closing;
+
+
 
     public SpotlightTour(Activity activity, Views ui, List<Step> steps, Function<String, View> finder, Runnable onClose) {
         super(activity);

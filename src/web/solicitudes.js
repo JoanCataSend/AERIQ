@@ -1,3 +1,12 @@
+/*
+ * Fichero: solicitudes.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 // Formulario comercial (solicitar.html). Los catálogos (servicios, tipos de organización,
 // objetivos, provincias y duraciones) llegan de public.php?action=services: la base de datos

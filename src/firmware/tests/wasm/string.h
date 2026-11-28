@@ -1,3 +1,12 @@
+/*
+ * Fichero: string.h
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/firmware/tests/wasm.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 #pragma once
 typedef __SIZE_TYPE__ size_t;
 /**

@@ -1,3 +1,16 @@
+# Fichero: reset-database.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Recrear una base AERIQ explícita con copia previa; nunca se ejecuta al arrancar la web."""
 import argparse
 import datetime as dt
@@ -14,6 +27,8 @@ SYSTEM={'mysql','sys','performance_schema','information_schema'}
 
 # Coordina la ejecución principal del componente o script.
 # Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--database',required=True,help='Nombre exacto de la base que se recreará')
@@ -31,6 +46,8 @@ def main():
     if args.confirm!='RECREAR:'+args.database:p.error('No se ha borrado nada. Repite con --confirm RECREAR:'+args.database)
     # Gestiona búsqueda binaria.
     # Diseño lógico: (name) → binary() → resultado de la operación; según scripts/README.md.
+    # binary(name) → Implementa la operación binary del módulo.
+
     def binary(name):
         value=str(Path(args.mysql_bin)/(name+('.exe' if os.name=='nt' else ''))) if args.mysql_bin else shutil.which(name)
         if not value or not Path(value).is_file():p.error('No se encuentra '+name+'; configura --mysql-bin')
@@ -42,6 +59,8 @@ def main():
     backups=ROOT/'.local-backups';backups.mkdir(exist_ok=True)
     # Gestiona quote.
     # Diseño lógico: (v) → quote() → resultado de la operación; según scripts/README.md.
+    # quote(v) → Implementa la operación quote del módulo.
+
     def quote(v):return '"'+str(v).replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','\\r')+'"'
     fd,config=tempfile.mkstemp(prefix='mysql-',suffix='.cnf',dir=backups)
     try:
@@ -49,6 +68,8 @@ def main():
         connection=['--defaults-extra-file='+config,'--default-character-set=utf8mb4']
         # Ejecuta.
         # Diseño lógico: (sql) → run() → resultado de la operación; según scripts/README.md.
+        # run(sql) → Implementa la operación run del módulo.
+
         def run(sql):
             r=subprocess.run([mysql,*connection,'--batch','--skip-column-names'],input=sql,encoding='utf-8',capture_output=True)
             if r.returncode:raise RuntimeError(r.stderr.strip())

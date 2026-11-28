@@ -1,3 +1,12 @@
+/*
+ * Fichero: ui-contract.test.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts/scripts/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* Prueba de lógica DOM aislada: no controla Chrome ni transmite formularios reales. */
 'use strict';
@@ -14,6 +23,7 @@ const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',bater
 // Catálogos del formulario comercial: incluye un servicio nuevo con datos de estudio para comprobar que manda la base de datos.
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros.',mide_superficie:true},{codigo:'auditoria',nombre:'Servicio nuevo de prueba',descripcion:'',mide_superficie:true}],orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad'}],objectives:[{codigo:'espacios_publicos',nombre:'Calidad del aire en espacios públicos'},{codigo:'otro',nombre:'Otro'}],provinces:['Madrid','Valencia'],durations:['1 semana','2 semanas','A definir con Código Norte']};
 const measurement={id:1,campaignId:1,valor:68,unidad:'ppb',capturada_en:'2026-11-03 08:00:00.000',latitud:38.99665,longitud:-.166,simulado:true,zona:'Campus',radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:'Orb original',campana:'Campaña de prueba'};
+
 async function page(name,search=''){
   const errors=[],calls=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});
   const dom=new JSDOM(fs.readFileSync(path.join(root,name),'utf8'),{url:'http://localhost/'+name+search,runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});

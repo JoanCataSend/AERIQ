@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: ReadingOutbox.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -12,9 +18,12 @@ import java.util.List;
 public final class ReadingOutbox extends SQLiteOpenHelper {
     public static final class Entry {
         public final String event, payload;
+
         Entry(String event, String payload) { this.event = event; this.payload = payload; }
     }
+
     public ReadingOutbox(Context context) { this(context, "aeriq-pending-readings.db"); }
+
     ReadingOutbox(Context context, String name) { super(context, name, null, 1); }
     /**
      * Atiende el evento creación.

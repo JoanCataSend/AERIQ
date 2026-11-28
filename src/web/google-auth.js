@@ -1,3 +1,12 @@
+/*
+ * Fichero: google-auth.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* AERIQ · acceso con Google mediante Firebase Authentication (SDK web oficial). */
 'use strict';
 

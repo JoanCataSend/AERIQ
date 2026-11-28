@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: HttpErrorMapper.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/communication.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 declare(strict_types=1);
 
 /** Traduce categorías del dominio al contrato de estados HTTP de la API. */

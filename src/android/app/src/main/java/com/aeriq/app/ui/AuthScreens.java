@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: AuthScreens.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.app.AlertDialog;
 import android.os.CancellationSignal;
 import android.util.Log;
@@ -35,6 +41,8 @@ public final class AuthScreens {
     private final MainActivity activity;
     private final Views ui;
     private final AeriqAuthManager auth;
+
+
 
     public AuthScreens(MainActivity activity, Views ui, AeriqAuthManager auth) {
         this.activity = activity;

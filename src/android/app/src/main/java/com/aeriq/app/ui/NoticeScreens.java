@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: NoticeScreens.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.text.InputFilter;
 import android.text.InputType;
 import android.view.Gravity;
@@ -24,6 +30,8 @@ public final class NoticeScreens {
     private final MainActivity activity;
     private final Views ui;
     private boolean onlyOpen = true;
+
+
 
     public NoticeScreens(MainActivity activity, Views ui) {
         this.activity = activity;

@@ -1,5 +1,11 @@
 <?php
-
+/*
+ * Fichero: Logica.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 /*
  * Archivo: Logica.php
  * Descripción: lógica de negocio del servidor PBIO. Valida entradas, accede a

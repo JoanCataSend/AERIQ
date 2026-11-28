@@ -1,3 +1,12 @@
+/*
+ * Fichero: preview-aeriq.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts/scripts/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* Servidor exclusivamente de revisión visual con respuestas ficticias. No ejecuta PHP. */
 'use strict';
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');

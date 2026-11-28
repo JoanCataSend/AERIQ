@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: AeriqQueryCatalog.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/database.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 declare(strict_types=1);
 
 /** SQL de los casos de uso AERIQ, agrupado por operación. */

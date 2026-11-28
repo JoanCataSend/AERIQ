@@ -1,3 +1,16 @@
+# Fichero: audit-repository.py
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de scripts/scripts.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 """Audita estructura, enlaces y sintaxis disponible sin contactar con servicios."""
 
 import json
@@ -16,16 +29,25 @@ failures = []
 skipped = []
 
 
+# check(condition, message) → Implementa la operación check del módulo.
+
+
+
 def check(condition, message):
     if not condition:
         failures.append(message)
 
 
 class References(HTMLParser):
+    # __init__(self) → Implementa la operación   init   del módulo.
+
     def __init__(self):
         super().__init__()
         self.refs = []
         self.scripts = []
+
+    # handle_starttag(self, tag, attrs) → Implementa la operación handle starttag del módulo.
+
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -36,12 +58,20 @@ class References(HTMLParser):
             self.scripts.append(attrs["src"])
 
 
+# check_reference(source, reference) → Implementa la operación check reference del módulo.
+
+
+
 def check_reference(source, reference):
     link = urlsplit(reference)
     if link.scheme or link.netloc or not link.path or link.path.startswith("/"):
         return
     target = (source.parent / unquote(link.path)).resolve()
     check(target.exists(), f"Referencia inexistente: {source.relative_to(ROOT)} -> {reference}")
+
+
+# run_syntax(binary, paths, flag) → Implementa la operación run syntax del módulo.
+
 
 
 def run_syntax(binary, paths, flag):
@@ -57,6 +87,10 @@ def run_syntax(binary, paths, flag):
             text=True, encoding="utf-8", errors="replace", cwd=ROOT,
         )
         check(result.returncode == 0, f"Sintaxis: {path.relative_to(ROOT)}\n{result.stderr or result.stdout}")
+
+
+# main() → Punto de entrada que coordina la ejecución del programa.
+
 
 
 def main():

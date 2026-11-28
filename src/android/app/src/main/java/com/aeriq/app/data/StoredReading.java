@@ -1,5 +1,10 @@
-package com.aeriq.app.data;
-
+/*
+ * Fichero: StoredReading.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.json.JSONObject;
 import org.json.JSONException;
 
@@ -11,6 +16,15 @@ public final class StoredReading {
     public final Double latitude, longitude;
     public final boolean simulated;
 
+    /**
+
+
+     * StoredReading(long id, double value, String unit, int type, String date, String device,
+                         String campaign, String zone, Double latitude, Double longitude,
+                         boolean simulated, long deviceId) → Implementa la operación StoredReading del módulo.
+
+
+     */
     public StoredReading(long id, double value, String unit, int type, String date, String device,
                          String campaign, String zone, Double latitude, Double longitude,
                          boolean simulated, long deviceId) {
@@ -27,6 +41,8 @@ public final class StoredReading {
         this.simulated = simulated;
         this.deviceId = deviceId;
     }
+
+
 
     static StoredReading fromJson(JSONObject data) throws JSONException {
         return new StoredReading(data.getLong("id"), data.getDouble("valor"), data.getString("unidad"),

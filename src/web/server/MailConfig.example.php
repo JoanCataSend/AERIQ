@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: MailConfig.example.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 // Opcional: copia a MailConfig.php si quieres fijar el remitente explícitamente.
 // No requiere contraseña, SMTP ni Composer. El remitente debe pertenecer a tu dominio.
 // Si omites este archivo, AERIQ prueba con no-reply@SERVER_NAME del hosting.

@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: AeriqTokenStore.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.security.keystore.KeyGenParameterSpec;
@@ -13,6 +19,8 @@ import javax.crypto.spec.GCMParameterSpec;
 public final class AeriqTokenStore {
     private static final String ALIAS = "aeriq_mobile_token_aes_gcm_v1";
     private final SharedPreferences prefs;
+
+
 
     AeriqTokenStore(Context context) {
         prefs = context.getSharedPreferences("aeriq_mobile_auth_private", Context.MODE_PRIVATE);
@@ -35,6 +43,8 @@ public final class AeriqTokenStore {
         return generator.generateKey();
     }
 
+
+
     synchronized void write(String token, long userId) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key());
@@ -43,6 +53,8 @@ public final class AeriqTokenStore {
         prefs.edit().putString("session", iv + ":" + data)
             .putLong("session_user_id", userId).apply();
     }
+
+
 
     synchronized void associateOwner(long userId) {
         if (userId > 0 && prefs.getString("session", null) != null) {

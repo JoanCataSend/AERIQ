@@ -1,3 +1,12 @@
+/*
+ * Fichero: auth-client.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* AERIQ · cliente de sesión. Las contraseñas y códigos nunca se almacenan en localStorage. */
 'use strict';
 /**

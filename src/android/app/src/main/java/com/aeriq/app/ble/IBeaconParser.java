@@ -1,5 +1,11 @@
 package com.aeriq.app.ble;
-
+/*
+ * Fichero: IBeaconParser.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ble.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import java.nio.charset.StandardCharsets;
 
 public final class IBeaconParser {
@@ -18,6 +24,8 @@ public final class IBeaconParser {
         if (data == null || data.length != 12 || data[0] != 1 || (data[1] & 255) != counter) return -1;
         return (data[10] & 255) << 8 | (data[11] & 255);
     }
+
+
 
     private IBeaconParser() {}
 

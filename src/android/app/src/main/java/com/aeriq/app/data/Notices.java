@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: Notices.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -12,6 +18,7 @@ import java.util.List;
  * server/Avisos.php). Quién puede escribir a quién lo decide el servidor: aquí solo se muestran los contactos que manda.
  */
 public final class Notices {
+
     private Notices() {}
 
     /** Un aviso en la bandeja. {@code fresh}: tiene mensajes de la otra persona que aún no has abierto. */
@@ -19,6 +26,8 @@ public final class Notices {
         public final long id;
         public final String subject, state, stateName, updatedAt, withName, withRole, last;
         public final boolean fresh, closed;
+
+
 
         Summary(JSONObject data) throws JSONException {
             id = data.getLong("id");
@@ -58,6 +67,8 @@ public final class Notices {
         public final List<Contact> contacts;
         public final int unread;
 
+
+
         Inbox(JSONObject data) throws JSONException {
             List<Summary> rows = new ArrayList<>();
             JSONArray list = data.getJSONArray("notices");
@@ -69,6 +80,8 @@ public final class Notices {
             contacts = Collections.unmodifiableList(people);
             unread = data.optInt("unread");
         }
+
+
 
         private Inbox() {
             notices = Collections.emptyList();
@@ -97,6 +110,8 @@ public final class Notices {
         public final String author, text, createdAt;
         public final boolean mine;
 
+
+
         Message(JSONObject data) throws JSONException {
             author = data.optString("autor");
             text = data.optString("texto");
@@ -111,6 +126,8 @@ public final class Notices {
         public final String subject, state, stateName, createdAt, withName, withRole;
         public final boolean closed;
         public final List<Message> messages;
+
+
 
         Conversation(JSONObject data) throws JSONException {
             JSONObject notice = data.getJSONObject("notice");
@@ -129,6 +146,9 @@ public final class Notices {
         }
     }
 
+
+
     static Inbox inbox(JSONObject data) throws JSONException { return new Inbox(data); }
+
     static Conversation conversation(JSONObject data) throws JSONException { return new Conversation(data); }
 }

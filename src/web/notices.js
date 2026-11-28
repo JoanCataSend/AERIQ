@@ -1,3 +1,12 @@
+/*
+ * Fichero: notices.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 /*
  * Avisos entre personas (HU36), sección «Avisos» del panel (portal.html). Como una solicitud: asunto, mensajes,

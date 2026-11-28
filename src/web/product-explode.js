@@ -1,3 +1,12 @@
+/*
+ * Fichero: product-explode.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 /* AERIQ · Vista explosionada del AERIQ en la portada · anime.js v4 sincronizado con el scroll.
    Sin anime.js, sin la sección o con movimiento reducido se queda la vista abierta estática del CSS. */
 'use strict';

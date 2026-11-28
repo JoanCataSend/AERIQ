@@ -1,3 +1,16 @@
+# Fichero: proguard-rules.pro
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android/app.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android/app.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android/app.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.

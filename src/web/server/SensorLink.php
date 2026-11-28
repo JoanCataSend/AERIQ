@@ -1,4 +1,11 @@
 <?php
+/*
+ * Fichero: SensorLink.php
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web/server.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 declare(strict_types=1);
 
 /** Nombre de la campaña personal que crea aeriq_link_sensor para cada persona. */

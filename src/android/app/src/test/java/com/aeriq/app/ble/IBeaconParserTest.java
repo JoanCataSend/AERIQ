@@ -1,5 +1,11 @@
 package com.aeriq.app.ble;
-
+/*
+ * Fichero: IBeaconParserTest.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/test/java/com/aeriq/app/ble.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.junit.Test;
 import static org.junit.Assert.*;
 import java.nio.charset.StandardCharsets;

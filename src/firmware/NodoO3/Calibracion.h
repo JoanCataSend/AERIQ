@@ -1,3 +1,12 @@
+/*
+ * Fichero: Calibracion.h
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/firmware/NodoO3.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 #pragma once
 #include <stdint.h>
 #include <math.h>

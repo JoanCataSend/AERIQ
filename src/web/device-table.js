@@ -1,3 +1,12 @@
+/*
+ * Fichero: device-table.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/web.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 'use strict';
 /*
  * Tabla de dispositivos AERIQ con paneles, filtros y orden por columna (T43, T44, T45).

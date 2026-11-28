@@ -1,5 +1,11 @@
 package com.aeriq.app.ui;
-
+/*
+ * Fichero: SplashView.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/ui.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -41,6 +47,8 @@ public final class SplashView extends View {
     private float progress, lastEmit, rotation;
     private Runnable done;
     private boolean finished;
+
+
 
     public SplashView(Context context) {
         super(context);

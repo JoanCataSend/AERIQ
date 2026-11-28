@@ -1,3 +1,16 @@
+# Fichero: settings.gradle.kts
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
+# Autor: Codigo Norte
+# Descripción: Archivo fuente de src/android.
+# Fecha: 2026-09-25
+# Copyright (c) 2026 Codigo Norte
 pluginManagement {
     repositories {
         google {

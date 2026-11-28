@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: MeasurementCsvTest.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/test/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import org.junit.Test;
 import java.util.Collections;
 import static org.junit.Assert.*;

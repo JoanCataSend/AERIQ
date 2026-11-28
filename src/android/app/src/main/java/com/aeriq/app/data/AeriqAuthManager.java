@@ -1,5 +1,11 @@
 package com.aeriq.app.data;
-
+/*
+ * Fichero: AeriqAuthManager.java
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de src/android/app/src/main/java/com/aeriq/app/data.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,6 +33,8 @@ public final class AeriqAuthManager implements AutoCloseable {
         public final Set<String> permissions;
         public final boolean mustChangePassword;
         private final boolean permissionsFromServer;
+
+
 
         User(JSONObject data) throws JSONException {
             id = data.getLong("id");
@@ -81,6 +89,8 @@ public final class AeriqAuthManager implements AutoCloseable {
         public final boolean success;
         public final String message;
 
+
+
         public Result(boolean success, String message) {
             this.success = success;
             this.message = message;
@@ -94,6 +104,8 @@ public final class AeriqAuthManager implements AutoCloseable {
     public volatile User user;
     public boolean busy;
     public String pendingEmail = "";
+
+
 
     public AeriqAuthManager(Context context) { store = new AeriqTokenStore(context.getApplicationContext()); }
 

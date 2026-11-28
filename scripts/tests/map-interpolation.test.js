@@ -1,3 +1,12 @@
+/*
+ * Fichero: map-interpolation.test.js
+ * Autor: Codigo Norte
+ * Descripción: Archivo fuente de scripts/tests.
+ * Fecha: 2026-09-25
+ * Copyright (c) 2026 Codigo Norte
+ */
+
+
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* T25 · Prueba DOM del mapa: zonas estimadas (círculos del radio, no cuadrados), datos insuficientes, sin datos,
    radio configurable, consulta de un punto y ruta del Orb en «Mi organización».
