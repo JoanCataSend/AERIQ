@@ -6,52 +6,52 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
 const portalFeedback=document.querySelector('#portal-feedback');
 // Si algo falla al cargar, se dice en pantalla en vez de quedarse en «Comprobando acceso…».
 addEventListener('error',e=>aeriqStatus(portalFeedback,'No se pudo cargar el panel ('+e.message+'). Recarga con Ctrl+F5.','error'));
 let dashboard={},currentRows=[],lastFilters={},me={};
 /**
- * Comprueba si puede.
- * Diseño lógico: (user,permission) → can() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: user: Text, permission: Text --> can() --> B
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const can=(user,permission)=>(user.permissions||[]).includes(permission);
 // data-perm="a b": el elemento se muestra si la cuenta tiene alguno de esos permisos.
 /**
  * Diseño lógico: (' ') → allowed() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const allowed=n=>!n.dataset.perm||n.dataset.perm.split(' ').some(p=>can(me,p));
 /**
- * Gestiona level of.
  * Diseño lógico: (Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto)) → levelOf() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const levelOf=r=>r.umbral_medio===null||r.umbral_medio===undefined?'—':AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
 /**
- * Gestiona el.
- * Diseño lógico: (tag,text) → el() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: tag: Text, text: Text --> el() --> Text
+ * Descripción: Procesa el y devuelve el resultado correspondiente.
  */
 const el=(tag,text)=>{const n=document.createElement(tag);if(text instanceof Node)n.append(text);else if(text!==undefined)n.textContent=String(text??'—');return n;};
 // Estado de una campaña según sus fechas (lo calcula el servidor).
 const STATE={activa:['Activa','pill-on'],programada:['Programada','pill-soon'],finalizada:['Finalizada','pill-off']};
 /**
- * Gestiona estado pill.
  * Diseño lógico: ('span') → statePill() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const statePill=c=>{const [t,k]=STATE[c.estado]||STATE.activa;const s=document.createElement('span');s.className='pill '+k;s.textContent=t;return s;};
 /**
- * Gestiona estado texto.
- * Diseño lógico: (sin parámetros) → stateText() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: stateText() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const stateText=c=>c.estado==='programada'?'Programada · empieza el '+c.inicio:c.estado==='finalizada'?'Campaña finalizada':'Campaña activa';
 /**
- * Gestiona pill.
- * Diseño lógico: (text,on) → pill() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: text: Text, on: Text --> pill() --> Text
+ * Descripción: Procesa pill y devuelve el resultado correspondiente.
  */
 const pill=(text,on)=>{const s=document.createElement('span');s.className='pill '+(on?'pill-on':'pill-off');s.textContent=text;return s;};
 /**
- * Gestiona tabla.
- * Diseño lógico: (host,headers,rows,action) → table() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: host: Text, headers: Text, rows: Text, action: Text --> table() --> Text
+ * Descripción: Procesa table y devuelve el resultado correspondiente.
  */
 function table(host,headers,rows,action){
   host.replaceChildren();const t=el('table');t.className='devices-table';const head=el('tr');for(const h of headers)head.append(el('th',h));
@@ -60,23 +60,23 @@ function table(host,headers,rows,action){
   if(!rows.length)host.append(el('p','No hay registros.'));else host.append(t);
 }
 /**
- * Gestiona options.
- * Diseño lógico: (id,rows,label) → options() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: id: Text, rows: Text, label: Text --> options() --> Text
+ * Descripción: Procesa options y devuelve el resultado correspondiente.
  */
 function options(id,rows,label){const select=document.getElementById(id),value=select.value;select.replaceChildren(new Option('Sin selección',''));for(const r of rows)select.add(new Option(label(r),r.id));select.value=value;}
 /**
- * Gestiona fill.
- * Diseño lógico: (form,data) → fill() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: form: Text, data: Text --> fill() --> Text
+ * Descripción: Procesa fill y devuelve el resultado correspondiente.
  */
 function fill(form,data){for(const [key,value] of Object.entries(data)){const field=form.elements.namedItem(key);if(!field)continue;if(field.type==='checkbox')field.checked=Boolean(Number(value));else field.value=value??'';}form.scrollIntoView({behavior:'smooth',block:'center'});}
 /**
- * Gestiona contenido.
- * Diseño lógico: (form) → payload() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: form: Text --> payload() --> Text
+ * Descripción: Procesa payload y devuelve el resultado correspondiente.
  */
 function payload(form){const d=Object.fromEntries(new FormData(form));for(const f of form.querySelectorAll('[type="checkbox"]'))d[f.name]=f.checked;if(!d.id)delete d.id;return d;}
 /**
- * Actualiza.
- * Diseño lógico: (sin parámetros) → refresh() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: refresh() --> Text
+ * Descripción: Procesa refresh y devuelve el resultado correspondiente.
  */
 async function refresh(){
   dashboard=await Aeriq.consultar_panel('resumen');for(const n of document.querySelectorAll('[data-count]'))n.textContent=dashboard[n.dataset.count].length;
@@ -86,6 +86,7 @@ async function refresh(){
   // Un admin por campaña: solo se ofrecen las campañas que aún no tienen.
   /**
    * Diseño lógico: (c=>!c.admin_nombre) → free() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const free=dashboard.campaigns.filter(c=>!c.admin_nombre),sel=document.querySelector('#worker-campaign');
   if(sel){options('worker-campaign',free,c=>c.nombre);if(!free.length)sel.replaceChildren(new Option('Todas las campañas tienen admin',''));}
@@ -94,8 +95,8 @@ async function refresh(){
   const mine=can(me,'equipo.gestionar')?dashboard.campaigns[0]:null;
   if(mine){
     /**
-     * Establece.
-     * Diseño lógico: (id,text) → set() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: id: Text, text: Text --> set() --> Text
+     * Descripción: Procesa set y devuelve el resultado correspondiente.
      */
     const set=(id,text)=>{document.getElementById(id).textContent=text;};
     set('my-campaign-name',mine.nombre);set('my-campaign-state',stateText(mine));
@@ -124,20 +125,21 @@ for(const [id,action] of [['worker-form','worker'],['campaign-form','campaign'],
 // Funciones, zonas y umbrales de referencia vienen de la base de datos, no del HTML.
 // Equipo: el admin principal gestiona a sus admins de campaña; el admin de campaña, a sus operadores.
 /**
- * Diseño lógico: (w) → accessText() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: w: Text --> accessText() --> Text
+ * Descripción: Procesa access text y devuelve el resultado correspondiente.
  */
 function accessText(w){
   if(Number(w.cambiar_clave))return (w.invitacion_expira_en&&new Date(w.invitacion_expira_en.replace(' ','T')+'Z').getTime()<Date.now())?'Invitación caducada':'Invitación pendiente';
   return Number(w.activo)?'Activo':(Number(w.verificado)?'Desactivado':'Sin activar');
 }
 /**
- * Gestiona contacto.
- * Diseño lógico: (w) → contact() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: w: Text --> contact() --> Text
+ * Descripción: Procesa contact y devuelve el resultado correspondiente.
  */
 function contact(w){const box=document.createElement('div');box.append(w.email);if(w.telefono){const t=document.createElement('small');t.className='cell-sub';t.textContent=w.telefono;box.append(t);}return box;}
 /**
- * Representa operadores.
- * Diseño lógico: (sin parámetros) → renderWorkers() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: renderWorkers() --> Text
+ * Descripción: Procesa render workers y devuelve el resultado correspondiente.
  */
 function renderWorkers(){
   const host=document.querySelector('#workers-list');host.replaceChildren();
@@ -152,13 +154,13 @@ function renderWorkers(){
       const td=el('td');td.className='row-actions';
       if(w.rol===manages){
         /**
-         * Gestiona act.
-         * Diseño lógico: (text,run,cls='text-link') → act() → resultado de la operación; según doc/frontend_business_logic_design.md.
+         * Diseño lógico: text: Text, run: Text, cls: Text --> act() --> Text
+         * Descripción: Procesa act y devuelve el resultado correspondiente.
          */
         const act=(text,run,cls='text-link')=>{const b=el('button',text);b.type='button';b.className=cls;b.onclick=()=>run(b);td.append(b);};
         /**
-         * Gestiona call.
-         * Diseño lógico: (b,action,body) → call() → Promise; según doc/frontend_business_logic_design.md.
+         * Diseño lógico: b: Text, action: Text, body: Text --> call() --> Text
+         * Descripción: Procesa call y devuelve el resultado correspondiente.
          */
         const call=async(b,action,body)=>{b.disabled=true;try{const r=await Aeriq.portal(action,body);aeriqStatus(portalFeedback,r.message||'Cambios guardados.','ok');await refresh();}catch(e){aeriqStatus(portalFeedback,e.message,'error');b.disabled=false;}};
         act('Editar',()=>editWorker(w));
@@ -177,8 +179,8 @@ function renderWorkers(){
   host.append(t);
 }
 /**
- * Gestiona edit operador.
- * Diseño lógico: (w) → editWorker() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: w: Text --> editWorker() --> Text
+ * Descripción: Procesa edit worker y devuelve el resultado correspondiente.
  */
 function editWorker(w){
   const f=document.querySelector('#worker-edit-form');f.reset();
@@ -194,7 +196,8 @@ document.querySelector('#worker-edit-form')?.addEventListener('submit',async e=>
 });
 // Barra de tiempo de una campaña: «Día 8 de 68 · quedan 61 días».
 /**
- * Diseño lógico: (c,prefix) → progress() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: c: Text, prefix: Text --> progress() --> Text
+ * Descripción: Procesa progress y devuelve el resultado correspondiente.
  */
 function progress(c,prefix){
   const day=864e5,start=Date.parse(c.inicio+'T00:00:00Z'),end=Date.parse(c.fin+'T00:00:00Z')+day,now=Date.now(),total=Math.max(1,Math.round((end-start)/day));
@@ -203,13 +206,13 @@ function progress(c,prefix){
   const text=document.getElementById(prefix+'-days');if(text)text.textContent=now<start?`Empieza en ${Math.ceil((start-now)/day)} días · dura ${total} días`:now>=end?`Terminada · duró ${total} días`:`Día ${done} de ${total} · quedan ${left} días`;
 }
 /**
- * Gestiona my campaña.
- * Diseño lógico: (sin parámetros) → myCampaign() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: myCampaign() --> Text
+ * Descripción: Procesa my campaign y devuelve el resultado correspondiente.
  */
 async function myCampaign(){
   /**
-   * Gestiona d.
    * Diseño lógico: ('my-campaign') → d() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const d=await Aeriq.portal('my-campaign'),c=d.campaign,set=(id,text)=>{document.getElementById(id).textContent=text;};
   set('op-campaign-name',c.nombre);set('op-campaign-state',stateText(c));
@@ -232,6 +235,7 @@ async function myCampaign(){
   // Lecturas: el ozono lleva su nivel con color.
   /**
    * Diseño lógico: (r.unidad!=='ppb') → lvl() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const lvl=r=>{if(r.unidad!=='ppb')return '—';const k=AeriqDomain.level(Number(r.valor),mid,high),s=el('span',k[0].toUpperCase()+k.slice(1));s.className='level-tag '+k;return s;};
   table(document.querySelector('#op-readings'),['Fecha','Magnitud','Valor','Nivel'],d.readings.map(r=>({cells:[AeriqDomain.when(r.capturada_en,{seconds:true}),r.magnitud,`${r.valor} ${r.unidad}`,lvl(r)]})));
@@ -239,12 +243,13 @@ async function myCampaign(){
 }
 // Admin principal: resumen de campañas y AERIQ por campaña (solo consulta).
 /**
- * Diseño lógico: (sin parámetros) → summary() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: summary() --> Text
+ * Descripción: Procesa summary y devuelve el resultado correspondiente.
  */
 function summary(){
   /**
-   * Establece.
-   * Diseño lógico: (id,text) → set() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: id: Text, text: Text --> set() --> Text
+   * Descripción: Procesa set y devuelve el resultado correspondiente.
    */
   const set=(id,text)=>{const n=document.getElementById(id);if(n)n.textContent=text;};
   set('sum-campaigns',dashboard.campaigns.filter(c=>c.estado==='activa').length);
@@ -259,7 +264,8 @@ function summary(){
 let orbsTable=null;
 // Formulario de campaña: «Crear campaña» o «Editar campaña: …» con su botón de cancelar.
 /**
- * Diseño lógico: (c) → campaignMode() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: c: Text --> campaignMode() --> Text
+ * Descripción: Procesa campaign mode y devuelve el resultado correspondiente.
  */
 function campaignMode(c){
   const title=document.querySelector('#campaign-form-title'),submit=document.querySelector('#campaign-submit'),cancel=document.querySelector('#campaign-cancel');
@@ -269,55 +275,56 @@ function campaignMode(c){
 document.querySelector('#campaign-form')?.addEventListener('reset',e=>{e.currentTarget.elements.id.value='';setTimeout(()=>campaignMode(null));});
 document.querySelector('#campaign-cancel')?.addEventListener('click',()=>document.querySelector('#campaign-form').reset());
 /**
- * Gestiona catálogos.
- * Diseño lógico: (sin parámetros) → catalogs() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: catalogs() --> Text
+ * Descripción: Procesa catalogs y devuelve el resultado correspondiente.
  */
 function catalogs(){
   // El servidor decide qué rol crea esta cuenta: admin de campaña u operador.
   const title=document.querySelector('#worker-title');if(title)title.textContent=can(me,'campanas.gestionar')?'Asignar admin de campaña':'Añadir operador';
   const link=document.querySelector('#workers-link');if(link&&can(me,'campanas.gestionar'))link.textContent='Admins de campaña';
   /**
-   * Gestiona list.
    * Diseño lógico: ('#zone-options') → list() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const list=document.querySelector('#zone-options');if(list)list.replaceChildren(...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));
   const zone=document.querySelector('#report-zone');
   if(zone){const value=zone.value;zone.replaceChildren(new Option('Todas las zonas',''),...(dashboard.zones||[]).map(z=>new Option(z.nombre,z.nombre)));zone.value=[...zone.options].some(o=>o.value===value)?value:'';}
 }
 /**
- * Gestiona origin of.
  * Diseño lógico: (r.simulado) → originOf() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const originOf=r=>Number(r.simulado)?'Simulado':'Real';
 // Gráfica de la evolución (T39): media de cada periodo sobre un eje de tiempo real (los huecos sin datos se ven),
 // eje Y con la unidad y eje X con fechas u horas locales. Si el grupo comparte umbrales, sus líneas discontinuas.
 // Los picos (T40) se marcan con un triángulo y su valor: rojo si llegan al umbral alto, ámbar si al medio.
 /**
- * Diseño lógico: (canvas,series,limits,opts={}) → drawChart() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: canvas: Text, series: Text, limits: Text, opts: Text --> drawChart() --> Text
+ * Descripción: Procesa draw chart y devuelve el resultado correspondiente.
  */
 function drawChart(canvas,series,limits,opts={}){
   const ctx=canvas.getContext?.('2d');if(!ctx||!series.length)return;
   const unit=opts.unit||'',group=opts.group||'day',peaks=opts.peaks||[];
   const W=canvas.width,H=canvas.height,L=64,R=18,T=22,B=42;
   /**
-   * Gestiona values.
    * Diseño lógico: (s=>[s.mean,s.max]) → values() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const values=series.flatMap(s=>[s.mean,s.max]);if(limits)values.push(limits.medium,limits.high);for(const p of peaks)values.push(p.valor);
   const min=Math.min(0,...values),top=Math.max(min+1,...values),max=top+(top-min)*.12;
   /**
-   * Gestiona hora.
    * Diseño lógico: (String(d).length<=10?d+'T00:00:00Z':String(d).replace(' ','T')+'Z') → time() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const time=d=>Date.parse(String(d).length<=10?d+'T00:00:00Z':String(d).replace(' ','T')+'Z');
   /**
-   * Gestiona t0.
    * Diseño lógico: (series[0].date) → t0() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const t0=time(series[0].date),t1=Math.max(time(series.at(-1).date),...peaks.map(p=>time(p.capturada_en)));
   /**
-   * Gestiona x.
-   * Diseño lógico: (t1>t0?(t-t0)*(W-L-R)/(t1-t0):(W-L-R)/2) → x() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: (t1>t0?(t-t0)
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const x=t=>L+(t1>t0?(t-t0)*(W-L-R)/(t1-t0):(W-L-R)/2),y=v=>H-B-(v-min)/(max-min)*(H-T-B);
   ctx.clearRect(0,0,W,H);ctx.font='12px sans-serif';ctx.lineWidth=1;
@@ -329,13 +336,13 @@ function drawChart(canvas,series,limits,opts={}){
   // Unidad del eje Y (vertical) y del eje X.
   ctx.save();ctx.translate(14,(T+H-B)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.font='bold 12px sans-serif';ctx.fillText(unit?`Valor (${unit})`:'Valor',0,0);ctx.restore();
   /**
-   * Gestiona same day.
    * Diseño lógico: (t0) → sameDay() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const sameDay=new Date(t0).toDateString()===new Date(t1).toDateString(),pad=n=>String(n).padStart(2,'0');
   /**
-   * Gestiona label.
    * Diseño lógico: (t) → label() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const label=t=>{const d=new Date(t);const day=`${d.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]}`;
     return group==='hour'?(sameDay?`${pad(d.getHours())}:${pad(d.getMinutes())}`:`${day} ${pad(d.getHours())}:00`):day;};
@@ -357,19 +364,21 @@ function drawChart(canvas,series,limits,opts={}){
 }
 // Aviso de picos (T40): solo aparece si los hay; dice la hora y el valor de cada uno.
 /**
- * Diseño lógico: (peaks) → peakAlert() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: peaks: Text --> peakAlert() --> Text
+ * Descripción: Procesa peak alert y devuelve el resultado correspondiente.
  */
 function peakAlert(peaks){
   if(!peaks.length)return null;
   /**
-   * Gestiona box.
    * Diseño lógico: ('div') → box() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const box=el('div');box.className='report-peaks'+(peaks.some(p=>p.nivel==='alto')?' is-high':'');box.setAttribute('role','alert');
   const n=peaks.length;box.append(el('strong',`${n} ${n===1?'pico de ozono':'picos de ozono'} en el periodo`));
   // Los más altos primero; con muchos, se enseñan 8 y el resto está en la tabla de superaciones.
   /**
    * Diseño lógico: ((a,b)=>b.valor-a.valor) → top() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const top=[...peaks].sort((a,b)=>b.valor-a.valor).slice(0,8);
   const list=el('ul');for(const p of top)list.append(el('li',`${AeriqDomain.when(p.capturada_en)} · ${p.valor} ${p.unidad} · nivel ${p.nivel}${p.dispositivo?' · '+p.dispositivo:''}${p.lecturas>1?` (${p.lecturas} lecturas seguidas sobre el umbral)`:''}`));
@@ -377,7 +386,8 @@ function peakAlert(peaks){
 }
 // Veredicto por franjas horarias (T41): cuatro fichas de color y un texto que destaca las buenas y las malas.
 /**
- * Diseño lógico: (v) → verdictBlock() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: v: Text --> verdictBlock() --> Text
+ * Descripción: Procesa verdict block y devuelve el resultado correspondiente.
  */
 function verdictBlock(v){
   const box=el('div');box.className='report-verdict';box.append(el('h4','Veredicto de calidad del aire por franja horaria'));
@@ -388,7 +398,8 @@ function verdictBlock(v){
 }
 // Cabecera compacta con los filtros aplicados (el PDF tiene la suya en printReport).
 /**
- * Diseño lógico: (report) → reportHeader() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: report: Text --> reportHeader() --> Text
+ * Descripción: Procesa report header y devuelve el resultado correspondiente.
  */
 function reportHeader(report){
   const info=report.info,p=reportPeriod(report),box=el('div');box.className='report-header';
@@ -402,12 +413,13 @@ function reportHeader(report){
 }
 // Cifras clave de una serie en fichas pequeñas.
 /**
- * Diseño lógico: (stats,unit,thermal) → reportKpis() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: stats: Text, unit: Text, thermal: Text --> reportKpis() --> Text
+ * Descripción: Procesa report kpis y devuelve el resultado correspondiente.
  */
 function reportKpis(stats,unit,thermal){
   /**
-   * Gestiona fila.
    * Diseño lógico: ('div') → row() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const row=el('div');row.className='report-kpis';const n=v=>Number(v).toLocaleString('es-ES',{maximumFractionDigits:2});
   for(const [k,v,alert] of [['Lecturas',stats.count],['Mínimo',`${n(stats.min)} ${unit}`],['Máximo',`${n(stats.max)} ${unit}`],['Media',`${n(stats.mean)} ${unit}`],['Superaciones',thermal?'—':stats.exceedances.length,!thermal&&stats.exceedances.length>0]]){
@@ -418,14 +430,15 @@ function reportKpis(stats,unit,thermal){
 let lastReport=null;
 // HU35: lecturas descartadas (guardadas como no válidas). Se enseñan aparte y no cuentan en nada del informe.
 /**
- * Diseño lógico: (sin parámetros) → discardReason() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: discardReason() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const discardReason=r=>r.motivo_descarte==='fuera_de_rango'
   ?`Fuera de rango (admitido: ${Number(r.valor_minimo)}–${Number(r.valor_maximo)} ${r.unidad})`
   :`Anómala (se aleja más de ${Number(r.salto_maximo)} ${r.unidad} de la media de las 5 anteriores)`;
 /**
- * Gestiona discarded block.
- * Diseño lógico: (rows) → discardedBlock() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: rows: Text --> discardedBlock() --> Text
+ * Descripción: Procesa discarded block y devuelve el resultado correspondiente.
  */
 function discardedBlock(rows){
   if(!rows?.length)return null;
@@ -436,8 +449,8 @@ function discardedBlock(rows){
   return box;
 }
 /**
- * Representa informe.
- * Diseño lógico: (rows,group,info,discarded=[]) → renderReport() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: rows: Text, group: Text, info: Text, discarded: Text --> renderReport() --> Text
+ * Descripción: Procesa render report y devuelve el resultado correspondiente.
  */
 function renderReport(rows,group,info,discarded=[]){
   const host=document.querySelector('#report-results');host.replaceChildren();
@@ -461,8 +474,8 @@ function renderReport(rows,group,info,discarded=[]){
     if(!thermal)block.append(el('p',(limits?'Línea discontinua: umbrales de la campaña. Puntos rojos: periodos con alguna lectura igual o superior al umbral medio.':'Las lecturas tienen umbrales distintos según su campaña; consulta el nivel en la tabla de superaciones.')+(peaks.length?' Triángulos: picos (lectura más alta de cada tramo sobre el umbral).':'')));
     if(verdict)block.append(verdictBlock(verdict));
     /**
-     * Gestiona summary.
      * Diseño lógico: ('div') → summary() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const summary=el('div');block.append(summary);table(summary,['Periodo','Mínimo','Máximo','Media'],stats.series.map(s=>({cells:[AeriqDomain.when(s.date,{hour:group==='hour'}),s.min,s.max,s.mean.toFixed(2)]})));
     block.append(el('p',thermal?'Temperatura del módulo en °C. No se aplican los umbrales de ozono.':`${stats.exceedances.length} lecturas alcanzan o superan el umbral medio de su campaña.`));
@@ -476,17 +489,18 @@ function renderReport(rows,group,info,discarded=[]){
 }
 // Textos legibles de los filtros elegidos, para la cabecera del informe.
 /**
- * Diseño lógico: (f,filters,group) → reportInfo() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: f: Text, filters: Text, group: Text --> reportInfo() --> Text
+ * Descripción: Procesa report info y devuelve el resultado correspondiente.
  */
 function reportInfo(f,filters,group){
   /**
-   * Gestiona texto.
    * Diseño lógico: (name) → text() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const text=name=>{const s=f.elements.namedItem(name);return s.selectedOptions?.[0]?.textContent||'';};
   /**
-   * Gestiona dispositivos.
    * Diseño lógico: ('#report-device input:checked') → devices() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const devices=[...f.querySelectorAll('#report-device input:checked')].map(i=>i.closest('label').textContent.trim());
   return {type:text('type'),campaign:filters.campaign?text('campaign'):'Todas las autorizadas',zone:filters.zone||'Todas las zonas',devices:devices.length?devices.join(', '):'Todos',
@@ -494,25 +508,26 @@ function reportInfo(f,filters,group){
 }
 // Periodo legible: el del filtro o, si falta un extremo, el de los propios datos.
 /**
- * Diseño lógico: (report) → reportPeriod() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: report: Text --> reportPeriod() --> Text
+ * Descripción: Procesa report period y devuelve el resultado correspondiente.
  */
 function reportPeriod(report){
   /**
-   * Gestiona all.
    * Diseño lógico: (s=>s.set.map(r=>String(r.capturada_en).slice(0,10))) → all() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const all=report.sets.flatMap(s=>s.set.map(r=>String(r.capturada_en).slice(0,10))).sort();
   const from=report.info.from||all[0]||'',to=report.info.to||all.at(-1)||'';
   return {from:AeriqDomain.when(from,{hour:false}),to:AeriqDomain.when(to,{hour:false}),fromData:!report.info.from,toData:!report.info.to};
 }
 /**
- * Gestiona informe description.
- * Diseño lógico: (report) → reportDescription() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: report: Text --> reportDescription() --> Text
+ * Descripción: Procesa report description y devuelve el resultado correspondiente.
  */
 function reportDescription(report){
   /**
-   * Gestiona i.
    * Diseño lógico: (report) → i() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const i=report.info,p=reportPeriod(report),simulated=report.sets.some(s=>s.simulated),real=report.sets.some(s=>!s.simulated);
   const what=i.type.split(' · ')[0].replace(/\s*\(.*\)$/,'').toLowerCase();
@@ -549,7 +564,8 @@ td.alto{color:#b3261e;font-weight:700}td.moderado{color:#b26a00;font-weight:700}
 const ANNEX_MAX=500;
 // Documento de informe independiente en un iframe oculto: se imprime solo el informe, sin la página del portal.
 /**
- * Diseño lógico: (sin parámetros) → printReport() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: printReport() --> Text
+ * Descripción: Procesa print report y devuelve el resultado correspondiente.
  */
 function printReport(){
   const report=lastReport;if(!report)return;
@@ -559,13 +575,13 @@ function printReport(){
   doc.open();doc.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title></title><style></style></head><body></body></html>');doc.close();
   doc.title=file;doc.querySelector('style').textContent=PRINT_CSS;
   /**
-   * Gestiona h.
-   * Diseño lógico: (tag,props={},...kids) → h() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: tag: Text, props: Text, kids: Text --> h() --> Text
+   * Descripción: Procesa h y devuelve el resultado correspondiente.
    */
   const h=(tag,props={},...kids)=>{const n=doc.createElement(tag);for(const [k,v] of Object.entries(props))if(v!==undefined&&v!==null)(k==='class'?n.className=v:n.setAttribute(k,v));for(const k of kids)n.append(k instanceof doc.defaultView.Node?k:String(k??'—'));return n;};
   /**
-   * Gestiona tabla of.
-   * Diseño lógico: (headers,rows,cls) → tableOf() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: headers: Text, rows: Text, cls: Text --> tableOf() --> Text
+   * Descripción: Procesa table of y devuelve el resultado correspondiente.
    */
   const tableOf=(headers,rows,cls)=>h('table',{},h('thead',{},h('tr',{},...headers.map(x=>h('th',{},x)))),h('tbody',{},...rows.map(r=>h('tr',{},...r.map((c,i)=>h('td',{class:cls?.(c,i)},c))))));
   const p=reportPeriod(report),i=report.info,body=doc.body;
@@ -596,8 +612,8 @@ function printReport(){
     }
     sec.append(h('h3',{},'Anexo: lecturas'));
     /**
-     * Gestiona filas.
      * Diseño lógico: (0,ANNEX_MAX) → rows() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const rows=s.set.slice(0,ANNEX_MAX).map(r=>[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,`${r.campana} / ${r.zona}`,`${r.valor} ${r.unidad}`,s.thermal?'—':levelOf(r),s.simulated?'Simulado':'Real']);
     sec.append(tableOf(['Fecha','AERIQ','Campaña / zona','Valor','Nivel','Origen'],rows,(c,col)=>col===4&&['alto','moderado'].includes(c)?c:col===5&&c==='Simulado'?'sim':undefined));
@@ -607,13 +623,13 @@ function printReport(){
     tableOf(['Fecha','AERIQ','Valor','Motivo','Origen'],report.discarded.map(r=>[AeriqDomain.when(r.capturada_en,{seconds:true}),r.dispositivo,`${r.valor} ${r.unidad}`,discardReason(r),originOf(r)])));}
   body.append(h('p',{class:'footer'},'AERIQ · Código Norte. Ozono en ppb y temperatura en °C. Solo se incluyen lecturas válidas autorizadas para esta cuenta; los datos simulados se identifican como tales.'));
   /**
-   * Gestiona win.
-   * Diseño lógico: (sin parámetros) → win() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: win() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const win=frame.contentWindow,cleanup=()=>setTimeout(()=>frame.remove(),1000);
   /**
-   * Gestiona ready.
-   * Diseño lógico: (sin parámetros) → ready() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: ready() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const ready=logo.complete?Promise.resolve():new Promise(r=>{logo.onload=logo.onerror=r;setTimeout(r,2000);});
   const old=document.title;
@@ -636,51 +652,52 @@ const REQ_HELP={pendiente:'Ha llegado y nadie la ha mirado todavía.',en_revisio
 const req={list:[],states:[],filter:'pendiente',q:'',keep:new Set(),sel:null,note:''};
 // Fechas del servidor en UTC → hora local, sin la etiqueta UTC.
 /**
- * Diseño lógico: (s,hour) → when() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: s: Text, hour: Text --> when() --> Text
+ * Descripción: Formatea una fecha como hora local relativa al día actual.
  */
 const when=(s,hour)=>AeriqDomain.when(s,{hour:Boolean(hour)});
 /**
- * Gestiona vínculo.
- * Diseño lógico: (href,text) → link() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: href: Text, text: Text --> link() --> Text
+ * Descripción: Procesa link y devuelve el resultado correspondiente.
  */
 const link=(href,text)=>{const a=el('a',text);a.href=href;return a;};
 /**
- * Gestiona req pill.
  * Diseño lógico: ('span',r.estado_nombre) → reqPill() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Descripción: Describe la operación realizada y su resultado.
  */
 const reqPill=r=>{const p=el('span',r.estado_nombre);p.className='pill '+(REQ_PILL[r.estado]||'pill-off');return p;};
 /**
- * Gestiona commercial.
- * Diseño lógico: (sin parámetros) → commercial() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: commercial() --> Text
+ * Descripción: Procesa commercial y devuelve el resultado correspondiente.
  */
 async function commercial(){
   const {requests,states=[]}=await Aeriq.consultar_panel('solicitudes');req.list=requests;req.states=states;
   renderRequests();
 }
 /**
- * Gestiona req matches.
- * Diseño lógico: (r) → reqMatches() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: r: Text --> reqMatches() --> Text
+ * Descripción: Procesa req matches y devuelve el resultado correspondiente.
  */
 function reqMatches(r){
   const q=req.q.trim().toLowerCase().replace(/^#/,'');
   return (!req.filter||r.estado===req.filter||req.keep.has(r.id))&&(!q||String(r.id)===q||[r.entidad,r.email,r.contacto,r.municipio].some(v=>String(v||'').toLowerCase().includes(q)));
 }
 /**
- * Representa solicitudes.
- * Diseño lógico: (sin parámetros) → renderRequests() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: renderRequests() --> Text
+ * Descripción: Procesa render requests y devuelve el resultado correspondiente.
  */
 function renderRequests(){
   /**
-   * Gestiona pending.
    * Diseño lógico: ('sum-requests') → pending() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const pending=document.getElementById('sum-requests');if(pending)pending.textContent=req.list.filter(r=>r.estado==='pendiente').length;
   const tabs=document.querySelector('#requests-filter'),host=document.querySelector('#requests-list');if(!host)return;
   tabs.replaceChildren();
   for(const s of [...req.states,{codigo:'',nombre:'Todas'}]){
     /**
-     * Gestiona n.
      * Diseño lógico: (r=>r.estado===s.codigo) → n() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const n=s.codigo?req.list.filter(r=>r.estado===s.codigo).length:req.list.length;
     const b=el('button');b.type='button';b.append(s.nombre+' ',el('b',String(n)));b.className=req.filter===s.codigo?'selected':'';b.setAttribute('aria-pressed',String(req.filter===s.codigo));
@@ -699,13 +716,14 @@ function renderRequests(){
 }
 // Las solicitudes solo avanzan (T38); una cerrada se recupera con «Reabrir». El servidor avisa por correo (T37).
 /**
- * Diseño lógico: (r,code,reopen=false) → setRequestState() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: r: Text, code: Text, reopen: Text --> setRequestState() --> Text
+ * Descripción: Procesa set request state y devuelve el resultado correspondiente.
  */
 async function setRequestState(r,code,reopen=false){
   try{const res=await Aeriq.portal(reopen?'request-reopen':'request-status',reopen?{id:r.id}:{id:r.id,status:code});
     /**
-     * Gestiona name.
      * Diseño lógico: (s=>s.codigo===code) → name() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const name=res.estado_nombre||req.states.find(s=>s.codigo===code)?.nombre||code;
     Object.assign(r,{estado:res.estado||code,estado_nombre:name});
@@ -715,8 +733,8 @@ async function setRequestState(r,code,reopen=false){
   renderRequests();
 }
 /**
- * Representa petición detail.
- * Diseño lógico: (r) → renderRequestDetail() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: r: Text --> renderRequestDetail() --> Text
+ * Descripción: Procesa render request detail y devuelve el resultado correspondiente.
  */
 function renderRequestDetail(r){
   const host=document.querySelector('#request-detail');host.replaceChildren();
@@ -728,15 +746,15 @@ function renderRequestDetail(r){
   // Pasos del estado: el actual marcado; solo se puede pulsar un paso posterior (no se retrocede). Botón principal = siguiente paso.
   const steps=el('ol');steps.className='request-steps';steps.setAttribute('aria-label','Estado de la solicitud');
   /**
-   * Gestiona at.
    * Diseño lógico: (s=>s.codigo===r.estado) → at() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const at=req.states.findIndex(s=>s.codigo===r.estado);
   req.states.forEach((s,i)=>{const li=el('li');li.className=i<at?'done':i===at?'current':'';
     const closed=Boolean(Number(req.states[at]?.final));
     /**
-     * Gestiona b.
      * Diseño lógico: ('button',s.nombre) → b() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const b=el('button',s.nombre);b.type='button';b.title=i<at?'Una solicitud no puede volver a un estado anterior.':(REQ_HELP[s.codigo]||'');b.disabled=i<=at||closed;if(i===at)b.setAttribute('aria-current','step');b.onclick=()=>setRequestState(r,s.codigo);li.append(b);steps.append(li);});
   host.append(steps);
@@ -750,8 +768,8 @@ function renderRequestDetail(r){
   // Ficha: etiqueta a la izquierda, dato a la derecha.
   const info=el('dl');info.className='request-sheet';
   /**
-   * Gestiona add.
-   * Diseño lógico: (label,value) → add() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: label: Text, value: Text --> add() --> Text
+   * Descripción: Procesa add y devuelve el resultado correspondiente.
    */
   const add=(label,value)=>{if(value==null||value==='')return;const dt=el('dt',label),dd=el('dd');dd.append(value);info.append(dt,dd);};
   const place=[r.municipio,r.provincia&&`(${r.provincia})`].filter(Boolean).join(' ');
@@ -766,27 +784,28 @@ function renderRequestDetail(r){
 }
 // Responder: el enlace mailto no hace nada si el ordenador no tiene app de correo, así que se ofrecen Gmail, Outlook y copiar.
 /**
- * Diseño lógico: (r) → replyMenu() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: r: Text --> replyMenu() --> Text
+ * Descripción: Procesa reply menu y devuelve el resultado correspondiente.
  */
 function replyMenu(r){
   const subject=`AERIQ · Tu solicitud #${r.id}`,body=`Hola ${r.contacto},\n\n`,enc=encodeURIComponent;
   const menu=el('details');menu.className='reply-menu';const sum=el('summary','Responder');sum.className='btn btn-outline';menu.append(sum);
   const list=el('div');list.className='reply-list';
   /**
-   * Gestiona go.
-   * Diseño lógico: (text,href) → go() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: text: Text, href: Text --> go() --> Text
+   * Descripción: Procesa go y devuelve el resultado correspondiente.
    */
   const go=(text,href)=>{const a=link(href,text);a.target='_blank';a.rel='noopener';a.onclick=()=>{menu.open=false;};list.append(a);};
   go('Abrir en Gmail',`https://mail.google.com/mail/?view=cm&fs=1&to=${enc(r.email)}&su=${enc(subject)}&body=${enc(body)}`);
   go('Abrir en Outlook',`https://outlook.office.com/mail/deeplink/compose?to=${enc(r.email)}&subject=${enc(subject)}&body=${enc(body)}`);
   /**
-   * Gestiona app.
    * Diseño lógico: (`mailto:${r.email}?subject=${enc(subject)}&body=${enc(body)}`,'App de correo del ordenador') → app() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const app=link(`mailto:${r.email}?subject=${enc(subject)}&body=${enc(body)}`,'App de correo del ordenador');app.onclick=()=>{menu.open=false;};list.append(app);
   /**
-   * Gestiona copy.
    * Diseño lógico: ('button','Copiar correo') → copy() → Promise; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const copy=el('button','Copiar correo');copy.type='button';copy.onclick=async()=>{try{await navigator.clipboard.writeText(r.email);copy.textContent='Copiado ✓';}catch{copy.textContent=r.email;}setTimeout(()=>{copy.textContent='Copiar correo';menu.open=false;},1200);};
   list.append(copy);menu.append(list);return menu;
@@ -811,8 +830,8 @@ document.addEventListener('click',e=>{for(const m of document.querySelectorAll('
 }catch(e){aeriqStatus(portalFeedback,e.message,'error');}})();
 
 /**
- * Muestra workspace.
- * Diseño lógico: (view) → showWorkspace() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: view: Text --> showWorkspace() --> Text
+ * Descripción: Procesa show workspace y devuelve el resultado correspondiente.
  */
 function showWorkspace(view){
   // Primera sección: «Mi campaña» para el admin de campaña; «Resumen» para el admin principal.

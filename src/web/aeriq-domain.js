@@ -6,31 +6,30 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 /* Cálculos compartidos sin DOM: informes, CSV e interpolación local IDW acotada. */
 (function(root){
   'use strict';
   /**
-   * Gestiona level.
-   * Diseño lógico: (v,medium,high) → level() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: v: Text, medium: Text, high: Text --> level() --> Z
+   * Descripción: Clasifica el valor según los umbrales medio y alto.
    */
   const level=(v,medium,high)=>v>=high?'alto':v>=medium?'moderado':'bajo';
   /**
-   * Gestiona CSV celda.
-   * Diseño lógico: (v) → csvCell() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: v: Text --> csvCell() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   function csvCell(v){const text=String(v??'');return '"'+(typeof v!=='number'&&/^[\s]*[=+@-]/.test(text)?"'"+text:text).replaceAll('"','""')+'"';}
   /**
-   * Gestiona CSV.
-   * Diseño lógico: (rows) → csv() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text --> csv() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   function csv(rows){
     const keys=['capturada_en','valor','unidad','dispositivo','campana','zona','latitud','longitud','simulado'];
     return '\ufeff'+keys.join(';')+'\r\n'+rows.map(r=>keys.map(k=>{let v=r[k];if(['valor','latitud','longitud','simulado'].includes(k)&&v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v)))v=Number(v);return csvCell(v);}).join(';')).join('\r\n');
   }
   /**
-   * Gestiona utc hora.
    * Diseño lógico: (String(v??'').replace(' ','T')+'Z') → utcTime() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const utcTime=v=>Date.parse(String(v??'').replace(' ','T')+'Z');
   /**
@@ -38,27 +37,28 @@
    * la gráfica saldría con un solo punto); hasta 60 días, por días; más, por semanas.
    */
   /**
-   * Diseño lógico: (rows) → autoGroup() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text --> autoGroup() --> Text
+   * Descripción: Procesa auto group y devuelve el resultado correspondiente.
    */
   function autoGroup(rows){
     /**
-     * Gestiona times.
      * Diseño lógico: (r=>utcTime(r.capturada_en)) → times() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const times=rows.map(r=>utcTime(r.capturada_en)).filter(Number.isFinite);
     if(!times.length)return 'day';
     const span=Math.max(...times)-Math.min(...times);
     return span<=48*3600000?'hour':span<=60*86400000?'day':'week';
   }
-  /** group: 'hour' (clave «AAAA-MM-DD HH:00:00» UTC), 'day' («AAAA-MM-DD») o 'week' (lunes de la semana). */
   /**
-   * Diseño lógico: (rows,group='day') → statistics() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text, group: Text --> statistics() --> [ Text ]
+   * Descripción: Procesa statistics y devuelve el resultado correspondiente.
    */
   function statistics(rows,group='day'){
     if(!rows.length)return {count:0,min:null,max:null,mean:null,series:[],exceedances:[]};
     /**
-     * Gestiona buckets.
-     * Diseño lógico: (sin parámetros) → buckets() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: buckets() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const buckets=new Map(),values=rows.map(r=>Number(r.valor));
     for(const r of rows){
@@ -73,7 +73,8 @@
   }
   // Umbrales comunes de un grupo de lecturas: solo si todas tienen el mismo umbral medio y alto; si no, null.
   /**
-   * Diseño lógico: (rows) → sharedThresholds() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text --> sharedThresholds() --> Text
+   * Descripción: Procesa shared thresholds y devuelve el resultado correspondiente.
    */
   function sharedThresholds(rows){
     if(!rows.length||rows.some(r=>r.umbral_medio===null||r.umbral_medio===undefined||r.umbral_alto===null||r.umbral_alto===undefined))return null;
@@ -88,29 +89,30 @@
    * lecturas tiene el tramo y los umbrales. Sin umbrales (temperatura) no hay picos. Ordenados por hora.
    */
   /**
-   * Diseño lógico: (rows,maxHueco=30) → peaks() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text, maxHueco: Text --> peaks() --> [ Text ]
+   * Descripción: Procesa peaks y devuelve el resultado correspondiente.
    */
   function peaks(rows,maxHueco=30){
     /**
-     * Gestiona válido.
      * Diseño lógico: (r=>r.unidad!=='°C'&&r.umbral_medio!==null&&r.umbral_medio!==undefined&&r.umbral_medio!==''&&Number.isFinite(utcTime(r.capturada_en))) → valid() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const valid=rows.filter(r=>r.unidad!=='°C'&&r.umbral_medio!==null&&r.umbral_medio!==undefined&&r.umbral_medio!==''&&Number.isFinite(utcTime(r.capturada_en)));
     /**
-     * Gestiona sorted.
      * Diseño lógico: ((a,b)=>utcTime(a.capturada_en)-utcTime(b.capturada_en)||Number(a.id??0)-Number(b.id??0)) → sorted() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const sorted=[...valid].sort((a,b)=>utcTime(a.capturada_en)-utcTime(b.capturada_en)||Number(a.id??0)-Number(b.id??0)),out=[];
     /**
-     * Gestiona gaps.
      * Diseño lógico: (1) → gaps() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const gaps=sorted.slice(1).map((r,i)=>utcTime(r.capturada_en)-utcTime(sorted[i].capturada_en)).filter(g=>g>0).sort((a,b)=>a-b);
     const limit=Math.max(maxHueco*60000,gaps.length?1.5*gaps[gaps.length>>1]:0);
     let episode=null,last=null;
     /**
-     * Cierra.
-     * Diseño lógico: (sin parámetros) → close() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: close() --> Text
+     * Descripción: Finaliza la operación y libera los recursos asociados.
      */
     const close=()=>{if(episode){const r=episode.top;out.push({capturada_en:r.capturada_en,valor:Number(r.valor),unidad:r.unidad,dispositivo:r.dispositivo,
       nivel:Number(r.valor)>=Number(r.umbral_alto)?'alto':'moderado',lecturas:episode.count,umbral_medio:Number(r.umbral_medio),umbral_alto:Number(r.umbral_alto)});}episode=null;};
@@ -134,34 +136,35 @@
    * Devuelve {franjas:[{…FRANJA, lecturas, media, calidad|null}], texto}.
    */
   /**
-   * Diseño lógico: (rows,options={}) → verdict() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text, options: Text --> verdict() --> Text
+   * Descripción: Procesa verdict y devuelve el resultado correspondiente.
    */
   function verdict(rows,options={}){
     /**
-     * Gestiona hour of.
      * Diseño lógico: (r=>new Date(utcTime(r.capturada_en)).getHours()) → hourOf() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const hourOf=options.hour||(r=>new Date(utcTime(r.capturada_en)).getHours());
     /**
-     * Gestiona válido.
      * Diseño lógico: (r=>r.unidad!=='°C'&&r.umbral_medio!==null&&r.umbral_medio!==undefined&&r.umbral_medio!==''&&Number.isFinite(utcTime(r.capturada_en))) → valid() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const valid=rows.filter(r=>r.unidad!=='°C'&&r.umbral_medio!==null&&r.umbral_medio!==undefined&&r.umbral_medio!==''&&Number.isFinite(utcTime(r.capturada_en)));
     const unit=valid[0]?.unidad||'ppb';
     /**
-     * Gestiona franjas.
      * Diseño lógico: (parámetros de la firma) → franjas() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const franjas=FRANJAS.map(f=>{
       /**
-       * Establece.
        * Diseño lógico: (r=>{const h=hourOf(r);return h>=f.desde&&h<f.hasta;}) → set() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       * Descripción: Describe la operación realizada y su resultado.
        */
       const set=valid.filter(r=>{const h=hourOf(r);return h>=f.desde&&h<f.hasta;});
       if(!set.length)return {...f,lecturas:0,media:null,calidad:null};
       /**
-       * Gestiona media.
        * Diseño lógico: ((a,r)=>a+Number(r.valor),0) → media() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       * Descripción: Describe la operación realizada y su resultado.
        */
       const media=set.reduce((a,r)=>a+Number(r.valor),0)/set.length,limits=sharedThresholds(set);
       let nivel;
@@ -170,43 +173,43 @@
       return {...f,lecturas:set.length,media,calidad:CALIDAD[nivel]};
     });
     /**
-     * Gestiona rated.
      * Diseño lógico: (f=>f.calidad) → rated() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const rated=franjas.filter(f=>f.calidad);
     if(!rated.length)return {franjas,texto:'No hay lecturas de ozono con umbrales para calificar las franjas horarias.'};
     /**
-     * Gestiona name.
      * Diseño lógico: ({madrugada:'de madrugada',manana:'por la mañana',tarde:'por la tarde',noche:'por la noche'}) → name() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const name=f=>({madrugada:'de madrugada',manana:'por la mañana',tarde:'por la tarde',noche:'por la noche'})[f.codigo];
     /**
-     * Gestiona join.
      * Diseño lógico: (0,-1) → join() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const join=list=>list.length>1?list.slice(0,-1).join(', ')+' y '+list.at(-1):list[0];
     /**
-     * Gestiona parts.
      * Diseño lógico: (parámetros de la firma) → parts() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const parts=['buena','regular','mala'].map(q=>{const fs=rated.filter(f=>f.calidad===q);if(!fs.length)return null;
       return `${q} ${join(fs.map(name))}`+(q==='buena'?'':` (media ${fs.map(f=>Math.round(f.media)).join(' / ')} ${unit})`);}).filter(Boolean);
     /**
-     * Gestiona worst.
      * Diseño lógico: (f=>f.calidad==='mala') → worst() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const worst=rated.some(f=>f.calidad==='mala')?'mala':rated.some(f=>f.calidad==='regular')?'regular':'buena';
     const advice=worst==='mala'?' Evita la actividad física intensa al aire libre en las franjas malas.':worst==='regular'?' En las franjas regulares, mejor evitar el ejercicio intenso.':' No se ha alcanzado el umbral medio de ozono en ninguna franja.';
     /**
-     * Gestiona empty.
      * Diseño lógico: (f=>!f.calidad) → empty() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const empty=franjas.filter(f=>!f.calidad).map(f=>f.nombre.toLowerCase());
     return {franjas,peor:worst,texto:`La calidad del aire es ${join(parts)}.${advice}`+(empty.length?` Sin lecturas: ${join(empty)}.`:'')};
   }
   /**
-   * Gestiona distancia.
-   * Diseño lógico: (a,b) → distance() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: a: Text, b: Text --> distance() --> Text
+   * Descripción: Procesa distance y devuelve el resultado correspondiente.
    */
   function distance(a,b){const rad=Math.PI/180;const dlat=(a[0]-b[0])*rad,dlon=(a[1]-b[1])*rad;const h=Math.sin(dlat/2)**2+Math.cos(a[0]*rad)*Math.cos(b[0]*rad)*Math.sin(dlon/2)**2;return 6371000*2*Math.asin(Math.min(1,Math.sqrt(h)));}
   // Interpolación IDW local acotada (T25/HU28). Mismos parámetros y pasos que PublicReadings.java; ver doc/interpolacion.md.
@@ -225,29 +228,31 @@
   const METROS_GRADO=111320;
   // Solo se interpolan lecturas de la misma campaña, unidad y origen (real/simulado).
   /**
-   * Diseño lógico: (sin parámetros) → groupKey() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: groupKey() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const groupKey=r=>`${r.campaignId}|${r.unidad}|${r.simulado?1:0}`;
   /**
-   * Gestiona order.
-   * Diseño lógico: (a,b) → order() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: a: Text, b: Text --> order() --> Text
+   * Descripción: Procesa order y devuelve el resultado correspondiente.
    */
   const order=(a,b)=>a<b?-1:a>b?1:0;
-  /** Posiciones de soporte: una lectura (la más reciente) por cada posición separada al menos separacionMin de las demás de su grupo. */
   /**
-   * Diseño lógico: (rows,options) → support() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text, options: Text --> support() --> Text
+   * Descripción: Procesa support y devuelve el resultado correspondiente.
    */
   function support(rows,options){
     const o={...INTERPOLACION,...options},out=[];
     /**
-     * Gestiona válido.
      * Diseño lógico: (r=>r.latitud!==null&&r.longitud!==null&&r.latitud!==''&&r.longitud!==''&&[r.latitud,r.longitud,r.valor].every(v=>Number.isFinite(Number(v)))) → valid() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const valid=rows.filter(r=>r.latitud!==null&&r.longitud!==null&&r.latitud!==''&&r.longitud!==''&&[r.latitud,r.longitud,r.valor].every(v=>Number.isFinite(Number(v))));
     if(!valid.length)return out;
     // Orden propio (fecha descendente y desempates fijos): el resultado no depende del orden de entrada.
     /**
      * Diseño lógico: ((a,b)=>order(String(b.capturada_en??''),String(a.capturada_en??''))||order(Number(a.latitud),Number(b.latitud))||order(Number(a.longitud),Number(b.longitud))||order(Number(a.valor),Number(b.valor))) → sorted() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const sorted=[...valid].sort((a,b)=>order(String(b.capturada_en??''),String(a.capturada_en??''))||order(Number(a.latitud),Number(b.latitud))||order(Number(a.longitud),Number(b.longitud))||order(Number(a.valor),Number(b.valor)));
     // Rejilla de separacionMin para comparar solo con vecinas; ±2 celdas cubre el estrechamiento en longitud.
@@ -269,8 +274,8 @@
    */
   const ownCache=new WeakMap();
   /**
-   * Gestiona own radii.
-   * Diseño lógico: (samples,options) → ownRadii() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: samples: Text, options: Text --> ownRadii() --> Text
+   * Descripción: Procesa own radii y devuelve el resultado correspondiente.
    */
   function ownRadii(samples,options){
     const o={...INTERPOLACION,...options};
@@ -279,8 +284,8 @@
     if(samples.length){
       const latStep=reach/METROS_GRADO,lonStep=latStep/Math.max(.01,Math.cos(Number(samples[0].latitud)*Math.PI/180)),cells=new Map();
       /**
-       * Gestiona celda of.
        * Diseño lógico: (Number(r.latitud)/latStep) → cellOf() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       * Descripción: Describe la operación realizada y su resultado.
        */
       const cellOf=r=>[Math.floor(Number(r.latitud)/latStep),Math.floor(Number(r.longitud)/lonStep)];
       for(const r of samples){const [x,y]=cellOf(r),k=`${x}:${y}`;if(!cells.has(k))cells.set(k,[]);cells.get(k).push(r);}
@@ -299,7 +304,8 @@
    * · 'insuficiente' (menos de minPosiciones) · 'mezcla' (campañas, unidades u orígenes distintos).
    */
   /**
-   * Diseño lógico: (point,samples,radius,options) → estimate() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: point: Text, samples: Text, radius: Text, options: Text --> estimate() --> Text
+   * Descripción: Procesa estimate y devuelve el resultado correspondiente.
    */
   function estimate(point,samples,radius,options){
     const o={...INTERPOLACION,...options};
@@ -323,15 +329,15 @@
    * Texto de la consulta de un punto del mapa. Con valor indica que es interpolado; sin él, por qué no se asigna nivel.
    * info: {unidad, umbral_medio, umbral_alto, simulado} del grupo. Mismos textos que PublicReadings.describe.
    */
-  /** Valor redondeado para el texto; con un decimal si al redondear cruzaría un umbral (59,6 no es «60 · bajo»). */
   /**
-   * Diseño lógico: (v,info) → shown() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: v: Text, info: Text --> shown() --> Text
+   * Descripción: Procesa shown y devuelve el resultado correspondiente.
    */
   function shown(v,info){const m=Number(info.umbral_medio),h=Number(info.umbral_alto),r=Math.round(v);
     return level(r,m,h)===level(v,m,h)?String(r):v.toFixed(1).replace('.',',');}
   /**
-   * Gestiona describe.
-   * Diseño lógico: (e,radius,info={},options) → describe() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: e: Text, radius: Text, info: Text, options: Text --> describe() --> Text
+   * Descripción: Procesa describe y devuelve el resultado correspondiente.
    */
   function describe(e,radius,info={},options){
     const o={...INTERPOLACION,...options},positions=`${e.posiciones} ${e.posiciones===1?'posición':'posiciones'} en ${radius} m`;
@@ -340,21 +346,19 @@
     if(e.motivo==='insuficiente')return {titulo:'Datos insuficientes',detalle:`${positions}; hacen falta ${o.minPosiciones}. No se asigna nivel de ozono.`};
     return {titulo:'Sin datos',detalle:(e.cercana===null?'No hay mediciones publicadas.':`La medición más cercana está a ${Math.round(e.cercana)} m (radio de ${radius} m).`)+' Sin datos no significa aire limpio.'};
   }
-  /** Valor interpolado o null si el punto queda sin datos. Acepta lecturas en bruto. */
   /**
-   * Diseño lógico: (point,rows,radius,options) → interpolate() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: point: Text, rows: Text, radius: Text, options: Text --> interpolate() --> Text
+   * Descripción: Procesa interpolate y devuelve el resultado correspondiente.
    */
   function interpolate(point,rows,radius,options){return estimate(point,support(rows,options),radius,options).valor;}
-  /** Estado de cada punto de raster(): 0 sin datos, 1 datos insuficientes, 2-4 nivel bajo, moderado o alto. */
-  const ZONA=Object.freeze({sinDatos:0,insuficiente:1,bajo:2,moderado:3,alto:4});
-  /** Índices [desde, hasta] de los valores de una lista ordenada (creciente o decreciente) que caen en [min, max]. */
   /**
-   * Diseño lógico: (values,min,max) → span() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: values: Text, min: Text, max: Text --> span() --> Text
+   * Descripción: Procesa span y devuelve el resultado correspondiente.
    */
   function span(values,min,max){
     /**
-     * Gestiona n.
-     * Diseño lógico: (sin parámetros) → n() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: n() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const n=values.length,asc=n<2||values[0]<=values[n-1],at=i=>asc?values[i]:values[n-1-i];
     let lo=0,hi=n;while(lo<hi){const m=(lo+hi)>>1;if(at(m)<min)lo=m+1;else hi=m;}
@@ -371,7 +375,8 @@
    * Devuelve {filas, columnas, estados (Uint8Array con ZONA, fila a fila), evaluadas, recortado}.
    */
   /**
-   * Diseño lógico: (groups,lats,lngs,options) → raster() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: groups: Text, lats: Text, lngs: Text, options: Text --> raster() --> Text
+   * Descripción: Procesa raster y devuelve el resultado correspondiente.
    */
   function raster(groups,lats,lngs,options){
     const o={...INTERPOLACION,...options},R=lats.length,C=lngs.length,states=new Uint8Array(R*C),seen=new Uint32Array(R*C);
@@ -425,24 +430,24 @@
   // hour:false → solo el día; seconds:true → hasta el segundo.
   const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   /**
-   * Gestiona when.
-   * Diseño lógico: (v,{hour=true,seconds=false}={}) → when() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: v: Text, {hour: Text, seconds: Text --> when() --> Text
+   * Descripción: Formatea una fecha como hora local relativa al día actual.
    */
   function when(v,{hour=true,seconds=false}={}){
     if(!v)return '';const text=String(v).trim().replace(' ','T');
     const d=new Date(/^\d{4}-\d{2}-\d{2}$/.test(text)?text+'T12:00:00Z':/(Z|[+-]\d{2}:?\d{2})$/.test(text)?text:text+'Z');
     if(Number.isNaN(d.getTime()))return String(v);
     /**
-     * Gestiona p.
      * Diseño lógico: (n) → p() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const p=n=>String(n).padStart(2,'0');let out=`${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
     if(hour&&!/^\d{4}-\d{2}-\d{2}$/.test(text))out+=`, ${p(d.getHours())}:${p(d.getMinutes())}`+(seconds?':'+p(d.getSeconds()):'');
     return out;
   }
   /**
-   * Gestiona batería.
-   * Diseño lógico: (percent,at) → battery() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: percent: Text, at: Text --> battery() --> Text
+   * Descripción: Procesa battery y devuelve el resultado correspondiente.
    */
   function battery(percent,at){
     if(percent===null||percent===undefined||percent===''||!Number.isFinite(Number(percent)))return 'Sin datos';
@@ -455,22 +460,23 @@
    * rows: lecturas con latitud, longitud y capturada_en (UTC). Devuelve una lista de tramos de lecturas.
    */
   /**
-   * Diseño lógico: (rows,maxHueco=10) → route() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: rows: Text, maxHueco: Text --> route() --> Text
+   * Descripción: Procesa route y devuelve el resultado correspondiente.
    */
   function route(rows,maxHueco=10){
     /**
-     * Gestiona hora.
      * Diseño lógico: (String(r.capturada_en??'').replace(' ','T')+'Z') → time() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const time=r=>Date.parse(String(r.capturada_en??'').replace(' ','T')+'Z');
     /**
-     * Gestiona válido.
      * Diseño lógico: (r=>[r.latitud,r.longitud].every(v=>v!==null&&v!==''&&Number.isFinite(Number(v)))&&Number.isFinite(time(r))) → valid() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const valid=rows.filter(r=>[r.latitud,r.longitud].every(v=>v!==null&&v!==''&&Number.isFinite(Number(v)))&&Number.isFinite(time(r)));
     /**
-     * Gestiona sorted.
      * Diseño lógico: ((a,b)=>time(a)-time(b)||Number(a.id??0)-Number(b.id??0)) → sorted() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const sorted=[...valid].sort((a,b)=>time(a)-time(b)||Number(a.id??0)-Number(b.id??0)),out=[];
     let last=null;
@@ -486,7 +492,8 @@
    * (deriva del GPS con el móvil quieto) y los de más de 2 km (saltos del GPS); los huecos entre tramos no cuentan.
    */
   /**
-   * Diseño lógico: (segments,minStep=5,maxStep=2000) → routeDistance() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: segments: Text, minStep: Text, maxStep: Text --> routeDistance() --> Text
+   * Descripción: Procesa route distance y devuelve el resultado correspondiente.
    */
   function routeDistance(segments,minStep=5,maxStep=2000){
     let meters=0;
@@ -496,9 +503,9 @@
     }
     return meters;
   }
-  /** Distancia legible: «850 m» o «1,2 km». */
   /**
    * Diseño lógico: (m) → distanceText() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const distanceText=m=>m<1000?`${Math.round(m)} m`:`${(m/1000).toLocaleString('es-ES',{maximumFractionDigits:1})} km`;
   const api={level,csv,statistics,routeDistance,distanceText,autoGroup,peaks,verdict,FRANJAS,sharedThresholds,distance,INTERPOLACION,groupKey,support,ownRadii,estimate,describe,interpolate,ZONA,raster,route,battery,when};

@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #pragma once
 #include <Arduino.h>
 #include "Protocolo.h"
@@ -21,8 +20,8 @@ class Leds {
   Color encendido = Color::NINGUNO;
 
   /**
-   * Gestiona mostrar.
-   * Diseño lógico: (Color color) → mostrar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: color: Text --> mostrar()
+   * Descripción: Describe la operación realizada y su resultado.
    */
   void mostrar(Color color) {
     if (color == encendido) return;
@@ -34,8 +33,8 @@ class Leds {
 
  public:
   /**
-   * Gestiona begin.
-   * Diseño lógico: (uint32_t ahora) → begin() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: ahora: N --> begin()
+   * Descripción: Inicializa el componente y los recursos que necesita..
    */
   void begin(uint32_t ahora) {
     const uint8_t pines[3] = {PIN_ROJO, PIN_VERDE, PIN_AZUL};
@@ -47,7 +46,8 @@ class Leds {
   }
   // Destello de 80 ms cada 5 s con el color del nivel; apagado si no se conoce.
   /**
-   * Diseño lógico: (uint32_t ahora, int16_t porcentaje) → actualizar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: ahora: N, porcentaje: Text --> actualizar()
+   * Descripción: Actualiza el estado con las medidas o los datos recibidos..
    */
   void actualizar(uint32_t ahora, int16_t porcentaje) {
     mostrar(destelloEncendido(ahora, inicio) ? colorBateria(porcentaje) : Color::NINGUNO);

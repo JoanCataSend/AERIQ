@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #pragma once
 #include <stdint.h>
 #include <math.h>
@@ -52,8 +51,8 @@ class Calibracion {
   float pendiente = PENDIENTE;   // V/ppm
 
   /**
-   * Gestiona limitar temperatura.
-   * Diseño lógico: (float t, bool &fuera) → limitarTemperatura() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: t: R, fuera: B --> limitarTemperatura() --> R
+   * Descripción: Procesa limitar temperatura y devuelve el resultado correspondiente.
    */
   static float limitarTemperatura(float t, bool &fuera) {
     if (t < -20.f) { fuera = true; return -20.f; }
@@ -62,50 +61,51 @@ class Calibracion {
   }
   // Deriva tipica del cero del O3 (ficha ULPSM-O3): 0 hasta 30 C, 0.0066 ppm/C despues.
   /**
-   * Diseño lógico: (float tc) → ceroTermico() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: tc: R --> ceroTermico() --> R
+   * Descripción: Procesa cero termico y devuelve el resultado correspondiente.
    */
   static float ceroTermico(float tc) { return tc <= 30.f ? 0.f : .0066f * (tc - 30.f); }
 
  public:
   /**
-   * Gestiona reiniciar filtro.
-   * Diseño lógico: (sin parámetros) → reiniciarFiltro() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: reiniciarFiltro()
+   * Descripción: Procesa reiniciar filtro y devuelve el resultado correspondiente..
    */
   void reiniciarFiltro() { cantidad = posicion = 0; }
   /**
-   * Gestiona cero.
-   * Diseño lógico: (sin parámetros) → cero() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: cero() --> R
+   * Descripción: Procesa cero y devuelve el resultado correspondiente.
    */
   float cero() const { return offset; }
   /**
-   * Gestiona span.
-   * Diseño lógico: (sin parámetros) → span() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: span() --> R
+   * Descripción: Procesa span y devuelve el resultado correspondiente.
    */
   float span() const { return factor; }
   /**
-   * Gestiona sensibilidad.
-   * Diseño lógico: (sin parámetros) → sensibilidad() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: sensibilidad() --> R
+   * Descripción: Procesa sensibilidad y devuelve el resultado correspondiente.
    */
   float sensibilidad() const { return pendiente / (GANANCIA_TIA * 1.e-6f); }
   /**
-   * Gestiona fijar cero.
-   * Diseño lógico: (float voltios) → fijarCero() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: voltios: R --> fijarCero() --> B
+   * Descripción: Procesa fijar cero y devuelve el resultado correspondiente.
    */
   bool fijarCero(float voltios) {
     if (!isfinite(voltios) || fabsf(voltios) > OFFSET_MAX_V) return false;
     offset = voltios; reiniciarFiltro(); return true;
   }
   /**
-   * Gestiona fijar span.
-   * Diseño lógico: (float valor) → fijarSpan() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: valor: R --> fijarSpan() --> B
+   * Descripción: Procesa fijar span y devuelve el resultado correspondiente.
    */
   bool fijarSpan(float valor) {
     if (!isfinite(valor) || valor < .3f || valor > 3.f) return false;
     factor = valor; reiniciarFiltro(); return true;
   }
   /**
-   * Gestiona fijar sensibilidad.
-   * Diseño lógico: (float nAppm) → fijarSensibilidad() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: nAppm: R --> fijarSensibilidad() --> B
+   * Descripción: Procesa fijar sensibilidad y devuelve el resultado correspondiente.
    */
   bool fijarSensibilidad(float nAppm) {
     if (!isfinite(nAppm) || fabsf(nAppm) < 5.f || fabsf(nAppm) > 300.f) return false;
@@ -115,7 +115,8 @@ class Calibracion {
   // Tension de cero de una muestra tomada en aire sin ozono (filtro de carbon activo):
   // VGAS - VREF menos la deriva termica esperada. false si la referencia no es valida.
   /**
-   * Diseño lógico: (float gas, float ref, float term, float &voltios) → muestraCero() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: gas: R, ref: R, term: R, voltios: R --> muestraCero() --> B
+   * Descripción: Procesa muestra cero y devuelve el resultado correspondiente.
    */
   bool muestraCero(float gas, float ref, float term, float &voltios) const {
     const float alimentacion = 2.f * ref;
@@ -128,8 +129,8 @@ class Calibracion {
   }
 
   /**
-   * Gestiona convertir.
-   * Diseño lógico: (float gas, float ref, float term, bool saturado) → convertir() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: gas: R, ref: R, term: R, saturado: B --> convertir() --> Text
+   * Descripción: Procesa convertir y devuelve el resultado correspondiente.
    */
   Medida convertir(float gas, float ref, float term, bool saturado) {
     Medida m;

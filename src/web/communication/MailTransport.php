@@ -15,7 +15,8 @@ require_once __DIR__.'/../business_logic/DomainError.php';
  * para que los servicios solo dependan de la operación de envío.
  */
 /**
- * Diseño lógico: ($socket,array $expected) → auth_smtp_read() → string; según doc/web_communication_design.md.
+ * Diseño lógico: socket: Text, expected: Text --> auth_smtp_read() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function auth_smtp_read($socket,array $expected): string {
     $response='';$code=null;
@@ -30,8 +31,8 @@ function auth_smtp_read($socket,array $expected): string {
 }
 
 /**
- * Gestiona SMTP write.
- * Diseño lógico: ($socket,string $data) → auth_smtp_write() → void; según doc/web_communication_design.md.
+ * Diseño lógico: socket: Text, data: Text --> auth_smtp_write()
+ * Descripción: Procesa auth smtp write y devuelve el resultado correspondiente..
  */
 function auth_smtp_write($socket,string $data): void {
     $offset=0;$length=strlen($data);
@@ -43,8 +44,8 @@ function auth_smtp_write($socket,string $data): void {
 }
 
 /**
- * Gestiona SMTP command.
- * Diseño lógico: ($socket,string $command,array $expected) → auth_smtp_command() → string; según doc/web_communication_design.md.
+ * Diseño lógico: socket: Text, command: Text, expected: Text --> auth_smtp_command() --> Text
+ * Descripción: Procesa auth smtp command y devuelve el resultado correspondiente.
  */
 function auth_smtp_command($socket,string $command,array $expected): string {
     auth_smtp_write($socket,$command."\r\n");
@@ -52,8 +53,8 @@ function auth_smtp_command($socket,string $command,array $expected): string {
 }
 
 /**
- * Gestiona SMTP send.
- * Diseño lógico: (array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null,?string $html=null) → auth_smtp_send() → void; según doc/web_communication_design.md.
+ * Diseño lógico: smtp: Text, recipient: Text, subject: Text, body: Text, replyTo: Text, html: Text --> auth_smtp_send()
+ * Descripción: Procesa auth smtp send y devuelve el resultado correspondiente..
  */
 function auth_smtp_send(array $smtp,string $recipient,string $subject,string $body,?string $replyTo=null,?string $html=null): void {
     $host=(string)$smtp['host'];$port=(int)$smtp['port'];$encryption=(string)($smtp['encryption']??'tls');
@@ -93,9 +94,9 @@ function auth_smtp_send(array $smtp,string $recipient,string $subject,string $bo
     } finally { fclose($socket); }
 }
 
-/** Selecciona SMTP configurado o el transporte mail() disponible en el alojamiento. */
 /**
- * Diseño lógico: (sin parámetros) → auth_mail_config_ok() → array; según doc/web_communication_design.md.
+ * Diseño lógico: auth_mail_config_ok() --> Text
+ * Descripción: Procesa auth mail config ok y devuelve el resultado correspondiente.
  */
 function auth_mail_config_ok(): array {
     $server=dirname(__DIR__).'/server';
@@ -130,17 +131,17 @@ function auth_mail_config_ok(): array {
     return ['transport'=>'php_mail','from_email'=>$from,'from_name'=>$fromName!==''?$fromName:'AERIQ'];
 }
 
-/** Puerto de prevalidación para confirmar que hay un transporte de correo disponible. */
 /**
- * Diseño lógico: (sin parámetros) → aeriq_mailer_ready() → void; según doc/web_communication_design.md.
+ * Diseño lógico: aeriq_mailer_ready()
+ * Descripción: Procesa aeriq mailer ready y devuelve el resultado correspondiente..
  */
 function aeriq_mailer_ready(): void {
     auth_mail_config_ok();
 }
 
-/** Envía texto plano y, si existe, su alternativa HTML usando el transporte configurado. */
 /**
- * Diseño lógico: (string $recipient,string $subject,string $text,?string $replyTo=null,?string $html=null) → aeriq_mail() → void; según doc/web_communication_design.md.
+ * Diseño lógico: recipient: Text, subject: Text, text: Text, replyTo: Text, html: Text --> aeriq_mail()
+ * Descripción: Procesa aeriq mail y devuelve el resultado correspondiente..
  */
 function aeriq_mail(string $recipient,string $subject,string $text,?string $replyTo=null,?string $html=null): void {
     $cfg=auth_mail_config_ok();
@@ -173,9 +174,9 @@ function aeriq_mail(string $recipient,string $subject,string $text,?string $repl
     if (!@mail($recipient,'=?UTF-8?B?'.base64_encode($subject).'?=',$body,implode("\r\n",$headers))) throw new AeriqError('El servidor no ha aceptado el correo. Comprueba que PHP mail() esté habilitado en Plesk.','unavailable');
 }
 
-/** Construye el cuerpo MIME de texto o la alternativa multiparte texto/HTML. */
 /**
- * Diseño lógico: (string $text,?string $html) → aeriq_mail_body() → array; según doc/web_communication_design.md.
+ * Diseño lógico: text: Text, html: Text --> aeriq_mail_body() --> Text
+ * Descripción: Procesa aeriq mail body y devuelve el resultado correspondiente.
  */
 function aeriq_mail_body(string $text,?string $html): array {
     $text=str_replace(["\r\n","\r"],"\n",$text);

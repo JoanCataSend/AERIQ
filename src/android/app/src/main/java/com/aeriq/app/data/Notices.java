@@ -19,16 +19,16 @@ import java.util.List;
  */
 public final class Notices {
 
+    /**
+     * Diseño lógico: Notices() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
+     */
     private Notices() {}
 
-    /** Un aviso en la bandeja. {@code fresh}: tiene mensajes de la otra persona que aún no has abierto. */
-    public static final class Summary {
-        public final long id;
-        public final String subject, state, stateName, updatedAt, withName, withRole, last;
-        public final boolean fresh, closed;
-
-
-
+    /**
+     * Diseño lógico: data: Text --> Summary() --> Text
+     * Descripción: Procesa summary y devuelve el resultado correspondiente.
+     */
         Summary(JSONObject data) throws JSONException {
             id = data.getLong("id");
             subject = data.optString("asunto");
@@ -43,11 +43,10 @@ public final class Notices {
         }
     }
 
-    /** Persona a la que la cuenta puede escribir. */
-    public static final class Contact {
-        public final long id;
-        public final String name, role, campaign;
-
+    /**
+     * Diseño lógico: data: Text --> Contact() --> Text
+     * Descripción: Procesa contact y devuelve el resultado correspondiente.
+     */
         Contact(JSONObject data) throws JSONException {
             id = data.getLong("id");
             name = data.optString("nombre");
@@ -56,8 +55,8 @@ public final class Notices {
         }
 
         /**
-         * Gestiona label.
-         * Diseño lógico: (sin parámetros) → label() → String; según doc/android_design.md.
+         * Diseño lógico: label() --> Text
+         * Descripción: Procesa label y devuelve el resultado correspondiente.
          */
         public String label() { return name + " · " + role + (campaign.isEmpty() ? "" : " · " + campaign); }
     }
@@ -67,8 +66,10 @@ public final class Notices {
         public final List<Contact> contacts;
         public final int unread;
 
-
-
+      /**
+       * Diseño lógico: data: Text --> Inbox() --> Text
+       * Descripción: Procesa inbox y devuelve el resultado correspondiente.
+       */
         Inbox(JSONObject data) throws JSONException {
             List<Summary> rows = new ArrayList<>();
             JSONArray list = data.getJSONArray("notices");
@@ -81,8 +82,10 @@ public final class Notices {
             unread = data.optInt("unread");
         }
 
-
-
+        /**
+         * Diseño lógico: Inbox() --> Text
+         * Descripción: Procesa inbox y devuelve el resultado correspondiente.
+         */
         private Inbox() {
             notices = Collections.emptyList();
             contacts = Collections.emptyList();
@@ -90,14 +93,14 @@ public final class Notices {
         }
 
         /**
-         * Gestiona empty.
-         * Diseño lógico: (sin parámetros) → empty() → Inbox; según doc/android_design.md.
+         * Diseño lógico: empty() --> Text
+         * Descripción: Procesa empty y devuelve el resultado correspondiente.
          */
         public static Inbox empty() { return new Inbox(); }
 
         /**
-         * Abre.
-         * Diseño lógico: (sin parámetros) → open() → int; según doc/android_design.md.
+         * Diseño lógico: open() --> Z
+         * Descripción: Procesa open y devuelve el resultado correspondiente.
          */
         public int open() {
             int count = 0;
@@ -110,8 +113,10 @@ public final class Notices {
         public final String author, text, createdAt;
         public final boolean mine;
 
-
-
+      /**
+       * Diseño lógico: data: Text --> Message() --> Text
+       * Descripción: Procesa message y devuelve el resultado correspondiente.
+       */
         Message(JSONObject data) throws JSONException {
             author = data.optString("autor");
             text = data.optString("texto");
@@ -120,15 +125,10 @@ public final class Notices {
         }
     }
 
-    /** Un aviso abierto, con todos sus mensajes. Abrirlo lo marca como visto en el servidor. */
-    public static final class Conversation {
-        public final long id;
-        public final String subject, state, stateName, createdAt, withName, withRole;
-        public final boolean closed;
-        public final List<Message> messages;
-
-
-
+    /**
+     * Diseño lógico: data: Text --> Conversation() --> Text
+     * Descripción: Procesa conversation y devuelve el resultado correspondiente.
+     */
         Conversation(JSONObject data) throws JSONException {
             JSONObject notice = data.getJSONObject("notice");
             id = notice.getLong("id");
@@ -146,9 +146,15 @@ public final class Notices {
         }
     }
 
-
-
+    /**
+     * Diseño lógico: data: Text --> inbox() --> Text
+     * Descripción: Procesa inbox y devuelve el resultado correspondiente.
+     */
     static Inbox inbox(JSONObject data) throws JSONException { return new Inbox(data); }
 
+    /**
+     * Diseño lógico: data: Text --> conversation() --> Text
+     * Descripción: Procesa conversation y devuelve el resultado correspondiente.
+     */
     static Conversation conversation(JSONObject data) throws JSONException { return new Conversation(data); }
 }

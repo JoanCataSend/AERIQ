@@ -30,9 +30,10 @@ import static com.aeriq.app.ui.Views.*;
  * que esa cuenta no tiene), ese paso se salta. Mientras dura, no se puede tocar la app de debajo.
  */
 public final class SpotlightTour extends FrameLayout {
-    /** Un paso: qué elemento iluminar (etiqueta) y qué decir. */
-    public static final class Step {
-        final String tag, title, text;
+    /**
+     * Diseño lógico: tag: Text, title: Text, text: Text --> Step() --> Text
+     * Descripción: Procesa step y devuelve el resultado correspondiente.
+     */
         public Step(String tag, String title, String text) { this.tag = tag; this.title = title; this.text = text; }
     }
 
@@ -52,8 +53,10 @@ public final class SpotlightTour extends FrameLayout {
     private int index = -1, retries;
     private boolean above, closing;
 
-
-
+    /**
+     * Diseño lógico: activity: Text, ui: Text, steps: [ Text ], Function<String: Text, finder: Text, onClose: Text --> SpotlightTour() --> Text
+     * Descripción: Procesa spotlight tour y devuelve el resultado correspondiente.
+     */
     public SpotlightTour(Activity activity, Views ui, List<Step> steps, Function<String, View> finder, Runnable onClose) {
         super(activity);
         this.ui = ui;
@@ -112,8 +115,8 @@ public final class SpotlightTour extends FrameLayout {
     private final android.view.ViewTreeObserver.OnGlobalLayoutListener follow = this::follow;
 
     /**
-     * Atiende el evento attached to window.
-     * Diseño lógico: (sin parámetros) → onAttachedToWindow() → void; según doc/android_design.md.
+     * Diseño lógico: onAttachedToWindow()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onAttachedToWindow() {
         super.onAttachedToWindow();
@@ -121,8 +124,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Atiende el evento detached from window.
-     * Diseño lógico: (sin parámetros) → onDetachedFromWindow() → void; según doc/android_design.md.
+     * Diseño lógico: onDetachedFromWindow()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onDetachedFromWindow() {
         getViewTreeObserver().removeOnGlobalLayoutListener(follow);
@@ -130,9 +133,9 @@ public final class SpotlightTour extends FrameLayout {
         super.onDetachedFromWindow();
     }
 
-    /** Si el elemento iluminado se ha movido (la pantalla aún se estaba colocando), el foco y la tarjeta lo siguen. */
     /**
-     * Diseño lógico: (sin parámetros) → follow() → void; según doc/android_design.md.
+     * Diseño lógico: follow()
+     * Descripción: Procesa follow y devuelve el resultado correspondiente..
      */
     private void follow() {
         if (index < 0 || closing || (move != null && move.isRunning())) return;
@@ -146,9 +149,9 @@ public final class SpotlightTour extends FrameLayout {
         placeCard();
     }
 
-    /** Empieza por el primer paso cuyo elemento esté en pantalla. */
     /**
-     * Diseño lógico: (sin parámetros) → start() → void; según doc/android_design.md.
+     * Diseño lógico: start()
+     * Descripción: Procesa start y devuelve el resultado correspondiente..
      */
     public void start() {
         setAlpha(0f);
@@ -156,31 +159,31 @@ public final class SpotlightTour extends FrameLayout {
         show(0, 1);
     }
 
-    /** Botón atrás del móvil: paso anterior; en el primero no hace nada (para salir está «Saltar tutorial»). */
     /**
-     * Diseño lógico: (sin parámetros) → back() → void; según doc/android_design.md.
+     * Diseño lógico: back()
+     * Descripción: Procesa back y devuelve el resultado correspondiente..
      */
     public void back() { previous(); }
 
     /**
-     * Gestiona next.
-     * Diseño lógico: (sin parámetros) → next() → void; según doc/android_design.md.
+     * Diseño lógico: next()
+     * Descripción: Procesa next y devuelve el resultado correspondiente..
      */
     private void next() {
         if (nextAvailable(index + 1, 1) < 0) close(); else show(index + 1, 1);
     }
 
     /**
-     * Gestiona previous.
-     * Diseño lógico: (sin parámetros) → previous() → void; según doc/android_design.md.
+     * Diseño lógico: previous()
+     * Descripción: Procesa previous y devuelve el resultado correspondiente..
      */
     private void previous() {
         if (nextAvailable(index - 1, -1) >= 0) show(index - 1, -1);
     }
 
-    /** Índice del siguiente paso con elemento visible en esa dirección, o -1. */
     /**
-     * Diseño lógico: (int from, int direction) → nextAvailable() → int; según doc/android_design.md.
+     * Diseño lógico: from: Z, direction: Z --> nextAvailable() --> Z
+     * Descripción: Procesa next available y devuelve el resultado correspondiente.
      */
     private int nextAvailable(int from, int direction) {
         for (int i = from; i >= 0 && i < steps.size(); i += direction) if (target(steps.get(i)) != null) return i;
@@ -188,8 +191,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Gestiona target.
-     * Diseño lógico: (Step step) → target() → View; según doc/android_design.md.
+     * Diseño lógico: step: Text --> target() --> Text
+     * Descripción: Procesa target y devuelve el resultado correspondiente.
      */
     private View target(Step step) {
         View view = finder.apply(step.tag);
@@ -197,8 +200,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Muestra.
-     * Diseño lógico: (int wanted, int direction) → show() → void; según doc/android_design.md.
+     * Diseño lógico: wanted: Z, direction: Z --> show()
+     * Descripción: Procesa show y devuelve el resultado correspondiente..
      */
     private void show(int wanted, int direction) {
         int found = nextAvailable(wanted, direction);
@@ -254,9 +257,9 @@ public final class SpotlightTour extends FrameLayout {
         invalidate();
     }
 
-    /** Rectángulo del elemento en coordenadas de esta capa, con un margen alrededor. */
     /**
-     * Diseño lógico: (View view, RectF out) → locate() → void; según doc/android_design.md.
+     * Diseño lógico: view: Text, out: Text --> locate()
+     * Descripción: Procesa locate y devuelve el resultado correspondiente..
      */
     private void locate(View view, RectF out) {
         if (view == null) return;
@@ -269,8 +272,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Gestiona inset top.
-     * Diseño lógico: (sin parámetros) → insetTop() → int; según doc/android_design.md.
+     * Diseño lógico: insetTop() --> Z
+     * Descripción: Procesa inset top y devuelve el resultado correspondiente.
      */
     private int insetTop() {
         WindowInsets insets = getRootWindowInsets();
@@ -278,8 +281,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Gestiona inset bottom.
-     * Diseño lógico: (sin parámetros) → insetBottom() → int; según doc/android_design.md.
+     * Diseño lógico: insetBottom() --> Z
+     * Descripción: Procesa inset bottom y devuelve el resultado correspondiente.
      */
     private int insetBottom() {
         WindowInsets insets = getRootWindowInsets();
@@ -287,8 +290,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Atiende el evento measure.
-     * Diseño lógico: (int widthSpec, int heightSpec) → onMeasure() → void; según doc/android_design.md.
+     * Diseño lógico: (int widthSpec, int heightSpec) --> onMeasure()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
         int width = MeasureSpec.getSize(widthSpec);
@@ -297,17 +300,17 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Atiende el evento layout.
-     * Diseño lógico: (boolean changed, int left, int top, int right, int bottom) → onLayout() → void; según doc/android_design.md.
+     * Diseño lógico: (boolean changed, int left, int top, int right, int bottom) --> onLayout()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
         placeCard();
     }
 
-    /** Debajo del elemento si cabe; si no, encima; y si tampoco, centrada. Siempre dentro de la pantalla. */
     /**
-     * Diseño lógico: (sin parámetros) → placeCard() → void; según doc/android_design.md.
+     * Diseño lógico: placeCard()
+     * Descripción: Procesa place card y devuelve el resultado correspondiente..
      */
     private void placeCard() {
         if (to.isEmpty() || card.getHeight() == 0) return;
@@ -323,8 +326,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Atiende el evento draw.
-     * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+     * Diseño lógico: (Canvas canvas) --> onDraw()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -354,8 +357,8 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Gestiona dispatch draw.
-     * Diseño lógico: (Canvas canvas) → dispatchDraw() → void; según doc/android_design.md.
+     * Diseño lógico: (Canvas canvas) --> dispatchDraw()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void dispatchDraw(Canvas canvas) {
         super.dispatchDraw(canvas);
@@ -363,16 +366,16 @@ public final class SpotlightTour extends FrameLayout {
     }
 
     /**
-     * Gestiona invalidate if card fading.
-     * Diseño lógico: (sin parámetros) → invalidateIfCardFading() → void; según doc/android_design.md.
+     * Diseño lógico: invalidateIfCardFading()
+     * Descripción: Procesa invalidate if card fading y devuelve el resultado correspondiente..
      */
     private void invalidateIfCardFading() {
         if (card.getAlpha() > 0 && card.getAlpha() < 1) postInvalidateOnAnimation();
     }
 
     /**
-     * Cierra.
-     * Diseño lógico: (sin parámetros) → close() → void; según doc/android_design.md.
+     * Diseño lógico: close()
+     * Descripción: Finaliza la operación y libera los recursos asociados. (efecto: libera los recursos).
      */
     private void close() {
         if (closing) return;

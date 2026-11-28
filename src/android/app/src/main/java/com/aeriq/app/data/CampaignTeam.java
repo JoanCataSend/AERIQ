@@ -13,14 +13,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Operadores y Orb de la campaña del admin, tal como los devuelve mobile-team.php (la misma lógica que el panel web). */
-public final class CampaignTeam {
-    public static final class Operator {
-        public final long id;
-        public final String name, orb;
-        /** pending: invitación enviada, aún no ha activado la cuenta. Ya se le puede asignar un Orb. */
-        public final boolean active, pending;
-
+/**
+ * Diseño lógico: data: Text --> Operator() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
+ */
         Operator(JSONObject data) throws JSONException {
             id = data.getLong("id");
             name = data.optString("nombre");
@@ -36,8 +32,10 @@ public final class CampaignTeam {
         public final String name, address, worker, lastReading;
         public final boolean active, simulated;
 
-
-
+      /**
+       * Diseño lógico: data: Text --> Device() --> Text
+       * Descripción: Procesa device y devuelve el resultado correspondiente.
+       */
         Device(JSONObject data) throws JSONException {
             id = data.getLong("id");
             name = data.optString("nombre");
@@ -54,8 +52,10 @@ public final class CampaignTeam {
     public final List<Operator> operators;
     public final List<Device> devices;
 
-
-
+  /**
+   * Diseño lógico: data: Text --> CampaignTeam() --> Text
+   * Descripción: Procesa campaign team y devuelve el resultado correspondiente.
+   */
     CampaignTeam(JSONObject data) throws JSONException {
         JSONObject c = data.optJSONObject("campaign");
         campaign = c == null ? "" : c.optString("nombre");
@@ -70,26 +70,26 @@ public final class CampaignTeam {
     }
 
     /**
-     * Gestiona empty.
-     * Diseño lógico: (sin parámetros) → empty() → CampaignTeam; según doc/android_design.md.
+     * Diseño lógico: empty() --> Text
+     * Descripción: Procesa empty y devuelve el resultado correspondiente.
      */
     public static CampaignTeam empty() {
         try { return new CampaignTeam(new JSONObject("{\"operators\":[],\"devices\":[]}")); }
         catch (JSONException impossible) { throw new IllegalStateException(impossible); }
     }
 
-    /** El Orb registrado con esa dirección BLE, o null si aún no está en la campaña. */
     /**
-     * Diseño lógico: (String address) → byAddress() → Device; según doc/android_design.md.
+     * Diseño lógico: address: Text --> byAddress() --> Text
+     * Descripción: Procesa by address y devuelve el resultado correspondiente.
      */
     public Device byAddress(String address) {
         for (Device device : devices) if (device.address.equalsIgnoreCase(address)) return device;
         return null;
     }
 
-    /** El operador que lleva ahora ese Orb, o null. */
     /**
-     * Diseño lógico: (Device device) → holder() → Operator; según doc/android_design.md.
+     * Diseño lógico: device: Text --> holder() --> Text
+     * Descripción: Procesa holder y devuelve el resultado correspondiente.
      */
     public Operator holder(Device device) {
         if (device == null || device.workerId == null) return null;

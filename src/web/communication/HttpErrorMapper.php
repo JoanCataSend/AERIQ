@@ -8,15 +8,13 @@
  */
 declare(strict_types=1);
 
-/** Traduce categorías del dominio al contrato de estados HTTP de la API. */
-/*
- * --------------------
+/**
  * Diseño lógico: error: DomainError --> aeriq_http_status() --> estado: N
- * Descripción: asigna el estado HTTP que corresponde a la categoría semántica.
- * --------------------
+ * Descripción: Describe la operación realizada y su resultado.
  */
 /**
- * Diseño lógico: (Throwable $error) → aeriq_http_status() → int; según doc/web_communication_design.md.
+ * Diseño lógico: error: Text --> aeriq_http_status() --> Z
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_http_status(Throwable $error): int {
     if (!$error instanceof DomainError) return 500;

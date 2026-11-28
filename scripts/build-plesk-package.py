@@ -3,28 +3,17 @@
 # Descripción: Archivo fuente de scripts.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Genera una carpeta Plesk sin secretos ni documentación, sin sobrescribir."""
 
 import argparse
 import shutil
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web"
 
-
-# Gestiona deploy files.
-# Diseño lógico: (sin parámetros) → deploy_files() → resultado de la operación; según scripts/README.md.
-# deploy_files() → Implementa la operación deploy files del módulo.
+# Diseño lógico: deploy_files() --> Text
 
 def deploy_files():
     """Lista explícita de código y recursos; no recorre configuración privada."""
@@ -56,10 +45,8 @@ def deploy_files():
         yield firebase_config
     yield WEB / "vendor" / ".htaccess"
 
-
-# Coordina la ejecución principal del componente o script.
-# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
-# main() → Punto de entrada que coordina la ejecución del programa.
+# Diseño lógico: main() --> Text
+# Descripción: Coordina la ejecución del programa y devuelve su código de salida.
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -83,7 +70,6 @@ def main():
     print(f"Paquete generado: {output}")
     print(f"Archivos: {len(files)}. Sin credenciales privadas ni vendor instalado.")
     print("Completa base de datos y correo según doc/despliegue.md.")
-
 
 if __name__ == "__main__":
     main()

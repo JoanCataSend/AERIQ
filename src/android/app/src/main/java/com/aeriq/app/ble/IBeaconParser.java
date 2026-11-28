@@ -12,42 +12,40 @@ public final class IBeaconParser {
     public static final int APPLE_MANUFACTURER_ID = 0x004c, O3_ID = 14, TEMPERATURE_ID = 12;
     public static final String PROJECT_ID = "EPSG-GTI-PROY-3A";
     public static final int STATUS_ID = 15;
-    /** Batería del Orb en % (0..100), medida por su MAX17048. No es una medición ambiental. */
-    public static final int BATTERY_ID = 16;
-    public static final String STATUS_UUID = "e3b44c20-3f02-4d76-9cb2-bdcb3105a001";
-
     /**
-     * Interpreta diagnostic.
-     * Diseño lógico: (byte[] data, int counter) → parseDiagnostic() → int; según doc/android_design.md.
+     * Diseño lógico: data: N, counter: Z --> parseDiagnostic() --> Z
+     * Descripción: Describe la operación realizada y su resultado.
      */
     public static int parseDiagnostic(byte[] data, int counter) {
         if (data == null || data.length != 12 || data[0] != 1 || (data[1] & 255) != counter) return -1;
         return (data[10] & 255) << 8 | (data[11] & 255);
     }
 
-
-
+    /**
+     * Diseño lógico: IBeaconParser() --> Text
+     * Descripción: Procesa ibeacon parser y devuelve el resultado correspondiente.
+     */
     private IBeaconParser() {}
 
     /**
-     * Interpreta.
-     * Diseño lógico: (byte[] data) → parse() → BeaconReading; según doc/android_design.md.
+     * Diseño lógico: data: N --> parse() --> Text
+     * Descripción: Interpreta los datos recibidos y devuelve su representación lógica.
      */
     public static BeaconReading parse(byte[] data) {
         return parseType(data, false);
     }
 
-    /** Estado del firmware: sirve para descubrir/diagnosticar, nunca para publicar medidas. */
     /**
-     * Diseño lógico: (byte[] data) → parseStatus() → BeaconReading; según doc/android_design.md.
+     * Diseño lógico: data: N --> parseStatus() --> Text
+     * Descripción: Procesa parse status y devuelve el resultado correspondiente.
      */
     public static BeaconReading parseStatus(byte[] data) {
         return parseType(data, true);
     }
 
-    /** Nivel de batería del Orb; null si no es ese anuncio o el valor está fuera de 0..100. */
     /**
-     * Diseño lógico: (byte[] data) → parseBattery() → BeaconReading; según doc/android_design.md.
+     * Diseño lógico: data: N --> parseBattery() --> Text
+     * Descripción: Procesa parse battery y devuelve el resultado correspondiente.
      */
     public static BeaconReading parseBattery(byte[] data) {
         BeaconReading reading = parseType(data, BATTERY_ID);
@@ -55,16 +53,16 @@ public final class IBeaconParser {
     }
 
     /**
-     * Interpreta type.
-     * Diseño lógico: (byte[] data, boolean statusOnly) → parseType() → BeaconReading; según doc/android_design.md.
+     * Diseño lógico: data: N, statusOnly: B --> parseType() --> Text
+     * Descripción: Procesa parse type y devuelve el resultado correspondiente.
      */
     private static BeaconReading parseType(byte[] data, boolean statusOnly) {
         return statusOnly ? parseType(data, STATUS_ID) : parseType(data, -1);
     }
 
-    /** wanted = -1 acepta las medidas (O3 y temperatura); otro valor, solo ese tipo. */
     /**
-     * Diseño lógico: (byte[] data, int wanted) → parseType() → BeaconReading; según doc/android_design.md.
+     * Diseño lógico: data: N, wanted: Z --> parseType() --> Text
+     * Descripción: Procesa parse type y devuelve el resultado correspondiente.
      */
     private static BeaconReading parseType(byte[] data, int wanted) {
         if (data == null || data.length < 23 || data[0] != 2 || data[1] != 21) return null;

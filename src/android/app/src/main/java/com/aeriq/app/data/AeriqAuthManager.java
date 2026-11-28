@@ -21,21 +21,10 @@ import java.util.function.Consumer;
 
 public final class AeriqAuthManager implements AutoCloseable {
     public static final class User {
-        /** Permiso que concede recibir asignaciones, vincular Orb y enviar lecturas. */
-        public static final String PERMISSION_COLLECT = "mediciones.registrar";
-        /** Admin de campaña: crea operadores, registra y asigna Orb, ajusta y publica su campaña (panel web). */
-        public static final String PERMISSION_TEAM = "equipo.gestionar";
-        /** Admin principal: crea campañas y sus admins y atiende solicitudes (panel web). */
-        public static final String PERMISSION_CAMPAIGNS = "campanas.gestionar";
-        public final long id;
-        public final String name, last, email, phone, role, roleName, organization, campaign;
-        /** Permisos que el servidor calcula a partir del rol (tabla rol_permisos). */
-        public final Set<String> permissions;
-        public final boolean mustChangePassword;
-        private final boolean permissionsFromServer;
-
-
-
+        /**
+         * Diseño lógico: data: Text --> User() --> Text
+         * Descripción: Procesa user y devuelve el resultado correspondiente.
+         */
         User(JSONObject data) throws JSONException {
             id = data.getLong("id");
             name = data.optString("name");
@@ -55,30 +44,33 @@ public final class AeriqAuthManager implements AutoCloseable {
         }
 
         /**
-         * Gestiona full name.
-         * Diseño lógico: (sin parámetros) → fullName() → String; según doc/android_design.md.
+         * Diseño lógico: fullName() --> Text
+         * Descripción: Procesa full name y devuelve el resultado correspondiente.
          */
         public String fullName() { return (name + " " + last).trim(); }
 
-        /** Mide con un Orb: Mi sensor, historial y envío de lecturas (operador). */
         /**
-         * Diseño lógico: (sin parámetros) → collects() → boolean; según doc/android_design.md.
+         * Diseño lógico: collects() --> B
+         * Descripción: Procesa collects y devuelve el resultado correspondiente.
          */
         public boolean collects() { return can(PERMISSION_COLLECT); }
 
-        /** Gestiona desde el panel web (admin de campaña o admin principal). En la app ve la pestaña Panel. */
         /**
-         * Diseño lógico: (sin parámetros) → manages() → boolean; según doc/android_design.md.
+         * Diseño lógico: manages() --> B
+         * Descripción: Procesa manages y devuelve el resultado correspondiente.
          */
         public boolean manages() { return can(PERMISSION_TEAM) || can(PERMISSION_CAMPAIGNS); }
 
-        /** La app no decide por el nombre del rol: pregunta si la cuenta tiene el permiso. */
         /**
-         * Diseño lógico: (String permission) → can() → boolean; según doc/android_design.md.
+         * Diseño lógico: permission: Text --> can() --> B
+         * Descripción: Procesa can y devuelve el resultado correspondiente.
          */
         public boolean can(String permission) { return can(permissionsFromServer, permissions, role, permission); }
 
-        /** Un servidor anterior al esquema v2 solo envía el rol; entonces se usa la regla antigua. */
+        /**
+         * Diseño lógico: fromServer: B, granted: Text, role: Text, permission: Text --> can() --> B
+         * Descripción: Procesa can y devuelve el resultado correspondiente.
+         */
         static boolean can(boolean fromServer, Set<String> granted, String role, String permission) {
             if (fromServer) return granted.contains(permission);
             return PERMISSION_COLLECT.equals(permission) && ("trabajador".equals(role) || "admin".equals(role));
@@ -89,8 +81,10 @@ public final class AeriqAuthManager implements AutoCloseable {
         public final boolean success;
         public final String message;
 
-
-
+        /**
+         * Diseño lógico: success: B, message: Text --> Result() --> Text
+         * Descripción: Procesa result y devuelve el resultado correspondiente.
+         */
         public Result(boolean success, String message) {
             this.success = success;
             this.message = message;
@@ -105,34 +99,36 @@ public final class AeriqAuthManager implements AutoCloseable {
     public boolean busy;
     public String pendingEmail = "";
 
-
-
+    /**
+     * Diseño lógico: context: Text --> AeriqAuthManager() --> Text
+     * Descripción: Procesa aeriq auth manager y devuelve el resultado correspondiente.
+     */
     public AeriqAuthManager(Context context) { store = new AeriqTokenStore(context.getApplicationContext()); }
 
     /**
-     * Gestiona sesión token.
-     * Diseño lógico: (sin parámetros) → sessionToken() → String; según doc/android_design.md.
+     * Diseño lógico: sessionToken() --> Text
+     * Descripción: Procesa session token y devuelve el resultado correspondiente.
      */
     public String sessionToken() { return store.read(); }
     /**
-     * Gestiona saved usuario id.
-     * Diseño lógico: (sin parámetros) → savedUserId() → long; según doc/android_design.md.
+     * Diseño lógico: savedUserId() --> Z
+     * Descripción: Procesa saved user id y devuelve el resultado correspondiente.
      */
     public long savedUserId() { return store.ownerUserId(); }
     /**
-     * Obtiene last correo.
-     * Diseño lógico: (sin parámetros) → getLastEmail() → String; según doc/android_design.md.
+     * Diseño lógico: getLastEmail() --> Text
+     * Descripción: Procesa get last email y devuelve el resultado correspondiente.
      */
     public String getLastEmail() { return store.getLastEmail(); }
     /**
-     * Comprueba si existe saved token.
-     * Diseño lógico: (sin parámetros) → hasSavedToken() → boolean; según doc/android_design.md.
+     * Diseño lógico: hasSavedToken() --> B
+     * Descripción: Procesa has saved token y devuelve el resultado correspondiente.
      */
     public boolean hasSavedToken() { return store.read() != null; }
 
     /**
-     * Gestiona restore.
-     * Diseño lógico: (Consumer<Result> done) → restore() → void; según doc/android_design.md.
+     * Diseño lógico: done: Text --> restore()
+     * Descripción: Procesa restore y devuelve el resultado correspondiente..
      */
     public void restore(Consumer<Result> done) {
         String token = store.read();
@@ -144,8 +140,8 @@ public final class AeriqAuthManager implements AutoCloseable {
     }
 
     /**
-     * Envía.
-     * Diseño lógico: (String action, Consumer<Result> done, Object... fields) → submit() → void; según doc/android_design.md.
+     * Diseño lógico: action: Text, done: Text, fields: Text --> submit()
+     * Descripción: Procesa submit y devuelve el resultado correspondiente..
      */
     public void submit(String action, Consumer<Result> done, Object... fields) {
         boolean authorized = "profile".equals(action) || "change-password".equals(action);
@@ -159,8 +155,8 @@ public final class AeriqAuthManager implements AutoCloseable {
     }
 
     /**
-     * Gestiona execute.
-     * Diseño lógico: (String action, JSONObject body, boolean authorized, Consumer<Result> done) → execute() → void; según doc/android_design.md.
+     * Diseño lógico: action: Text, body: Text, authorized: B, done: Text --> execute()
+     * Descripción: Procesa execute y devuelve el resultado correspondiente..
      */
     private void execute(String action, JSONObject body, boolean authorized, Consumer<Result> done) {
         if (busy || closed) return;
@@ -204,8 +200,8 @@ public final class AeriqAuthManager implements AutoCloseable {
     }
 
     /**
-     * Gestiona cierre de sesión.
-     * Diseño lógico: (sin parámetros) → logout() → void; según doc/android_design.md.
+     * Diseño lógico: logout()
+     * Descripción: Procesa logout y devuelve el resultado correspondiente..
      */
     public void logout() {
         if (busy || closed) return;
@@ -219,9 +215,9 @@ public final class AeriqAuthManager implements AutoCloseable {
         });
     }
 
-    /** Clears a locally unusable session without sending a remote logout request. */
     /**
-     * Diseño lógico: (sin parámetros) → clearLocalSession() → void; según doc/android_design.md.
+     * Diseño lógico: clearLocalSession()
+     * Descripción: Procesa clear local session y devuelve el resultado correspondiente..
      */
     public void clearLocalSession() {
         store.clear();
@@ -230,8 +226,8 @@ public final class AeriqAuthManager implements AutoCloseable {
     }
 
     /**
-     * Cierra.
-     * Diseño lógico: (sin parámetros) → close() → void; según doc/android_design.md.
+     * Diseño lógico: close()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override public void close() {
         closed = true;

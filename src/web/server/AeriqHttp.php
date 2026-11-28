@@ -14,15 +14,15 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');
 date_default_timezone_set('UTC');
 /**
- * Gestiona https.
- * Diseño lógico: (sin parámetros) → aeriq_https() → void; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_https()
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_https(): void {
     if (($_SERVER['HTTPS']??'off')==='off' && ($_SERVER['HTTP_X_FORWARDED_PROTO']??'')!=='https' && !in_array($_SERVER['REMOTE_ADDR']??'',['127.0.0.1','::1'],true)) throw new AeriqError('Se requiere HTTPS.','forbidden');
 }
 /**
- * Gestiona web usuario.
- * Diseño lógico: (sin parámetros) → aeriq_web_user() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_web_user() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_web_user(): array {
     aeriq_https();ini_set('session.use_strict_mode','1');session_name('AERIQSESSID');
@@ -32,8 +32,8 @@ function aeriq_web_user(): array {
     return $u;
 }
 /**
- * Gestiona mobile usuario.
- * Diseño lógico: (sin parámetros) → aeriq_mobile_user() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_mobile_user() --> Text
+ * Descripción: Procesa aeriq mobile user y devuelve el resultado correspondiente.
  */
 function aeriq_mobile_user(): array {
     aeriq_https();$token=(string)($_SERVER['HTTP_X_AERIQ_TOKEN']??'');
@@ -42,15 +42,15 @@ function aeriq_mobile_user(): array {
     if (!$u) throw new AeriqError('Sesión caducada. Inicia sesión.','unauthenticated');return $u;
 }
 /**
- * Gestiona JSON cuerpo.
- * Diseño lógico: (sin parámetros) → aeriq_json_body() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_json_body() --> Text
+ * Descripción: Procesa aeriq json body y devuelve el resultado correspondiente.
  */
 function aeriq_json_body(): array {
     if (stripos($_SERVER['CONTENT_TYPE']??'','application/json')!==0) throw new AeriqError('Se esperaba application/json.','unsupported_media');return auth_body();
 }
 /**
- * Gestiona failure.
- * Diseño lógico: (Throwable $e) → aeriq_failure() → never; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: e: Text --> aeriq_failure() --> Text
+ * Descripción: Procesa aeriq failure y devuelve el resultado correspondiente.
  */
 function aeriq_failure(Throwable $e): never {
     if ($e instanceof DomainError) auth_responder(aeriq_http_status($e),['error'=>$e->getMessage()]+($e->field!==null?['field'=>$e->field]:[]));

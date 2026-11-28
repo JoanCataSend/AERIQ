@@ -23,17 +23,17 @@ declare(strict_types=1);
 
 const AERIQ_AVISO_MAX=4000;
 
-/** SQL: la cuenta del alias $u tiene el permiso $p (los permisos van por rol, nunca por nombre de rol). */
 /**
- * Diseño lógico: (string $u,string $p) → aeriq_notice_perm() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: u: Text, p: Text --> aeriq_notice_perm() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_notice_perm(string $u,string $p): string {
     return "EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos pp ON pp.id=rp.permiso_id WHERE rp.rol_id=$u.rol_id AND pp.codigo='$p')";
 }
 
-/** Personas a las que la cuenta puede escribir: id, nombre, función y campaña. */
 /**
- * Diseño lógico: (array $a,?int $only=null) → aeriq_notice_contacts() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, only: Z --> aeriq_notice_contacts() --> Text
+ * Descripción: Procesa aeriq notice contacts y devuelve el resultado correspondiente.
  */
 function aeriq_notice_contacts(array $a,?int $only=null): array {
     $org=aeriq_org($a);
@@ -51,9 +51,9 @@ function aeriq_notice_contacts(array $a,?int $only=null): array {
     return aeriq_rows($sql.' ORDER BY r.id DESC,u.nombre,u.apellidos',$params);
 }
 
-/** Aviso del que la cuenta es una de las dos partes, con bloqueo opcional; si no, 404. */
 /**
- * Diseño lógico: (array $a,int $id,bool $lock=false) → aeriq_notice_own() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, id: Z, lock: B --> aeriq_notice_own() --> Text
+ * Descripción: Procesa aeriq notice own y devuelve el resultado correspondiente.
  */
 function aeriq_notice_own(array $a,int $id,bool $lock=false): array {
     $n=aeriq_one('SELECT * FROM avisos WHERE id=? AND organizacion_id=? AND (creado_por=? OR destinatario_id=?)'.($lock?' FOR UPDATE':''),[$id,aeriq_org($a),(int)$a['usuario_id'],(int)$a['usuario_id']]);
@@ -62,8 +62,8 @@ function aeriq_notice_own(array $a,int $id,bool $lock=false): array {
 }
 
 /**
- * Gestiona aviso texto.
- * Diseño lógico: (array $d,string $key,int $max,string $message) → aeriq_notice_text() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: d: Text, key: Text, max: Z, message: Text --> aeriq_notice_text() --> Text
+ * Descripción: Procesa aeriq notice text y devuelve el resultado correspondiente.
  */
 function aeriq_notice_text(array $d,string $key,int $max,string $message): string {
     $v=is_string($d[$key]??null)?trim($d[$key]):'';
@@ -72,9 +72,9 @@ function aeriq_notice_text(array $d,string $key,int $max,string $message): strin
     return $v;
 }
 
-/** Bandeja: los avisos de la cuenta (más recientes primero), cuántos tienen algo nuevo y a quién puede escribir. */
 /**
- * Diseño lógico: (array $a) → aeriq_notices() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_notices() --> Text
+ * Descripción: Procesa aeriq notices y devuelve el resultado correspondiente.
  */
 function aeriq_notices(array $a): array {
     $me=(int)$a['usuario_id'];
@@ -96,9 +96,9 @@ function aeriq_notices(array $a): array {
     return ['notices'=>$rows,'unread'=>$unread,'contacts'=>$contacts,'states'=>aeriq_rows('SELECT codigo,nombre,final FROM estados_aviso ORDER BY orden')];
 }
 
-/** Solo el número de avisos con algo nuevo (para el aviso de la navegación). */
 /**
- * Diseño lógico: (array $a) → aeriq_notices_unread() → int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_notices_unread() --> Z
+ * Descripción: Procesa aeriq notices unread y devuelve el resultado correspondiente.
  */
 function aeriq_notices_unread(array $a): int {
     $me=(int)$a['usuario_id'];
@@ -106,9 +106,9 @@ function aeriq_notices_unread(array $a): int {
         [aeriq_org($a),$me,$me,$me,$me])['n']??0);
 }
 
-/** Un aviso con todos sus mensajes. Abrirlo lo marca como visto para quien lo abre. */
 /**
- * Diseño lógico: (array $a,int $id) → aeriq_notice() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, id: Z --> aeriq_notice() --> Text
+ * Descripción: Procesa aeriq notice y devuelve el resultado correspondiente.
  */
 function aeriq_notice(array $a,int $id): array {
     $me=(int)$a['usuario_id'];$n=aeriq_notice_own($a,$id);
@@ -123,9 +123,9 @@ function aeriq_notice(array $a,int $id): array {
         'creado_en'=>$n['creado_en'],'mio'=>(int)$n['creado_por']===$me,'con_id'=>$other,'con_nombre'=>$who['nombre']??'','con_rol'=>$who['rol']??''],'messages'=>$messages];
 }
 
-/** Crea un aviso para una persona a la que la cuenta puede escribir. */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_notice_create() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_notice_create() --> Text
+ * Descripción: Procesa aeriq notice create y devuelve el resultado correspondiente.
  */
 function aeriq_notice_create(array $a,array $d): array {
     $to=aeriq_int($d['to']??null);
@@ -142,9 +142,9 @@ function aeriq_notice_create(array $a,array $d): array {
     return ['ok'=>true,'id'=>$id,'message'=>'Aviso enviado.'];
 }
 
-/** Responde a un aviso. Si responde la otra persona queda «respondido»; si responde quien lo creó, «abierto». */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_notice_reply() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_notice_reply() --> Text
+ * Descripción: Procesa aeriq notice reply y devuelve el resultado correspondiente.
  */
 function aeriq_notice_reply(array $a,array $d): array {
     $id=aeriq_int($d['id']??null);$me=(int)$a['usuario_id'];
@@ -159,9 +159,9 @@ function aeriq_notice_reply(array $a,array $d): array {
     return ['ok'=>true,'id'=>$id,'message'=>'Respuesta enviada.'];
 }
 
-/** Cierra un aviso (cualquiera de las dos personas). Se puede reabrir respondiendo. */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_notice_close() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_notice_close() --> Text
+ * Descripción: Procesa aeriq notice close y devuelve el resultado correspondiente.
  */
 function aeriq_notice_close(array $a,array $d): array {
     $id=aeriq_int($d['id']??null);aeriq_notice_own($a,$id);
@@ -169,9 +169,9 @@ function aeriq_notice_close(array $a,array $d): array {
     return ['ok'=>true,'id'=>$id,'message'=>'Aviso cerrado. Si respondes, se vuelve a abrir.'];
 }
 
-/** Rutas comunes de portal.php (sesión web) y mobile-avisos.php (token del móvil). */
 /**
- * Diseño lógico: (array $a,string $method,string $action) → aeriq_notice_route() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, method: Text, action: Text --> aeriq_notice_route() --> Text
+ * Descripción: Procesa aeriq notice route y devuelve el resultado correspondiente.
  */
 function aeriq_notice_route(array $a,string $method,string $action): array {
     if (!aeriq_org($a)) throw new AeriqError('Los avisos son para cuentas de una organización.','forbidden');

@@ -14,10 +14,9 @@ require_once __DIR__.'/../communication/MailTransport.php';
 require_once __DIR__.'/../database/SqlGateway.php';
 require_once __DIR__.'/../database/AeriqRepository.php';
 
-/** Dominio AERIQ. Las consultas ejecutan vía database/SqlGateway.php. */
-/** Identidad, organización, rol y permisos de una cuenta, leídos siempre del servidor. */
 /**
- * Diseño lógico: (int $id) → aeriq_access() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: id: Z --> aeriq_access() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_access(int $id): array {
     $a=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_ACCESS_1,[$id]);
@@ -30,14 +29,14 @@ function aeriq_access(int $id): array {
     return $a;
 }
 /**
- * Comprueba si la cuenta tiene el permiso solicitado.
- * Diseño lógico: (array $access, string $permission) → aeriq_can() → bool; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: access: Text, permission: Text --> aeriq_can() --> B
+ * Descripción: Procesa aeriq can y devuelve el resultado correspondiente.
  */
 function aeriq_can(array $access, string $permission): bool { return in_array($permission,$access['permisos']??[],true); }
 
-/** Comprueba que la cuenta está activa y, si se indica, que su rol concede el permiso. */
 /**
- * Diseño lógico: (array $u, ?string $permission = null) → aeriq_ready() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: u: Text, permission: Text --> aeriq_ready() --> Text
+ * Descripción: Procesa aeriq ready y devuelve el resultado correspondiente.
  */
 function aeriq_ready(array $u, ?string $permission = null): array {
     auth_login_allowed($u); $a=aeriq_access((int)$u['id']);
@@ -46,14 +45,13 @@ function aeriq_ready(array $u, ?string $permission = null): array {
     if ($permission!==null && !aeriq_can($a,$permission)) throw new AeriqError('Tu función no permite esta operación.','forbidden');
     return $a;
 }
-/*
- * --------------------
+/**
  * Diseño lógico: usuario: Usuario, accion: Text, metodo: Text, filtros: FiltrosPanel --> aeriq_portal_access() --> acceso: Acceso
  * Descripción: aplica la política de permisos del portal según la operación solicitada.
- * --------------------
  */
 /**
- * Diseño lógico: (array $user,string $action,string $method,array $filters=[]) → aeriq_portal_access() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: user: Text, action: Text, method: Text, filters: Text --> aeriq_portal_access() --> Text
+ * Descripción: Procesa aeriq portal access y devuelve el resultado correspondiente.
  */
 function aeriq_portal_access(array $user,string $action,string $method,array $filters=[]): array {
     if ($action==='map' && $method==='GET') return aeriq_ready($user,'mapa.organizacion');
@@ -82,71 +80,71 @@ function aeriq_portal_access(array $user,string $action,string $method,array $fi
     return $access;
 }
 /**
- * Valida y convierte un valor entero dentro del rango permitido.
- * Diseño lógico: (mixed $v, int $min=1, int $max=PHP_INT_MAX) → aeriq_int() → int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: v: Text, min: Z, max: Z --> aeriq_int() --> Z
+ * Descripción: Procesa aeriq int y devuelve el resultado correspondiente.
  */
 function aeriq_int(mixed $v, int $min=1, int $max=PHP_INT_MAX): int {
     if (filter_var($v,FILTER_VALIDATE_INT)===false || (int)$v<$min || (int)$v>$max) throw new AeriqError('Número entero fuera de rango.');
     return (int)$v;
 }
 /**
- * Valida y normaliza texto con el límite indicado.
- * Diseño lógico: (mixed $v, int $max=200, bool $optional=false) → aeriq_text() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: v: Text, max: Z, optional: B --> aeriq_text() --> Text
+ * Descripción: Procesa aeriq text y devuelve el resultado correspondiente.
  */
 function aeriq_text(mixed $v, int $max=200, bool $optional=false): string {
     if (!is_string($v)) throw new AeriqError('Texto no válido.');
     $v=trim($v); if ((!$optional && $v==='') || strlen($v)>$max) throw new AeriqError('Revisa los campos de texto.'); return $v;
 }
 /**
- * Valida y convierte un número dentro del rango permitido.
- * Diseño lógico: (mixed $v,float $min,float $max) → aeriq_number() → float; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: v: Text, min: R, max: R --> aeriq_number() --> R
+ * Descripción: Procesa aeriq number y devuelve el resultado correspondiente.
  */
 function aeriq_number(mixed $v,float $min,float $max): float {
     if (!is_numeric($v) || !is_finite((float)$v) || (float)$v<$min || (float)$v>$max) throw new AeriqError('Valor numérico fuera de rango.'); return (float)$v;
 }
 /**
- * Valida y convierte un valor booleano.
- * Diseño lógico: (mixed $v) → aeriq_bool() → int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: v: Text --> aeriq_bool() --> Z
+ * Descripción: Procesa aeriq bool y devuelve el resultado correspondiente.
  */
 function aeriq_bool(mixed $v): int { if (!in_array($v,[true,false,0,1,'0','1'],true)) throw new AeriqError('Valor booleano no válido.'); return (int)(bool)$v; }
 /**
- * Obtiene la organización autorizada.
- * Diseño lógico: (array $a) → aeriq_org() → int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_org() --> Z
+ * Descripción: Procesa aeriq org y devuelve el resultado correspondiente.
  */
 function aeriq_org(array $a): int { if (!$a['organizacion_id']) throw new AeriqError('La cuenta no pertenece a una organización.','forbidden'); return (int)$a['organizacion_id']; }
 /**
- * Busca un recurso dentro de la organización autorizada.
- * Diseño lógico: (string $table,int $id,int $org) → aeriq_own() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: table: Text, id: Z, org: Z --> aeriq_own() --> Text
+ * Descripción: Procesa aeriq own y devuelve el resultado correspondiente.
  */
 function aeriq_own(string $table,int $id,int $org): array {
     if (!in_array($table,['dispositivos','campanas'],true)) throw new LogicException('Tabla no permitida');
     $r=AeriqRepository::ownedResource($table,$id,$org);
     if (!$r) throw new AeriqError('El recurso no está disponible en tu organización.','not_found'); return $r;
 }
-/** Campaña a la que se limita la cuenta. null = admin principal: ve toda la organización. */
 /**
- * Diseño lógico: (array $a) → aeriq_campaign() → ?int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_campaign() --> Z
+ * Descripción: Procesa aeriq campaign y devuelve el resultado correspondiente.
  */
 function aeriq_campaign(array $a): ?int { return $a['campana_id']===null?null:(int)$a['campana_id']; }
-/** Una campaña tiene como mucho un admin (activo o invitado). Devuelve su nombre si ya lo tiene. */
 /**
- * Diseño lógico: (int $campaign,int $except=0) → aeriq_campaign_admin() → ?string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: campaign: Z, except: Z --> aeriq_campaign_admin() --> Text
+ * Descripción: Procesa aeriq campaign admin y devuelve el resultado correspondiente.
  */
 function aeriq_campaign_admin(int $campaign,int $except=0): ?string {
     $r=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_CAMPAIGN_ADMIN_1,[$campaign,$except]);
     return $r?$r['n']:null;
 }
 /**
- * Gestiona contraseña changed.
- * Diseño lógico: (int $id) → aeriq_password_changed() → void; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: id: Z --> aeriq_password_changed()
+ * Descripción: Procesa aeriq password changed y devuelve el resultado correspondiente..
  */
 function aeriq_password_changed(int $id): void {
     AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_PASSWORD_CHANGED_1,[$id]);
 }
 
 /**
- * Gestiona operador.
- * Diseño lógico: (array $a,array $d) → aeriq_worker() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_worker() --> Text
+ * Descripción: Procesa aeriq worker y devuelve el resultado correspondiente.
  */
 function aeriq_worker(array $a,array $d): array {
     $org=aeriq_org($a);$email=auth_email($d['email']??'');$name=auth_string($d['name']??'',90);$last=auth_string($d['last']??'',120);$phone=aeriq_text($d['phone']??'',40,true);
@@ -171,9 +169,9 @@ function aeriq_worker(array $a,array $d): array {
     } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
 }
 
-/** Invitación: clave temporal impredecible de un solo uso (solo se guarda su hash) y correo al destinatario. Va dentro de una transacción. */
 /**
- * Diseño lógico: (int $id,string $email) → aeriq_invite() → void; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: id: Z, email: Text --> aeriq_invite()
+ * Descripción: Procesa aeriq invite y devuelve el resultado correspondiente..
  */
 function aeriq_invite(int $id,string $email): void {
     $hours=max(1,min(168,(int)(getenv('AERIQ_INVITATION_HOURS')?:24)));
@@ -191,9 +189,9 @@ function aeriq_invite(int $id,string $email): void {
     ],'Elige tu contraseña para empezar a usar AERIQ');
     aeriq_mail($email,'AERIQ · Invitación de tu organización',$mail['text'],null,$mail['html']);
 }
-/** Cuenta que esta cuenta puede gestionar: el admin principal, los admins de campaña de su organización; el admin de campaña, los operadores de su campaña. */
 /**
- * Diseño lógico: (array $a,int $id) → aeriq_managed() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, id: Z --> aeriq_managed() --> Text
+ * Descripción: Procesa aeriq managed y devuelve el resultado correspondiente.
  */
 function aeriq_managed(array $a,int $id): array {
     $org=aeriq_org($a);
@@ -203,9 +201,9 @@ function aeriq_managed(array $a,int $id): array {
     if (!$u) throw new AeriqError('Esa cuenta no está entre las que gestionas.','not_found');
     return $u;
 }
-/** Editar nombre, apellidos y teléfono. El correo no se cambia: es la identidad de la cuenta. */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_worker_edit() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_worker_edit() --> Text
+ * Descripción: Procesa aeriq worker edit y devuelve el resultado correspondiente.
  */
 function aeriq_worker_edit(array $a,array $d): array {
     $u=aeriq_managed($a,aeriq_int($d['id']??null));
@@ -213,9 +211,9 @@ function aeriq_worker_edit(array $a,array $d): array {
     AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_WORKER_EDIT_1,[auth_string($d['name']??'',90),auth_string($d['last']??'',120),$phone,(int)$u['id']]);
     return ['ok'=>true,'message'=>'Datos guardados.'];
 }
-/** Desactivar: no puede entrar ni enviar lecturas, se cierran sus sesiones y queda libre su AERIQ. Sus mediciones se conservan. */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_worker_status() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_worker_status() --> Text
+ * Descripción: Procesa aeriq worker status y devuelve el resultado correspondiente.
  */
 function aeriq_worker_status(array $a,array $d): array {
     $u=aeriq_managed($a,aeriq_int($d['id']??null));$id=(int)$u['id'];$active=aeriq_bool($d['active']??false);
@@ -234,9 +232,9 @@ function aeriq_worker_status(array $a,array $d): array {
     } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return ['ok'=>true,'message'=>'Cuenta desactivada. Su AERIQ queda libre para asignarlo a otra persona.'];
 }
-/** Reenviar la invitación a una cuenta que todavía no se ha activado (por ejemplo, porque caducó). */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_worker_invite() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_worker_invite() --> Text
+ * Descripción: Procesa aeriq worker invite y devuelve el resultado correspondiente.
  */
 function aeriq_worker_invite(array $a,array $d): array {
     $u=aeriq_managed($a,aeriq_int($d['id']??null));
@@ -245,9 +243,9 @@ function aeriq_worker_invite(array $a,array $d): array {
     try {aeriq_invite((int)$u['id'],$u['email']);AeriqRepository::commit();} catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return ['ok'=>true,'message'=>'Invitación reenviada a '.$u['email'].'.'];
 }
-/** Admin principal: nombre, zona y fechas; el estado (programada, activa, finalizada) sale de las fechas. Umbrales, distancia y publicación los ajusta el admin de la campaña (aeriq_campaign_settings). */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_campaign_save() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_campaign_save() --> Text
+ * Descripción: Procesa aeriq campaign save y devuelve el resultado correspondiente.
  */
 function aeriq_campaign_save(array $a,array $d): array {
     $org=aeriq_org($a);$id=isset($d['id'])&&$d['id']!==''?aeriq_int($d['id']):null;
@@ -266,18 +264,18 @@ function aeriq_campaign_save(array $a,array $d): array {
     } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return $id?['ok'=>true,'id'=>$id,'message'=>'Cambios de la campaña guardados.']:['ok'=>true,'id'=>$new,'message'=>'Campaña creada. Ahora asígnale un admin en «Admins de campaña».'];
 }
-/** «Mi campaña» del operador: su campaña, su admin, su AERIQ y sus últimas lecturas. Solo lectura y sin descarga. */
 /**
- * Diseño lógico: (array $a) → aeriq_my_campaign() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_my_campaign() --> Text
+ * Descripción: Procesa aeriq my campaign y devuelve el resultado correspondiente.
  */
 function aeriq_my_campaign(array $a): array {
     $org=aeriq_org($a);$id=aeriq_campaign($a);$uid=(int)$a['usuario_id'];
     if (!$id) throw new AeriqError('Todavía no perteneces a ninguna campaña: tu admin de campaña te añadirá.','not_found');
     return AeriqRepository::myCampaign($id,$org,$uid);
 }
-/** El admin de campaña ajusta SU campaña: umbrales de ozono, distancia de interpolación y si sale en el mapa público. */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_campaign_settings() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_campaign_settings() --> Text
+ * Descripción: Procesa aeriq campaign settings y devuelve el resultado correspondiente.
  */
 function aeriq_campaign_settings(array $a,array $d): array {
     $id=aeriq_campaign($a);if (!$id) throw new AeriqError('Tu cuenta no tiene campaña asignada.','forbidden');
@@ -292,17 +290,17 @@ function aeriq_campaign_settings(array $a,array $d): array {
     } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return ['ok'=>true,'id'=>$id,'message'=>'Ajustes de la campaña guardados.'];
 }
-/** Devuelve la zona de la organización con ese nombre, creándola si aún no existe. */
 /**
- * Diseño lógico: (int $org,string $name) → aeriq_zone() → int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: org: Z, name: Text --> aeriq_zone() --> Z
+ * Descripción: Procesa aeriq zone y devuelve el resultado correspondiente.
  */
 function aeriq_zone(int $org,string $name): int {
     AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_ZONE_1,[$org,$name]);
     return (int)AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_ZONE_2,[$org,$name])['id'];
 }
 /**
- * Gestiona dispositivo save.
- * Diseño lógico: (array $a,array $d) → aeriq_device_save() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_device_save() --> Text
+ * Descripción: Procesa aeriq device save y devuelve el resultado correspondiente.
  */
 function aeriq_device_save(array $a,array $d): array {
     $org=aeriq_org($a);$id=isset($d['id'])?aeriq_int($d['id']):null;$scope=aeriq_campaign($a);
@@ -337,8 +335,8 @@ function aeriq_device_save(array $a,array $d): array {
 }
 
 /**
- * Gestiona asignaciones.
- * Diseño lógico: (array $a) → aeriq_assignments() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_assignments() --> Text
+ * Descripción: Procesa aeriq assignments y devuelve el resultado correspondiente.
  */
 function aeriq_assignments(array $a): array {
     // Rangos de ozono y temperatura (HU35): la app los comprueba antes de enviar; el servidor vuelve a hacerlo.
@@ -346,8 +344,8 @@ function aeriq_assignments(array $a): array {
 }
 
 /**
- * Gestiona capture hora.
- * Diseño lógico: (mixed $v) → aeriq_capture_time() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: v: Text --> aeriq_capture_time() --> Text
+ * Descripción: Procesa aeriq capture time y devuelve el resultado correspondiente.
  */
 function aeriq_capture_time(mixed $v): string {
     $text=aeriq_text($v,30);if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/D',$text)) throw new AeriqError('Fecha de captura UTC no válida.');
@@ -357,8 +355,8 @@ function aeriq_capture_time(mixed $v): string {
     return $time->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.v');
 }
 /**
- * Valida, deduplica y persiste una medición del Orb.
- * Diseño lógico: (array $a,array $d) → aeriq_ingest() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_ingest() --> Text
+ * Descripción: Procesa aeriq ingest y devuelve el resultado correspondiente.
  */
 function aeriq_ingest(array $a,array $d): array {
     $device=aeriq_int($d['deviceId']??null);$campaign=aeriq_int($d['campaignId']??null);$event=aeriq_text($d['eventId']??'',36);
@@ -403,7 +401,8 @@ function aeriq_ingest(array $a,array $d): array {
  * Los límites están en la tabla magnitudes: se ajustan sin tocar código.
  */
 /**
- * Diseño lógico: (array $magnitude,int $assignment,int $type,float $value,string $captured) → aeriq_discard_reason() → ?string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: magnitude: Text, assignment: Z, type: Z, value: R, captured: Text --> aeriq_discard_reason() --> Text
+ * Descripción: Procesa aeriq discard reason y devuelve el resultado correspondiente.
  */
 function aeriq_discard_reason(array $magnitude,int $assignment,int $type,float $value,string $captured): ?string {
     if ($value<(float)$magnitude['valor_minimo'] || $value>(float)$magnitude['valor_maximo']) return 'fuera_de_rango';
@@ -421,7 +420,8 @@ function aeriq_discard_reason(array $magnitude,int $assignment,int $type,float $
  * el mismo porcentaje en menos de 10 minutos no crea otra fila.
  */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_battery() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_battery() --> Text
+ * Descripción: Procesa aeriq battery y devuelve el resultado correspondiente.
  */
 function aeriq_battery(array $a,array $d): array {
     $device=aeriq_int($d['deviceId']??null);$percent=aeriq_int($d['percent']??null,0,100);
@@ -439,29 +439,28 @@ function aeriq_battery(array $a,array $d): array {
 }
 
 /**
- * Gestiona operador historial.
- * Diseño lógico: (array $a) → aeriq_worker_history() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_worker_history() --> Text
+ * Descripción: Procesa aeriq worker history y devuelve el resultado correspondiente.
  */
 function aeriq_worker_history(array $a): array {
     return AeriqRepository::workerHistory(aeriq_org($a),(int)$a['usuario_id']);
 }
 
 /**
- * Gestiona dashboard.
- * Diseño lógico: (array $a) → aeriq_dashboard() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text --> aeriq_dashboard() --> Text
+ * Descripción: Procesa aeriq dashboard y devuelve el resultado correspondiente.
  */
 function aeriq_dashboard(array $a): array {
     $org=aeriq_org($a);$scope=aeriq_campaign($a);
     return AeriqRepository::dashboard($org,$scope);
 }
-/*
- * --------------------
+/**
  * Diseño lógico: accion: AccionPanel, filtros: FiltrosPanel --> aeriq_consultar_panel() --> resultado: ResultadoPanel
  * Descripción: resuelve las consultas de solo lectura del panel mediante las reglas de dominio.
- * --------------------
  */
 /**
- * Diseño lógico: (array $access,string $action,array $filters=[]) → aeriq_consultar_panel() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: access: Text, action: Text, filters: Text --> aeriq_consultar_panel() --> Text
+ * Descripción: Procesa aeriq consultar panel y devuelve el resultado correspondiente.
  */
 function aeriq_consultar_panel(array $access,string $action,array $filters=[]): array {
     return match ($action) {
@@ -475,8 +474,8 @@ function aeriq_consultar_panel(array $access,string $action,array $filters=[]): 
 }
 
 /**
- * Gestiona lecturas.
- * Diseño lógico: (array $a,array $filters) → aeriq_readings() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, filters: Text --> aeriq_readings() --> Text
+ * Descripción: Procesa aeriq readings y devuelve el resultado correspondiente.
  */
 function aeriq_readings(array $a,array $filters): array {
     [$where,$params]=aeriq_readings_filter($a,$filters);
@@ -484,54 +483,51 @@ function aeriq_readings(array $a,array $filters): array {
     if (count($rows)>10000) throw new AeriqError('Demasiados registros. Reduce el intervalo o selecciona campaña/dispositivo; no se exportarán datos incompletos.','too_large');
     return $rows;
 }
-/** HU35: lecturas descartadas (no válidas) con los mismos filtros del informe, para enseñarlas aparte. Máximo 500. */
 /**
- * Diseño lógico: (array $a,array $filters) → aeriq_discarded() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, filters: Text --> aeriq_discarded() --> Text
+ * Descripción: Procesa aeriq discarded y devuelve el resultado correspondiente.
  */
 function aeriq_discarded(array $a,array $filters): array {
     [$where,$params]=aeriq_readings_filter($a,$filters);
     return AeriqRepository::reportRows($where,$params,true);
 }
-/*
- * --------------------
+/**
  * Diseño lógico: --> aeriq_health() --> disponible: B
  * Descripción: comprueba que la conexión al esquema AERIQ responde.
- * --------------------
  */
 /**
- * Diseño lógico: (sin parámetros) → aeriq_health() → bool; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_health() --> B
+ * Descripción: Procesa aeriq health y devuelve el resultado correspondiente.
  */
 function aeriq_health(): bool {
     AeriqRepository::execute(AeriqQueryCatalog::Q_AERIQ_HEALTH_1);
     return true;
 }
-/*
- * --------------------
+/**
  * Diseño lógico: --> aeriq_magnitudes() --> magnitudes: [Magnitud]
  * Descripción: devuelve el catálogo de magnitudes en orden estable.
- * --------------------
  */
 /**
- * Diseño lógico: (sin parámetros) → aeriq_magnitudes() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_magnitudes() --> Text
+ * Descripción: Procesa aeriq magnitudes y devuelve el resultado correspondiente.
  */
 function aeriq_magnitudes(): array {
     return AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_MAGNITUDES_1);
 }
-/*
- * --------------------
+/**
  * Diseño lógico: acceso: Acceso --> aeriq_devices() --> dispositivos: [Dispositivo]
  * Descripción: lista los dispositivos de la organización autorizada.
- * --------------------
  */
 /**
- * Diseño lógico: (array $access) → aeriq_devices() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: access: Text --> aeriq_devices() --> Text
+ * Descripción: Procesa aeriq devices y devuelve el resultado correspondiente.
  */
 function aeriq_devices(array $access): array {
     return AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_DEVICES_1,[aeriq_org($access)]);
 }
-/** Condiciones comunes del informe: organización, campaña del admin, magnitud, campaña, AERIQ, zona y fechas. */
 /**
- * Diseño lógico: (array $a,array $filters) → aeriq_readings_filter() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, filters: Text --> aeriq_readings_filter() --> Text
+ * Descripción: Procesa aeriq readings filter y devuelve el resultado correspondiente.
  */
 function aeriq_readings_filter(array $a,array $filters): array {
     $type=$filters['type']??14;
@@ -557,14 +553,13 @@ function aeriq_readings_filter(array $a,array $filters): array {
     }
     return AeriqRepository::readingFilters($criteria);
 }
-/*
- * --------------------
+/**
  * Diseño lógico: acceso?: Acceso, ambito: AmbitoMapa, procedencia: Procedencia, horas: N --> aeriq_consultar_mapa() --> resultado: ResultadoMapa
  * Descripción: consulta el mapa público o el mapa autorizado de una organización.
- * --------------------
  */
 /**
- * Diseño lógico: (?array $access,string $scope,string $source,int $hours) → aeriq_consultar_mapa() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: access: Text, scope: Text, source: Text, hours: Z --> aeriq_consultar_mapa() --> Text
+ * Descripción: Procesa aeriq consultar mapa y devuelve el resultado correspondiente.
  */
 function aeriq_consultar_mapa(?array $access,string $scope,string $source,int $hours): array {
     if (!in_array($scope,['publico','organizacion','propio'],true)) throw new AeriqError('Ámbito del mapa no válido.');
@@ -575,14 +570,13 @@ function aeriq_consultar_mapa(?array $access,string $scope,string $source,int $h
     if ($access===null) throw new AeriqError('Inicia sesión para consultar este mapa.','unauthenticated');
     return aeriq_map_data($access,$query);
 }
-/*
- * --------------------
+/**
  * Diseño lógico: valor: Z --> aeriq_map_hours() --> horas: N
  * Descripción: valida y convierte los periodos admitidos por el mapa público.
- * --------------------
  */
 /**
- * Diseño lógico: (mixed $value) → aeriq_map_hours() → int; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: value: Text --> aeriq_map_hours() --> Z
+ * Descripción: Procesa aeriq map hours y devuelve el resultado correspondiente.
  */
 function aeriq_map_hours(mixed $value): int {
     $hours=aeriq_int($value,0,168);
@@ -590,15 +584,15 @@ function aeriq_map_hours(mixed $value): int {
     return $hours;
 }
 /**
- * Gestiona público mapa.
- * Diseño lógico: (array $query) → aeriq_public_map() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: query: Text --> aeriq_public_map() --> Text
+ * Descripción: Procesa aeriq public map y devuelve el resultado correspondiente.
  */
 function aeriq_public_map(array $query): array {
     return aeriq_consultar_mapa(null,'publico',(string)($query['mode']??'real'),aeriq_map_hours($query['hours']??24));
 }
 /**
- * Obtiene datos autorizados para el mapa y aplica filtros.
- * Diseño lógico: (?array $access,array $query) → aeriq_map_data() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: access: Text, query: Text --> aeriq_map_data() --> Text
+ * Descripción: Procesa aeriq map data y devuelve el resultado correspondiente.
  */
 function aeriq_map_data(?array $access,array $query): array {
     $mode=$query['mode']??'real';if (!in_array($mode,['real','simulated'],true)) throw new AeriqError('Selecciona datos reales o simulados.');
@@ -614,18 +608,9 @@ function aeriq_map_data(?array $access,array $query): array {
     foreach ($rows as &$r) {foreach (['valor','latitud','longitud','umbral_medio','umbral_alto'] as $k)$r[$k]=(float)$r[$k];$r['simulado']=(bool)$r['simulado'];$r['radio_m']=(int)$r['radio_m'];if($access)$r['dispositivo_id']=(int)$r['dispositivo_id'];}
     unset($r);return ['measurements'=>$rows,'truncated'=>$truncated,'mode'=>$mode,'hours'=>$hours];
 }
-/** Lecturas del mapa como máximo (las más recientes del filtro). El Orb anuncia ozono cada ~1,5 s: 10.000 son unas 4 h de un Orb. */
-const AERIQ_MAPA_MAX=10000;
-/** Provincias de España: por ahora el formulario comercial solo atiende España. */
-const AERIQ_PROVINCIAS=['A Coruña','Álava','Albacete','Alicante','Almería','Asturias','Ávila','Badajoz','Barcelona','Bizkaia','Burgos','Cáceres','Cádiz','Cantabria','Castellón','Ceuta','Ciudad Real','Córdoba','Cuenca','Gipuzkoa','Girona','Granada','Guadalajara','Huelva','Huesca','Illes Balears','Jaén','La Rioja','Las Palmas','León','Lleida','Lugo','Madrid','Málaga','Melilla','Murcia','Navarra','Ourense','Palencia','Pontevedra','Salamanca','Santa Cruz de Tenerife','Segovia','Sevilla','Soria','Tarragona','Teruel','Toledo','Valencia','Valladolid','Zamora','Zaragoza'];
-/** Duraciones que se ofrecen para un estudio; se guardan tal cual en solicitudes.duracion. */
-/** Buzón comercial de Código Norte que recibe las solicitudes del formulario público. */
-const AERIQ_COMMERCIAL_EMAIL_DEFAULT='codigonorte.aeriq@gmail.com';
-const AERIQ_DURACIONES=['1 semana','2 semanas','1 mes','3 meses','Más de 3 meses','A definir con Código Norte'];
-
-/** Texto de un campo del formulario público; el error indica qué campo revisar. Longitud en caracteres, como maxlength. */
 /**
- * Diseño lógico: (array $d,string $key,int $max,string $message,bool $optional=false) → aeriq_field_text() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: d: Text, key: Text, max: Z, message: Text, optional: B --> aeriq_field_text() --> Text
+ * Descripción: Procesa aeriq field text y devuelve el resultado correspondiente.
  */
 function aeriq_field_text(array $d,string $key,int $max,string $message,bool $optional=false): string {
     $v=$d[$key]??'';
@@ -634,9 +619,9 @@ function aeriq_field_text(array $d,string $key,int $max,string $message,bool $op
     if ((!$optional && $v==='') || $length>$max) throw new AeriqError($message,'invalid_input',$key);
     return $v;
 }
-/** Solicitud comercial del formulario público (solicitar.html). No pide cantidad: la recomienda Código Norte. */
 /**
- * Diseño lógico: (array $d) → aeriq_request() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: d: Text --> aeriq_request() --> Text
+ * Descripción: Procesa aeriq request y devuelve el resultado correspondiente.
  */
 function aeriq_request(array $d): array {
     // Campo trampa: una persona no lo ve; si llega relleno es un bot. Se responde igual para no darle pistas.
@@ -723,20 +708,19 @@ function aeriq_request(array $d): array {
     } catch (Throwable $e) { $sent=false;error_log('AERIQ: solicitud registrada; confirmación al solicitante no entregada.'); }
     return ['ok'=>true,'id'=>$id,'mailed'=>$sent,'message'=>'Solicitud registrada. '.($sent?'Te hemos enviado un correo de confirmación. ':'').'Código Norte la revisará y te propondrá la solución que mejor encaje.'];
 }
-/*
- * --------------------
+/**
  * Diseño lógico: solicitud: DatosSolicitud --> aeriq_enviar_solicitud() --> confirmacion: ConfirmacionSolicitud
  * Descripción: valida y registra una solicitud pública con sus objetivos e historial.
- * --------------------
  */
 /**
- * Diseño lógico: (array $data) → aeriq_enviar_solicitud() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: data: Text --> aeriq_enviar_solicitud() --> Text
+ * Descripción: Procesa aeriq enviar solicitud y devuelve el resultado correspondiente.
  */
 function aeriq_enviar_solicitud(array $data): array { return aeriq_request($data); }
 
-/** Catálogos del formulario público: servicios, tipos de organización, objetivos, provincias y duraciones. */
 /**
- * Diseño lógico: (sin parámetros) → aeriq_request_catalogs() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_request_catalogs() --> Text
+ * Descripción: Procesa aeriq request catalogs y devuelve el resultado correspondiente.
  */
 function aeriq_request_catalogs(): array {
     $services=AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUEST_CATALOGS_1);
@@ -747,25 +731,22 @@ function aeriq_request_catalogs(): array {
         'objectives'=>AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUEST_CATALOGS_3),
         'provinces'=>AERIQ_PROVINCIAS,'durations'=>AERIQ_DURACIONES];
 }
-/*
- * --------------------
+/**
  * Diseño lógico: --> aeriq_consultar_servicios() --> servicios: [Servicio]
  * Descripción: presenta los catálogos activos usados por el formulario público.
- * --------------------
  */
-/*
- * --------------------
+/**
  * Diseño lógico: --> aeriq_consultar_servicios() --> catalogos: CatalogosSolicitud
  * Descripción: expone los catálogos activos para el formulario comercial.
- * --------------------
  */
 /**
- * Diseño lógico: (sin parámetros) → aeriq_consultar_servicios() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_consultar_servicios() --> Text
+ * Descripción: Procesa aeriq consultar servicios y devuelve el resultado correspondiente.
  */
 function aeriq_consultar_servicios(): array { return aeriq_request_catalogs(); }
-/** Panel comercial: solicitudes con nombres legibles, su historial y los estados posibles. */
 /**
- * Diseño lógico: (sin parámetros) → aeriq_requests() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: aeriq_requests() --> Text
+ * Descripción: Procesa aeriq requests y devuelve el resultado correspondiente.
  */
 function aeriq_requests(): array {
     $rows=AeriqRepository::rows(AeriqQueryCatalog::Q_AERIQ_REQUESTS_1);
@@ -792,7 +773,8 @@ function aeriq_requests(): array {
  * quién y cuándo, y se avisa por correo al solicitante (T37). Un fallo del correo no deshace el cambio.
  */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_request_status() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_request_status() --> Text
+ * Descripción: Procesa aeriq request status y devuelve el resultado correspondiente.
  */
 function aeriq_request_status(array $a,array $d): array {
     $state=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_STATUS_1,[is_string($d['status']??null)?$d['status']:'']);
@@ -811,9 +793,9 @@ function aeriq_request_status(array $a,array $d): array {
     } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return aeriq_request_notify($id,(int)$state['final']?'cerrada':'avance');
 }
-/** Reabre una solicitud cerrada (T38): vuelve a «En revisión» y queda en el historial como reapertura. */
 /**
- * Diseño lógico: (array $a,array $d) → aeriq_request_reopen() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, d: Text --> aeriq_request_reopen() --> Text
+ * Descripción: Procesa aeriq request reopen y devuelve el resultado correspondiente.
  */
 function aeriq_request_reopen(array $a,array $d): array {
     $id=aeriq_int($d['id']??null);
@@ -831,9 +813,9 @@ function aeriq_request_reopen(array $a,array $d): array {
     } catch (Throwable $e) {AeriqRepository::rollback();throw $e;}
     return aeriq_request_notify($id,'reabierta');
 }
-/** Correo al solicitante tras un cambio de estado (T37): avance, cierre o reapertura. */
 /**
- * Diseño lógico: (int $id,string $kind) → aeriq_request_notify() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: id: Z, kind: Text --> aeriq_request_notify() --> Text
+ * Descripción: Procesa aeriq request notify y devuelve el resultado correspondiente.
  */
 function aeriq_request_notify(int $id,string $kind): array {
     $r=AeriqRepository::one(AeriqQueryCatalog::Q_AERIQ_REQUEST_NOTIFY_1,[$id]);

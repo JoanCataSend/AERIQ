@@ -22,55 +22,61 @@ public final class ForegroundCaptureLocation {
     private Location last;
     private final LocationListener listener = new LocationListener() {
         /**
-         * Atiende el evento ubicación changed.
-         * Diseño lógico: (Location location) → onLocationChanged() → void; según doc/android_design.md.
+         * Diseño lógico: (Location location) --> onLocationChanged()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override public void onLocationChanged(Location location) { if (better(location, last)) last = location; }
         /**
-         * Atiende el evento provider enabled.
-         * Diseño lógico: (String provider) → onProviderEnabled() → void; según doc/android_design.md.
+         * Diseño lógico: (String provider) --> onProviderEnabled()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override public void onProviderEnabled(String provider) {}
         /**
-         * Atiende el evento provider disabled.
-         * Diseño lógico: (String provider) → onProviderDisabled() → void; según doc/android_design.md.
+         * Diseño lógico: (String provider) --> onProviderDisabled()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override public void onProviderDisabled(String provider) {}
         /**
-         * Atiende el evento estado changed.
-         * Diseño lógico: (String provider, int status, Bundle extras) → onStatusChanged() → void; según doc/android_design.md.
+         * Diseño lógico: (String provider, int status, Bundle extras) --> onStatusChanged()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
     };
 
-
-
+    /**
+     * Diseño lógico: context: Text --> ForegroundCaptureLocation() --> Text
+     * Descripción: Procesa foreground capture location y devuelve el resultado correspondiente.
+     */
     public ForegroundCaptureLocation(Context context) {
         this.context = context;
         manager = context.getSystemService(LocationManager.class);
     }
 
     /**
-     * Gestiona fine.
-     * Diseño lógico: (sin parámetros) → fine() → boolean; según doc/android_design.md.
+     * Diseño lógico: fine() --> B
+     * Descripción: Procesa fine y devuelve el resultado correspondiente.
      */
     private boolean fine() {
         return context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     /**
-     * Gestiona allowed.
-     * Diseño lógico: (sin parámetros) → allowed() → boolean; según doc/android_design.md.
+     * Diseño lógico: allowed() --> B
+     * Descripción: Procesa allowed y devuelve el resultado correspondiente.
      */
     public boolean allowed() {
         return fine() || context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     /**
-     * Inicia.
-     * Diseño lógico: (sin parámetros) → start() → void; según doc/android_design.md.
+     * Diseño lógico: start()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @SuppressLint("MissingPermission")
+    /**
+     * Diseño lógico: start()
+     * Descripción: Procesa start y devuelve el resultado correspondiente..
+     */
     public void start() {
         stop();
         if (manager == null || !allowed()) return;
@@ -92,6 +98,10 @@ public final class ForegroundCaptureLocation {
      * Red y GPS llegan mezclados: una posición de red (decenas o cientos de metros) no sustituye a una
      * de GPS más precisa y reciente. Pasados 10 s sin nada mejor, gana la más nueva.
      */
+    /**
+     * Diseño lógico: candidate: Text, current: Text --> better() --> B
+     * Descripción: Procesa better y devuelve el resultado correspondiente.
+     */
     static boolean better(Location candidate, Location current) {
         if (current == null) return true;
         long newer = candidate.getTime() - current.getTime();
@@ -103,8 +113,8 @@ public final class ForegroundCaptureLocation {
     }
 
     /**
-     * Gestiona current.
-     * Diseño lógico: (sin parámetros) → current() → Location; según doc/android_design.md.
+     * Diseño lógico: current() --> Text
+     * Descripción: Procesa current y devuelve el resultado correspondiente.
      */
     public Location current() {
         if (!allowed() || last == null || !last.hasAccuracy()) return null;
@@ -113,8 +123,8 @@ public final class ForegroundCaptureLocation {
     }
 
     /**
-     * Detiene.
-     * Diseño lógico: (sin parámetros) → stop() → void; según doc/android_design.md.
+     * Diseño lógico: stop()
+     * Descripción: Procesa stop y devuelve el resultado correspondiente..
      */
     public void stop() {
         if (manager != null) {

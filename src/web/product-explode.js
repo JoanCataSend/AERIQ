@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 /* AERIQ · Vista explosionada del AERIQ en la portada · anime.js v4 sincronizado con el scroll.
    Sin anime.js, sin la sección o con movimiento reducido se queda la vista abierta estática del CSS. */
 'use strict';
@@ -14,8 +13,8 @@
   const section=document.querySelector('.explode-section');
   if(!section)return;
   /**
-   * Gestiona q.
    * Diseño lógico: (s) → q() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const q=s=>section.querySelector(s),qa=s=>[...section.querySelectorAll(s)];
   const stage=q('.explode-stage'),visual=q('.explode-visual'),track=q('.explode-track');
@@ -23,8 +22,8 @@
   const shell=qa('.explode-bottom, .explode-front, .explode-shadow');
   const parts=qa('.explode-part'),labels=qa('.explode-label'),leaders=qa('.explode-leader');
   /**
-   * Gestiona by part.
-   * Diseño lógico: (list,id) → byPart() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: list: Text, id: Text --> byPart() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const byPart=(list,id)=>list.find(n=>n.dataset.part===id);
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -37,7 +36,8 @@
 
   // Cajas de maquetación (sin transformaciones) relativas al escenario.
   /**
-   * Diseño lógico: (el) → layoutBox() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: el: Text --> layoutBox() --> Text
+   * Descripción: Procesa layout box y devuelve el resultado correspondiente.
    */
   function layoutBox(el){
     let x=0,y=0;const w=el.offsetWidth,h=el.offsetHeight;
@@ -46,7 +46,8 @@
   }
   // Estado cerrado de una pieza: data-closed="cx cy ancho" en fracciones de la caja del producto cerrado.
   /**
-   * Diseño lógico: (part) → closedState() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: part: Text --> closedState() --> Text
+   * Descripción: Procesa closed state y devuelve el resultado correspondiente.
    */
   function closedState(part){
     const c=layoutBox(closed),p=layoutBox(part);
@@ -57,19 +58,21 @@
     return {x:c.x+cx*c.w-(p.x+p.w/2),y:c.y+cy*c.h-(p.y+p.h/2),scale:p.w?cw*c.w/p.w:1,rise:c.h*.5};
   }
   /**
-   * Gestiona shell offset.
    * Diseño lógico: (closed) → shellOffset() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const shellOffset=el=>layoutBox(closed).y-layoutBox(el).y;
   // anime.refresh() interpreta los números sin unidad de x/y como %, así que se devuelven en px.
   /**
-   * Diseño lógico: (sin parámetros) → px() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: px() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const px=n=>n+"px";
 
   // Líneas guía: del borde de la etiqueta al ancla de la pieza (data-anchor="ax ay" en fracciones de la pieza).
   /**
-   * Diseño lógico: (sin parámetros) → layoutLeaders() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: layoutLeaders() --> Text
+   * Descripción: Procesa layout leaders y devuelve el resultado correspondiente.
    */
   function layoutLeaders(){
     const v=layoutBox(visual);let drawn=0;
@@ -89,8 +92,8 @@
   }
 
   /**
-   * Establece active.
-   * Diseño lógico: (progress) → setActive() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: progress: Text --> setActive() --> Text
+   * Descripción: Procesa set active y devuelve el resultado correspondiente.
    */
   function setActive(progress){
     const t=progress*TOTAL;let index=-1,revealIndex=-1;
@@ -104,8 +107,8 @@
   }
 
   /**
-   * Construye.
-   * Diseño lógico: (sin parámetros) → build() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: build() --> Text
+   * Descripción: Procesa build y devuelve el resultado correspondiente.
    */
   function build(){
     if(tl||typeof anime==='undefined'||reduce?.matches)return;
@@ -167,6 +170,7 @@
     // 5 · Con el LED RGB, el logo se enciende (fundido limitado a la zona del logo y resplandor).
     /**
      * Diseño lógico: (p=>p.dataset.part==='rgb') → rgbStart() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const rgbStart=STEPS[parts.findIndex(p=>p.dataset.part==='rgb')]??STEPS[STEPS.length-1];
     tl.add(q('.lid-on'),{opacity:{from:0,to:1},duration:60,ease:'linear'},rgbStart+10);
@@ -179,8 +183,8 @@
   }
 
   /**
-   * Gestiona destroy.
-   * Diseño lógico: (sin parámetros) → destroy() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: destroy() --> Text
+   * Descripción: Procesa destroy y devuelve el resultado correspondiente.
    */
   function destroy(){
     observer?.revert();tl?.revert();
@@ -192,7 +196,8 @@
 
   // Al cambiar el tamaño del escenario se recalculan las líneas y los valores dependientes de la maqueta.
   /**
-   * Diseño lógico: (sin parámetros) → onResize() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: onResize() --> Text
+   * Descripción: Procesa on resize y devuelve el resultado correspondiente.
    */
   function onResize(){
     const size=`${visual.offsetWidth}x${visual.offsetHeight}`;
@@ -203,8 +208,8 @@
   }
 
   /**
-   * Inicializa.
-   * Diseño lógico: (sin parámetros) → init() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: init() --> Text
+   * Descripción: Procesa init y devuelve el resultado correspondiente.
    */
   function init(){
     layoutLeaders();

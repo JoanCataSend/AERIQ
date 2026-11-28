@@ -8,16 +8,13 @@
  */
 declare(strict_types=1);
 
-/** Error de dominio sin estado ni dependencia del protocolo HTTP. */
-class DomainError extends RuntimeException {
-    /*
-     * --------------------
-     * Diseño lógico: mensaje: Text, categoria: Text, campo?: Text --> DomainError() --> error: DomainError
-     * Descripción: crea un error de negocio sin depender de HTTP ni de la capa de comunicación.
-     * --------------------
-     */
+/**
+ * Diseño lógico: mensaje: Text, categoria: Text, campo?: Text --> DomainError() --> error: DomainError
+ * Descripción: Describe la operación realizada y su resultado.
+ */
     /**
-     * Diseño lógico: (parámetros de la firma) → __construct() → resultado de la operación; según doc/aeriq_business_logic_design.md.
+     * Diseño lógico: message: Text, category: Text, field: Text --> __construct() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
      */
     public function __construct(
         string $message,

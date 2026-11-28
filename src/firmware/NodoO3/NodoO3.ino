@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #include <bluefruit.h>
 #include <stdio.h>
 #include "Medidor.h"
@@ -35,8 +34,8 @@ uint32_t ultimosExtras = 0;    // Ultima vez que se anunciaron temperatura y bat
 bool extrasAlgunaVez = false;
 
 /**
- * Emite por serie el diagnóstico disponible del sensor y la batería.
- * Diseño lógico: (sin parámetros) → diagnosticar() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: diagnosticar()
+ * Descripción: Emite el estado y las medidas de diagnóstico disponibles..
  */
 void diagnosticar() {
   static uint32_t ultimo = 0;
@@ -71,8 +70,8 @@ void diagnosticar() {
 }
 
 /**
- * Anuncia por BLE una medición usando el formato del protocolo.
- * Diseño lógico: (uint8_t tipo, uint16_t valor) → publicar() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: tipo: N, valor: N --> publicar() --> B
+ * Descripción: Codifica y publica la medida en el canal configurado.
  */
 bool publicar(uint8_t tipo, uint16_t valor) {
   Bluefruit.Advertising.stop();
@@ -89,8 +88,8 @@ bool publicar(uint8_t tipo, uint16_t valor) {
 }
 
 /**
- * Configura.
- * Diseño lógico: (sin parámetros) → setup() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: setup()
+ * Descripción: Inicializa el hardware y los servicios del firmware..
  */
 void setup() {
   Serial.begin(115200);
@@ -111,8 +110,8 @@ void setup() {
 }
 
 /**
- * Gestiona loop.
- * Diseño lógico: (sin parámetros) → loop() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: loop()
+ * Descripción: Ejecuta un ciclo de la máquina de estados y atiende las tareas pendientes..
  */
 void loop() {
   consola.atender(medidor.calibrado());
@@ -191,7 +190,8 @@ void loop() {
 
 // Vuelve a medir. La publicidad ya esta parada: el ADC adquiere siempre con la radio en silencio.
 /**
- * Diseño lógico: (sin parámetros) → siguienteCiclo() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: siguienteCiclo()
+ * Descripción: Procesa siguiente ciclo y devuelve el resultado correspondiente..
  */
 void siguienteCiclo() {
   medidor.iniciar(); fase = Fase::LEER;

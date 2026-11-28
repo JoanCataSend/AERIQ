@@ -24,8 +24,8 @@ import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 @RunWith(AndroidJUnit4.class)
 public final class ExampleInstrumentedTest {
     /**
-     * Prueba el comportamiento de applicationId con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → applicationId() → void; según doc/android_design.md.
+     * Diseño lógico: applicationId()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test public void applicationId() {
         assertEquals("com.aeriq.app", InstrumentationRegistry.getInstrumentation()
@@ -33,11 +33,15 @@ public final class ExampleInstrumentedTest {
     }
 
     /**
-     * Prueba el comportamiento de opensPublicMapAndKeepsAccountBehindLogin con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → opensPublicMapAndKeepsAccountBehindLogin() → void; según doc/android_design.md.
+     * Diseño lógico: opensPublicMapAndKeepsAccountBehindLogin()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test public void opensPublicMapAndKeepsAccountBehindLogin() {
 
+      /**
+       * Diseño lógico: scenario: Text --> try() --> Text
+       * Descripción: Procesa try y devuelve el resultado correspondiente.
+       */
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             onView(withText("Iniciar sesión")).check(matches(isDisplayed()));
             onView(withText("Crear cuenta")).check(doesNotExist());

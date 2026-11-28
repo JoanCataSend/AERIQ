@@ -3,14 +3,7 @@
 # Descripción: Archivo fuente de scripts.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Regenera los SQL de recreación y reinstalación a partir de schema.sql y seed-demo.sql.
 
 Uso: python scripts/build-database-scripts.py
@@ -25,24 +18,21 @@ schema = (DB / 'schema.sql').read_text(encoding='utf-8')
 seed = (DB / 'seed-demo.sql').read_text(encoding='utf-8')
 names = re.findall(r'CREATE (?:TABLE|VIEW) (\w+)', schema)
 
-# Gestiona qualify.
-# Diseño lógico: (sql, db='jcatsen_pbio') → qualify() → resultado de la operación; según scripts/README.md.
-# qualify(sql, db='jcatsen_pbio') → Implementa la operación qualify del módulo.
+# Diseño lógico: sql: Text, db: Text --> qualify() --> Text
+# Descripción: Añade el nombre de la base de datos delante de las referencias SQL reconocidas.
 
 def qualify(sql, db='jcatsen_pbio'):
     pattern = r'\b(CREATE TABLE|CREATE VIEW|INSERT INTO|REFERENCES|FROM|JOIN) (' + '|'.join(names) + r')\b'
     return re.sub(pattern, lambda m: f'{m.group(1)} `{db}`.`{m.group(2)}`', sql)
 
-# Escribe.
-# Diseño lógico: (path, text) → write() → resultado de la operación; según scripts/README.md.
-# write(path, text) → Implementa la operación write del módulo.
+# Diseño lógico: path: Text, text: Text --> write()
+# Descripción: Escribe el contenido recibido en el archivo y normaliza sus finales de línea.
 
 def write(path, text):
     path.write_bytes(text.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
 
-# Gestiona drop all.
-# Diseño lógico: (db_expr, qualified_db=None) → drop_all() → resultado de la operación; según scripts/README.md.
-# drop_all(db_expr, qualified_db=None) → Implementa la operación drop all del módulo.
+# Diseño lógico: db_expr: Text, qualified_db: Text --> drop_all() --> Text
+# Descripción: Genera SQL que elimina vistas y tablas de la base indicada y restaura las opciones de sesión.
 
 def drop_all(db_expr, qualified_db=None):
     where = f"TABLE_SCHEMA = {db_expr}"

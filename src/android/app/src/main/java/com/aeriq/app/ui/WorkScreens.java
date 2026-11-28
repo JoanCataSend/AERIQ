@@ -22,8 +22,10 @@ public final class WorkScreens {
     private final MainActivity activity;
     private final Views ui;
 
-
-
+    /**
+     * Diseño lógico: activity: Text, ui: Text --> WorkScreens() --> Text
+     * Descripción: Procesa work screens y devuelve el resultado correspondiente.
+     */
     public WorkScreens(MainActivity activity, Views ui) {
         this.activity = activity;
         this.ui = ui;
@@ -32,7 +34,8 @@ public final class WorkScreens {
     // ===================================================================== Mi sensor
 
     /**
-     * Diseño lógico: (parámetros de la firma) → sensor() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, ble: Text, assignments: [ Text ], assignmentStatus: Text, serverStatus: Text, sending: B, history: [ Text ] --> sensor()
+     * Descripción: Procesa sensor y devuelve el resultado correspondiente..
      */
     public void sensor(LinearLayout body, AeriqBleController ble, List<OrbAssignment> assignments,
                        String assignmentStatus, String serverStatus, boolean sending, List<StoredReading> history) {
@@ -259,9 +262,9 @@ public final class WorkScreens {
         });
     }
 
-    /** Distancia recorrida hoy según las posiciones GPS guardadas con tus mediciones. */
     /**
-     * Diseño lógico: (List<StoredReading> readings) → distanceToday() → String; según doc/android_design.md.
+     * Diseño lógico: readings: [ Text ] --> distanceToday() --> Text
+     * Descripción: Procesa distance today y devuelve el resultado correspondiente.
      */
     private String distanceToday(List<StoredReading> readings) {
         List<StoredReading> located = new ArrayList<>();
@@ -280,8 +283,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona panel.
-     * Diseño lógico: (LinearLayout body, int padding) → panel() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: body: Text, padding: Z --> panel() --> Text
+     * Descripción: Procesa panel y devuelve el resultado correspondiente.
      */
     private LinearLayout panel(LinearLayout body, int padding) {
         LinearLayout panel = ui.column();
@@ -295,8 +298,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona tile.
-     * Diseño lógico: (LinearLayout row, String label) → tile() → TextView; según doc/android_design.md.
+     * Diseño lógico: row: Text, label: Text --> tile() --> Text
+     * Descripción: Procesa tile y devuelve el resultado correspondiente.
      */
     private TextView tile(LinearLayout row, String label) {
         LinearLayout tile = ui.column();
@@ -311,8 +314,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona shortcut.
-     * Diseño lógico: (int icon, String label, boolean soft, Runnable click) → shortcut() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: icon: Z, label: Text, soft: B, click: Text --> shortcut() --> Text
+     * Descripción: Procesa shortcut y devuelve el resultado correspondiente.
      */
     private LinearLayout shortcut(int icon, String label, boolean soft, Runnable click) {
         LinearLayout card = ui.column();
@@ -333,8 +336,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona arrow botón.
-     * Diseño lógico: (String label, Runnable click) → arrowButton() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: label: Text, click: Text --> arrowButton() --> Text
+     * Descripción: Procesa arrow button y devuelve el resultado correspondiente.
      */
     private LinearLayout arrowButton(String label, Runnable click) {
         LinearLayout button = ui.row();
@@ -351,9 +354,9 @@ public final class WorkScreens {
         return button;
     }
 
-    /** Detalle técnico en una hoja de la app: resumen, Bluetooth, diagnóstico, temperatura y envío. */
     /**
-     * Diseño lógico: (AeriqBleController ble, OrbAssignment selected) → sensorStatus() → void; según doc/android_design.md.
+     * Diseño lógico: ble: Text, selected: Text --> sensorStatus()
+     * Descripción: Procesa sensor status y devuelve el resultado correspondiente..
      */
     private void sensorStatus(AeriqBleController ble, OrbAssignment selected) {
         int flags = ble.sensorDiagnostic;
@@ -404,7 +407,8 @@ public final class WorkScreens {
     // ===================================================================== Vincular sensor
 
     /**
-     * Diseño lógico: (LinearLayout body, AeriqBleController ble, List<OrbAssignment> assignments) → link() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, ble: Text, assignments: [ Text ] --> link()
+     * Descripción: Procesa link y devuelve el resultado correspondiente..
      */
     public void link(LinearLayout body, AeriqBleController ble, List<OrbAssignment> assignments) {
         ImageView hero = ui.photo(R.drawable.pbio_sensor_hero, 26);
@@ -511,8 +515,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona permiso fila.
-     * Diseño lógico: (LinearLayout parent, int icon, String title, String description) → permissionRow() → Switch; según doc/android_design.md.
+     * Diseño lógico: parent: Text, icon: Z, title: Text, description: Text --> permissionRow() --> Text
+     * Descripción: Procesa permission row y devuelve el resultado correspondiente.
      */
     private Switch permissionRow(LinearLayout parent, int icon, String title, String description) {
         LinearLayout row = ui.row();
@@ -535,16 +539,16 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona signal.
-     * Diseño lógico: (int rssi) → signal() → String; según doc/android_design.md.
+     * Diseño lógico: rssi: Z --> signal() --> Text
+     * Descripción: Procesa signal y devuelve el resultado correspondiente.
      */
     private String signal(int rssi) {
         return rssi >= -65 ? "Señal fuerte" : rssi >= -80 ? "Señal media" : "Señal débil";
     }
 
     /**
-     * Gestiona dispositivo card.
-     * Diseño lógico: (parámetros de la firma) → deviceCard() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, ble: Text, device: Text, assigned: Text, highlighted: B --> deviceCard()
+     * Descripción: Procesa device card y devuelve el resultado correspondiente..
      */
     private void deviceCard(LinearLayout parent, AeriqBleController ble, AeriqBleController.FoundDevice device,
                             OrbAssignment assigned, boolean highlighted) {
@@ -600,7 +604,8 @@ public final class WorkScreens {
      * los permisos del servidor, como el panel web: la gestión se hace allí, la app solo la explica y la abre.
      */
     /**
-     * Diseño lógico: (LinearLayout body, AeriqAuthManager.User user) → panel() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, user: Text --> panel()
+     * Descripción: Procesa panel y devuelve el resultado correspondiente..
      */
     public void panel(LinearLayout body, AeriqAuthManager.User user) {
         if (user == null) return;
@@ -663,7 +668,8 @@ public final class WorkScreens {
      * reasigna el elegido a un operador de su campaña. El operador lo recibe solo al abrir su app.
      */
     /**
-     * Diseño lógico: (LinearLayout body, AeriqBleController ble, CampaignTeam team, String status) → assign() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, ble: Text, team: Text, status: Text --> assign()
+     * Descripción: Procesa assign y devuelve el resultado correspondiente..
      */
     public void assign(LinearLayout body, AeriqBleController ble, CampaignTeam team, String status) {
         LinearLayout intro = panel(body, 18);
@@ -729,8 +735,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona nearby Orb.
-     * Diseño lógico: (AeriqBleController.FoundDevice device, CampaignTeam team) → nearbyOrb() → android.view.View; según doc/android_design.md.
+     * Diseño lógico: device: Text, team: Text --> nearbyOrb() --> Text
+     * Descripción: Procesa nearby orb y devuelve el resultado correspondiente.
      */
     private android.view.View nearbyOrb(AeriqBleController.FoundDevice device, CampaignTeam team) {
         CampaignTeam.Device registered = team.byAddress(device.address);
@@ -755,8 +761,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Selecciona operator.
-     * Diseño lógico: (String address, CampaignTeam.Device registered, CampaignTeam team) → chooseOperator() → void; según doc/android_design.md.
+     * Diseño lógico: address: Text, registered: Text, team: Text --> chooseOperator()
+     * Descripción: Procesa choose operator y devuelve el resultado correspondiente..
      */
     private void chooseOperator(String address, CampaignTeam.Device registered, CampaignTeam team) {
         List<CampaignTeam.Operator> candidates = new ArrayList<>();
@@ -801,8 +807,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona servicios.
-     * Diseño lógico: (LinearLayout body) → services() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text --> services()
+     * Descripción: Procesa services y devuelve el resultado correspondiente..
      */
     public void services(LinearLayout body) {
         section(body, "Tu campaña, a tu medida.", "Código Norte desarrolla AERIQ y el sensor Orb. La consulta del mapa público es gratuita.");
@@ -816,8 +822,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona servicio.
-     * Diseño lógico: (LinearLayout body, String title, String description, String kind) → service() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, title: Text, description: Text, kind: Text --> service()
+     * Descripción: Procesa service y devuelve el resultado correspondiente..
      */
     private void service(LinearLayout body, String title, String description, String kind) {
         LinearLayout card = section(body, title, description);
@@ -825,8 +831,8 @@ public final class WorkScreens {
     }
 
     /**
-     * Gestiona section.
-     * Diseño lógico: (LinearLayout body, String title, String description) → section() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: body: Text, title: Text, description: Text --> section() --> Text
+     * Descripción: Procesa section y devuelve el resultado correspondiente.
      */
     private LinearLayout section(LinearLayout body, String title, String description) {
         LinearLayout card = ui.card(body);

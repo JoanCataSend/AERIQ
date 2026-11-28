@@ -20,15 +20,17 @@ public final class AeriqTokenStore {
     private static final String ALIAS = "aeriq_mobile_token_aes_gcm_v1";
     private final SharedPreferences prefs;
 
-
-
+  /**
+   * Diseño lógico: context: Text --> AeriqTokenStore() --> Text
+   * Descripción: Procesa aeriq token store y devuelve el resultado correspondiente.
+   */
     AeriqTokenStore(Context context) {
         prefs = context.getSharedPreferences("aeriq_mobile_auth_private", Context.MODE_PRIVATE);
     }
 
     /**
-     * Gestiona key.
-     * Diseño lógico: (sin parámetros) → key() → SecretKey; según doc/android_design.md.
+     * Diseño lógico: key() --> Text
+     * Descripción: Procesa key y devuelve el resultado correspondiente.
      */
     private SecretKey key() throws Exception {
         KeyStore store = KeyStore.getInstance("AndroidKeyStore");
@@ -43,8 +45,10 @@ public final class AeriqTokenStore {
         return generator.generateKey();
     }
 
-
-
+    /**
+     * Diseño lógico: token: Text, userId: Z --> write()
+     * Descripción: Escribe el contenido recibido en el archivo y normaliza sus finales de línea.
+     */
     synchronized void write(String token, long userId) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key());
@@ -54,8 +58,10 @@ public final class AeriqTokenStore {
             .putLong("session_user_id", userId).apply();
     }
 
-
-
+    /**
+     * Diseño lógico: userId: Z --> associateOwner()
+     * Descripción: Procesa associate owner y devuelve el resultado correspondiente..
+     */
     synchronized void associateOwner(long userId) {
         if (userId > 0 && prefs.getString("session", null) != null) {
             prefs.edit().putLong("session_user_id", userId).apply();
@@ -63,14 +69,14 @@ public final class AeriqTokenStore {
     }
 
     /**
-     * Gestiona owner usuario id.
-     * Diseño lógico: (sin parámetros) → ownerUserId() → long; según doc/android_design.md.
+     * Diseño lógico: ownerUserId() --> Z
+     * Descripción: Procesa owner user id y devuelve el resultado correspondiente.
      */
     public synchronized long ownerUserId() { return prefs.getLong("session_user_id", 0L); }
 
     /**
-     * Lee.
-     * Diseño lógico: (sin parámetros) → read() → String; según doc/android_design.md.
+     * Diseño lógico: read() --> Text
+     * Descripción: Procesa read y devuelve el resultado correspondiente.
      */
     public synchronized String read() {
         String saved = prefs.getString("session", null);
@@ -87,8 +93,8 @@ public final class AeriqTokenStore {
     }
 
     /**
-     * Guarda last correo.
-     * Diseño lógico: (String email) → saveLastEmail() → void; según doc/android_design.md.
+     * Diseño lógico: email: Text --> saveLastEmail()
+     * Descripción: Procesa save last email y devuelve el resultado correspondiente..
      */
     public synchronized void saveLastEmail(String email) {
         if (email != null && !email.trim().isEmpty()) {
@@ -97,16 +103,16 @@ public final class AeriqTokenStore {
     }
 
     /**
-     * Obtiene last correo.
-     * Diseño lógico: (sin parámetros) → getLastEmail() → String; según doc/android_design.md.
+     * Diseño lógico: getLastEmail() --> Text
+     * Descripción: Procesa get last email y devuelve el resultado correspondiente.
      */
     public synchronized String getLastEmail() {
         return prefs.getString("last_email", "");
     }
 
     /**
-     * Gestiona clear.
-     * Diseño lógico: (sin parámetros) → clear() → void; según doc/android_design.md.
+     * Diseño lógico: clear()
+     * Descripción: Procesa clear y devuelve el resultado correspondiente..
      */
     public synchronized void clear() {
         prefs.edit().remove("session").remove("session_user_id").apply();

@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* T25 · Prueba DOM del mapa: zonas estimadas (círculos del radio, no cuadrados), datos insuficientes, sin datos,
    radio configurable, consulta de un punto y ruta del Orb en «Mi organización».
@@ -16,6 +15,10 @@ process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {JSDOM,VirtualConsole}=require(path.resolve(process.argv[2]||'.local-backups/test-tools/node_modules/jsdom'));
 const root=path.resolve(__dirname,'../../src/web'),domain=require(path.join(root,'aeriq-domain.js'));
+/**
+ * Diseño lógico: wait() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
+ */
 const wait=()=>new Promise(r=>setTimeout(r,35));
 // Los arrays creados dentro de jsdom tienen otro prototipo: se comparan como JSON.
 const plain=v=>JSON.parse(JSON.stringify(v));
@@ -27,12 +30,18 @@ for(let i=0;i<3;i++)for(let j=0;j<5;j++)dense.push({...base,id:i*5+j+1,latitud:3
 const isolated={...base,id:99,latitud:38.9982,longitud:-0.1662,valor:70,capturada_en:stamp(400)};
 // Vista falsa de 800 × 600 px a 1 m por píxel, centrada en el campus.
 const W=800,H=600,DLAT=1/111320,DLNG=DLAT/Math.cos(38.99675*Math.PI/180),TOP=38.99675+H/2*DLAT,LEFT=-0.16575-W/2*DLNG;
+/**
+ * Diseño lógico: [x: Text, y]: Text --> toLatLng() --> Text
+ * Descripción: Procesa to lat lng y devuelve el resultado correspondiente.
+ */
 const toLatLng=([x,y])=>({lat:TOP-y*DLAT,lng:LEFT+x*DLNG});
 // Colores RGB del lienzo → estado y color de la leyenda.
 const STATE={'104,109,107':'insuficiente','33,156,114':'#219c72','238,162,45':'#eea22d','227,91,93':'#e35b5d'};
 
-
-
+/**
+ * Diseño lógico: measurements: Text, {organization: Text, mine: Text --> page() --> Text
+ * Descripción: Procesa page y devuelve el resultado correspondiente.
+ */
 async function page(measurements,{organization=false,mine=measurements}={}){
   const errors=[],handlers={},paint={image:null},routes=[],ends=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});
   const dom=new JSDOM(fs.readFileSync(path.join(root,'mapa.html'),'utf8'),{url:'http://localhost/mapa.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
@@ -41,7 +50,15 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   w.HTMLElement.prototype.scrollIntoView=()=>{};
   // Lienzo falso: borrar descarta lo pintado; putImageData guarda la imagen de la rejilla.
   w.HTMLCanvasElement.prototype.getContext=function(){return {clearRect(){paint.image=null;},drawImage(){},putImageData(image){paint.image=image;},
+    /**
+     * Diseño lógico: width: Text, height: Text --> createImageData() --> Text
+     * Descripción: Procesa create image data y devuelve el resultado correspondiente.
+     */
     createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}};};
+  /**
+   * Diseño lógico: layer() --> Text
+   * Descripción: Procesa layer y devuelve el resultado correspondiente.
+   */
   const layer=()=>({addTo(){return this;},on(){return this;},setView(){return this;},addLayer(){},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){},bindTooltip(text){this.tooltip=text;return this;}});
   w.L={tileLayer:layer,latLngBounds:layer,DomUtil:{setPosition(){}},
     circleMarker:(position,options)=>{assert.equal(options.bubblingMouseEvents,false);const m=layer();m.position=position;m.addTo=function(g){if(g&&g.route)ends.push(this);return this;};return m;},
@@ -63,6 +80,10 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   await wait();
   const q=s=>w.document.querySelector(s);
   // Puntos pintados de la rejilla, con su centro en coordenadas y su color.
+  /**
+   * Diseño lógico: cells() --> Text
+   * Descripción: Procesa cells y devuelve el resultado correspondiente.
+   */
   const cells=()=>{
     const out={colour:[],grey:[]},img=paint.image;if(!img)return out;
     const step=W/img.width;
@@ -74,8 +95,16 @@ async function page(measurements,{organization=false,mine=measurements}={}){
     }
     return out;
   };
+  /**
+   * Diseño lógico: lat: Text, lng: Text --> click() --> Text
+   * Descripción: Procesa click y devuelve el resultado correspondiente.
+   */
   const click=(lat,lng)=>{handlers.click({latlng:{lat,lng}});return q('#map-info').textContent;};
   const setRadius=value=>{q('#radius-range').value=String(value);q('#radius-range').dispatchEvent(new w.Event('input',{bubbles:true}));};
+  /**
+   * Diseño lógico: sel: Text, checked: Text --> change() --> Text
+   * Descripción: Procesa change y devuelve el resultado correspondiente.
+   */
   const change=(sel,checked)=>{const el=q(sel);if(checked!==undefined)el.checked=checked;el.dispatchEvent(new w.Event('change'));};
   return {w,q,cells,click,setRadius,change,routes,ends,errors,close:()=>w.close()};
 }
@@ -149,6 +178,10 @@ async function page(measurements,{organization=false,mine=measurements}={}){
   assert.deepEqual(p.errors,[]);p.close();
 
   // Ruta del Orb en «Mi organización»: posiciones en orden de captura, tramos partidos por huecos > 10 min.
+  /**
+   * Diseño lógico: id: Text, name: Text --> orb() --> Text
+   * Descripción: Procesa orb y devuelve el resultado correspondiente.
+   */
   const orb=(id,name)=>({dispositivo_id:id,dispositivo:name});
   const walk=[
     {...dense[2],...orb(7,'Orb Norte'),id:201,capturada_en:'2026-11-10 12:02:00.000'},

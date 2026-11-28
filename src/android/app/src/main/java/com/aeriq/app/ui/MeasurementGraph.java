@@ -17,14 +17,18 @@ public final class MeasurementGraph extends View {
     private final Path path = new Path();
     private final boolean bars;
 
-
-
+    /**
+     * Diseño lógico: context: Text, values: [ Text ] --> MeasurementGraph() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
+     */
     public MeasurementGraph(Context context, List<Double> values) {
         this(context, values, false);
     }
 
-
-
+    /**
+     * Diseño lógico: context: Text, values: [ Text ], bars: B --> MeasurementGraph() --> Text
+     * Descripción: Procesa measurement graph y devuelve el resultado correspondiente.
+     */
     public MeasurementGraph(Context context, List<Double> values, boolean bars) {
         super(context);
         this.values = new ArrayList<>(values);
@@ -33,8 +37,8 @@ public final class MeasurementGraph extends View {
     }
 
     /**
-     * Atiende el evento draw.
-     * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+     * Diseño lógico: (Canvas canvas) --> onDraw()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);

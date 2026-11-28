@@ -18,12 +18,14 @@ public final class PublicReadings {
 
         /**
 
-
          * Reading(String id, String campaign, String zone, double latitude, double longitude,
                        double value, String unit, String date, boolean simulated, int radius,
                        double medium, double high) → Implementa la operación Reading del módulo.
 
-
+         */
+        /**
+         * Diseño lógico: id: Text, campaign: Text, zone: Text, latitude: R, longitude: R, value: R, unit: Text, date: Text, simulated: B, radius: Z, medium: R, high: R --> Reading() --> Text
+         * Descripción: Describe la operación realizada y su resultado.
          */
         public Reading(String id, String campaign, String zone, double latitude, double longitude,
                        double value, String unit, String date, boolean simulated, int radius,
@@ -43,13 +45,13 @@ public final class PublicReadings {
         }
 
         /**
-         * Gestiona posición.
-         * Diseño lógico: (sin parámetros) → position() → GeoPoint; según doc/android_design.md.
+         * Diseño lógico: position() --> Text
+         * Descripción: Procesa position y devuelve el resultado correspondiente.
          */
         public GeoPoint position() { return new GeoPoint(latitude, longitude); }
         /**
-         * Gestiona color.
-         * Diseño lógico: (double level) → color() → int; según doc/android_design.md.
+         * Diseño lógico: level: R --> color() --> Z
+         * Descripción: Procesa color y devuelve el resultado correspondiente.
          */
         public int color(double level) { return level >= high ? 0xffe35b5d : level >= medium ? 0xffeea22d : 0xff219c72; }
     }
@@ -58,8 +60,10 @@ public final class PublicReadings {
         public final List<Reading> rows;
         public final boolean truncated;
 
-
-
+      /**
+       * Diseño lógico: rows: [ Text ], truncated: B --> Result() --> Text
+       * Descripción: Procesa result y devuelve el resultado correspondiente.
+       */
         Result(List<Reading> rows, boolean truncated) {
             this.rows = rows;
             this.truncated = truncated;
@@ -67,8 +71,8 @@ public final class PublicReadings {
     }
 
     /**
-     * Obtiene.
-     * Diseño lógico: (boolean simulated) → fetch() → Result; según doc/android_design.md.
+     * Diseño lógico: simulated: B --> fetch() --> Text
+     * Descripción: Procesa fetch y devuelve el resultado correspondiente.
      */
     public static Result fetch(boolean simulated) throws Exception { return fetch(simulated, 24); }
 
@@ -77,7 +81,8 @@ public final class PublicReadings {
      * servidor devuelve solo las últimas 24 h, y una comparación de 7 o 30 días quedaba vacía.
      */
     /**
-     * Diseño lógico: (boolean simulated, int hours) → fetch() → Result; según doc/android_design.md.
+     * Diseño lógico: simulated: B, hours: Z --> fetch() --> Text
+     * Descripción: Procesa fetch y devuelve el resultado correspondiente.
      */
     public static Result fetch(boolean simulated, int hours) throws Exception {
         if (hours != 0 && hours != 24 && hours != 168) throw new IllegalArgumentException("Periodo no admitido: " + hours);
@@ -112,39 +117,16 @@ public final class PublicReadings {
      * como mucho OWN_MAX metros, la zona toma el valor medido en ese punto.
      */
     public static final double OWN_FRACTION = 0.5, OWN_MAX = 15;
-    /** Lado (m) de la rejilla de validación de las pruebas. */
-    public static final double CELL = 10;
-    /** Puntos que {@link #raster} evalúa como máximo por pintado; si se alcanza, se avisa. */
-    public static final int MAX_EVALUATIONS = 250_000;
-    /** Estado de cada punto de {@link #raster}: sin datos, datos insuficientes y nivel bajo, moderado o alto. */
-    public static final byte ZONE_NONE = 0, ZONE_INSUFFICIENT = 1, ZONE_LOW = 2, ZONE_MEDIUM = 3, ZONE_HIGH = 4;
-    public static final double METERS_PER_DEGREE = 111320;
-
-    public enum Reason {
-        /** Hay valor estimado. */ NONE,
-        /** Radio fuera de 20–50 m. */ RADIUS,
-        /** Ninguna posición dentro del radio: sin datos. */ FAR,
-        /** Menos de MIN_POSITIONS posiciones. */ INSUFFICIENT,
-        /** Campañas, unidades u orígenes distintos. */ MIXED
-    }
-
-    public static final class Estimate {
-        /** Valor interpolado, o null si el punto queda sin datos. */
-        public final Double value;
-        /** Posiciones de soporte dentro del radio. */
-        public final int positions;
-        /** Distancia (m) a la posición más cercana; infinito si no hay ninguna. */
-        public final double nearest;
-        public final Reason reason;
-        /** Suma de pesos IDW de las posiciones dentro del radio (para combinar campañas que se solapan, T47). */
-        public final double weight;
-        /** true si el punto cae en la zona propia de la posición más cercana y el valor es el medido (T46). */
-        public final boolean own;
-
+    /**
+     * Diseño lógico: value: Text, positions: Z, nearest: R, reason: Text --> Estimate() --> Text
+     * Descripción: Procesa estimate y devuelve el resultado correspondiente.
+     */
         Estimate(Double value, int positions, double nearest, Reason reason) { this(value, positions, nearest, reason, 0, false); }
 
-
-
+      /**
+       * Diseño lógico: value: Text, positions: Z, nearest: R, reason: Text, weight: R, own: B --> Estimate() --> Text
+       * Descripción: Procesa estimate y devuelve el resultado correspondiente.
+       */
         Estimate(Double value, int positions, double nearest, Reason reason, double weight, boolean own) {
             this.value = value;
             this.positions = positions;
@@ -155,17 +137,17 @@ public final class PublicReadings {
         }
     }
 
-    /** Solo se interpolan lecturas de la misma campaña, unidad y origen (real/simulado). */
     /**
-     * Diseño lógico: (Reading reading) → groupKey() → String; según doc/android_design.md.
+     * Diseño lógico: reading: Text --> groupKey() --> Text
+     * Descripción: Procesa group key y devuelve el resultado correspondiente.
      */
     public static String groupKey(Reading reading) {
         return reading.campaign + "|" + reading.unit + "|" + (reading.simulated ? 1 : 0);
     }
 
-    /** Distancia haversine en metros, con el mismo radio terrestre que la web. */
     /**
-     * Diseño lógico: (double lat1, double lon1, double lat2, double lon2) → distance() → double; según doc/android_design.md.
+     * Diseño lógico: lat1: R, lon1: R, lat2: R, lon2: R --> distance() --> R
+     * Descripción: Procesa distance y devuelve el resultado correspondiente.
      */
     public static double distance(double lat1, double lon1, double lat2, double lon2) {
         double rad = Math.PI / 180, dlat = (lat1 - lat2) * rad, dlon = (lon1 - lon2) * rad;
@@ -175,8 +157,8 @@ public final class PublicReadings {
     }
 
     /**
-     * Gestiona support.
-     * Diseño lógico: (List<Reading> rows) → support() → List<Reading>; según doc/android_design.md.
+     * Diseño lógico: rows: [ Text ] --> support() --> [ Text ]
+     * Descripción: Procesa support y devuelve el resultado correspondiente.
      */
     public static List<Reading> support(List<Reading> rows) { return support(rows, MIN_SEPARATION); }
 
@@ -185,7 +167,8 @@ public final class PublicReadings {
      * {@code separation} metros de las demás de su grupo.
      */
     /**
-     * Diseño lógico: (List<Reading> rows, double separation) → support() → List<Reading>; según doc/android_design.md.
+     * Diseño lógico: rows: [ Text ], separation: R --> support() --> [ Text ]
+     * Descripción: Procesa support y devuelve el resultado correspondiente.
      */
     public static List<Reading> support(List<Reading> rows, double separation) {
         List<Reading> sorted = new ArrayList<>(), out = new ArrayList<>();
@@ -230,7 +213,8 @@ public final class PublicReadings {
      * como mucho {@link #OWN_MAX} metros. Mismo cálculo que ownRadii() de aeriq-domain.js.
      */
     /**
-     * Diseño lógico: (List<Reading> samples) → ownRadii() → Map<Reading, Double>; según doc/android_design.md.
+     * Diseño lógico: samples: [ Text ] --> ownRadii() --> Map
+     * Descripción: Procesa own radii y devuelve el resultado correspondiente.
      */
     public static Map<Reading, Double> ownRadii(List<Reading> samples) {
         Map<Reading, Double> out = new java.util.IdentityHashMap<>();
@@ -257,15 +241,18 @@ public final class PublicReadings {
         return out;
     }
 
-    /** Estimación en un punto a partir de posiciones de soporte (resultado de {@link #support}). */
     /**
-     * Diseño lógico: (double latitude, double longitude, List<Reading> samples, int radius) → estimate() → Estimate; según doc/android_design.md.
+     * Diseño lógico: latitude: R, longitude: R, samples: [ Text ], radius: Z --> estimate() --> Text
+     * Descripción: Procesa estimate y devuelve el resultado correspondiente.
      */
     public static Estimate estimate(double latitude, double longitude, List<Reading> samples, int radius) {
         return estimate(latitude, longitude, samples, radius, ownRadii(samples));
     }
 
-    /** Igual, con las zonas propias ya calculadas para el grupo (raster no las repite en cada punto). */
+    /**
+     * Diseño lógico: latitude: R, longitude: R, samples: [ Text ], radius: Z, Map<Reading: Text, own: Text --> estimate() --> Text
+     * Descripción: Procesa estimate y devuelve el resultado correspondiente.
+     */
     static Estimate estimate(double latitude, double longitude, List<Reading> samples, int radius, Map<Reading, Double> own) {
         if (radius < RADIUS_MIN || radius > RADIUS_MAX) return new Estimate(null, 0, Double.POSITIVE_INFINITY, Reason.RADIUS);
         Reading first = null, closest = null;
@@ -292,22 +279,18 @@ public final class PublicReadings {
         return new Estimate(sum / weights, count, nearest, Reason.NONE, weights, false);
     }
 
-    /** Valor interpolado o null si el punto queda sin datos. Acepta lecturas en bruto. */
     /**
-     * Diseño lógico: (double latitude, double longitude, List<Reading> rows, int radius) → interpolate() → Double; según doc/android_design.md.
+     * Diseño lógico: latitude: R, longitude: R, rows: [ Text ], radius: Z --> interpolate() --> Text
+     * Descripción: Procesa interpolate y devuelve el resultado correspondiente.
      */
     public static Double interpolate(double latitude, double longitude, List<Reading> rows, int radius) {
         return estimate(latitude, longitude, support(rows), radius).value;
     }
 
-    /** Resultado de {@link #raster}: un estado ZONE_* por punto, fila a fila. */
-    public static final class Raster {
-        public final int rows, columns, evaluated;
-        public final byte[] states;
-        public final boolean clipped;
-
-
-
+    /**
+     * Diseño lógico: rows: Z, columns: Z, states: N, evaluated: Z, clipped: B --> Raster() --> Text
+     * Descripción: Procesa raster y devuelve el resultado correspondiente.
+     */
         Raster(int rows, int columns, byte[] states, int evaluated, boolean clipped) {
             this.rows = rows;
             this.columns = columns;
@@ -317,7 +300,10 @@ public final class PublicReadings {
         }
     }
 
-    /** Índices {desde, hasta} de los valores de una lista ordenada (creciente o decreciente) que caen en [min, max]. */
+    /**
+     * Diseño lógico: values: R, min: R, max: R --> span() --> Z
+     * Descripción: Procesa span y devuelve el resultado correspondiente.
+     */
     static int[] span(double[] values, double min, double max) {
         int n = values.length;
         boolean ascending = n < 2 || values[0] <= values[n - 1];
@@ -331,8 +317,8 @@ public final class PublicReadings {
     }
 
     /**
-     * Gestiona at.
-     * Diseño lógico: (double[] values, boolean ascending, int index) → at() → double; según doc/android_design.md.
+     * Diseño lógico: values: R, ascending: B, index: Z --> at() --> R
+     * Descripción: Procesa at y devuelve el resultado correspondiente.
      */
     private static double at(double[] values, boolean ascending, int index) {
         return ascending ? values[index] : values[values.length - 1 - index];
@@ -347,7 +333,8 @@ public final class PublicReadings {
      * valor estimado gana a «datos insuficientes».
      */
     /**
-     * Diseño lógico: (List<List<Reading>> groups, int[] radii, double[] lats, double[] lons, int maxEvaluations) → raster() → Raster; según doc/android_design.md.
+     * Diseño lógico: groups: [ Text ], radii: Z, lats: R, lons: R, maxEvaluations: Z --> raster() --> Text
+     * Descripción: Procesa raster y devuelve el resultado correspondiente.
      */
     public static Raster raster(List<List<Reading>> groups, int[] radii, double[] lats, double[] lons, int maxEvaluations) {
         int rows = lats.length, columns = lons.length, evaluated = 0, cells = rows * columns;
@@ -425,7 +412,8 @@ public final class PublicReadings {
      * sin él, por qué no se asigna nivel. El mismo criterio que public-map.js.
      */
     /**
-     * Diseño lógico: (Estimate estimate, int radius, String unit, double medium, double high, boolean simulated) → describe() → String[]; según doc/android_design.md.
+     * Diseño lógico: estimate: Text, radius: Z, unit: Text, medium: R, high: R, simulated: B --> describe() --> Text
+     * Descripción: Procesa describe y devuelve el resultado correspondiente.
      */
     public static String[] describe(Estimate estimate, int radius, String unit, double medium, double high, boolean simulated) {
         String positions = estimate.positions + (estimate.positions == 1 ? " posición" : " posiciones") + " en " + radius + " m";
@@ -451,8 +439,8 @@ public final class PublicReadings {
     }
 
     /**
-     * Comprueba si finito.
-     * Diseño lógico: (double value) → isFinite() → boolean; según doc/android_design.md.
+     * Diseño lógico: value: R --> isFinite() --> B
+     * Descripción: Procesa is finite y devuelve el resultado correspondiente.
      */
     private static boolean isFinite(double value) { return !Double.isNaN(value) && !Double.isInfinite(value); }
 }

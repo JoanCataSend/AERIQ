@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
 /*
  * Elegir contraseña (primer acceso). Dos formas de llegar:

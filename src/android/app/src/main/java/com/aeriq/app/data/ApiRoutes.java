@@ -8,6 +8,10 @@ package com.aeriq.app.data;
  */
 public final class ApiRoutes {
 
+    /**
+     * Diseño lógico: ApiRoutes() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
+     */
     private ApiRoutes() {}
     public static final String BASE = "https://jcatsen.upv.edu.es/AERIQ/";
     public static final String AUTH = BASE + "mobile-auth.php";

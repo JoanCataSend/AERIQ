@@ -18,24 +18,34 @@ final class JsonHttp {
         final int status;
         final JSONObject json;
 
-
-
+      /**
+       * Diseño lógico: status: Z, json: Text --> Response() --> Text
+       * Descripción: Procesa response y devuelve el resultado correspondiente.
+       */
         Response(int status, JSONObject json) {
             this.status = status;
             this.json = json;
         }
 
-
-
+        /**
+         * Diseño lógico: ok() --> B
+         * Descripción: Procesa ok y devuelve el resultado correspondiente.
+         */
         boolean ok() { return status >= 200 && status < 300; }
 
+        /**
+         * Diseño lógico: message() --> Text
+         * Descripción: Procesa message y devuelve el resultado correspondiente.
+         */
         String message() {
             return json.optString("error", json.optString("message", "HTTP " + status));
         }
     }
 
-
-
+    /**
+     * Diseño lógico: endpoint: Text, body: Text, token: Text --> request() --> Text
+     * Descripción: Envía una solicitud al servicio y devuelve la respuesta validada.
+     */
     static Response request(String endpoint, JSONObject body, String token) throws IOException {
         URL url = new URL(endpoint);
         if (!"https".equals(url.getProtocol())) throw new IOException("La conexión requiere HTTPS");
@@ -54,12 +64,20 @@ final class JsonHttp {
                 connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 connection.setFixedLengthStreamingMode(bytes.length);
 
+              /**
+               * Diseño lógico: output: Text --> try() --> Text
+               * Descripción: Procesa try y devuelve el resultado correspondiente.
+               */
                 try (OutputStream output = connection.getOutputStream()) { output.write(bytes); }
             }
             int status = connection.getResponseCode();
             InputStream stream = status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream();
             if (stream == null) throw new IOException("Respuesta vacía (HTTP " + status + ")");
 
+          /**
+           * Diseño lógico: reader: Text, StandardCharsets.UTF_8): Text --> try() --> Text
+           * Descripción: Procesa try y devuelve el resultado correspondiente.
+           */
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 StringBuilder content = new StringBuilder();
                 char[] buffer = new char[4096];
@@ -77,8 +95,10 @@ final class JsonHttp {
         }
     }
 
-
-
+    /**
+     * Diseño lógico: pairs: Text --> object() --> Text
+     * Descripción: Procesa object y devuelve el resultado correspondiente.
+     */
     static JSONObject object(Object... pairs) {
         JSONObject object = new JSONObject();
         try {

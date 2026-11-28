@@ -28,16 +28,16 @@ require_once __DIR__.'/server/AeriqCore.php';
 require_once __DIR__.'/communication/HttpErrorMapper.php';
 
 /**
- * Gestiona mobile token.
- * Diseño lógico: (sin parámetros) → mobile_token() → ?string; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: mobile_token() --> Text
+ * Descripción: Procesa mobile token y devuelve el resultado correspondiente.
  */
 function mobile_token(): ?string {
     $raw=(string)($_SERVER['HTTP_X_AERIQ_TOKEN']??'');
     return preg_match('/^[a-f0-9]{64}$/D',$raw) ? $raw : null;
 }
 /**
- * Gestiona mobile current.
- * Diseño lógico: (sin parámetros) → mobile_current() → ?array; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: mobile_current() --> Text
+ * Descripción: Procesa mobile current y devuelve el resultado correspondiente.
  */
 function mobile_current(): ?array {
     $token=mobile_token();
@@ -48,8 +48,8 @@ function mobile_current(): ?array {
     return $s->get_result()->fetch_assoc()?:null;
 }
 /**
- * Gestiona mobile require.
- * Diseño lógico: (sin parámetros) → mobile_require() → array; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: mobile_require() --> Text
+ * Descripción: Procesa mobile require y devuelve el resultado correspondiente.
  */
 function mobile_require(): array {
     $u=mobile_current();
@@ -57,8 +57,8 @@ function mobile_require(): array {
     auth_login_allowed($u);return $u;
 }
 /**
- * Gestiona mobile issue.
- * Diseño lógico: (int $id) → mobile_issue() → string; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: id: Z --> mobile_issue() --> Text
+ * Descripción: Procesa mobile issue y devuelve el resultado correspondiente.
  */
 function mobile_issue(int $id): string {
     // Caducidad absoluta de 30 días. No guardamos la credencial en texto claro.
@@ -68,8 +68,8 @@ function mobile_issue(int $id): string {
     return $token;
 }
 /**
- * Gestiona mobile usuario.
- * Diseño lógico: (int $id) → mobile_user() → array; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: id: Z --> mobile_user() --> Text
+ * Descripción: Procesa mobile user y devuelve el resultado correspondiente.
  */
 function mobile_user(int $id): array {
     $s=conexionBD()->prepare('SELECT * FROM usuarios WHERE id=? LIMIT 1');
@@ -79,8 +79,8 @@ function mobile_user(int $id): array {
     return auth_public($u);
 }
 /**
- * Gestiona mobile cuerpo.
- * Diseño lógico: (sin parámetros) → mobile_body() → array; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: mobile_body() --> Text
+ * Descripción: Procesa mobile body y devuelve el resultado correspondiente.
  */
 function mobile_body(): array {
     if (stripos((string)($_SERVER['CONTENT_TYPE']??''),'application/json')!==0) auth_responder(415,['error'=>'Usa application/json']);

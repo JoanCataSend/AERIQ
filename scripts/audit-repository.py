@@ -3,14 +3,7 @@
 # Descripción: Archivo fuente de scripts.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Audita estructura, enlaces y sintaxis disponible sin contactar con servicios."""
 
 import json
@@ -22,35 +15,30 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web"
 failures = []
 skipped = []
 
-
-# Registra un fallo si la condición de auditoría no se cumple.
-# Diseño lógico: (condition, message) → check() → resultado de la operación; según scripts/README.md.
-# check(condition, message) → Implementa la operación check del módulo.
+# Diseño lógico: condition: B, message: Text --> check()
+# Descripción: Registra un fallo con su mensaje cuando la condición evaluada es falsa.
 
 def check(condition, message):
     if not condition:
         failures.append(message)
 
-
 class References(HTMLParser):
-    # Inicializa el objeto y sus dependencias.
-    # Diseño lógico: (self) → __init__() → resultado de la operación; según scripts/README.md.
-    # __init__(self) → Implementa la operación   init   del módulo.
+
+    # Diseño lógico: __init__()
+    # Descripción: Inicializa las listas donde el analizador HTML guarda enlaces y scripts.
 
     def __init__(self):
         super().__init__()
         self.refs = []
         self.scripts = []
 
-    # Gestiona starttag.
-    # Diseño lógico: (self, tag, attrs) → handle_starttag() → resultado de la operación; según scripts/README.md.
-    # handle_starttag(self, tag, attrs) → Implementa la operación handle starttag del módulo.
+    # Diseño lógico: tag: Text, attrs: [ (Text, Text) ] --> handle_starttag()
+    # Descripción: Recoge los atributos href y src, y registra las etiquetas script con origen.
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -60,10 +48,8 @@ class References(HTMLParser):
         if tag == "script" and attrs.get("src"):
             self.scripts.append(attrs["src"])
 
-
-# Comprueba reference.
-# Diseño lógico: (source, reference) → check_reference() → resultado de la operación; según scripts/README.md.
-# check_reference(source, reference) → Implementa la operación check reference del módulo.
+# Diseño lógico: source: Text, reference: Text --> check_reference() --> Text
+# Descripción: Comprueba que la referencia local resuelve a un archivo existente.
 
 def check_reference(source, reference):
     link = urlsplit(reference)
@@ -72,10 +58,8 @@ def check_reference(source, reference):
     target = (source.parent / unquote(link.path)).resolve()
     check(target.exists(), f"Referencia inexistente: {source.relative_to(ROOT)} -> {reference}")
 
-
-# Ejecuta syntax.
-# Diseño lógico: (binary, paths, flag) → run_syntax() → resultado de la operación; según scripts/README.md.
-# run_syntax(binary, paths, flag) → Implementa la operación run syntax del módulo.
+# Diseño lógico: binary: Text, paths: [ Text ], flag: Text --> run_syntax()
+# Descripción: Ejecuta el comprobador de sintaxis disponible para el lenguaje de los archivos.
 
 def run_syntax(binary, paths, flag):
     executable = shutil.which(binary)
@@ -91,10 +75,8 @@ def run_syntax(binary, paths, flag):
         )
         check(result.returncode == 0, f"Sintaxis: {path.relative_to(ROOT)}\n{result.stderr or result.stdout}")
 
-
-# Coordina la ejecución principal del componente o script.
-# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
-# main() → Punto de entrada que coordina la ejecución del programa.
+# Diseño lógico: main() --> N
+# Descripción: Audita la estructura, las referencias y la sintaxis del repositorio; devuelve un código de salida según el resultado.
 
 def main():
     required = [
@@ -180,7 +162,6 @@ def main():
         return 1
     print(f"Auditoría correcta: {len(documents)} documentos, {len(pages)} páginas y comprobaciones disponibles.")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

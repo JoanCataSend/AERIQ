@@ -13,9 +13,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.*;
 
-
-
-
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
@@ -37,8 +34,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     public static final float UI_SCALE = 0.88f;
 
     /**
-     * Gestiona attach base context.
-     * Diseño lógico: (android.content.Context base) → attachBaseContext() → void; según doc/android_design.md.
+     * Diseño lógico: (android.content.Context base) --> attachBaseContext()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void attachBaseContext(android.content.Context base) {
         android.content.res.Configuration config = new android.content.res.Configuration(base.getResources().getConfiguration());
@@ -57,44 +54,10 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         LOGIN, FORGOT, RESET, MAP, LEARN, SENSOR, LINK, HISTORY,
         CONFIG, COMPARE, SERVICES, ACCOUNT, EDIT_PROFILE, CHANGE_PASSWORD, PANEL, ASSIGN, NOTICES, NOTICE, NOTICE_NEW
     }
-    /** Pantallas del Orb: solo para cuentas que miden (permiso mediciones.registrar), como en la web. */
-    private static final EnumSet<Screen> SENSOR_SCREENS = EnumSet.of(Screen.SENSOR, Screen.LINK, Screen.HISTORY, Screen.CONFIG);
-
-    /** Avisos entre personas (HU36): solo cuentas de una organización. */
-    private static final EnumSet<Screen> NOTICE_SCREENS = EnumSet.of(Screen.NOTICES, Screen.NOTICE, Screen.NOTICE_NEW);
-
-    private static final EnumSet<Screen> PUBLIC = EnumSet.of(
-        Screen.LOGIN, Screen.FORGOT, Screen.RESET, Screen.MAP, Screen.LEARN, Screen.COMPARE);
-    private static final int BLE_PERMISSION = 1, ENABLE_BLUETOOTH = 2, GPS_CAPTURE = 3, GPS_MAP = 4, EXPORT = 5, EXPORT_PDF = 6;
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final ExecutorService maps = Executors.newSingleThreadExecutor();
-    private Screen current = Screen.LOGIN;
-    private Views ui;
-    private AeriqAuthManager auth;
-    private AppPrefs prefs;
-    private BiometricAccessStore biometricAccess;
-    private AeriqFieldClient field;
-    private AeriqBleController ble;
-    private ForegroundCaptureLocation location;
-    private PublicMapScreen mapScreen;
-    private LinearLayout root, body, header, navigation;
-    private FrameLayout stage; // contenedor a pantalla completa (mapa)
-    private ScrollView scroll;
-    private boolean sharing, started, restoring = true;
-    private long lastSyncAt;
-    private List<OrbAssignment> assignments = Collections.emptyList();
-    private List<StoredReading> history = Collections.emptyList();
-    private String assignmentStatus = "Esperando cuenta autorizada";
-    private String historyStatus = "Consulta el historial de tu campaña";
-    private String serverStatus = "Envío desactivado";
-    private List<StoredReading> exportRows;
-    private String exportTitle = "";
-    private Runnable updateLive;
-    private final Runnable tick = new Runnable() {
-        /**
-         * Ejecuta.
-         * Diseño lógico: (sin parámetros) → run() → void; según doc/android_design.md.
-         */
+    /**
+     * Diseño lógico: run()
+     * Descripción: Describe la operación realizada y su resultado.
+     */
         @Override public void run() {
             if (updateLive != null) updateLive.run();
             long now = android.os.SystemClock.elapsedRealtime();
@@ -108,8 +71,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     };
 
     /**
-     * Atiende el evento creación.
-     * Diseño lógico: (Bundle state) → onCreate() → void; según doc/android_design.md.
+     * Diseño lógico: (Bundle state) --> onCreate()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -195,8 +158,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Atiende el evento save instance estado.
-     * Diseño lógico: (Bundle state) → onSaveInstanceState() → void; según doc/android_design.md.
+     * Diseño lógico: (Bundle state) --> onSaveInstanceState()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
@@ -204,8 +167,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona go.
-     * Diseño lógico: (Screen destination) → go() → void; según doc/android_design.md.
+     * Diseño lógico: destination: Text --> go()
+     * Descripción: Procesa go y devuelve el resultado correspondiente..
      */
     public void go(Screen destination) {
         if (auth.user != null && auth.user.mustChangePassword) destination = Screen.CHANGE_PASSWORD;
@@ -240,8 +203,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Representa.
-     * Diseño lógico: (sin parámetros) → render() → void; según doc/android_design.md.
+     * Diseño lógico: render()
+     * Descripción: Construye o actualiza la interfaz con los datos actuales..
      */
     private void render() {
         if (restoring || isDestroyed()) return;
@@ -334,14 +297,14 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona title.
-     * Diseño lógico: (String title, Screen back) → title() → void; según doc/android_design.md.
+     * Diseño lógico: title: Text, back: Text --> title()
+     * Descripción: Procesa title y devuelve el resultado correspondiente..
      */
     public void title(String title, Screen back) { title(title, back, 0, null); }
 
     /**
-     * Gestiona title.
-     * Diseño lógico: (String title, Screen back, int rightIcon, Runnable rightAction) → title() → void; según doc/android_design.md.
+     * Diseño lógico: title: Text, back: Text, rightIcon: Z, rightAction: Text --> title()
+     * Descripción: Procesa title y devuelve el resultado correspondiente..
      */
     public void title(String title, Screen back, int rightIcon, Runnable rightAction) {
         ImageView left = ui.image(back == null ? R.drawable.aeriq_mark : R.drawable.ic_back, 28, 28);
@@ -367,8 +330,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Muestra navegación.
-     * Diseño lógico: (sin parámetros) → showNavigation() → void; según doc/android_design.md.
+     * Diseño lógico: showNavigation()
+     * Descripción: Procesa show navigation y devuelve el resultado correspondiente..
      */
     private void showNavigation() {
         // La segunda pestaña depende de los permisos: quien mide ve «Mi sensor»; quien gestiona, «Panel».
@@ -421,8 +384,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Envía.
-     * Diseño lógico: (String action, Consumer<AeriqAuthManager.Result> done, Object... fields) → submit() → void; según doc/android_design.md.
+     * Diseño lógico: action: Text, done: Text, fields: Text --> submit()
+     * Descripción: Procesa submit y devuelve el resultado correspondiente..
      */
     public void submit(String action, Consumer<AeriqAuthManager.Result> done, Object... fields) {
         auth.submit(action, result -> {
@@ -454,8 +417,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona cierre de sesión.
-     * Diseño lógico: (sin parámetros) → logout() → void; según doc/android_design.md.
+     * Diseño lógico: logout()
+     * Descripción: Procesa logout y devuelve el resultado correspondiente..
      */
     public void logout() {
         if (auth.busy) {
@@ -470,8 +433,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona clear operador.
-     * Diseño lógico: (sin parámetros) → clearWorker() → void; según doc/android_design.md.
+     * Diseño lógico: clearWorker()
+     * Descripción: Procesa clear worker y devuelve el resultado correspondiente..
      */
     private void clearWorker() {
         setSharing(false);
@@ -487,16 +450,16 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona operador cuenta.
-     * Diseño lógico: (sin parámetros) → workerAccount() → boolean; según doc/android_design.md.
+     * Diseño lógico: workerAccount() --> B
+     * Descripción: Procesa worker account y devuelve el resultado correspondiente.
      */
     private boolean workerAccount() {
         return auth.user != null && auth.user.can(AeriqAuthManager.User.PERMISSION_COLLECT) && !auth.user.mustChangePassword;
     }
 
     /**
-     * Actualiza operador.
-     * Diseño lógico: (sin parámetros) → refreshWorker() → void; según doc/android_design.md.
+     * Diseño lógico: refreshWorker()
+     * Descripción: Procesa refresh worker y devuelve el resultado correspondiente..
      */
     private void refreshWorker() {
         refreshNotices();
@@ -505,8 +468,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Actualiza asignaciones.
-     * Diseño lógico: (sin parámetros) → refreshAssignments() → void; según doc/android_design.md.
+     * Diseño lógico: refreshAssignments()
+     * Descripción: Procesa refresh assignments y devuelve el resultado correspondiente..
      */
     public void refreshAssignments() {
         if (!workerAccount()) {
@@ -531,8 +494,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Actualiza historial.
-     * Diseño lógico: (sin parámetros) → refreshHistory() → void; según doc/android_design.md.
+     * Diseño lógico: refreshHistory()
+     * Descripción: Procesa refresh history y devuelve el resultado correspondiente..
      */
     public void refreshHistory() {
         if (!workerAccount()) return;
@@ -545,8 +508,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona selected.
-     * Diseño lógico: (sin parámetros) → selected() → OrbAssignment; según doc/android_design.md.
+     * Diseño lógico: selected() --> Text
+     * Descripción: Procesa selected y devuelve el resultado correspondiente.
      */
     private OrbAssignment selected() { return assigned(ble.selectedAddress); }
 
@@ -558,37 +521,37 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private long noticeId;
 
     /**
-     * Gestiona aviso screens.
-     * Diseño lógico: (sin parámetros) → noticeScreens() → NoticeScreens; según doc/android_design.md.
+     * Diseño lógico: noticeScreens() --> Text
+     * Descripción: Procesa notice screens y devuelve el resultado correspondiente.
      */
     private NoticeScreens noticeScreens() {
         if (noticeScreens == null) noticeScreens = new NoticeScreens(this, ui);
         return noticeScreens;
     }
 
-    /** Los avisos son para cuentas de una organización (operador, admin de campaña y admin principal). */
     /**
-     * Diseño lógico: (sin parámetros) → noticesAvailable() → boolean; según doc/android_design.md.
+     * Diseño lógico: noticesAvailable() --> B
+     * Descripción: Procesa notices available y devuelve el resultado correspondiente.
      */
     public boolean noticesAvailable() {
         return auth.user != null && !auth.user.mustChangePassword && !auth.user.organization.isEmpty();
     }
 
     /**
-     * Gestiona avisos unread.
-     * Diseño lógico: (sin parámetros) → noticesUnread() → int; según doc/android_design.md.
+     * Diseño lógico: noticesUnread() --> Z
+     * Descripción: Procesa notices unread y devuelve el resultado correspondiente.
      */
     public int noticesUnread() { return noticeInbox.unread; }
 
     /**
-     * Representa current.
-     * Diseño lógico: (sin parámetros) → renderCurrent() → void; según doc/android_design.md.
+     * Diseño lógico: renderCurrent()
+     * Descripción: Procesa render current y devuelve el resultado correspondiente..
      */
     public void renderCurrent() { render(); }
 
     /**
-     * Actualiza avisos.
-     * Diseño lógico: (sin parámetros) → refreshNotices() → void; según doc/android_design.md.
+     * Diseño lógico: refreshNotices()
+     * Descripción: Procesa refresh notices y devuelve el resultado correspondiente..
      */
     public void refreshNotices() {
         if (!noticesAvailable()) return;
@@ -605,8 +568,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Abre aviso.
-     * Diseño lógico: (long id) → openNotice() → void; según doc/android_design.md.
+     * Diseño lógico: id: Z --> openNotice()
+     * Descripción: Procesa open notice y devuelve el resultado correspondiente..
      */
     public void openNotice(long id) {
         noticeId = id;
@@ -623,8 +586,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Crea aviso.
-     * Diseño lógico: (long to, String subject, String text) → createNotice() → void; según doc/android_design.md.
+     * Diseño lógico: to: Z, subject: Text, text: Text --> createNotice()
+     * Descripción: Procesa create notice y devuelve el resultado correspondiente..
      */
     public void createNotice(long to, String subject, String text) {
         message("Enviando el aviso…", TONE_INFO);
@@ -637,8 +600,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona reply aviso.
-     * Diseño lógico: (long id, String text) → replyNotice() → void; según doc/android_design.md.
+     * Diseño lógico: id: Z, text: Text --> replyNotice()
+     * Descripción: Procesa reply notice y devuelve el resultado correspondiente..
      */
     public void replyNotice(long id, String text) {
         message("Enviando la respuesta…", TONE_INFO);
@@ -650,8 +613,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Cierra aviso.
-     * Diseño lógico: (long id) → closeNotice() → void; según doc/android_design.md.
+     * Diseño lógico: id: Z --> closeNotice()
+     * Descripción: Procesa close notice y devuelve el resultado correspondiente..
      */
     public void closeNotice(long id) {
         field.closeNotice(id, (result, error) -> {
@@ -666,8 +629,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private String teamStatus = "Consultando tu campaña…";
 
     /**
-     * Actualiza equipo.
-     * Diseño lógico: (sin parámetros) → refreshTeam() → void; según doc/android_design.md.
+     * Diseño lógico: refreshTeam()
+     * Descripción: Procesa refresh team y devuelve el resultado correspondiente..
      */
     public void refreshTeam() {
         teamStatus = "Consultando tu campaña…";
@@ -678,9 +641,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         });
     }
 
-    /** Registra o reasigna el Orb al operador elegido; el servidor aplica las mismas reglas que el panel web. */
     /**
-     * Diseño lógico: (CampaignTeam.Device existing, String address, String name, CampaignTeam.Operator operator) → assignOrb() → void; según doc/android_design.md.
+     * Diseño lógico: existing: Text, address: Text, name: Text, operator: Text --> assignOrb()
+     * Descripción: Procesa assign orb y devuelve el resultado correspondiente..
      */
     public void assignOrb(CampaignTeam.Device existing, String address, String name, CampaignTeam.Operator operator) {
         message("Asignando " + name + " a " + operator.name + "…", TONE_INFO);
@@ -696,9 +659,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             });
     }
 
-    /** El único Orb real asignado a la cuenta, o null si no hay ninguno o hay varios (entonces se elige en Vincular). */
     /**
-     * Diseño lógico: (sin parámetros) → onlyRealAssignment() → OrbAssignment; según doc/android_design.md.
+     * Diseño lógico: onlyRealAssignment() --> Text
+     * Descripción: Procesa only real assignment y devuelve el resultado correspondiente.
      */
     private OrbAssignment onlyRealAssignment() {
         OrbAssignment only = null;
@@ -711,8 +674,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona assigned.
-     * Diseño lógico: (String address) → assigned() → OrbAssignment; según doc/android_design.md.
+     * Diseño lógico: address: Text --> assigned() --> Text
+     * Descripción: Procesa assigned y devuelve el resultado correspondiente.
      */
     private OrbAssignment assigned(String address) {
         for (OrbAssignment assignment : assignments) {
@@ -722,8 +685,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona receive.
-     * Diseño lógico: (LiveMeasurement reading) → receive() → void; según doc/android_design.md.
+     * Diseño lógico: reading: Text --> receive()
+     * Descripción: Procesa receive y devuelve el resultado correspondiente..
      */
     private void receive(LiveMeasurement reading) {
         OrbAssignment assignment = assigned(reading.address);
@@ -744,9 +707,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private int batterySentPercent = -1;
     private long batterySentAt;
 
-    /** Envía la batería del Orb asignado si ha cambiado o han pasado 10 minutos desde el último envío. */
     /**
-     * Diseño lógico: (String address, int percent) → receiveBattery() → void; según doc/android_design.md.
+     * Diseño lógico: address: Text, percent: Z --> receiveBattery()
+     * Descripción: Procesa receive battery y devuelve el resultado correspondiente..
      */
     private void receiveBattery(String address, int percent) {
         OrbAssignment assignment = assigned(address);
@@ -765,7 +728,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
      * público lo decide el administrador de la campaña desde el panel web, no la app.
      */
     /**
-     * Diseño lógico: (boolean enabled) → setSharing() → void; según doc/android_design.md.
+     * Diseño lógico: enabled: B --> setSharing()
+     * Descripción: Procesa set sharing y devuelve el resultado correspondiente..
      */
     public void setSharing(boolean enabled) {
         sharing = enabled && selected() != null;
@@ -777,8 +741,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Selecciona Orb.
-     * Diseño lógico: (String address) → selectOrb() → void; según doc/android_design.md.
+     * Diseño lógico: address: Text --> selectOrb()
+     * Descripción: Procesa select orb y devuelve el resultado correspondiente..
      */
     public void selectOrb(String address) {
         if (assigned(address) == null) {
@@ -792,8 +756,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona unlink.
-     * Diseño lógico: (sin parámetros) → unlink() → void; según doc/android_design.md.
+     * Diseño lógico: unlink()
+     * Descripción: Procesa unlink y devuelve el resultado correspondiente..
      */
     public void unlink() {
         ble.unlink();
@@ -802,8 +766,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Alterna scan.
-     * Diseño lógico: (sin parámetros) → toggleScan() → void; según doc/android_design.md.
+     * Diseño lógico: toggleScan()
+     * Descripción: Procesa toggle scan y devuelve el resultado correspondiente..
      */
     public void toggleScan() {
         if (ble.scanning) {
@@ -815,8 +779,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona scan with bluetooth.
-     * Diseño lógico: (sin parámetros) → scanWithBluetooth() → void; según doc/android_design.md.
+     * Diseño lógico: scanWithBluetooth()
+     * Descripción: Procesa scan with bluetooth y devuelve el resultado correspondiente..
      */
     private void scanWithBluetooth() {
         if (ble.bluetoothEnabled()) ble.startScan();
@@ -830,39 +794,39 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona server estado.
-     * Diseño lógico: (sin parámetros) → serverStatus() → String; según doc/android_design.md.
+     * Diseño lógico: serverStatus() --> Text
+     * Descripción: Procesa server status y devuelve el resultado correspondiente.
      */
     public String serverStatus() { return serverStatus; }
     /**
-     * Gestiona retry uploads.
-     * Diseño lógico: (sin parámetros) → retryUploads() → void; según doc/android_design.md.
+     * Diseño lógico: retryUploads()
+     * Descripción: Procesa retry uploads y devuelve el resultado correspondiente..
      */
     public void retryUploads() {
         serverStatus = "Reintentando lecturas pendientes…";
         field.retryPending(status -> serverStatus = status);
     }
     /**
-     * Actualiza live.
-     * Diseño lógico: (Runnable action) → updateLive() → void; según doc/android_design.md.
+     * Diseño lógico: action: Text --> updateLive()
+     * Descripción: Procesa update live y devuelve el resultado correspondiente..
      */
     public void updateLive(Runnable action) { updateLive = action; action.run(); }
 
     /**
-     * Gestiona locate mapa.
-     * Diseño lógico: (sin parámetros) → locateMap() → void; según doc/android_design.md.
+     * Diseño lógico: locateMap()
+     * Descripción: Procesa locate map y devuelve el resultado correspondiente..
      */
     public void locateMap() { requestPermissions(locationPermissions(), GPS_MAP); }
 
     /**
-     * Gestiona ubicación allowed.
-     * Diseño lógico: (sin parámetros) → locationAllowed() → boolean; según doc/android_design.md.
+     * Diseño lógico: locationAllowed() --> B
+     * Descripción: Procesa location allowed y devuelve el resultado correspondiente.
      */
     public boolean locationAllowed() { return location.allowed(); }
 
-    /** Interruptor "Ubicación" de Vincular: pide el permiso o abre los ajustes para retirarlo. */
     /**
-     * Diseño lógico: (sin parámetros) → toggleLocationPermission() → void; según doc/android_design.md.
+     * Diseño lógico: toggleLocationPermission()
+     * Descripción: Procesa toggle location permission y devuelve el resultado correspondiente..
      */
     public void toggleLocationPermission() {
         if (!location.allowed()) {
@@ -879,16 +843,16 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona ubicación permisos.
-     * Diseño lógico: (sin parámetros) → locationPermissions() → String[]; según doc/android_design.md.
+     * Diseño lógico: locationPermissions() --> Text
+     * Descripción: Procesa location permissions y devuelve el resultado correspondiente.
      */
     private String[] locationPermissions() {
         return new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
     }
 
     /**
-     * Atiende el evento petición permisos resultado.
-     * Diseño lógico: (int request, String[] permissions, int[] results) → onRequestPermissionsResult() → void; según doc/android_design.md.
+     * Diseño lógico: (int request, String[] permissions, int[] results) --> onRequestPermissionsResult()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(request, permissions, results);
@@ -902,16 +866,15 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         else if (request == GPS_MAP && mapScreen != null) mapScreen.locate();
     }
 
-    /** Nombre del sensor en este móvil: el que puso el usuario o el de la asignación. */
-    /** Nombre del Orb tal como lo registra el admin de campaña en el panel web. */
     /**
-     * Diseño lógico: (OrbAssignment sensor) → sensorName() → String; según doc/android_design.md.
+     * Diseño lógico: sensor: Text --> sensorName() --> Text
+     * Descripción: Procesa sensor name y devuelve el resultado correspondiente.
      */
     public String sensorName(OrbAssignment sensor) { return sensor == null ? "" : sensor.name; }
 
-    /** Pide el permiso de ubicación desde «Detalles del sensor» si la persona lo denegó. */
     /**
-     * Diseño lógico: (sin parámetros) → requestCaptureLocation() → void; según doc/android_design.md.
+     * Diseño lógico: requestCaptureLocation()
+     * Descripción: Procesa request capture location y devuelve el resultado correspondiente..
      */
     public void requestCaptureLocation() {
         if (location.allowed()) { message("La ubicación ya está permitida.", TONE_OK); return; }
@@ -919,14 +882,14 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona preferencias.
-     * Diseño lógico: (sin parámetros) → prefs() → AppPrefs; según doc/android_design.md.
+     * Diseño lógico: prefs() --> Text
+     * Descripción: Procesa prefs y devuelve el resultado correspondiente.
      */
     public AppPrefs prefs() { return prefs; }
 
     /**
-     * Gestiona reconnect sensor.
-     * Diseño lógico: (sin parámetros) → reconnectSensor() → void; según doc/android_design.md.
+     * Diseño lógico: reconnectSensor()
+     * Descripción: Procesa reconnect sensor y devuelve el resultado correspondiente..
      */
     public void reconnectSensor() {
         ble.stopScan();
@@ -935,8 +898,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona biometric available.
-     * Diseño lógico: (sin parámetros) → biometricAvailable() → boolean; según doc/android_design.md.
+     * Diseño lógico: biometricAvailable() --> B
+     * Descripción: Procesa biometric available y devuelve el resultado correspondiente.
      */
     public boolean biometricAvailable() {
         return androidx.biometric.BiometricManager.from(this).canAuthenticate(
@@ -945,8 +908,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona biometric enabled.
-     * Diseño lógico: (long userId) → biometricEnabled() → boolean; según doc/android_design.md.
+     * Diseño lógico: userId: Z --> biometricEnabled() --> B
+     * Descripción: Procesa biometric enabled y devuelve el resultado correspondiente.
      */
     public boolean biometricEnabled(long userId) {
         if (!biometricAccess.hasEnrollment(userId)) return false;
@@ -959,9 +922,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         }
     }
 
-    /** Activates a cryptographic biometric key scoped to the signed-in AERIQ user. */
     /**
-     * Diseño lógico: (long userId, Consumer<Boolean> done) → enableBiometricAccess() → void; según doc/android_design.md.
+     * Diseño lógico: userId: Z, done: Text --> enableBiometricAccess()
+     * Descripción: Procesa enable biometric access y devuelve el resultado correspondiente..
      */
     public void enableBiometricAccess(long userId, Consumer<Boolean> done) {
         if (auth.user == null || auth.user.id != userId || auth.sessionToken() == null) {
@@ -999,8 +962,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona enroll biometric credential.
-     * Diseño lógico: (long userId, String password, Consumer<Boolean> done) → enrollBiometricCredential() → void; según doc/android_design.md.
+     * Diseño lógico: userId: Z, password: Text, done: Text --> enrollBiometricCredential()
+     * Descripción: Procesa enroll biometric credential y devuelve el resultado correspondiente..
      */
     private void enrollBiometricCredential(long userId, String password, Consumer<Boolean> done) {
         final Cipher cipher;
@@ -1016,8 +979,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             androidx.core.content.ContextCompat.getMainExecutor(this),
             new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
                 /**
-                 * Atiende el evento authentication succeeded.
-                 * Diseño lógico: (androidx.biometric.BiometricPrompt.AuthenticationResult result) → onAuthenticationSucceeded() → void; según doc/android_design.md.
+                 * Diseño lógico: (androidx.biometric.BiometricPrompt.AuthenticationResult result) --> onAuthenticationSucceeded()
+                 * Descripción: Describe la operación realizada y su resultado.
                  */
                 @Override public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
                     try {
@@ -1033,8 +996,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
                 }
 
                 /**
-                 * Atiende el evento authentication error.
-                 * Diseño lógico: (int code, CharSequence error) → onAuthenticationError() → void; según doc/android_design.md.
+                 * Diseño lógico: (int code, CharSequence error) --> onAuthenticationError()
+                 * Descripción: Describe la operación realizada y su resultado.
                  */
                 @Override public void onAuthenticationError(int code, CharSequence error) {
                     biometricAccess.disable(userId);
@@ -1056,16 +1019,16 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona disable biometric acceso.
-     * Diseño lógico: (long userId) → disableBiometricAccess() → void; según doc/android_design.md.
+     * Diseño lógico: userId: Z --> disableBiometricAccess()
+     * Descripción: Procesa disable biometric access y devuelve el resultado correspondiente..
      */
     public void disableBiometricAccess(long userId) {
         biometricAccess.disable(userId);
     }
 
-    /** Inicia una sesión nueva con credenciales descifradas solo tras validar biometría. */
     /**
-     * Diseño lógico: (sin parámetros) → loginWithFingerprint() → void; según doc/android_design.md.
+     * Diseño lógico: loginWithFingerprint()
+     * Descripción: Procesa login with fingerprint y devuelve el resultado correspondiente..
      */
     public void loginWithFingerprint() {
         long expectedUserId = biometricAccess.enrolledUserId();
@@ -1090,15 +1053,15 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             androidx.core.content.ContextCompat.getMainExecutor(this),
             new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
                 /**
-                 * Atiende el evento authentication succeeded.
-                 * Diseño lógico: (androidx.biometric.BiometricPrompt.AuthenticationResult result) → onAuthenticationSucceeded() → void; según doc/android_design.md.
+                 * Diseño lógico: (androidx.biometric.BiometricPrompt.AuthenticationResult result) --> onAuthenticationSucceeded()
+                 * Descripción: Describe la operación realizada y su resultado.
                  */
                 @Override public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
                     completeBiometricLogin(expectedUserId, result.getCryptoObject());
                 }
                 /**
-                 * Atiende el evento authentication error.
-                 * Diseño lógico: (int code, CharSequence error) → onAuthenticationError() → void; según doc/android_design.md.
+                 * Diseño lógico: (int code, CharSequence error) --> onAuthenticationError()
+                 * Descripción: Describe la operación realizada y su resultado.
                  */
                 @Override public void onAuthenticationError(int code, CharSequence error) {
                     if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
@@ -1116,8 +1079,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona complete biometric login.
-     * Diseño lógico: (long expectedUserId, androidx.biometric.BiometricPrompt.CryptoObject crypto) → completeBiometricLogin() → void; según doc/android_design.md.
+     * Diseño lógico: expectedUserId: Z, crypto: Text --> completeBiometricLogin()
+     * Descripción: Procesa complete biometric login y devuelve el resultado correspondiente..
      */
     private void completeBiometricLogin(long expectedUserId, androidx.biometric.BiometricPrompt.CryptoObject crypto) {
         final BiometricAccessStore.Credential credential;
@@ -1160,7 +1123,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
 
     // Exportar CSV/PDF no se ofrece en la app (en la web el operador no descarga datos). Se conserva por si se habilita.
     /**
-     * Diseño lógico: (List<StoredReading> rows, String title) → exportPdf() → void; según doc/android_design.md.
+     * Diseño lógico: rows: [ Text ], title: Text --> exportPdf()
+     * Descripción: Procesa export pdf y devuelve el resultado correspondiente..
      */
     public void exportPdf(List<StoredReading> rows, String title) {
         exportRows = new ArrayList<>(rows);
@@ -1171,13 +1135,17 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Escribe pdf.
-     * Diseño lógico: (Uri uri, List<StoredReading> rows, String title) → writePdf() → void; según doc/android_design.md.
+     * Diseño lógico: uri: Text, rows: [ Text ], title: Text --> writePdf()
+     * Descripción: Procesa write pdf y devuelve el resultado correspondiente..
      */
     private void writePdf(Uri uri, List<StoredReading> rows, String title) {
         maps.execute(() -> {
             android.graphics.pdf.PdfDocument document = new android.graphics.pdf.PdfDocument();
 
+          /**
+           * Diseño lógico: output: Text --> try() --> Text
+           * Descripción: Procesa try y devuelve el resultado correspondiente.
+           */
             try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
                 if (output == null) throw new java.io.IOException("Destino no disponible");
                 android.graphics.Paint bold = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
@@ -1241,16 +1209,16 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona clip.
-     * Diseño lógico: (String value, int length) → clip() → String; según doc/android_design.md.
+     * Diseño lógico: value: Text, length: Z --> clip() --> Text
+     * Descripción: Procesa clip y devuelve el resultado correspondiente.
      */
     private static String clip(String value, int length) {
         return value == null ? "" : value.length() <= length ? value : value.substring(0, length - 1) + "…";
     }
 
     /**
-     * Gestiona export.
-     * Diseño lógico: (List<StoredReading> rows) → export() → void; según doc/android_design.md.
+     * Diseño lógico: rows: [ Text ] --> export()
+     * Descripción: Procesa export y devuelve el resultado correspondiente..
      */
     public void export(List<StoredReading> rows) {
         exportRows = new ArrayList<>(rows);
@@ -1260,8 +1228,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Atiende el evento activity resultado.
-     * Diseño lógico: (int request, int result, Intent data) → onActivityResult() → void; según doc/android_design.md.
+     * Diseño lógico: (int request, int result, Intent data) --> onActivityResult()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
@@ -1278,6 +1246,10 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
             exportRows = null;
             maps.execute(() -> {
 
+              /**
+               * Diseño lógico: output: Text --> try() --> Text
+               * Descripción: Procesa try y devuelve el resultado correspondiente.
+               */
                 try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
                     if (output == null) throw new java.io.IOException("Destino no disponible");
                     output.write(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -1290,8 +1262,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Abre.
-     * Diseño lógico: (String url) → open() → void; según doc/android_design.md.
+     * Diseño lógico: url: Text --> open()
+     * Descripción: Procesa open y devuelve el resultado correspondiente..
      */
     public void open(String url) {
         try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
@@ -1299,19 +1271,14 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona signed in.
-     * Diseño lógico: (sin parámetros) → signedIn() → boolean; según doc/android_design.md.
+     * Diseño lógico: signedIn() --> B
+     * Descripción: Procesa signed in y devuelve el resultado correspondiente.
      */
     public boolean signedIn() { return auth.user != null; }
 
-    /** Tono de los mensajes: verde = hecho, naranja = aviso, rojo = error, oscuro = información. */
-    public static final int TONE_INFO = 0, TONE_OK = 1, TONE_WARN = 2, TONE_ERROR = 3;
-    private TextView notice;
-    private final Runnable hideNotice = () -> { if (notice != null) notice.animate().alpha(0).setDuration(200).withEndAction(() -> notice.setVisibility(View.GONE)).start(); };
-
     /**
-     * Gestiona mensaje.
-     * Diseño lógico: (String text) → message() → void; según doc/android_design.md.
+     * Diseño lógico: text: Text --> message()
+     * Descripción: Procesa message y devuelve el resultado correspondiente..
      */
     public void message(String text) { message(text, TONE_INFO); }
 
@@ -1320,7 +1287,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
      * Los errores se quedan más tiempo. Se anuncia también al lector de pantalla.
      */
     /**
-     * Diseño lógico: (String text, int tone) → message() → void; según doc/android_design.md.
+     * Diseño lógico: text: Text, tone: Z --> message()
+     * Descripción: Procesa message y devuelve el resultado correspondiente..
      */
     public void message(String text, int tone) {
         if (text == null || text.trim().isEmpty()) return;
@@ -1352,8 +1320,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Atiende el evento start.
-     * Diseño lógico: (sin parámetros) → onStart() → void; según doc/android_design.md.
+     * Diseño lógico: onStart()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onStart() {
         super.onStart();
@@ -1366,8 +1334,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Atiende el evento stop.
-     * Diseño lógico: (sin parámetros) → onStop() → void; según doc/android_design.md.
+     * Diseño lógico: onStop()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onStop() {
         started = false;
@@ -1379,8 +1347,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Atiende el evento destroy.
-     * Diseño lógico: (sin parámetros) → onDestroy() → void; según doc/android_design.md.
+     * Diseño lógico: onDestroy()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onDestroy() {
         if (mapScreen != null) mapScreen.close();
@@ -1391,8 +1359,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Atiende el evento back pressed.
-     * Diseño lógico: (sin parámetros) → onBackPressed() → void; según doc/android_design.md.
+     * Diseño lógico: onBackPressed()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed() {
@@ -1402,9 +1370,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     private SplashView splash;
     private SpotlightTour tutorial;
 
-    /** Animación de apertura (cada vez que se abre la app) y, si nunca se ha visto, el tutorial. */
     /**
-     * Diseño lógico: (sin parámetros) → showIntro() → void; según doc/android_design.md.
+     * Diseño lógico: showIntro()
+     * Descripción: Procesa show intro y devuelve el resultado correspondiente..
      */
     private void showIntro() {
         FrameLayout content = findViewById(android.R.id.content);
@@ -1423,7 +1391,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
      * desde Cuenta → Ayuda y contacto).
      */
     /**
-     * Diseño lógico: (sin parámetros) → showTutorial() → void; según doc/android_design.md.
+     * Diseño lógico: showTutorial()
+     * Descripción: Procesa show tutorial y devuelve el resultado correspondiente..
      */
     public void showTutorial() {
         if (tutorial != null || splash != null) return;
@@ -1440,9 +1409,9 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
         tutorial.start();
     }
 
-    /** Pasos del tour. Los de pestañas dependen de la cuenta: quien mide ve «Mi sensor»; quien gestiona, «Panel». */
     /**
-     * Diseño lógico: (sin parámetros) → tourSteps() → List<SpotlightTour.Step>; según doc/android_design.md.
+     * Diseño lógico: tourSteps() --> [ Text ]
+     * Descripción: Procesa tour steps y devuelve el resultado correspondiente.
      */
     private List<SpotlightTour.Step> tourSteps() {
         boolean signedIn = auth.user != null;
@@ -1472,8 +1441,8 @@ public final class MainActivity extends androidx.fragment.app.FragmentActivity {
     }
 
     /**
-     * Gestiona navigate back.
-     * Diseño lógico: (sin parámetros) → navigateBack() → void; según doc/android_design.md.
+     * Diseño lógico: navigateBack()
+     * Descripción: Procesa navigate back y devuelve el resultado correspondiente..
      */
     private void navigateBack() {
         if (splash != null) return; // la animación dura menos de 2 s y termina sola

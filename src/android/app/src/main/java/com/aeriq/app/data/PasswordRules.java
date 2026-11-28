@@ -20,13 +20,15 @@ public final class PasswordRules {
         DIGIT = "un número", SYMBOL = "un símbolo (por ejemplo ! ? # @ . -)";
     public static final List<String> ALL = Collections.unmodifiableList(java.util.Arrays.asList(LENGTH, UPPER, LOWER, DIGIT, SYMBOL));
 
-
-
+    /**
+     * Diseño lógico: PasswordRules()
+     * Descripción: Evita crear instancias de esta clase, que solo contiene funciones de validación estáticas.
+     */
     private PasswordRules() {}
 
-    /** Lo que le falta a la contraseña, en el orden de {@link #ALL}; vacío si cumple todo. */
     /**
-     * Diseño lógico: (String password) → missing() → List<String>; según doc/android_design.md.
+     * Diseño lógico: password: Text --> missing() --> Text
+     * Descripción: Devuelve los requisitos de seguridad que aún no cumple la contraseña.
      */
     public static List<String> missing(String password) {
         String value = password == null ? "" : password;
@@ -49,9 +51,9 @@ public final class PasswordRules {
         return out;
     }
 
-    /** Frase para avisar de lo que falta: «Le falta: una mayúscula y un símbolo…». Vacía si cumple. */
     /**
-     * Diseño lógico: (String password) → problem() → String; según doc/android_design.md.
+     * Diseño lógico: password: Text --> problem() --> Text
+     * Descripción: Devuelve un mensaje con los requisitos de contraseña que faltan.
      */
     public static String problem(String password) {
         List<String> missing = missing(password);

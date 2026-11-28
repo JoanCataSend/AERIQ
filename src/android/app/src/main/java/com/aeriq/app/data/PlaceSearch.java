@@ -27,10 +27,10 @@ public final class PlaceSearch {
     public static final class Place {
         public final String name, detail;
         public final double latitude, longitude;
-        /** Caja [norte, este, sur, oeste] o null si el servicio no la devuelve. */
-        public final double[] box;
-        public final String kind;
-
+        /**
+         * Diseño lógico: name: Text, detail: Text, latitude: R, longitude: R, box: R, kind: Text --> Place() --> Text
+         * Descripción: Procesa place y devuelve el resultado correspondiente.
+         */
         Place(String name, String detail, double latitude, double longitude, double[] box, String kind) {
             this.name = name;
             this.detail = detail;
@@ -41,8 +41,8 @@ public final class PlaceSearch {
         }
 
         /**
-         * Gestiona zoom.
-         * Diseño lógico: (sin parámetros) → zoom() → double; según doc/android_design.md.
+         * Diseño lógico: zoom() --> R
+         * Descripción: Procesa zoom y devuelve el resultado correspondiente.
          */
         public double zoom() {
             switch (kind) {
@@ -58,24 +58,23 @@ public final class PlaceSearch {
         }
     }
 
-
-
+    /**
+     * Diseño lógico: PlaceSearch() --> Text
+     * Descripción: Procesa place search y devuelve el resultado correspondiente.
+     */
     private PlaceSearch() {}
 
-    /** Ciudades ya resueltas, por coordenadas redondeadas a unos 100 m: así no se repite la consulta. */
-    private static final Map<String, String> CITIES = new java.util.concurrent.ConcurrentHashMap<>();
-
     /**
-     * Gestiona city key.
-     * Diseño lógico: (double latitude, double longitude) → cityKey() → String; según doc/android_design.md.
+     * Diseño lógico: latitude: R, longitude: R --> cityKey() --> Text
+     * Descripción: Procesa city key y devuelve el resultado correspondiente.
      */
     private static String cityKey(double latitude, double longitude) {
         return String.format(Locale.ROOT, "%.3f,%.3f", latitude, longitude);
     }
 
-    /** Ciudad ya conocida para esas coordenadas, sin consultar nada; null si aún no se ha resuelto. */
     /**
-     * Diseño lógico: (double latitude, double longitude) → cachedCity() → String; según doc/android_design.md.
+     * Diseño lógico: latitude: R, longitude: R --> cachedCity() --> Text
+     * Descripción: Procesa cached city y devuelve el resultado correspondiente.
      */
     public static String cachedCity(double latitude, double longitude) { return CITIES.get(cityKey(latitude, longitude)); }
 
@@ -84,7 +83,8 @@ public final class PlaceSearch {
      * Photon. Devuelve null si ninguno lo sabe. Hace red: llamar fuera del hilo principal.
      */
     /**
-     * Diseño lógico: (Context context, double latitude, double longitude) → city() → String; según doc/android_design.md.
+     * Diseño lógico: context: Text, latitude: R, longitude: R --> city() --> Text
+     * Descripción: Procesa city y devuelve el resultado correspondiente.
      */
     public static String city(Context context, double latitude, double longitude) {
         String key = cityKey(latitude, longitude);
@@ -98,10 +98,14 @@ public final class PlaceSearch {
     }
 
     /**
-     * Gestiona android city.
      * Diseño lógico: (Context context, double latitude, double longitude) → androidCity() → String; según doc/android_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @SuppressWarnings("deprecation")
+    /**
+     * Diseño lógico: context: Text, latitude: R, longitude: R --> androidCity() --> Text
+     * Descripción: Procesa android city y devuelve el resultado correspondiente.
+     */
     private static String androidCity(Context context, double latitude, double longitude) throws IOException {
         if (!Geocoder.isPresent()) return null;
         List<Address> found = new Geocoder(context, Locale.getDefault()).getFromLocation(latitude, longitude, 1);
@@ -114,8 +118,8 @@ public final class PlaceSearch {
     }
 
     /**
-     * Gestiona photon city.
-     * Diseño lógico: (double latitude, double longitude) → photonCity() → String; según doc/android_design.md.
+     * Diseño lógico: latitude: R, longitude: R --> photonCity() --> Text
+     * Descripción: Procesa photon city y devuelve el resultado correspondiente.
      */
     private static String photonCity(double latitude, double longitude) throws Exception {
         JSONArray features = new JSONObject(get(new URL(String.format(Locale.ROOT,
@@ -135,8 +139,8 @@ public final class PlaceSearch {
     }
 
     /**
-     * Gestiona búsqueda.
-     * Diseño lógico: (Context context, String query, int limit) → search() → List<Place>; según doc/android_design.md.
+     * Diseño lógico: context: Text, query: Text, limit: Z --> search() --> [ Text ]
+     * Descripción: Procesa search y devuelve el resultado correspondiente.
      */
     public static List<Place> search(Context context, String query, int limit) throws IOException {
         String term = query.trim();
@@ -151,8 +155,8 @@ public final class PlaceSearch {
     }
 
     /**
-     * Obtiene.
-     * Diseño lógico: (URL url) → get() → String; según doc/android_design.md.
+     * Diseño lógico: url: Text --> get() --> Text
+     * Descripción: Procesa get y devuelve el resultado correspondiente.
      */
     private static String get(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -164,6 +168,10 @@ public final class PlaceSearch {
             if (connection.getResponseCode() != 200) throw new IOException("HTTP " + connection.getResponseCode());
             StringBuilder content = new StringBuilder();
 
+          /**
+           * Diseño lógico: reader: Text, StandardCharsets.UTF_8): Text --> try() --> Text
+           * Descripción: Procesa try y devuelve el resultado correspondiente.
+           */
             try (Reader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
                 char[] buffer = new char[4096];
                 int count;
@@ -179,8 +187,8 @@ public final class PlaceSearch {
     }
 
     /**
-     * Gestiona photon.
-     * Diseño lógico: (String term, int limit) → photon() → List<Place>; según doc/android_design.md.
+     * Diseño lógico: term: Text, limit: Z --> photon() --> [ Text ]
+     * Descripción: Procesa photon y devuelve el resultado correspondiente.
      */
     private static List<Place> photon(String term, int limit) throws Exception {
         URL url = new URL("https://photon.komoot.io/api/?limit=" + limit + "&q="
@@ -214,10 +222,14 @@ public final class PlaceSearch {
     }
 
     /**
-     * Gestiona android.
      * Diseño lógico: (Context context, String term, int limit) → android() → List<Place>; según doc/android_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @SuppressWarnings("deprecation")
+    /**
+     * Diseño lógico: context: Text, term: Text, limit: Z --> android() --> [ Text ]
+     * Descripción: Procesa android y devuelve el resultado correspondiente.
+     */
     private static List<Place> android(Context context, String term, int limit) throws IOException {
         if (!Geocoder.isPresent()) throw new IOException("No hay servicio de búsqueda disponible");
         List<Address> addresses = new Geocoder(context, Locale.getDefault()).getFromLocationName(term, limit);

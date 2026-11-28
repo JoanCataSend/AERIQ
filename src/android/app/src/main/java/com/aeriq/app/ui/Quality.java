@@ -9,48 +9,44 @@ package com.aeriq.app.ui;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-/** Niveles de calidad, colores y fechas compartidos por el mapa y Mi sensor. */
-public final class Quality {
-    public static final int LOW = 0xff219c72, MEDIUM = 0xffeea22d, HIGH = 0xffe35b5d, NONE = 0xffd5dcd9;
-    public static final int LOW_SOFT = 0xffdcefe8, MEDIUM_SOFT = 0xfffbe8cc, HIGH_SOFT = 0xfff9dcdc;
-    public static final int LOW_TEXT = 0xff0e6b5e, MEDIUM_TEXT = 0xff94580a, HIGH_TEXT = 0xffb3302f;
-
-
-
+/**
+ * Diseño lógico: Quality() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
+ */
     private Quality() {}
 
-    /** 0 = bajo/buena, 1 = moderado, 2 = alto/mala. */
     /**
-     * Diseño lógico: (double value, double medium, double high) → level() → int; según doc/android_design.md.
+     * Diseño lógico: value: R, medium: R, high: R --> level() --> Z
+     * Descripción: Clasifica el valor según los umbrales medio y alto.
      */
     public static int level(double value, double medium, double high) {
         return value >= high ? 2 : value >= medium ? 1 : 0;
     }
 
     /**
-     * Gestiona color.
-     * Diseño lógico: (int level) → color() → int; según doc/android_design.md.
+     * Diseño lógico: level: Z --> color() --> Z
+     * Descripción: Procesa color y devuelve el resultado correspondiente.
      */
     public static int color(int level) { return level == 2 ? HIGH : level == 1 ? MEDIUM : LOW; }
     /**
-     * Gestiona soft.
-     * Diseño lógico: (int level) → soft() → int; según doc/android_design.md.
+     * Diseño lógico: level: Z --> soft() --> Z
+     * Descripción: Procesa soft y devuelve el resultado correspondiente.
      */
     public static int soft(int level) { return level == 2 ? HIGH_SOFT : level == 1 ? MEDIUM_SOFT : LOW_SOFT; }
     /**
-     * Gestiona texto.
-     * Diseño lógico: (int level) → text() → int; según doc/android_design.md.
+     * Diseño lógico: level: Z --> text() --> Z
+     * Descripción: Procesa text y devuelve el resultado correspondiente.
      */
     public static int text(int level) { return level == 2 ? HIGH_TEXT : level == 1 ? MEDIUM_TEXT : LOW_TEXT; }
     /**
-     * Gestiona label.
-     * Diseño lógico: (int level) → label() → String; según doc/android_design.md.
+     * Diseño lógico: level: Z --> label() --> Text
+     * Descripción: Procesa label y devuelve el resultado correspondiente.
      */
     public static String label(int level) { return level == 2 ? "Mala" : level == 1 ? "Moderada" : "Buena"; }
 
-    /** Fecha UTC del servidor ("yyyy-MM-dd HH:mm:ss") a milisegundos; 0 si no se entiende. */
     /**
-     * Diseño lógico: (String date) → utc() → long; según doc/android_design.md.
+     * Diseño lógico: date: Text --> utc() --> Z
+     * Descripción: Convierte una fecha UTC en milisegundos desde el epoch.
      */
     public static long utc(String date) {
         if (date == null) return 0;
@@ -64,9 +60,9 @@ public final class Quality {
         }
     }
 
-    /** "hoy, 12:45", "ayer, 09:10" o "3 nov, 18:00" en hora local. */
     /**
-     * Diseño lógico: (long millis) → when() → String; según doc/android_design.md.
+     * Diseño lógico: millis: Z --> when() --> Text
+     * Descripción: Formatea una fecha como hora local relativa al día actual.
      */
     public static String when(long millis) {
         if (millis <= 0) return "—";
@@ -80,9 +76,9 @@ public final class Quality {
         return new SimpleDateFormat("d MMM", new Locale("es", "ES")).format(new Date(millis)) + ", " + time;
     }
 
-    /** "5 s", "3 min", "2 h", "4 días". */
     /**
-     * Diseño lógico: (long millis) → ago() → String; según doc/android_design.md.
+     * Diseño lógico: millis: Z --> ago() --> Text
+     * Descripción: Formatea una duración como segundos, minutos, horas o días.
      */
     public static String ago(long millis) {
         long seconds = Math.max(0, millis / 1000);
@@ -96,8 +92,8 @@ public final class Quality {
     }
 
     /**
-     * Inicia of today.
-     * Diseño lógico: (sin parámetros) → startOfToday() → long; según doc/android_design.md.
+     * Diseño lógico: startOfToday() --> Z
+     * Descripción: Procesa start of today y devuelve el resultado correspondiente.
      */
     public static long startOfToday() {
         Calendar day = Calendar.getInstance();
@@ -109,16 +105,16 @@ public final class Quality {
     }
 
     /**
-     * Gestiona same day.
-     * Diseño lógico: (Calendar a, Calendar b) → sameDay() → boolean; según doc/android_design.md.
+     * Diseño lógico: a: Text, b: Text --> sameDay() --> B
+     * Descripción: Procesa same day y devuelve el resultado correspondiente.
      */
     private static boolean sameDay(Calendar a, Calendar b) {
         return a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
     }
 
     /**
-     * Gestiona number.
-     * Diseño lógico: (double value) → number() → String; según doc/android_design.md.
+     * Diseño lógico: value: R --> number() --> Text
+     * Descripción: Procesa number y devuelve el resultado correspondiente.
      */
     public static String number(double value) {
         return Math.abs(value - Math.rint(value)) < 0.05

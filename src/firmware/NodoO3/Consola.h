@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #pragma once
 // Calibracion por monitor serie (115200 baudios, fin de linea "Nueva linea").
 // Los ajustes se guardan en la flash interna (LittleFS) y se cargan al arrancar.
@@ -49,8 +48,8 @@ class Consola {
   double suma = 0, sumaCuadrados = 0;
 
   /**
-   * Gestiona control.
-   * Diseño lógico: (const Guardado &g) → control() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: g: Text --> control() --> N
+   * Descripción: Procesa control y devuelve el resultado correspondiente.
    */
   static uint32_t control(const Guardado &g) {
     const uint8_t *p = reinterpret_cast<const uint8_t*>(&g);
@@ -60,14 +59,14 @@ class Consola {
   }
 
   /**
-   * Gestiona imprimir.
-   * Diseño lógico: (const char *texto) → imprimir() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: texto: Z --> imprimir()
+   * Descripción: Procesa imprimir y devuelve el resultado correspondiente..
    */
   void imprimir(const char *texto) { if (Serial) Serial.println(texto); }
 
   /**
-   * Gestiona mostrar.
-   * Diseño lógico: (Calibracion &c) → mostrar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: c: Text --> mostrar()
+   * Descripción: Procesa mostrar y devuelve el resultado correspondiente..
    */
   void mostrar(Calibracion &c) {
     if (!Serial) return;
@@ -80,16 +79,16 @@ class Consola {
   }
 
   /**
-   * Guarda.
-   * Diseño lógico: (Calibracion &c) → guardar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: c: Text --> guardar() --> B
+   * Descripción: Procesa guardar y devuelve el resultado correspondiente.
    */
   bool guardar(Calibracion &c) {
     Guardado g{MAGIA, c.cero(), c.span(), c.sensibilidad(), 0};
     g.control = control(g);
     InternalFS.remove(ruta());
     /**
-     * Gestiona f.
      * Diseño lógico: (InternalFS) → f() → resultado de la operación; según doc/firmware_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     Adafruit_LittleFS_Namespace::File f(InternalFS);
     if (!f.open(ruta(), Adafruit_LittleFS_Namespace::FILE_O_WRITE)) return false;
@@ -99,8 +98,8 @@ class Consola {
   }
 
   /**
-   * Gestiona ejecutar.
-   * Diseño lógico: (Calibracion &c) → ejecutar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: c: Text --> ejecutar()
+   * Descripción: Procesa ejecutar y devuelve el resultado correspondiente..
    */
   void ejecutar(Calibracion &c) {
     for (uint8_t i = 0; i < largo; ++i) linea[i] = toupper(static_cast<unsigned char>(linea[i]));
@@ -138,20 +137,20 @@ class Consola {
 
  public:
   /**
-   * Gestiona midiendo cero.
-   * Diseño lógico: (sin parámetros) → midiendoCero() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: midiendoCero() --> B
+   * Descripción: Procesa midiendo cero y devuelve el resultado correspondiente.
    */
   bool midiendoCero() const { return midiendo; }
 
   /**
-   * Gestiona begin.
-   * Diseño lógico: (Calibracion &c) → begin() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: c: Text --> begin()
+   * Descripción: Inicializa el componente y los recursos que necesita..
    */
   void begin(Calibracion &c) {
     if (!InternalFS.begin()) return;
     /**
-     * Gestiona f.
      * Diseño lógico: (InternalFS) → f() → resultado de la operación; según doc/firmware_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     Adafruit_LittleFS_Namespace::File f(InternalFS);
     if (!f.open(ruta(), Adafruit_LittleFS_Namespace::FILE_O_READ)) return;
@@ -166,7 +165,8 @@ class Consola {
 
   // Lee caracteres sin bloquear; ejecuta al recibir fin de linea.
   /**
-   * Diseño lógico: (Calibracion &c) → atender() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: c: Text --> atender()
+   * Descripción: Procesa atender y devuelve el resultado correspondiente..
    */
   void atender(Calibracion &c) {
     while (Serial && Serial.available() > 0) {
@@ -183,7 +183,8 @@ class Consola {
 
   // Llamar con las tensiones de cada ciclo completo mientras se mide el cero.
   /**
-   * Diseño lógico: (Calibracion &c, float gas, float ref, float term, bool saturado) → ciclo() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: c: Text, gas: R, ref: R, term: R, saturado: B --> ciclo()
+   * Descripción: Procesa ciclo y devuelve el resultado correspondiente..
    */
   void ciclo(Calibracion &c, float gas, float ref, float term, bool saturado) {
     if (!midiendo) return;

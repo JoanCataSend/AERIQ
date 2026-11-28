@@ -12,8 +12,8 @@ import static org.junit.Assert.*;
 
 public final class MeasurementCsvTest {
     /**
-     * Prueba el comportamiento de preservesCoordinatesAndEscapesSpreadsheetText con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → preservesCoordinatesAndEscapesSpreadsheetText() → void; según doc/android_design.md.
+     * Diseño lógico: preservesCoordinatesAndEscapesSpreadsheetText()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test public void preservesCoordinatesAndEscapesSpreadsheetText() {
         StoredReading reading = new StoredReading(1, 68, "ppb", 14, "2026-11-03 12:30:00.000",

@@ -31,16 +31,18 @@ public final class NoticeScreens {
     private final Views ui;
     private boolean onlyOpen = true;
 
-
-
+    /**
+     * Diseño lógico: activity: Text, ui: Text --> NoticeScreens() --> Text
+     * Descripción: Procesa notice screens y devuelve el resultado correspondiente.
+     */
     public NoticeScreens(MainActivity activity, Views ui) {
         this.activity = activity;
         this.ui = ui;
     }
 
     /**
-     * Gestiona panel.
-     * Diseño lógico: (LinearLayout body, int padding) → panel() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: body: Text, padding: Z --> panel() --> Text
+     * Descripción: Procesa panel y devuelve el resultado correspondiente.
      */
     private LinearLayout panel(LinearLayout body, int padding) {
         LinearLayout panel = ui.column();
@@ -53,8 +55,8 @@ public final class NoticeScreens {
     }
 
     /**
-     * Gestiona pill.
-     * Diseño lógico: (String state, String label) → pill() → TextView; según doc/android_design.md.
+     * Diseño lógico: state: Text, label: Text --> pill() --> Text
+     * Descripción: Procesa pill y devuelve el resultado correspondiente.
      */
     private TextView pill(String state, String label) {
         int bg = "abierto".equals(state) ? OPEN_BG : "respondido".equals(state) ? ANSWERED_BG : CLOSED_BG;
@@ -66,8 +68,8 @@ public final class NoticeScreens {
     }
 
     /**
-     * Gestiona estado.
-     * Diseño lógico: (LinearLayout parent, String status) → status() → TextView; según doc/android_design.md.
+     * Diseño lógico: parent: Text, status: Text --> status() --> Text
+     * Descripción: Procesa status y devuelve el resultado correspondiente.
      */
     private TextView status(LinearLayout parent, String status) {
         TextView view = ui.text(status, 13, true, status.startsWith("No se pudo") ? RED : GREEN);
@@ -76,9 +78,9 @@ public final class NoticeScreens {
         return view;
     }
 
-    /** Campo de texto de varias líneas con límite de caracteres. */
     /**
-     * Diseño lógico: (LinearLayout parent, String label, String hint, int lines) → area() → EditText; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, hint: Text, lines: Z --> area() --> Text
+     * Descripción: Procesa area y devuelve el resultado correspondiente.
      */
     private EditText area(LinearLayout parent, String label, String hint, int lines) {
         EditText input = ui.field(parent, label, "", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -95,7 +97,8 @@ public final class NoticeScreens {
     // ================================================================= Bandeja
 
     /**
-     * Diseño lógico: (LinearLayout body, Notices.Inbox inbox, String status) → inbox() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, inbox: Text, status: Text --> inbox()
+     * Descripción: Procesa inbox y devuelve el resultado correspondiente..
      */
     public void inbox(LinearLayout body, Notices.Inbox inbox, String status) {
         LinearLayout intro = panel(body, 18);
@@ -155,8 +158,8 @@ public final class NoticeScreens {
     }
 
     /**
-     * Gestiona fila.
-     * Diseño lógico: (Notices.Summary notice) → row() → View; según doc/android_design.md.
+     * Diseño lógico: notice: Text --> row() --> Text
+     * Descripción: Procesa row y devuelve el resultado correspondiente.
      */
     private View row(Notices.Summary notice) {
         LinearLayout row = ui.row();
@@ -191,7 +194,8 @@ public final class NoticeScreens {
     // ================================================================= Conversación
 
     /**
-     * Diseño lógico: (LinearLayout body, Notices.Conversation notice, String status) → conversation() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, notice: Text, status: Text --> conversation()
+     * Descripción: Procesa conversation y devuelve el resultado correspondiente..
      */
     public void conversation(LinearLayout body, Notices.Conversation notice, String status) {
         if (notice == null) {
@@ -244,7 +248,8 @@ public final class NoticeScreens {
     // ================================================================= Nuevo aviso
 
     /**
-     * Diseño lógico: (LinearLayout body, Notices.Inbox inbox) → compose() → void; según doc/android_design.md.
+     * Diseño lógico: body: Text, inbox: Text --> compose()
+     * Descripción: Procesa compose y devuelve el resultado correspondiente..
      */
     public void compose(LinearLayout body, Notices.Inbox inbox) {
         LinearLayout form = panel(body, 18);

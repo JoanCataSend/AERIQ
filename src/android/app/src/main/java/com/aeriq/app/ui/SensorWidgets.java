@@ -11,28 +11,23 @@ import android.graphics.*;
 import android.view.View;
 import java.util.*;
 
-/** Gráficas de la pantalla Mi sensor. */
-public final class SensorWidgets {
+/**
+ * Diseño lógico: SensorWidgets() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
+ */
     private SensorWidgets() {}
 
-    /** Punto (instante, valor) de una medición de ozono. */
-    public static final class Point {
-        public final long time;
-        public final double value;
+    /**
+     * Diseño lógico: time: Z, value: R --> Point() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
+     */
         public Point(long time, double value) { this.time = time; this.value = value; }
     }
 
-    /** Línea con área rellena desde las 00:00 hasta ahora; el último punto se marca con un círculo hueco. */
-    public static final class DayAreaChart extends View {
-        private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path stroke = new Path(), area = new Path();
-        private List<Point> points = new ArrayList<>();
-        private final float density;
-
-
-
+    /**
+     * Diseño lógico: context: Text --> DayAreaChart() --> Text
+     * Descripción: Procesa day area chart y devuelve el resultado correspondiente.
+     */
         public DayAreaChart(Context context) {
             super(context);
             density = context.getResources().getDisplayMetrics().density;
@@ -48,8 +43,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Establece points.
-         * Diseño lógico: (List<Point> values) → setPoints() → void; según doc/android_design.md.
+         * Diseño lógico: values: [ Text ] --> setPoints()
+         * Descripción: Procesa set points y devuelve el resultado correspondiente..
          */
         public void setPoints(List<Point> values) {
             points = new ArrayList<>(values);
@@ -58,8 +53,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Atiende el evento draw.
-         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         * Diseño lógico: (Canvas canvas) --> onDraw()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
@@ -110,15 +105,10 @@ public final class SensorWidgets {
         }
     }
 
-    /** Barra segmentada de 00:00 a ahora con el color de la calidad del aire de cada tramo. */
-    public static final class QualityStrip extends View {
-        private static final int SEGMENTS = 13;
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final int[] colors = new int[SEGMENTS];
-        private final float density;
-
-
-
+    /**
+     * Diseño lógico: context: Text --> QualityStrip() --> Text
+     * Descripción: Procesa quality strip y devuelve el resultado correspondiente.
+     */
         public QualityStrip(Context context) {
             super(context);
             density = context.getResources().getDisplayMetrics().density;
@@ -127,8 +117,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Establece points.
-         * Diseño lógico: (List<Point> points, double medium, double high) → setPoints() → void; según doc/android_design.md.
+         * Diseño lógico: points: [ Text ], medium: R, high: R --> setPoints()
+         * Descripción: Procesa set points y devuelve el resultado correspondiente..
          */
         public void setPoints(List<Point> points, double medium, double high) {
             long start = Quality.startOfToday();
@@ -148,8 +138,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Atiende el evento draw.
-         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         * Diseño lógico: (Canvas canvas) --> onDraw()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
@@ -169,18 +159,10 @@ public final class SensorWidgets {
         }
     }
 
-    /** Barras por tramo (hora, día o mes) coloreadas por calidad; los tramos futuros son puntos grises. */
-    public static final class HistoryBars extends View {
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private Double[] values = new Double[0];
-        private boolean[] future = new boolean[0];
-        private String[] labels = new String[0];
-        private double medium = 60, high = 100;
-        private final float density;
-
-
-
+    /**
+     * Diseño lógico: context: Text --> HistoryBars() --> Text
+     * Descripción: Procesa history bars y devuelve el resultado correspondiente.
+     */
         public HistoryBars(Context context) {
             super(context);
             density = context.getResources().getDisplayMetrics().density;
@@ -190,8 +172,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Establece.
-         * Diseño lógico: (Double[] values, boolean[] future, String[] labels, double medium, double high) → set() → void; según doc/android_design.md.
+         * Diseño lógico: values: [ Text ], future: B, labels: Text, medium: R, high: R --> set()
+         * Descripción: Procesa set y devuelve el resultado correspondiente..
          */
         public void set(Double[] values, boolean[] future, String[] labels, double medium, double high) {
             this.values = values;
@@ -203,8 +185,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Atiende el evento draw.
-         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         * Diseño lógico: (Canvas canvas) --> onDraw()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
@@ -246,17 +228,10 @@ public final class SensorWidgets {
         }
     }
 
-    /** Dos series suavizadas para comparar zonas. */
-    public static final class CompareChart extends View {
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final List<Double[]> series = new ArrayList<>();
-        private final List<Integer> colors = new ArrayList<>();
-        private String[] labels = new String[0];
-        private final float density;
-
-
-
+    /**
+     * Diseño lógico: context: Text --> CompareChart() --> Text
+     * Descripción: Procesa compare chart y devuelve el resultado correspondiente.
+     */
         public CompareChart(Context context) {
             super(context);
             density = context.getResources().getDisplayMetrics().density;
@@ -266,8 +241,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Establece.
-         * Diseño lógico: (List<Double[]> values, List<Integer> lineColors, String[] labels) → set() → void; según doc/android_design.md.
+         * Diseño lógico: values: [ Text ], lineColors: [ Text ], labels: Text --> set()
+         * Descripción: Procesa set y devuelve el resultado correspondiente..
          */
         public void set(List<Double[]> values, List<Integer> lineColors, String[] labels) {
             series.clear();
@@ -279,8 +254,8 @@ public final class SensorWidgets {
         }
 
         /**
-         * Atiende el evento draw.
-         * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+         * Diseño lógico: (Canvas canvas) --> onDraw()
+         * Descripción: Describe la operación realizada y su resultado.
          */
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);

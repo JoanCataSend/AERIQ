@@ -14,8 +14,8 @@ import static org.junit.Assert.*;
 
 public final class ReadingOutboxTest {
     /**
-     * Prueba el comportamiento de persistsAcrossReopenAndKeepsAccountsIsolated con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → persistsAcrossReopenAndKeepsAccountsIsolated() → void; según doc/android_design.md.
+     * Diseño lógico: persistsAcrossReopenAndKeepsAccountsIsolated()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test public void persistsAcrossReopenAndKeepsAccountsIsolated() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();

@@ -33,8 +33,10 @@ final class AppSheet {
     private final LinearLayout sheet, actions;
     private float downY;
 
-
-
+  /**
+   * Diseño lógico: activity: Text, ui: Text, title: Text, subtitle: Text --> AppSheet() --> Text
+   * Descripción: Procesa app sheet y devuelve el resultado correspondiente.
+   */
     AppSheet(Activity activity, Views ui, String title, String subtitle) {
         this.ui = ui;
         dialog = new Dialog(activity);
@@ -83,8 +85,8 @@ final class AppSheet {
         // La hoja ocupa como mucho el 85 % de la pantalla; si el contenido es más largo, se desplaza.
         FrameLayout holder = new FrameLayout(activity) {
             /**
-             * Atiende el evento measure.
-             * Diseño lógico: (int widthSpec, int heightSpec) → onMeasure() → void; según doc/android_design.md.
+             * Diseño lógico: (int widthSpec, int heightSpec) --> onMeasure()
+             * Descripción: Describe la operación realizada y su resultado.
              */
             @Override protected void onMeasure(int widthSpec, int heightSpec) {
                 int max = Math.round(getResources().getDisplayMetrics().heightPixels * 0.85f);
@@ -104,14 +106,20 @@ final class AppSheet {
         }
     }
 
-    /** Título pequeño de sección. */
+    /**
+     * Diseño lógico: label: Text --> section()
+     * Descripción: Procesa section y devuelve el resultado correspondiente..
+     */
     void section(String label) {
         TextView text = ui.text(label, 13, true, MUTED);
         text.setPadding(ui.dp(4), content.getChildCount() == 0 ? 0 : ui.dp(18), 0, ui.dp(8));
         content.addView(text);
     }
 
-    /** Tarjeta gris claro donde van las filas de ajustes. */
+    /**
+     * Diseño lógico: group() --> Text
+     * Descripción: Procesa group y devuelve el resultado correspondiente.
+     */
     LinearLayout group() {
         LinearLayout group = ui.column();
         group.setBackground(ui.shape(0xfff1f4f3, 20, 0));
@@ -123,6 +131,10 @@ final class AppSheet {
     /**
      * Fila con texto y un interruptor de la app; tocar la fila entera también lo cambia. Admite un interruptor ya
      * creado, para que conserve su estado y sus avisos entre una apertura y otra.
+     */
+    /**
+     * Diseño lógico: group: Text, label: Text, hint: Text, toggle: Text --> toggle() --> Text
+     * Descripción: Procesa toggle y devuelve el resultado correspondiente.
      */
     Switch toggle(LinearLayout group, String label, String hint, Switch toggle) {
         if (toggle.getParent() != null) ((ViewGroup) toggle.getParent()).removeView(toggle);
@@ -141,7 +153,10 @@ final class AppSheet {
         return toggle;
     }
 
-    /** Fila informativa: icono en círculo, etiqueta y valor. Devuelve el texto del valor. */
+    /**
+     * Diseño lógico: group: Text, icon: Z, label: Text, value: Text, tint: Z --> info() --> Text
+     * Descripción: Procesa info y devuelve el resultado correspondiente.
+     */
     TextView info(LinearLayout group, int icon, String label, String value, int tint) {
         divider(group);
         LinearLayout row = ui.row();
@@ -165,8 +180,8 @@ final class AppSheet {
     }
 
     /**
-     * Gestiona divider.
-     * Diseño lógico: (LinearLayout group) → divider() → void; según doc/android_design.md.
+     * Diseño lógico: group: Text --> divider()
+     * Descripción: Procesa divider y devuelve el resultado correspondiente..
      */
     private void divider(LinearLayout group) {
         if (group.getChildCount() == 0) return;
@@ -175,15 +190,21 @@ final class AppSheet {
         group.addView(line, new LinearLayout.LayoutParams(-1, 1));
     }
 
-    /** Botón verde principal. Cierra la hoja y después ejecuta la acción. */
+    /**
+     * Diseño lógico: label: Text, click: Text --> primary()
+     * Descripción: Procesa primary y devuelve el resultado correspondiente..
+     */
     void primary(String label, Runnable click) { action(label, GREEN, WHITE, click); }
 
-    /** Botón blanco con borde. */
+    /**
+     * Diseño lógico: label: Text, click: Text --> secondary()
+     * Descripción: Procesa secondary y devuelve el resultado correspondiente..
+     */
     void secondary(String label, Runnable click) { action(label, WHITE, INK, click); }
 
     /**
-     * Gestiona action.
-     * Diseño lógico: (String label, int background, int foreground, Runnable click) → action() → void; según doc/android_design.md.
+     * Diseño lógico: label: Text, background: Z, foreground: Z, click: Text --> action()
+     * Descripción: Procesa action y devuelve el resultado correspondiente..
      */
     private void action(String label, int background, int foreground, Runnable click) {
         if (actions.getChildCount() > 0) actions.addView(new View(actions.getContext()), new LinearLayout.LayoutParams(ui.dp(10), 1));
@@ -200,13 +221,15 @@ final class AppSheet {
         actions.setVisibility(View.VISIBLE);
     }
 
-
-
+    /**
+     * Diseño lógico: show()
+     * Descripción: Procesa show y devuelve el resultado correspondiente..
+     */
     void show() { dialog.show(); }
 
-    /** Arrastrar hacia abajo la cabecera: sigue al dedo y, pasado un tercio o con un gesto rápido, se cierra. */
     /**
-     * Diseño lógico: (View view, MotionEvent event) → drag() → boolean; según doc/android_design.md.
+     * Diseño lógico: view: Text, event: Text --> drag() --> B
+     * Descripción: Procesa drag y devuelve el resultado correspondiente.
      */
     private boolean drag(View view, MotionEvent event) {
         switch (event.getActionMasked()) {

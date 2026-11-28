@@ -27,8 +27,8 @@ $passed = 0;
 $failed = 0;
 
 /**
- * Registra un fallo si la condición de auditoría no se cumple.
- * Diseño lógico: (bool $condition, string $label) → check() → void; según scripts/README.md.
+ * Diseño lógico: condition: B, label: Text --> check()
+ * Descripción: Registra un fallo con su mensaje cuando la condición evaluada es falsa.
  */
 function check(bool $condition, string $label): void {
     global $passed, $failed;
@@ -42,8 +42,8 @@ function check(bool $condition, string $label): void {
 }
 
 /**
- * Gestiona expect autenticación error.
- * Diseño lógico: (callable $fn, int $status, string $label) → expect_auth_error() → void; según scripts/README.md.
+ * Diseño lógico: fn: Text, status: Z, label: Text --> expect_auth_error()
+ * Descripción: Procesa expect auth error y devuelve el resultado correspondiente..
  */
 function expect_auth_error(callable $fn, int $status, string $label): void {
     $category=match ($status) {

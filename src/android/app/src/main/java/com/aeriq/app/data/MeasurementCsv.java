@@ -10,11 +10,15 @@ import java.util.List;
 
 public final class MeasurementCsv {
 
+    /**
+     * Diseño lógico: MeasurementCsv() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
+     */
     private MeasurementCsv() {}
 
     /**
-     * Formatea.
-     * Diseño lógico: (List<StoredReading> rows) → format() → String; según doc/android_design.md.
+     * Diseño lógico: rows: [ Text ] --> format() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
      */
     public static String format(List<StoredReading> rows) {
         StringBuilder csv = new StringBuilder("\uFEFFfecha_utc;valor;unidad;dispositivo;campana;zona;latitud;longitud;simulado\r\n");

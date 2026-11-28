@@ -6,12 +6,11 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #pragma once
 typedef __SIZE_TYPE__ size_t;
 /**
- * Gestiona memcpy.
- * Diseño lógico: (void* dest, const void* src, size_t count) → memcpy() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: dest: , src: , count: N --> memcpy()
+ * Descripción: Describe la operación realizada y su resultado.
  */
 inline void* memcpy(void* dest, const void* src, size_t count) {
   auto d = static_cast<unsigned char*>(dest);

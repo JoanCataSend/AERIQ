@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
 // Formulario comercial (solicitar.html). Los catálogos (servicios, tipos de organización,
 // objetivos, provincias y duraciones) llegan de public.php?action=services: la base de datos
@@ -15,8 +14,8 @@
   const form=document.querySelector('#service-form');
   if(!form)return;
   /**
-   * Gestiona $.
    * Diseño lógico: (selector) → $() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const $=selector=>document.querySelector(selector);
   const summary=$('#form-summary'),feedback=$('#service-feedback'),submit=$('#submit-request');
@@ -47,39 +46,39 @@
 
   const store={
     /**
-     * Obtiene.
-     * Diseño lógico: (sin parámetros) → get() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: get() --> Text
+     * Descripción: Procesa get y devuelve el resultado correspondiente.
      */
     get(){try{return JSON.parse(sessionStorage.getItem(DRAFT_KEY)||'null');}catch{return null;}},
     /**
-     * Establece.
-     * Diseño lógico: (value) → set() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: value: Text --> set() --> Text
+     * Descripción: Procesa set y devuelve el resultado correspondiente.
      */
     set(value){try{sessionStorage.setItem(DRAFT_KEY,JSON.stringify(value));}catch{/* Sin almacenamiento: no se guarda el borrador. */}},
     /**
-     * Gestiona clear.
-     * Diseño lógico: (sin parámetros) → clear() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Diseño lógico: clear() --> Text
+     * Descripción: Procesa clear y devuelve el resultado correspondiente.
      */
     clear(){try{sessionStorage.removeItem(DRAFT_KEY);}catch{/* Nada que borrar. */}}
   };
   /**
-   * Gestiona el.
-   * Diseño lógico: (tag,props={},children=[]) → el() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: tag: Text, props: Text, children: Text --> el() --> Text
+   * Descripción: Procesa el y devuelve el resultado correspondiente.
    */
   const el=(tag,props={},children=[])=>{const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;};
   /**
-   * Gestiona this month.
-   * Diseño lógico: (sin parámetros) → thisMonth() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: thisMonth() --> Text
+   * Descripción: Procesa this month y devuelve el resultado correspondiente.
    */
   const thisMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;};
   /**
-   * Gestiona chosen interest.
-   * Diseño lógico: (sin parámetros) → chosenInterest() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: chosenInterest() --> Text
+   * Descripción: Procesa chosen interest y devuelve el resultado correspondiente.
    */
   const chosenInterest=()=>form.querySelector('[name=interest]:checked')?.value||'';
   /**
-   * Comprueba si study.
-   * Diseño lógico: (sin parámetros) → isStudy() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: isStudy() --> B
+   * Descripción: Procesa is study y devuelve el resultado correspondiente.
    */
   const isStudy=()=>studyServices.has(chosenInterest());
 
@@ -94,15 +93,16 @@
 
   // ------------------------------------------------------------ Catálogos
   /**
-   * Diseño lógico: (select,items,value,label) → fillSelect() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: select: Text, items: Text, value: Text, label: Text --> fillSelect() --> Text
+   * Descripción: Procesa fill select y devuelve el resultado correspondiente.
    */
   function fillSelect(select,items,value,label){
     const placeholder=select.options[0];
     select.replaceChildren(placeholder,...items.map(item=>new Option(label(item),value(item))));
   }
   /**
-   * Representa catálogos.
-   * Diseño lógico: (data) → renderCatalogs() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: data: Text --> renderCatalogs() --> Text
+   * Descripción: Procesa render catalogs y devuelve el resultado correspondiente.
    */
   function renderCatalogs(data){
     catalogs=data;
@@ -124,7 +124,8 @@
 
   // ------------------------------------------------------------ Validación
   /**
-   * Diseño lógico: (name) → check() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: name: Text --> check() --> Text
+   * Descripción: Registra un fallo con su mensaje cuando la condición evaluada es falsa.
    */
   function check(name){
     if(name==='interest')return chosenInterest()?'':MESSAGES.interest;
@@ -144,8 +145,8 @@
     return '';
   }
   /**
-   * Muestra.
-   * Diseño lógico: (name,message) → show() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: name: Text, message: Text --> show() --> Text
+   * Descripción: Procesa show y devuelve el resultado correspondiente.
    */
   function show(name,message){
     const error=document.getElementById(`${name}-error`);
@@ -155,21 +156,21 @@
     if(message)target.setAttribute('aria-invalid','true');else target.removeAttribute('aria-invalid');
   }
   /**
-   * Valida.
-   * Diseño lógico: (name) → validate() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: name: Text --> validate() --> B
+   * Descripción: Procesa validate y devuelve el resultado correspondiente.
    */
   function validate(name){const message=check(name);show(name,message);return message;}
   /**
-   * Gestiona focus campo.
-   * Diseño lógico: (name) → focusField() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: name: Text --> focusField() --> Text
+   * Descripción: Procesa focus field y devuelve el resultado correspondiente.
    */
   function focusField(name){
     const target=GROUPS.has(name)?form.querySelector(`[name=${name}]`):form.elements.namedItem(name);
     target?.focus();
   }
   /**
-   * Gestiona campo name.
-   * Diseño lógico: (target) → fieldName() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: target: Text --> fieldName() --> Text
+   * Descripción: Procesa field name y devuelve el resultado correspondiente.
    */
   function fieldName(target){return target?.name&&FIELDS.includes(target.name)?target.name:'';}
 
@@ -199,8 +200,8 @@
   let phoneTimer;
   phoneHelp.setAttribute('aria-live','polite');
   /**
-   * Gestiona phone warning.
-   * Diseño lógico: (sin parámetros) → phoneWarning() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: phoneWarning() --> Text
+   * Descripción: Procesa phone warning y devuelve el resultado correspondiente.
    */
   function phoneWarning(){
     phoneHelp.textContent='Solo se admiten números.';phoneHelp.classList.add('is-warning');
@@ -229,7 +230,8 @@
 
   // ------------------------------------------------------------ Correo: aviso de errores de tecleo
   /**
-   * Diseño lógico: (sin parámetros) → suggestEmail() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: suggestEmail() --> Text
+   * Descripción: Procesa suggest email y devuelve el resultado correspondiente.
    */
   function suggestEmail(){
     const hint=$('#email-hint'),value=form.elements.email.value.trim().toLowerCase();
@@ -243,7 +245,8 @@
 
   // ------------------------------------------------------------ Campos de estudio y contador
   /**
-   * Diseño lógico: (sin parámetros) → syncStudy() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: syncStudy() --> Text
+   * Descripción: Procesa sync study y devuelve el resultado correspondiente.
    */
   function syncStudy(){
     const study=isStudy(),box=form.querySelector('[data-study]');
@@ -252,8 +255,8 @@
     if(!study)for(const name of ['surface','duration','startMonth']){show(name,'');touched.delete(name);}
   }
   /**
-   * Actualiza count.
-   * Diseño lógico: (sin parámetros) → updateCount() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: updateCount() --> Text
+   * Descripción: Procesa update count y devuelve el resultado correspondiente.
    */
   function updateCount(){
     const needs=form.elements.needs,count=$('#needs-count'),max=Number(needs.maxLength)||6000;
@@ -264,8 +267,8 @@
   // ------------------------------------------------------------ Borrador (sessionStorage)
   let draftTimer;
   /**
-   * Gestiona snapshot.
-   * Diseño lógico: (sin parámetros) → snapshot() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: snapshot() --> Text
+   * Descripción: Procesa snapshot y devuelve el resultado correspondiente.
    */
   function snapshot(){
     const data={};
@@ -275,23 +278,23 @@
     return data;
   }
   /**
-   * Guarda draft.
-   * Diseño lógico: (sin parámetros) → saveDraft() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: saveDraft() --> Text
+   * Descripción: Procesa save draft y devuelve el resultado correspondiente.
    */
   function saveDraft(){clearTimeout(draftTimer);draftTimer=setTimeout(()=>store.set(snapshot()),300);}
   /**
-   * Establece interest.
-   * Diseño lógico: (code) → setInterest() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: code: Text --> setInterest() --> Text
+   * Descripción: Procesa set interest y devuelve el resultado correspondiente.
    */
   function setInterest(code){const radio=[...form.querySelectorAll('[name=interest]')].find(r=>r.value===code);if(radio)radio.checked=true;}
   /**
-   * Establece select.
-   * Diseño lógico: (select,value) → setSelect() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: select: Text, value: Text --> setSelect() --> Text
+   * Descripción: Procesa set select y devuelve el resultado correspondiente.
    */
   function setSelect(select,value){if(value&&[...select.options].some(o=>o.value===value))select.value=value;}
   /**
-   * Gestiona restore.
-   * Diseño lógico: (sin parámetros) → restore() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: restore() --> Text
+   * Descripción: Procesa restore y devuelve el resultado correspondiente.
    */
   function restore(){
     const draft=store.get();
@@ -308,12 +311,13 @@
 
   // ------------------------------------------------------------ Envío
   /**
-   * Diseño lógico: (sin parámetros) → collect() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: collect() --> Text
+   * Descripción: Procesa collect y devuelve el resultado correspondiente.
    */
   function collect(){
     /**
-     * Gestiona valor.
      * Diseño lógico: (name) → value() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const value=name=>form.elements.namedItem(name).value.trim();
     const data={interest:chosenInterest(),orgType:value('orgType'),entity:value('entity'),contact:value('contact'),
@@ -324,39 +328,39 @@
     return data;
   }
   /**
-   * Muestra summary.
-   * Diseño lógico: (count) → showSummary() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: count: Text --> showSummary() --> Text
+   * Descripción: Procesa show summary y devuelve el resultado correspondiente.
    */
   function showSummary(count){
     summary.textContent=count===1?'Revisa el campo marcado antes de enviar.':`Revisa los ${count} campos marcados antes de enviar.`;
     summary.hidden=false;
   }
   /**
-   * Establece busy.
-   * Diseño lógico: (busy) → setBusy() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: busy: Text --> setBusy() --> Text
+   * Descripción: Procesa set busy y devuelve el resultado correspondiente.
    */
   function setBusy(busy){
     submit.disabled=busy;submit.setAttribute('aria-busy',String(busy));
     submit.textContent=busy?'Enviando…':'Enviar solicitud';
   }
   /**
-   * Muestra success.
-   * Diseño lógico: (result,data) → showSuccess() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: result: Text, data: Text --> showSuccess() --> Text
+   * Descripción: Procesa show success y devuelve el resultado correspondiente.
    */
   function showSuccess(result,data){
     /**
-     * Gestiona servicio.
      * Diseño lógico: (s=>s.codigo===data.interest) → service() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const service=catalogs?.services.find(s=>s.codigo===data.interest)?.nombre||data.interest;
     /**
-     * Gestiona org.
      * Diseño lógico: (o=>o.codigo===data.orgType) → org() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const org=catalogs?.orgTypes.find(o=>o.codigo===data.orgType)?.nombre||'';
     /**
-     * Gestiona goals.
      * Diseño lógico: (catalogs?.objectives||[]) → goals() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const goals=(catalogs?.objectives||[]).filter(o=>data.objectives.includes(o.codigo)).map(o=>o.nombre).join(', ');
     $('#success-title').textContent=result.id?`Solicitud n.º ${result.id} recibida`:'Solicitud recibida';
@@ -372,8 +376,8 @@
     if(submit.disabled)return;
     aeriqStatus(feedback,'');
     /**
-     * Gestiona inválido.
      * Diseño lógico: (name=>{touched.add(name);return validate(name);}) → invalid() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const invalid=FIELDS.filter(name=>{touched.add(name);return validate(name);});
     if(invalid.length){showSummary(invalid.length);focusField(invalid[0]);return;}

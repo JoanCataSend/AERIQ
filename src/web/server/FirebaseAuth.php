@@ -26,7 +26,8 @@ if (isset($_SERVER['SCRIPT_FILENAME']) && realpath((string)$_SERVER['SCRIPT_FILE
  */
 
 /**
- * Diseño lógico: (sin parámetros) → firebase_config() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: firebase_config() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function firebase_config(): array {
     static $config = null;
@@ -64,16 +65,16 @@ function firebase_config(): array {
 }
 
 /**
- * Gestiona placeholder.
- * Diseño lógico: (string $value) → firebase_placeholder() → bool; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: value: Text --> firebase_placeholder() --> B
+ * Descripción: Procesa firebase placeholder y devuelve el resultado correspondiente.
  */
 function firebase_placeholder(string $value): bool {
     return $value === '' || str_starts_with($value, 'PEGA_AQUI');
 }
 
-/** Datos públicos que necesita el SDK web de Firebase. Nunca se envía una clave privada. */
 /**
- * Diseño lógico: (sin parámetros) → firebase_public_config() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: firebase_public_config() --> Text
+ * Descripción: Procesa firebase public config y devuelve el resultado correspondiente.
  */
 function firebase_public_config(): array {
     $c = firebase_config();
@@ -88,8 +89,8 @@ function firebase_public_config(): array {
 }
 
 /**
- * Gestiona web configured.
- * Diseño lógico: (sin parámetros) → firebase_web_configured() → bool; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: firebase_web_configured() --> B
+ * Descripción: Procesa firebase web configured y devuelve el resultado correspondiente.
  */
 function firebase_web_configured(): bool {
     $c = firebase_public_config();
@@ -97,8 +98,8 @@ function firebase_web_configured(): bool {
 }
 
 /**
- * Gestiona project id.
- * Diseño lógico: (sin parámetros) → firebase_project_id() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: firebase_project_id() --> Text
+ * Descripción: Procesa firebase project id y devuelve el resultado correspondiente.
  */
 function firebase_project_id(): string {
     $project = (string)firebase_config()['project_id'];
@@ -109,8 +110,8 @@ function firebase_project_id(): string {
 }
 
 /**
- * Gestiona b64url.
- * Diseño lógico: (string $value) → firebase_b64url() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: value: Text --> firebase_b64url() --> Text
+ * Descripción: Procesa firebase b64url y devuelve el resultado correspondiente.
  */
 function firebase_b64url(string $value): string {
     $value = strtr($value, '-_', '+/');
@@ -122,8 +123,8 @@ function firebase_b64url(string $value): string {
 }
 
 /**
- * Gestiona HTTP get.
- * Diseño lógico: (string $url) → firebase_http_get() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: url: Text --> firebase_http_get() --> Text
+ * Descripción: Procesa firebase http get y devuelve el resultado correspondiente.
  */
 function firebase_http_get(string $url): string {
     $context = stream_context_create([
@@ -161,9 +162,9 @@ function firebase_http_get(string $url): string {
     throw new AeriqError('No se ha podido comprobar la sesión con Google. Inténtalo de nuevo.','unavailable');
 }
 
-/** Certificados públicos de Firebase, cacheados para no consultarlos en cada acceso. */
 /**
- * Diseño lógico: (bool $refresh = false) → firebase_certificates() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: refresh: B --> firebase_certificates() --> Text
+ * Descripción: Procesa firebase certificates y devuelve el resultado correspondiente.
  */
 function firebase_certificates(bool $refresh = false): array {
     $project = firebase_project_id();
@@ -194,7 +195,8 @@ function firebase_certificates(bool $refresh = false): array {
  * Comprueba firma RS256, emisor, proyecto, caducidad y que el proveedor sea Google.
  */
 /**
- * Diseño lógico: (string $token) → firebase_verify_id_token() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: token: Text --> firebase_verify_id_token() --> Text
+ * Descripción: Procesa firebase verify id token y devuelve el resultado correspondiente.
  */
 function firebase_verify_id_token(string $token): array {
     if ($token === '' || strlen($token) > 12000) {
@@ -233,7 +235,8 @@ function firebase_verify_id_token(string $token): array {
  * firma para poder probar caducidad, emisor, audiencia y proveedor sin red.
  */
 /**
- * Diseño lógico: (array $payload, int $now = 0) → firebase_validate_payload() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: payload: Text, now: Z --> firebase_validate_payload() --> Text
+ * Descripción: Procesa firebase validate payload y devuelve el resultado correspondiente.
  */
 function firebase_validate_payload(array $payload, int $now = 0): array {
     $project = firebase_project_id();
@@ -281,7 +284,8 @@ function firebase_validate_payload(array $payload, int $now = 0): array {
  * No registra correos nuevos: sin invitación previa se rechaza el acceso.
  */
 /**
- * Diseño lógico: (array $claims) → firebase_link_account() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: claims: Text --> firebase_link_account() --> Text
+ * Descripción: Procesa firebase link account y devuelve el resultado correspondiente.
  */
 function firebase_link_account(array $claims): array {
     $email = auth_email($claims['email'] ?? '');
@@ -361,7 +365,8 @@ function firebase_link_account(array $claims): array {
  * SHA-256; el token original nunca se guarda en la base de datos.
  */
 /**
- * Diseño lógico: (string $token, int $expires) → firebase_replay_claim() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: token: Text, expires: Z --> firebase_replay_claim() --> Text
+ * Descripción: Procesa firebase replay claim y devuelve el resultado correspondiente.
  */
 function firebase_replay_claim(string $token, int $expires): string {
     $key = hash('sha256', 'google-id-token|' . $token);
@@ -377,9 +382,9 @@ function firebase_replay_claim(string $token, int $expires): string {
     return $key;
 }
 
-/** Libera la marca si el acceso no llegó a completarse para que el usuario pueda reintentar. */
 /**
- * Diseño lógico: (string $key) → firebase_replay_release() → void; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: key: Text --> firebase_replay_release()
+ * Descripción: Procesa firebase replay release y devuelve el resultado correspondiente..
  */
 function firebase_replay_release(string $key): void {
     if ($key === '') return;

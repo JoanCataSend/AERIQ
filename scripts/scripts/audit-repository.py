@@ -3,14 +3,7 @@
 # Descripción: Archivo fuente de scripts/scripts.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts/scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts/scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Audita estructura, enlaces y sintaxis disponible sin contactar con servicios."""
 
 import json
@@ -22,24 +15,25 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web"
 failures = []
 skipped = []
 
-
 # check(condition, message) → Implementa la operación check del módulo.
 
-
+# Diseño lógico: condition: Text, message: Text --> check() --> Text
+# Descripción: Registra un fallo con su mensaje cuando la condición evaluada es falsa.
 
 def check(condition, message):
     if not condition:
         failures.append(message)
 
-
 class References(HTMLParser):
     # __init__(self) → Implementa la operación   init   del módulo.
+
+    # Diseño lógico: __init__() --> Text
+    # Descripción: Describe la operación realizada y su resultado.
 
     def __init__(self):
         super().__init__()
@@ -48,6 +42,8 @@ class References(HTMLParser):
 
     # handle_starttag(self, tag, attrs) → Implementa la operación handle starttag del módulo.
 
+    # Diseño lógico: tag: Text, attrs: Text --> handle_starttag() --> Text
+    # Descripción: Describe la operación realizada y su resultado.
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -57,10 +53,10 @@ class References(HTMLParser):
         if tag == "script" and attrs.get("src"):
             self.scripts.append(attrs["src"])
 
-
 # check_reference(source, reference) → Implementa la operación check reference del módulo.
 
-
+# Diseño lógico: source: Text, reference: Text --> check_reference() --> Text
+# Descripción: Comprueba que la referencia local resuelve a un archivo existente.
 
 def check_reference(source, reference):
     link = urlsplit(reference)
@@ -69,10 +65,10 @@ def check_reference(source, reference):
     target = (source.parent / unquote(link.path)).resolve()
     check(target.exists(), f"Referencia inexistente: {source.relative_to(ROOT)} -> {reference}")
 
-
 # run_syntax(binary, paths, flag) → Implementa la operación run syntax del módulo.
 
-
+# Diseño lógico: binary: Text, paths: Text, flag: Text --> run_syntax() --> Text
+# Descripción: Ejecuta el comprobador de sintaxis disponible para el lenguaje de los archivos.
 
 def run_syntax(binary, paths, flag):
     executable = shutil.which(binary)
@@ -88,10 +84,12 @@ def run_syntax(binary, paths, flag):
         )
         check(result.returncode == 0, f"Sintaxis: {path.relative_to(ROOT)}\n{result.stderr or result.stdout}")
 
-
 # main() → Punto de entrada que coordina la ejecución del programa.
 
+# Diseño lógico: main() --> Text
+# Descripción: Coordina la ejecución del programa y devuelve su código de salida.
 
+# Descripción: Coordina la ejecución del programa.
 
 def main():
     required = [
@@ -177,7 +175,6 @@ def main():
         return 1
     print(f"Auditoría correcta: {len(documents)} documentos, {len(pages)} páginas y comprobaciones disponibles.")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

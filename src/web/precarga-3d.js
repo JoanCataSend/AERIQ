@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 /* AERIQ · Precarga discreta del visor 3D y del modelo del AERIQ.
    Se incluye en las páginas que no muestran el modelo para que, al abrir la ficha del AERIQ,
    el visor y el archivo GLB ya estén en la caché del navegador. No se ejecuta con ahorro
@@ -16,8 +15,8 @@
   const connection=navigator.connection;
   if(connection&&(connection.saveData||/(^|-)2g$/.test(connection.effectiveType||'')))return;
   /**
-   * Gestiona preload.
-   * Diseño lógico: (sin parámetros) → preload() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: preload() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   function preload(){
     const viewer=document.createElement('link');
@@ -27,8 +26,8 @@
     fetch('assets/aeriq_sensor_3d.glb',{credentials:'same-origin',priority:'low'}).then(r=>r.ok?r.arrayBuffer():null).catch(()=>{});
   }
   /**
-   * Gestiona later.
-   * Diseño lógico: (sin parámetros) → later() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: later() --> Text
+   * Descripción: Procesa later y devuelve el resultado correspondiente.
    */
   const later=()=>('requestIdleCallback' in window)?requestIdleCallback(preload,{timeout:4000}):setTimeout(preload,1500);
   if(document.readyState==='complete')later();else addEventListener('load',later,{once:true});

@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #pragma once
 #include <Arduino.h>
 #include "Calibracion.h"
@@ -23,21 +22,21 @@ class Medidor {
   Calibracion calibracion;
  public:
   /**
-   * Gestiona voltaje.
-   * Diseño lógico: (uint8_t canalAdc) → voltaje() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: canalAdc: N --> voltaje() --> R
+   * Descripción: Describe la operación realizada y su resultado.
    */
   float voltaje(uint8_t canalAdc) const {
     return canalAdc < 3 ? ultimoCiclo[canalAdc] : 0.f;
   }
   /**
-   * Gestiona saturado ultimo ciclo.
-   * Diseño lógico: (sin parámetros) → saturadoUltimoCiclo() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: saturadoUltimoCiclo() --> B
+   * Descripción: Procesa saturado ultimo ciclo y devuelve el resultado correspondiente.
    */
   bool saturadoUltimoCiclo() const { return ultimoSaturado; }
   Calibracion &calibrado() { return calibracion; }
   /**
-   * Gestiona begin.
-   * Diseño lógico: (sin parámetros) → begin() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: begin()
+   * Descripción: Inicializa el componente y los recursos que necesita..
    */
   void begin() {
     for (uint8_t pin : pines) pinMode(pin, INPUT);
@@ -48,16 +47,16 @@ class Medidor {
     analogCalibrateOffset();
   }
   /**
-   * Inicia.
-   * Diseño lógico: (sin parámetros) → iniciar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: iniciar()
+   * Descripción: Procesa iniciar y devuelve el resultado correspondiente..
    */
   void iniciar() {
     canal = muestras = 0; suma = 0;
     activo = descartar = true; saturado = false;
   }
   /**
-   * Gestiona actualizar.
-   * Diseño lógico: (Medida &resultado) → actualizar() → resultado de la operación; según doc/firmware_design.md.
+   * Diseño lógico: resultado: Text --> actualizar() --> B
+   * Descripción: Actualiza las medidas de batería cuando corresponde y conserva el último estado válido.
    */
   bool actualizar(Medida &resultado) {
     if (!activo) return false;

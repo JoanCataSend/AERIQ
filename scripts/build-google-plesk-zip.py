@@ -3,19 +3,11 @@
 # Descripción: Archivo fuente de scripts.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Genera .dist/airiq-google-plesk.zip para extraer sobre httpdocs/."""
 
 from pathlib import Path
 import zipfile
-
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web"
@@ -46,10 +38,8 @@ FILES = [
     "server/.htaccess",
 ]
 
-
-# Coordina la ejecución principal del componente o script.
-# Diseño lógico: (sin parámetros) → main() → None; según scripts/README.md.
-# main() → Punto de entrada que coordina la ejecución del programa.
+# Diseño lógico: main() --> Text
+# Descripción: Coordina la ejecución del programa y devuelve su código de salida.
 
 def main() -> None:
     missing = [path for path in FILES if not (WEB / path).is_file()]
@@ -71,7 +61,6 @@ def main() -> None:
     print(f"Archivos web: {len(FILES)} + INSTRUCCIONES-PLESK.txt")
     print("Base de datos: src/database/1-instalar.sql ya incluye identidades_externas (no hace falta SQL aparte).")
     print("Extraer sobre httpdocs/. No incluye FirebaseConfig.php ni credenciales privadas.")
-
 
 if __name__ == "__main__":
     main()

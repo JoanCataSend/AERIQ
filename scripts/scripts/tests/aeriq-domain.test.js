@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 const assert=require('node:assert/strict');
@@ -27,6 +26,10 @@ const v=domain.interpolate([38.99666,-.16599],points,30);assert(v>=50&&v<=90);
 
 // ---- T25: validación con casos densos, dispersos y simulados ----
 // Los mismos casos y valores esperados están en PublicInterpolationTest.java: si cambias uno, cambia el otro.
+/**
+ * Diseño lógico: a: Text, b: Text --> near() --> Text
+ * Descripción: Procesa near y devuelve el resultado correspondiente.
+ */
 const near=(a,b)=>assert(Math.abs(a-b)<1e-6,`${a} ≠ ${b}`);
 const P=domain.INTERPOLACION;
 assert.deepEqual([P.radioMin,P.radioMax,P.radio,P.minPosiciones,P.separacionMin,P.potencia,P.distanciaMin,P.celda],[20,50,30,3,5,2,1,10]);
@@ -35,6 +38,10 @@ const stamp=m=>`2026-11-10 ${String(12+Math.floor(m/60)).padStart(2,'0')}:${Stri
 // Rejilla de evaluación de 18 × 21 celdas de ~10 m alrededor del campus (centros de celda).
 const LAT0=38.9960,LON0=-0.1670,LAT_STEP=0.00009,LON_STEP=0.0001156,ROWS=18,COLS=21;
 
+/**
+ * Diseño lógico: rows: Text, radius: Text, options: Text --> sweep() --> Text
+ * Descripción: Procesa sweep y devuelve el resultado correspondiente.
+ */
 function sweep(rows,radius,options){
   const s=domain.support(rows,options),c={valor:0,insuficiente:0,lejos:0,mezcla:0,radio:0,min:Infinity,max:-Infinity,sum:0};
   for(let i=0;i<ROWS;i++)for(let j=0;j<COLS;j++){
@@ -131,6 +138,10 @@ assert.deepEqual(tally(domain.raster([group(other,30),group(dense,30)],lats,lngs
 // Tope de evaluaciones: se marca recortado para avisarlo en el mapa.
 g=domain.raster([group(dense,30)],lats,lngs,{maxEvaluaciones:10});assert.deepEqual([g.evaluadas,g.recortado],[10,true]);
 // ---- Ruta de un Orb: orden de captura y tramos partidos por huecos de más de 10 minutos ----
+/**
+ * Diseño lógico: id: Text, t: Text, lat: Text --> at() --> Text
+ * Descripción: Procesa at y devuelve el resultado correspondiente.
+ */
 const at=(id,t,lat=A[0])=>({id,latitud:lat,longitud:A[1],capturada_en:`2026-11-10 ${t}:00.000`});
 const legs=domain.route([at(3,'12:09'),at(1,'12:00'),at(2,'12:05'),at(4,'12:30'),{...at(5,'12:31'),latitud:null},at(6,'12:40')]);
 assert.deepEqual(legs.map(l=>l.map(r=>r.id)),[[1,2,3],[4,6]]);

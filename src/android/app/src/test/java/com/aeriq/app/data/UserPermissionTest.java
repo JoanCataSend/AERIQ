@@ -19,11 +19,15 @@ public class UserPermissionTest {
     private static final String COLLECT = AeriqAuthManager.User.PERMISSION_COLLECT;
 
     /**
-     * Prueba el comportamiento de serverPermissionsDecideEvenForNewRoles con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → serverPermissionsDecideEvenForNewRoles() → void; según doc/android_design.md.
+     * Diseño lógico: serverPermissionsDecideEvenForNewRoles()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test
 
+    /**
+     * Diseño lógico: serverPermissionsDecideEvenForNewRoles()
+     * Descripción: Procesa server permissions decide even for new roles y devuelve el resultado correspondiente..
+     */
     public void serverPermissionsDecideEvenForNewRoles() {
         Set<String> granted = new HashSet<>(Arrays.asList(COLLECT, "mapa.organizacion"));
         assertTrue(AeriqAuthManager.User.can(true, granted, "tecnico_de_campo", COLLECT));
@@ -31,21 +35,29 @@ public class UserPermissionTest {
     }
 
     /**
-     * Prueba el comportamiento de emptyServerPermissionsDenyEvenForOldRoleNames con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → emptyServerPermissionsDenyEvenForOldRoleNames() → void; según doc/android_design.md.
+     * Diseño lógico: emptyServerPermissionsDenyEvenForOldRoleNames()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test
 
+    /**
+     * Diseño lógico: emptyServerPermissionsDenyEvenForOldRoleNames()
+     * Descripción: Procesa empty server permissions deny even for old role names y devuelve el resultado correspondiente..
+     */
     public void emptyServerPermissionsDenyEvenForOldRoleNames() {
         assertFalse(AeriqAuthManager.User.can(true, Collections.emptySet(), "trabajador", COLLECT));
     }
 
     /**
-     * Prueba el comportamiento de olderServerFallsBackToRoleCodes con los casos descritos en el cuerpo.
-     * Diseño lógico: (sin parámetros) → olderServerFallsBackToRoleCodes() → void; según doc/android_design.md.
+     * Diseño lógico: olderServerFallsBackToRoleCodes()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Test
 
+    /**
+     * Diseño lógico: olderServerFallsBackToRoleCodes()
+     * Descripción: Procesa older server falls back to role codes y devuelve el resultado correspondiente..
+     */
     public void olderServerFallsBackToRoleCodes() {
         assertTrue(AeriqAuthManager.User.can(false, Collections.emptySet(), "trabajador", COLLECT));
         assertTrue(AeriqAuthManager.User.can(false, Collections.emptySet(), "admin", COLLECT));

@@ -10,8 +10,10 @@ public final class BeaconReading {
     public final String uuid;
     public final int typeId, counter, value, txPower;
 
-
-
+  /**
+   * Diseño lógico: uuid: Text, typeId: Z, counter: Z, value: Z, txPower: Z --> BeaconReading() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
+   */
     BeaconReading(String uuid, int typeId, int counter, int value, int txPower) {
         this.uuid = uuid;
         this.typeId = typeId;
@@ -21,13 +23,13 @@ public final class BeaconReading {
     }
 
     /**
-     * Gestiona unit.
-     * Diseño lógico: (sin parámetros) → unit() → String; según doc/android_design.md.
+     * Diseño lógico: unit() --> Text
+     * Descripción: Procesa unit y devuelve el resultado correspondiente.
      */
     public String unit() { return typeId == IBeaconParser.O3_ID ? "ppb" : "°C"; }
     /**
-     * Gestiona label.
-     * Diseño lógico: (sin parámetros) → label() → String; según doc/android_design.md.
+     * Diseño lógico: label() --> Text
+     * Descripción: Procesa label y devuelve el resultado correspondiente.
      */
     public String label() { return typeId == IBeaconParser.O3_ID ? "Ozono" : "Temperatura"; }
 }

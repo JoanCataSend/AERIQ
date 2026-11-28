@@ -12,8 +12,10 @@ public final class LiveMeasurement {
     public final int rssi;
     public final long receivedAtMillis;
 
-
-
+  /**
+   * Diseño lógico: address: Text, reading: Text, rssi: Z, receivedAtMillis: Z --> LiveMeasurement() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
+   */
     LiveMeasurement(String address, BeaconReading reading, int rssi, long receivedAtMillis) {
         this.address = address;
         this.reading = reading;

@@ -6,13 +6,16 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 process.env.TZ='UTC'; // fechas deterministas: la web muestra la hora local
 /* Prueba de lógica DOM aislada: no controla Chrome ni transmite formularios reales. */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {JSDOM,VirtualConsole}=require(path.resolve(process.argv[2]||'.local-backups/test-tools/node_modules/jsdom'));
 const root=path.resolve(__dirname,'../../src/web');
+/**
+ * Diseño lógico: wait() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
+ */
 const wait=()=>new Promise(r=>setTimeout(r,35));
 // Admin principal por defecto; las pruebas del panel cambian user.permissions para el admin de campaña.
 const ADMIN=['campanas.gestionar','solicitudes.gestionar'],ADMIN_CAMPANA=['datos.exportar','equipo.gestionar','informes.ver','mapa.organizacion'];
@@ -24,6 +27,10 @@ const device={id:1,nombre:'Orb original',direccion_ble:'D0:00:00:00:00:01',bater
 const catalogs={services:[{codigo:'kits',nombre:'Comprar Orb para mi organización',descripcion:'Sensores propios.',mide_superficie:false},{codigo:'estudio',nombre:'Contratar un estudio de ozono',descripcion:'Medimos nosotros.',mide_superficie:true},{codigo:'auditoria',nombre:'Servicio nuevo de prueba',descripcion:'',mide_superficie:true}],orgTypes:[{codigo:'administracion',nombre:'Administración pública'},{codigo:'empresa',nombre:'Empresa'},{codigo:'otra',nombre:'Otra entidad'}],objectives:[{codigo:'espacios_publicos',nombre:'Calidad del aire en espacios públicos'},{codigo:'otro',nombre:'Otro'}],provinces:['Madrid','Valencia'],durations:['1 semana','2 semanas','A definir con Código Norte']};
 const measurement={id:1,campaignId:1,valor:68,unidad:'ppb',capturada_en:'2026-11-03 08:00:00.000',latitud:38.99665,longitud:-.166,simulado:true,zona:'Campus',radio_m:30,umbral_medio:60,umbral_alto:100,dispositivo:'Orb original',campana:'Campaña de prueba'};
 
+/**
+ * Diseño lógico: name: Text, search: Text --> page() --> Text
+ * Descripción: Procesa page y devuelve el resultado correspondiente.
+ */
 async function page(name,search=''){
   const errors=[],calls=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('navigation'))errors.push(e.message);});
   const dom=new JSDOM(fs.readFileSync(path.join(root,name),'utf8'),{url:'http://localhost/'+name+search,runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
@@ -32,7 +39,15 @@ async function page(name,search=''){
   w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
   w.HTMLCanvasElement.prototype.getContext=()=>({beginPath(){},moveTo(){},lineTo(){},fillRect(){},stroke(){},clearRect(){},drawImage(){},putImageData(){},createImageData(width,height){return {width,height,data:new Uint8ClampedArray(width*height*4)};}});
   // El mapa pinta las zonas en un lienzo propio (public-map.js): proyección lineal de ~1 m por píxel en el campus.
+  /**
+   * Diseño lógico: chain() --> Text
+   * Descripción: Procesa chain y devuelve el resultado correspondiente.
+   */
   const chain=()=>({addTo(){return this;},on(){return this;},setView(){return this;},setCenter(){},clearLayers(){},addLayer(){},getBounds(){return {pad(){return this;},contains(){return true;}};},getCenter(){return {lat:38.99665};},fitBounds(){},panTo(){},removeLayer(){},zoomIn(){},zoomOut(){},remove(){},bindTooltip(){return this;},
+    /**
+     * Diseño lógico: getSize() --> Text
+     * Descripción: Procesa get size y devuelve el resultado correspondiente.
+     */
     getSize(){return {x:800,y:600};},containerPointToLatLng([x,y]){return {lat:38.9984-y*9e-6,lng:-0.1704+x*11.6e-6};},containerPointToLayerPoint(){return {x:0,y:0};},createPane(){return w.document.createElement('div');}});
   w.L={map:chain,layerGroup:chain,tileLayer:chain,circleMarker:chain,rectangle:chain,polyline:chain,latLngBounds:chain,DomUtil:{setPosition(){}}};
   w.fetch=async(url,options={})=>{

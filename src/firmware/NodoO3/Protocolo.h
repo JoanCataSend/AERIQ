@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #pragma once
 #include <stdint.h>
 #include <string.h>
@@ -20,7 +19,8 @@ constexpr uint8_t UUID_ESTADO[16] = {
 };
 // Incluye los dos bytes del fabricante; Android los separa del payload.
 /**
- * Diseño lógico: (uint8_t tipo, uint8_t secuencia, uint16_t valor, uint8_t out[25]) → anuncio() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: tipo: N, secuencia: N, valor: N --> anuncio() --> [ N ]_25
+ * Descripción: Construye los 25 bytes del anuncio iBeacon con el tipo, secuencia y valor de medida indicados.
  */
 inline void anuncio(uint8_t tipo, uint8_t secuencia, uint16_t valor, uint8_t out[25]) {
   out[0] = 0x4c; out[1] = 0; out[2] = 2; out[3] = 0x15;
@@ -30,8 +30,8 @@ inline void anuncio(uint8_t tipo, uint8_t secuencia, uint16_t valor, uint8_t out
   out[24] = static_cast<uint8_t>(-53); // RSSI de referencia; potencia radio +4 dBm.
 }
 /**
- * Gestiona extension.
- * Diseño lógico: (uint64_t id, uint8_t secuencia, uint16_t estado, uint8_t out[28]) → extension() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: id: N, secuencia: N, estado: N --> extension() --> [ N ]_28
+ * Descripción: Construye la extensión de estado de 28 bytes con el identificador del dispositivo, la secuencia y el estado.
  */
 inline void extension(uint64_t id, uint8_t secuencia, uint16_t estado, uint8_t out[28]) {
   memcpy(out, UUID_ESTADO, 16);
@@ -41,8 +41,8 @@ inline void extension(uint64_t id, uint8_t secuencia, uint16_t estado, uint8_t o
   out[26] = estado >> 8; out[27] = estado & 255;
 }
 /**
- * Gestiona transcurrido.
- * Diseño lógico: (uint32_t ahora, uint32_t inicio, uint32_t intervalo) → transcurrido() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: ahora: N, inicio: N, intervalo: N --> transcurrido() --> B
+ * Descripción: Indica si ha transcurrido el intervalo desde el instante inicial.
  */
 inline bool transcurrido(uint32_t ahora, uint32_t inicio, uint32_t intervalo) {
   return static_cast<uint32_t>(ahora - inicio) >= intervalo;
@@ -58,7 +58,8 @@ constexpr uint32_t EXTRAS_PERIODO_MS = 30000;
 constexpr uint32_t REPOSO_ERROR_MS = 1500;
 // true si toca anunciar temperatura y bateria: en el primer ciclo y despues cada EXTRAS_PERIODO_MS.
 /**
- * Diseño lógico: (uint32_t ahora, uint32_t ultimo, bool algunaVez) → tocaExtras() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: ahora: N, ultimo: N, algunaVez: B --> tocaExtras() --> B
+ * Descripción: Indica si corresponde anunciar temperatura y batería.
  */
 inline bool tocaExtras(uint32_t ahora, uint32_t ultimo, bool algunaVez) {
   return !algunaVez || transcurrido(ahora, ultimo, EXTRAS_PERIODO_MS);
@@ -67,7 +68,8 @@ inline bool tocaExtras(uint32_t ahora, uint32_t ultimo, bool algunaVez) {
 // ---- Bateria: medidor MAX17048 por I2C (Qwiic) ----
 // Registro SOC: porcentaje en 1/256 %. Se redondea y se limita a 0..100.
 /**
- * Diseño lógico: (uint16_t soc) → porcentajeMax17048() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: soc: N --> porcentajeMax17048() --> N
+ * Descripción: Convierte el registro SOC del MAX17048 a un porcentaje entero entre 0 y 100.
  */
 inline uint8_t porcentajeMax17048(uint16_t soc) {
   const uint32_t redondeado = (static_cast<uint32_t>(soc) + 128) >> 8;
@@ -75,14 +77,16 @@ inline uint8_t porcentajeMax17048(uint16_t soc) {
 }
 // Registro VCELL: 78.125 uV por unidad = 5/64 mV.
 /**
- * Diseño lógico: (uint16_t vcell) → milivoltiosMax17048() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: vcell: N --> milivoltiosMax17048() --> N
+ * Descripción: Convierte el registro VCELL del MAX17048 a milivoltios.
  */
 inline uint16_t milivoltiosMax17048(uint16_t vcell) {
   return static_cast<uint16_t>((static_cast<uint32_t>(vcell) * 5) / 64);
 }
 // Registro VERSION: la familia MAX17048/49 responde 0x001X.
 /**
- * Diseño lógico: (uint16_t version) → esMax1704x() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: version: N --> esMax1704x() --> B
+ * Descripción: Comprueba si la versión identificada pertenece a la familia MAX1704x.
  */
 inline bool esMax1704x(uint16_t version) { return (version & 0xfff0) == 0x0010; }
 
@@ -90,8 +94,8 @@ inline bool esMax1704x(uint16_t version) { return (version & 0xfff0) == 0x0010; 
 // Sin medidor o sin lectura (porcentaje < 0) no se enciende ninguno: no se inventa el nivel.
 enum class Color : uint8_t { NINGUNO, ROJO, AZUL, VERDE };
 /**
- * Gestiona color bateria.
- * Diseño lógico: (int16_t porcentaje) → colorBateria() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: porcentaje: Z --> colorBateria() --> Color
+ * Descripción: Asigna el color de aviso según el porcentaje de batería disponible.
  */
 inline Color colorBateria(int16_t porcentaje) {
   if (porcentaje < 0) return Color::NINGUNO;
@@ -102,8 +106,8 @@ inline Color colorBateria(int16_t porcentaje) {
 // Destello corto cada periodo: casi no gasta bateria y se ve igual.
 constexpr uint32_t DESTELLO_PERIODO_MS = 5000, DESTELLO_DURACION_MS = 80;
 /**
- * Gestiona destello encendido.
- * Diseño lógico: (uint32_t ahora, uint32_t inicio) → destelloEncendido() → resultado de la operación; según doc/firmware_design.md.
+ * Diseño lógico: ahora: N, inicio: N --> destelloEncendido() --> B
+ * Descripción: Indica si el LED debe estar encendido durante el destello periódico.
  */
 inline bool destelloEncendido(uint32_t ahora, uint32_t inicio) {
   return static_cast<uint32_t>(ahora - inicio) % DESTELLO_PERIODO_MS < DESTELLO_DURACION_MS;

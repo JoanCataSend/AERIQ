@@ -14,12 +14,10 @@ public final class OrbAssignment {
     public final String name, address, campaign;
     public final boolean simulated;
     public final double medium, high;
-    /** Última batería guardada en el servidor (-1 si el Orb nunca la ha enviado) y su fecha UTC. */
-    public final int batteryPercent;
-    public final String batteryAt;
-    /** Rango admitido de ozono (ppb) y temperatura (°C) según el servidor (HU35). */
-    public final double o3Min, o3Max, temperatureMin, temperatureMax;
-
+    /**
+     * Diseño lógico: data: Text --> OrbAssignment() --> Text
+     * Descripción: Describe la operación realizada y su resultado.
+     */
     OrbAssignment(JSONObject data) throws JSONException {
         id = data.getLong("id");
         name = data.getString("nombre");
@@ -44,7 +42,8 @@ public final class OrbAssignment {
      * lectura como no válida si está fuera, para dejar constancia.
      */
     /**
-     * Diseño lógico: (int typeId, double value) → inRange() → boolean; según doc/android_design.md.
+     * Diseño lógico: typeId: Z, value: R --> inRange() --> B
+     * Descripción: Procesa in range y devuelve el resultado correspondiente.
      */
     public boolean inRange(int typeId, double value) {
         if (typeId == 14) return value >= o3Min && value <= o3Max;
@@ -52,9 +51,9 @@ public final class OrbAssignment {
         return true;
     }
 
-    /** Texto del rango admitido para una magnitud, p. ej. «0–500 ppb». */
     /**
-     * Diseño lógico: (int typeId) → range() → String; según doc/android_design.md.
+     * Diseño lógico: typeId: Z --> range() --> Text
+     * Descripción: Procesa range y devuelve el resultado correspondiente.
      */
     public String range(int typeId) {
         if (typeId == 12) return number(temperatureMin) + "–" + number(temperatureMax) + " °C";
@@ -62,8 +61,8 @@ public final class OrbAssignment {
     }
 
     /**
-     * Gestiona number.
-     * Diseño lógico: (double value) → number() → String; según doc/android_design.md.
+     * Diseño lógico: value: R --> number() --> Text
+     * Descripción: Procesa number y devuelve el resultado correspondiente.
      */
     private static String number(double value) {
         return value == Math.rint(value) ? String.valueOf((long) value) : String.valueOf(value);

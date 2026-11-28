@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 #include "../NodoO3/Calibracion.h"
 #include "../NodoO3/Protocolo.h"
 

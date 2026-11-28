@@ -6,30 +6,30 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
 /* Flota de AERIQ dentro del panel (portal.html, sección «Dispositivos AERIQ»). */
 /**
- * Diseño lógico: (sin parámetros) → initFleet() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: initFleet() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 async function initFleet(){
   const root=document.querySelector('#fleet');if(!root)return;
   /**
-   * Gestiona $f.
    * Diseño lógico: (sel) → $f() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const $f=sel=>root.querySelector(sel);
   const form=$f('#device-edit-form'),modal=$f('#device-modal'),host=$f('#fleet-table');
   if(!form||!host)return;
   /**
-   * Gestiona say.
-   * Diseño lógico: (msg,tone) → say() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: msg: Text, tone: Text --> say() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const say=(msg,tone)=>{if(typeof toast==='function')toast(msg,tone);else aeriqStatus(document.querySelector('#portal-feedback'),msg,tone);};
   let devices=[],workers=[],campaigns=[],admin=false,current=null,view=null;
   /**
-   * Crea.
-   * Diseño lógico: (tag,text) → create() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: tag: Text, text: Text --> create() --> Text
+   * Descripción: Procesa create y devuelve el resultado correspondiente.
    */
   const create=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text??'—';return n;};
   const name=$f('#device-new-name');name.name='name';
@@ -42,30 +42,31 @@ async function initFleet(){
   const txt=create('span');txt.append(create('strong','En servicio'),create('small','Si lo apagas, el AERIQ queda dado de baja: deja de aceptar lecturas y conserva las que ya tiene.'));
   service.append(active,knob,txt);form.insertBefore(service,form.querySelector('.button-pair'));
   /**
-   * Gestiona when.
    * Diseño lógico: (v,{seconds:true}) → when() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Formatea una fecha como hora local relativa al día actual.
    */
   const when=v=>AeriqDomain.when(v,{seconds:true});
   /**
-   * Selecciona options.
-   * Diseño lógico: (select,rows,label) → selectOptions() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: select: Text, rows: Text, label: Text --> selectOptions() --> Text
+   * Descripción: Procesa select options y devuelve el resultado correspondiente.
    */
   function selectOptions(select,rows,label){select.replaceChildren(new Option('Sin asignar',''));for(const r of rows)select.add(new Option(label(r),r.id));}
   /**
-   * Gestiona edit.
-   * Diseño lógico: (d) → edit() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: d: Text --> edit() --> Text
+   * Descripción: Procesa edit y devuelve el resultado correspondiente.
    */
   function edit(d){current=d;form.reset();name.value=d?.nombre??'';address.value=d?.direccion_ble??'';worker.value=d?.trabajador_id??'';active.checked=d?Boolean(Number(d.activo)):true;service.hidden=!d;modal.querySelector('h2').textContent=d?'Editar AERIQ':'Registrar AERIQ';modal.showModal();}
   // Tabla con paneles, filtros y orden por columna (device-table.js).
   /**
-   * Diseño lógico: (sin parámetros) → mountTable() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: mountTable() --> Text
+   * Descripción: Procesa mount table y devuelve el resultado correspondiente.
    */
   const mountTable=()=>{view=AeriqDeviceTable.mount(host,{columns:['nombre','actividad','operador','ultima','bateria'],
     action:d=>{if(!admin)return document.createTextNode('Consulta');const b=create('button','Editar / asignar');b.type='button';b.className='text-link';b.onclick=()=>edit(d);return b;},
     empty:'Todavía no hay AERIQ registrados en tu campaña.'});};
   /**
-   * Actualiza.
-   * Diseño lógico: (sin parámetros) → refresh() → Promise; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: refresh() --> Text
+   * Descripción: Procesa refresh y devuelve el resultado correspondiente.
    */
   async function refresh(){const data=await Aeriq.consultar_panel('resumen');devices=data.devices;workers=data.workers;campaigns=data.campaigns;selectOptions(worker,workers.filter(w=>Number(w.puede_medir)&&(Number(w.activo)||Number(w.cambiar_clave))),w=>w.nombre+' '+w.apellidos);if(!view)mountTable();view.set(devices);}
   $f('#device-modal-close').onclick=()=>modal.close();

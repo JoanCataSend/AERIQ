@@ -6,17 +6,16 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
 /**
- * Inicializa aeriq mapa.
- * Diseño lógico: (sin parámetros) → initAeriqMap() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: initAeriqMap() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function initAeriqMap(){
   const host=document.querySelector('#real-gandia-map');if(!host)return;
   /**
-   * Gestiona q.
    * Diseño lógico: (s) → q() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const q=s=>document.querySelector(s),status=q('#map-loading'),list=q('#map-sensor-list'),directory=q('#sensor-directory');
   if(typeof L==='undefined'){status.hidden=false;status.textContent='No se ha podido cargar la cartografía. Comprueba tu conexión.';return;}
@@ -31,18 +30,19 @@ function initAeriqMap(){
   let rows=[],selected=null,requestId=0,source='all',hasFit=false,truncated=false;
   const colors={bajo:'#219c72',moderado:'#eea22d',alto:'#e35b5d'};
   /**
-   * Gestiona level.
    * Diseño lógico: (Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto)) → level() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Clasifica el valor según los umbrales medio y alto.
    */
   const level=r=>AeriqDomain.level(Number(r.valor),Number(r.umbral_medio),Number(r.umbral_alto));
   // Solo formato de presentación: hora local y coordenadas con el redondeo visible.
   /**
    * Diseño lógico: (v) → utcLabel() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const utcLabel=v=>AeriqDomain.when(v);
   /**
-   * Gestiona coord.
    * Diseño lógico: (Number(v)) → coord() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const coord=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):String(v);
   // Interpolación acotada (T25): parámetros y cálculo en aeriq-domain.js; aquí solo se agrupa, se pinta y se consulta.
@@ -55,25 +55,26 @@ function initAeriqMap(){
   let groups=[],radiusOverride=null,queried=null,baseStatus='';
   // El control del mapa sustituye al radio de la campaña solo en esta vista; no se guarda ni se envía.
   /**
-   * Diseño lógico: (sin parámetros) → radiusOf() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: radiusOf() --> Text
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const radiusOf=g=>radiusOverride??g.radius;
   /**
-   * Construye grupos.
-   * Diseño lógico: (sin parámetros) → buildGroups() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: buildGroups() --> Text
+   * Descripción: Procesa build groups y devuelve el resultado correspondiente.
    */
   function buildGroups(){
     const byKey=new Map();for(const r of rows){const k=AeriqDomain.groupKey(r);if(!byKey.has(k))byKey.set(k,[]);byKey.get(k).push(r);}
     groups=[...byKey.values()].map(list=>({samples:AeriqDomain.support(list),radius:Number(list[0].radio_m),unidad:list[0].unidad,umbral_medio:list[0].umbral_medio,umbral_alto:list[0].umbral_alto,simulado:Boolean(list[0].simulado)}));
   }
   /**
-   * Muestra radio.
-   * Diseño lógico: (sin parámetros) → showRadius() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: showRadius() --> Text
+   * Descripción: Procesa show radius y devuelve el resultado correspondiente.
    */
   function showRadius(){
     /**
-     * Gestiona radii.
      * Diseño lógico: (groups.map(g=>g.radius)) → radii() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const radii=[...new Set(groups.map(g=>g.radius))].sort((a,b)=>a-b),first=radii[0]??P.radio;
     if(radiusOverride===null)q('#radius-range').value=first;
@@ -83,7 +84,8 @@ function initAeriqMap(){
   }
   // Pulsar el mapa explica ese punto: valor estimado, datos insuficientes o sin datos. No cambia la medición seleccionada.
   /**
-   * Diseño lógico: (latlng) → query() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: latlng: Text --> query() --> Text
+   * Descripción: Procesa query y devuelve el resultado correspondiente.
    */
   function query(latlng){
     queried=latlng;const point=[latlng.lat,latlng.lng];let best=null;
@@ -96,8 +98,8 @@ function initAeriqMap(){
     for(const [tag,value] of [['strong','Punto consultado'],['p',text.titulo],['p',`${coord(point[0])}, ${coord(point[1])}`],['p',text.detalle]]){const n=document.createElement(tag);n.textContent=value;info.append(n);}
   }
   /**
-   * Selecciona.
-   * Diseño lógico: (r,pan=true) → choose() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: r: Text, pan: Text --> choose() --> Text
+   * Descripción: Procesa choose y devuelve el resultado correspondiente.
    */
   function choose(r,pan=true){selected=r;queried=null;const info=q('#map-info');info.hidden=false;info.replaceChildren();
     const lines=[['strong',r.zona],['p',`${r.valor} ${r.unidad} · ${level(r)}`],['p',utcLabel(r.capturada_en)],['p',`${coord(r.latitud)}, ${coord(r.longitud)}`],['p',r.simulado?'Datos simulados':'Medición real · no sustituye a estaciones oficiales']];
@@ -107,8 +109,8 @@ function initAeriqMap(){
     if(pan)map.panTo([r.latitud,r.longitud]);q('#selected-id').textContent=r.id;
   }
   /**
-   * Dibuja zonas.
-   * Diseño lógico: (sin parámetros) → drawZones() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: drawZones() --> Text
+   * Descripción: Procesa draw zones y devuelve el resultado correspondiente.
    */
   function drawZones(){
     let clipped=false;const size=map.getSize();
@@ -121,18 +123,18 @@ function initAeriqMap(){
       // En Web Mercator la latitud solo depende de la fila y la longitud de la columna.
       const cols=Math.ceil(size.x/PASO),lines=Math.ceil(size.y/PASO);
       /**
-       * Gestiona lats.
-       * Diseño lógico: ({length:lines},(_,i)=>map.containerPointToLatLng([0,(i+.5)*PASO]).lat) → lats() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       * Diseño lógico: ({length:lines},(_,i)=>map.containerPointToLatLng([0,(i+.5)
+       * Descripción: Describe la operación realizada y su resultado.
        */
       const lats=Array.from({length:lines},(_,i)=>map.containerPointToLatLng([0,(i+.5)*PASO]).lat);
       /**
-       * Gestiona lngs.
-       * Diseño lógico: ({length:cols},(_,j)=>map.containerPointToLatLng([(j+.5)*PASO,0]).lng) → lngs() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       * Diseño lógico: ({length:cols},(_,j)=>map.containerPointToLatLng([(j+.5)
+       * Descripción: Describe la operación realizada y su resultado.
        */
       const lngs=Array.from({length:cols},(_,j)=>map.containerPointToLatLng([(j+.5)*PASO,0]).lng);
       /**
-       * Gestiona grid.
        * Diseño lógico: (groups.map(g=>({...g,radius:radiusOf(g)})),lats,lngs) → grid() → resultado de la operación; según doc/frontend_business_logic_design.md.
+       * Descripción: Describe la operación realizada y su resultado.
        */
       const grid=AeriqDomain.raster(groups.map(g=>({...g,radius:radiusOf(g)})),lats,lngs);clipped=grid.recortado;
       if(grid.evaluadas){
@@ -146,7 +148,8 @@ function initAeriqMap(){
   }
   // Ruta del AERIQ (solo «Mi organización»): sus posiciones en orden de captura, partidas cuando hay un hueco largo.
   /**
-   * Diseño lógico: (fit=false) → drawRoute() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: fit: Text --> drawRoute() --> Text
+   * Descripción: Procesa draw route y devuelve el resultado correspondiente.
    */
   function drawRoute(fit=false){
     trail.clearLayers();
@@ -159,8 +162,8 @@ function initAeriqMap(){
     select.disabled=!toggle.checked;
     if(!devices.size||!toggle.checked){note.textContent='Une las posiciones de un AERIQ en orden de captura, dentro del periodo elegido.';q('#route-distance').textContent='';return;}
     /**
-     * Gestiona segments.
      * Diseño lógico: (rows.filter(r=>String(r.dispositivo_id)===select.value)) → segments() → resultado de la operación; según doc/frontend_business_logic_design.md.
+     * Descripción: Describe la operación realizada y su resultado.
      */
     const segments=AeriqDomain.route(rows.filter(r=>String(r.dispositivo_id)===select.value)),points=segments.flat();
     for(const segment of segments)if(segment.length>1)L.polyline(segment.map(r=>[r.latitud,r.longitud]),{pane:'aeriq-ruta',color:routeColor,weight:3.5,opacity:.9,lineJoin:'round',lineCap:'round',interactive:false}).addTo(trail);
@@ -176,13 +179,13 @@ function initAeriqMap(){
     note.textContent=`${points.length} ${points.length===1?'posición':'posiciones'} en ${segments.length} ${segments.length===1?'tramo':'tramos'}. Un hueco de más de 10 minutos corta la línea.${truncated?' Solo entran las 10.000 mediciones más recientes del periodo.':''}`;
   }
   /**
-   * Gestiona redraw.
-   * Diseño lógico: (sin parámetros) → redraw() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: redraw() --> Text
+   * Descripción: Procesa redraw y devuelve el resultado correspondiente.
    */
   const redraw=()=>{drawZones();if(queried)query(queried);};
   /**
-   * Actualiza.
-   * Diseño lógico: (sin parámetros) → refresh() → Promise; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: refresh() --> Text
+   * Descripción: Procesa refresh y devuelve el resultado correspondiente.
    */
   async function refresh(){
     const id=++requestId,previousId=selected?.id,pending=queried;status.hidden=false;baseStatus='';status.textContent='Consultando mediciones autorizadas…';selected=null;q('#map-info').hidden=true;q('#selected-id').textContent='—';pins.clearLayers();trail.clearLayers();if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);list.replaceChildren();directory.hidden=true;
@@ -194,15 +197,15 @@ function initAeriqMap(){
       // Las anteriores del mismo sitio siguen en la lista de mediciones, pero no se apilan con otros colores en el mapa.
       for(const g of groups)for(const r of g.samples){
         /**
-         * Gestiona marker.
          * Diseño lógico: ([r.latitud,r.longitud],{radius:6,color:'#fff',weight:2,fillColor:colors[level(r)],fillOpacity:1,bubblingMouseEvents:false}) → marker() → resultado de la operación; según doc/frontend_business_logic_design.md.
+         * Descripción: Describe la operación realizada y su resultado.
          */
         const marker=L.circleMarker([r.latitud,r.longitud],{radius:6,color:'#fff',weight:2,fillColor:colors[level(r)],fillOpacity:1,bubblingMouseEvents:false}).on('click',()=>choose(r));pins.addLayer(marker);
       }
       for(const r of rows){
         /**
-         * Gestiona botón.
          * Diseño lógico: ('button') → button() → resultado de la operación; según doc/frontend_business_logic_design.md.
+         * Descripción: Describe la operación realizada y su resultado.
          */
         const button=document.createElement('button');button.className='sensor-list-item';button.textContent=`${r.zona} · ${r.valor} ${r.unidad} · ${r.simulado?'Simulado':'Real'}`;button.onclick=()=>choose(r);list.append(button);
       }
@@ -227,16 +230,16 @@ function initAeriqMap(){
   q('#zoomin-map').onclick=()=>map.zoomIn();q('#zoomout-map').onclick=()=>map.zoomOut();
   q('#map-search').onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const term=e.target.value.toLowerCase();if(term.includes('playa'))map.setView([38.999,-.1589],16);else if(term.includes('grau')||term.includes('grao'))map.setView([38.9922,-.1656],15);else if(term.includes('upv')||term.includes('gand'))map.setView(campus,16);else toast('Búsqueda local: UPV, playa o Grau de Gandía.','warn');};
   /**
-   * Gestiona q.
    * Diseño lógico: ('#export-sensor') → q() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   q('#export-sensor').onclick=()=>{if(!selected){toast('Selecciona una medición pública.','warn');return;}const r=selected;const csv=AeriqDomain.csv([{...r,dispositivo:'Medición pública #'+r.id,campana:r.campaignId}]);const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='AERIQ-medicion-publica.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);};
   // Sin espera: tras un zoom el lienzo anterior quedaría a otra escala. Calcular la vista cuesta pocos milisegundos.
   map.on('moveend',drawZones);map.on('resize',drawZones);
   refresh();
   /**
-   * Gestiona timer.
    * Diseño lógico: (()=>{if(!document.hidden)refresh();},30000) → timer() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Descripción: Describe la operación realizada y su resultado.
    */
   const timer=setInterval(()=>{if(!document.hidden)refresh();},30000);window.addEventListener('pagehide',()=>{clearInterval(timer);map.remove();},{once:true});
 }

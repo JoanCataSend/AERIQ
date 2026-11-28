@@ -4,14 +4,7 @@
 # Descripción: Archivo fuente de scripts/tests.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts/tests.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts/tests.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Comprueba el despliegue web de Google/Firebase sin usar una cuenta real.
 
 Uso:
@@ -33,17 +26,14 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Optional
 
-
 @dataclass
 class Response:
     status: int
     content_type: str
     body: str
 
-
-# Gestiona petición.
-# Diseño lógico: (url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) → request() → Response; según scripts/README.md.
-# request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) → Envía una petición al servicio y procesa su respuesta.
+# Diseño lógico: url: Text, opener: Text, data: Text --> request() --> Text
+# Descripción: Envía una solicitud al servicio y devuelve la respuesta validada.
 
 def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict] = None) -> Response:
     payload = None
@@ -61,10 +51,8 @@ def request(url: str, opener: urllib.request.OpenerDirector, data: Optional[dict
     except urllib.error.HTTPError as error:
         return Response(error.code, error.headers.get("content-type", ""), error.read().decode("utf-8", "replace"))
 
-
-# Coordina la ejecución principal del componente o script.
-# Diseño lógico: (sin parámetros) → main() → int; según scripts/README.md.
-# main() → Punto de entrada que coordina la ejecución del programa.
+# Diseño lógico: main() --> Z
+# Descripción: Coordina la ejecución del programa y devuelve su código de salida.
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -77,9 +65,8 @@ def main() -> int:
     passed = 0
     failed = 0
 
-    # Registra un fallo si la condición de auditoría no se cumple.
-    # Diseño lógico: (condition: bool, label: str, detail: str = "") → check() → None; según scripts/README.md.
-    # check(condition: bool, label: str, detail: str = "") → Implementa la operación check del módulo.
+    # Diseño lógico: condition: B, label: Text, detail: Text --> check() --> Text
+    # Descripción: Registra un fallo con su mensaje cuando la condición evaluada es falsa.
 
     def check(condition: bool, label: str, detail: str = "") -> None:
         nonlocal passed, failed
@@ -136,7 +123,6 @@ def main() -> int:
         print("Si el servidor aún ejecuta la versión anterior, despliega .dist/airiq-google-plesk.zip y vuelve a ejecutar.")
         return 1
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

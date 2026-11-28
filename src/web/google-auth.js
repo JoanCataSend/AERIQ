@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 /* AERIQ · acceso con Google mediante Firebase Authentication (SDK web oficial). */
 'use strict';
 
@@ -15,8 +14,8 @@ let firebaseConfigPromise = null;
 let firebaseSdkPromise = null;
 
 /**
- * Gestiona Google aviso temporal.
- * Diseño lógico: (message) → googleToast() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: message: Text --> googleToast() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function googleToast(message) {
   if (typeof toast === 'function') return toast(message, 'error');
@@ -31,8 +30,8 @@ function googleToast(message) {
 }
 
 /**
- * Gestiona Google destino.
- * Diseño lógico: (user) → googleDestination() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: user: Text --> googleDestination() --> Text
+ * Descripción: Procesa google destination y devuelve el resultado correspondiente.
  */
 function googleDestination(user) {
   if (typeof window.authDestination === 'function') return window.authDestination(user);
@@ -42,8 +41,8 @@ function googleDestination(user) {
 }
 
 /**
- * Gestiona Google error mensaje.
- * Diseño lógico: (error) → googleErrorMessage() → resultado de la operación; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: error: Text --> googleErrorMessage() --> Text
+ * Descripción: Procesa google error message y devuelve el resultado correspondiente.
  */
 function googleErrorMessage(error) {
   const code = String(error?.code || '');
@@ -69,8 +68,8 @@ function googleErrorMessage(error) {
 }
 
 /**
- * Carga Firebase config.
- * Diseño lógico: (sin parámetros) → loadFirebaseConfig() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: loadFirebaseConfig() --> Text
+ * Descripción: Procesa load firebase config y devuelve el resultado correspondiente.
  */
 async function loadFirebaseConfig() {
   if (!firebaseConfigPromise) {
@@ -94,8 +93,8 @@ async function loadFirebaseConfig() {
 }
 
 /**
- * Carga Firebase sdk.
- * Diseño lógico: (sin parámetros) → loadFirebaseSdk() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: loadFirebaseSdk() --> Text
+ * Descripción: Procesa load firebase sdk y devuelve el resultado correspondiente.
  */
 async function loadFirebaseSdk() {
   if (!firebaseSdkPromise) {
@@ -111,8 +110,8 @@ async function loadFirebaseSdk() {
 }
 
 /**
- * Gestiona sign in with Google.
- * Diseño lógico: (sin parámetros) → signInWithGoogle() → Promise; según doc/frontend_business_logic_design.md.
+ * Diseño lógico: signInWithGoogle() --> Text
+ * Descripción: Procesa sign in with google y devuelve el resultado correspondiente.
  */
 async function signInWithGoogle() {
   const config = await loadFirebaseConfig();

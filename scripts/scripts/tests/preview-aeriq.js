@@ -6,7 +6,6 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 /* Servidor exclusivamente de revisión visual con respuestas ficticias. No ejecuta PHP. */
 'use strict';
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
@@ -16,6 +15,10 @@ const worker={id:2,nombre:'Persona',apellidos:'de prueba',email:'trabajador@exam
 const device={id:1,nombre:'Orb de prueba',direccion_ble:'AA:BB:CC:DD:EE:01',trabajador_id:2,trabajador:worker.email,campana_id:1,campana:campaign.nombre,activo:1,simulado:1,ultima_medicion:'2026-11-02 12:00:00'};
 // Posiciones ficticias para revisar la interpolación (T25): un grupo denso de 5 × 3 a ~11 m (zona coloreada),
 // dos posiciones próximas y una aislada (datos insuficientes, en gris). El resto del mapa queda sin datos.
+/**
+ * Diseño lógico: id: Text, latitud: Text, longitud: Text, valor: Text --> fake() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
+ */
 const fake=(id,latitud,longitud,valor)=>({id,campaignId:1,valor,unidad:'ppb',capturada_en:'2026-11-02 12:00:00.000',latitud,longitud,simulado:true,zona:campaign.zona,radio_m:30,umbral_medio:60,umbral_alto:100,campana:campaign.nombre});
 const rows=[38,42,47,51,56,61,66,72,78,84,91,97,103,108,114].map((valor,n)=>fake(n+1,38.996651+Math.floor(n/5)*.0001,-.166009+(n%5)*.00013,valor))
   .concat([fake(16,38.9975,-.1664,58),fake(17,38.9976,-.1664,64),fake(18,38.9962,-.1648,70)]);

@@ -6,16 +6,11 @@
  * Copyright (c) 2026 Codigo Norte
  */
 
-
 'use strict';
-/**
- * Crea el adaptador de dominio web: traduce las operaciones lógicas a rutas y gestiona transporte, CSRF y respuestas.
- * Diseño lógico: (sin parámetros) → Aeriq() → cliente de operaciones de dominio; según doc/frontend_business_logic_design.md.
- */
 const Aeriq = (() => {
   /**
-   * Gestiona petición.
-   * Diseño lógico: (endpoint, action, payload, filters = {}) → request() → Promise; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: endpoint: Text, accion: Text, payload: PayloadJSON, filtros: Filtros --> request() --> RespuestaAPI
+   * Descripción: Envía una petición HTTP con los datos y filtros indicados, valida la respuesta JSON y propaga los errores del servicio.
    */
   async function request(endpoint, action, payload, filters = {}) {
     const params = new URLSearchParams({action, ...filters});
@@ -38,14 +33,9 @@ const Aeriq = (() => {
     }
     return data;
   }
-  /*
-   * --------------------
-   * Diseño lógico: accion: AccionPanel, filtros: FiltrosPanel --> consultar_panel() --> resultado: ResultadoPanel
-   * Descripción: consulta una vista lógica; la cookie de sesión y el servidor aportan el contexto de autorización.
-   * --------------------
-   */
   /**
-   * Diseño lógico: (action, filters={}) → consultar_panel() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: accion: Text, filtros: FiltrosPanel --> consultar_panel() --> ResultadoPanel
+   * Descripción: Consulta el resumen, las lecturas o las solicitudes del portal con los filtros indicados.
    */
   function consultar_panel(action, filters={}) {
     const routes={resumen:'dashboard',lecturas:'readings',solicitudes:'requests'};
@@ -58,43 +48,29 @@ const Aeriq = (() => {
     if(typeof query.export==='boolean') { if(query.export)query.export=1; else delete query.export; }
     return request('portal.php',routes[action],undefined,query);
   }
-  /*
-   * --------------------
-   * Diseño lógico: ambito: AmbitoMapa, procedencia: Procedencia, horas: N --> consultar_mapa() --> resultado: ResultadoMapa
-   * Descripción: selecciona la ruta pública o autenticada; el servidor resuelve el acceso de la sesión.
-   * --------------------
-   */
   /**
-   * Diseño lógico: (scope, source='real', hours=24) → consultar_mapa() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: ambito: Text, procedencia: Text, horas: N --> consultar_mapa() --> ResultadoMapa
+   * Descripción: Elige la ruta pública o autenticada y solicita el mapa para el ámbito, la procedencia y el periodo indicados.
    */
   function consultar_mapa(scope, source='real', hours=24) {
     const endpoint=scope==='publico'?'public.php':'portal.php';
     const mode=source==='simulada'?'simulated':source;
     return request(endpoint,'map',undefined,{mode,hours});
   }
-  /*
-   * --------------------
-   * Diseño lógico: solicitud: DatosSolicitud --> enviar_solicitud() --> confirmacion: ConfirmacionSolicitud
-   * Descripción: envía una solicitud comercial al endpoint público.
-   * --------------------
-   */
   /**
-   * Diseño lógico: (payload) → enviar_solicitud() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: solicitud: Solicitud --> enviar_solicitud() --> ConfirmacionSolicitud
+   * Descripción: Envía los datos de una solicitud comercial al servicio público y devuelve su confirmación.
    */
   function enviar_solicitud(payload) { return request('public.php','request',payload); }
-  /*
-   * --------------------
-   * Diseño lógico: --> consultar_servicios() --> catalogos: CatalogosSolicitud
-   * Descripción: obtiene servicios y catálogos del formulario público.
-   * --------------------
-   */
   /**
-   * Diseño lógico: (sin parámetros) → consultar_servicios() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: consultar_servicios() --> CatalogosSolicitud
+   * Descripción: Obtiene los servicios y catálogos disponibles para el formulario público.
    */
   function consultar_servicios() { return request('public.php','services'); }
   /* Compatibilidad con vistas antiguas: traduce los selectores de interfaz al contrato lógico del mapa. */
   /**
-   * Diseño lógico: (mode,source='all',hours=24) → map() → resultado de la operación; según doc/frontend_business_logic_design.md.
+   * Diseño lógico: modo: Text, procedencia: Text, horas: N --> map() --> ResultadoMapa
+   * Descripción: Adapta los selectores antiguos de la interfaz al contrato de consulta del mapa.
    */
   function map(mode,source='all',hours=24) {
     const mine=source==='mine';

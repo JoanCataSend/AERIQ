@@ -48,8 +48,10 @@ public final class SplashView extends View {
     private Runnable done;
     private boolean finished;
 
-
-
+    /**
+     * Diseño lógico: context: Text --> SplashView() --> Text
+     * Descripción: Procesa splash view y devuelve el resultado correspondiente.
+     */
     public SplashView(Context context) {
         super(context);
         setBackgroundColor(Views.BACKGROUND);
@@ -67,9 +69,9 @@ public final class SplashView extends View {
         setOnClickListener(view -> finish());
     }
 
-    /** Arranca la animación; {@code onDone} se llama una sola vez al terminar (o al saltarla). */
     /**
-     * Diseño lógico: (Runnable onDone) → start() → void; según doc/android_design.md.
+     * Diseño lógico: onDone: Text --> start()
+     * Descripción: Procesa start y devuelve el resultado correspondiente..
      */
     public void start(Runnable onDone) {
         done = onDone;
@@ -90,8 +92,8 @@ public final class SplashView extends View {
         });
         animator.addListener(new android.animation.AnimatorListenerAdapter() {
             /**
-             * Atiende el evento animation end.
-             * Diseño lógico: (android.animation.Animator animation) → onAnimationEnd() → void; según doc/android_design.md.
+             * Diseño lógico: (android.animation.Animator animation) --> onAnimationEnd()
+             * Descripción: Describe la operación realizada y su resultado.
              */
             @Override public void onAnimationEnd(android.animation.Animator animation) { finish(); }
         });
@@ -103,7 +105,8 @@ public final class SplashView extends View {
      * Es la integral de sin²(πt): da 3,5 vueltas en total y termina en reposo.
      */
     /**
-     * Diseño lógico: (float t) → angleAt() → float; según doc/android_design.md.
+     * Diseño lógico: t: R --> angleAt() --> R
+     * Descripción: Procesa angle at y devuelve el resultado correspondiente.
      */
     private static float angleAt(float t) {
         double turns = 3.5;
@@ -111,8 +114,8 @@ public final class SplashView extends View {
     }
 
     /**
-     * Gestiona step.
-     * Diseño lógico: (sin parámetros) → step() → void; según doc/android_design.md.
+     * Diseño lógico: step()
+     * Descripción: Procesa step y devuelve el resultado correspondiente..
      */
     private void step() {
         rotation = angleAt(progress);
@@ -136,8 +139,8 @@ public final class SplashView extends View {
     }
 
     /**
-     * Atiende el evento draw.
-     * Diseño lógico: (Canvas canvas) → onDraw() → void; según doc/android_design.md.
+     * Diseño lógico: (Canvas canvas) --> onDraw()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -175,8 +178,8 @@ public final class SplashView extends View {
     }
 
     /**
-     * Gestiona finish.
-     * Diseño lógico: (sin parámetros) → finish() → void; según doc/android_design.md.
+     * Diseño lógico: finish()
+     * Descripción: Procesa finish y devuelve el resultado correspondiente..
      */
     private void finish() {
         if (finished) return;
@@ -186,8 +189,8 @@ public final class SplashView extends View {
     }
 
     /**
-     * Atiende el evento detached from window.
-     * Diseño lógico: (sin parámetros) → onDetachedFromWindow() → void; según doc/android_design.md.
+     * Diseño lógico: onDetachedFromWindow()
+     * Descripción: Describe la operación realizada y su resultado.
      */
     @Override protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();

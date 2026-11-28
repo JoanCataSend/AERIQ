@@ -23,18 +23,20 @@ public final class Views {
     public static final int BANNER_BG = 0xffe8f3ef;
     private final Context context;
 
-
-
+    /**
+     * Diseño lógico: context: Text --> Views() --> Text
+     * Descripción: Procesa views y devuelve el resultado correspondiente.
+     */
     public Views(Context context) { this.context = context; }
     /**
-     * Gestiona dp.
-     * Diseño lógico: (float value) → dp() → int; según doc/android_design.md.
+     * Diseño lógico: value: R --> dp() --> Z
+     * Descripción: Procesa dp y devuelve el resultado correspondiente.
      */
     public int dp(float value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
 
     /**
-     * Gestiona shape.
-     * Diseño lógico: (int color, int radius, int border) → shape() → GradientDrawable; según doc/android_design.md.
+     * Diseño lógico: color: Z, radius: Z, border: Z --> shape() --> Text
+     * Descripción: Procesa shape y devuelve el resultado correspondiente.
      */
     public GradientDrawable shape(int color, int radius, int border) {
         GradientDrawable background = new GradientDrawable();
@@ -45,8 +47,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona column.
-     * Diseño lógico: (sin parámetros) → column() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: column() --> Text
+     * Descripción: Procesa column y devuelve el resultado correspondiente.
      */
     public LinearLayout column() {
         LinearLayout column = new LinearLayout(context);
@@ -55,8 +57,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona fila.
-     * Diseño lógico: (sin parámetros) → row() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: row() --> Text
+     * Descripción: Procesa row y devuelve el resultado correspondiente.
      */
     public LinearLayout row() {
         LinearLayout row = new LinearLayout(context);
@@ -65,8 +67,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona add.
-     * Diseño lógico: (LinearLayout parent, View view) → add() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, view: Text --> add()
+     * Descripción: Procesa add y devuelve el resultado correspondiente..
      */
     public void add(LinearLayout parent, View view) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
@@ -75,16 +77,16 @@ public final class Views {
     }
 
     /**
-     * Gestiona weighted.
-     * Diseño lógico: (LinearLayout parent, View view) → weighted() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, view: Text --> weighted()
+     * Descripción: Procesa weighted y devuelve el resultado correspondiente..
      */
     public void weighted(LinearLayout parent, View view) {
         parent.addView(view, new LinearLayout.LayoutParams(0, -2, 1));
     }
 
     /**
-     * Gestiona texto.
-     * Diseño lógico: (String value, int size, boolean bold, int color) → text() → TextView; según doc/android_design.md.
+     * Diseño lógico: value: Text, size: Z, bold: B, color: Z --> text() --> Text
+     * Descripción: Procesa text y devuelve el resultado correspondiente.
      */
     public TextView text(String value, int size, boolean bold, int color) {
         TextView text = new TextView(context);
@@ -96,8 +98,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona label.
-     * Diseño lógico: (LinearLayout parent, String value, int size, boolean bold, int color) → label() → TextView; según doc/android_design.md.
+     * Diseño lógico: parent: Text, value: Text, size: Z, bold: B, color: Z --> label() --> Text
+     * Descripción: Procesa label y devuelve el resultado correspondiente.
      */
     public TextView label(LinearLayout parent, String value, int size, boolean bold, int color) {
         TextView text = text(value, size, bold, color);
@@ -106,14 +108,14 @@ public final class Views {
     }
 
     /**
-     * Gestiona note.
-     * Diseño lógico: (LinearLayout parent, String value) → note() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, value: Text --> note()
+     * Descripción: Procesa note y devuelve el resultado correspondiente..
      */
     public void note(LinearLayout parent, String value) { label(parent, value, 13, false, MUTED); }
 
     /**
-     * Gestiona card.
-     * Diseño lógico: (LinearLayout parent) → card() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: parent: Text --> card() --> Text
+     * Descripción: Procesa card y devuelve el resultado correspondiente.
      */
     public LinearLayout card(LinearLayout parent) {
         LinearLayout card = column();
@@ -124,8 +126,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona banner.
-     * Diseño lógico: (LinearLayout parent, int bg) → banner() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: parent: Text, bg: Z --> banner() --> Text
+     * Descripción: Procesa banner y devuelve el resultado correspondiente.
      */
     public LinearLayout banner(LinearLayout parent, int bg) {
         LinearLayout card = column();
@@ -136,16 +138,16 @@ public final class Views {
     }
 
     /**
-     * Gestiona action.
-     * Diseño lógico: (String label, int background, int foreground, Runnable click) → action() → Button; según doc/android_design.md.
+     * Diseño lógico: label: Text, background: Z, foreground: Z, click: Text --> action() --> Text
+     * Descripción: Procesa action y devuelve el resultado correspondiente.
      */
     public Button action(String label, int background, int foreground, Runnable click) {
         return action(label, background, foreground, 14, click);
     }
 
     /**
-     * Gestiona action.
-     * Diseño lógico: (String label, int background, int foreground, int radius, Runnable click) → action() → Button; según doc/android_design.md.
+     * Diseño lógico: label: Text, background: Z, foreground: Z, radius: Z, click: Text --> action() --> Text
+     * Descripción: Procesa action y devuelve el resultado correspondiente.
      */
     public Button action(String label, int background, int foreground, int radius, Runnable click) {
         Button button = new Button(context);
@@ -163,9 +165,9 @@ public final class Views {
         return button;
     }
 
-    /** Convierte un botón en cápsula, como el botón principal del diseño. */
     /**
-     * Diseño lógico: (Button button, int background) → pill() → void; según doc/android_design.md.
+     * Diseño lógico: button: Text, background: Z --> pill()
+     * Descripción: Procesa pill y devuelve el resultado correspondiente..
      */
     public void pill(Button button, int background) {
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x220e6b5e),
@@ -173,8 +175,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona botón.
-     * Diseño lógico: (LinearLayout parent, String label, Runnable click) → button() → Button; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, click: Text --> button() --> Text
+     * Descripción: Procesa button y devuelve el resultado correspondiente.
      */
     public Button button(LinearLayout parent, String label, Runnable click) {
         Button button = action(label, GREEN, WHITE, click);
@@ -183,8 +185,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona botón with icon.
-     * Diseño lógico: (LinearLayout parent, String label, int iconRes, int background, int foreground, Runnable click) → buttonWithIcon() → Button; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, iconRes: Z, background: Z, foreground: Z, click: Text --> buttonWithIcon() --> Text
+     * Descripción: Procesa button with icon y devuelve el resultado correspondiente.
      */
     public Button buttonWithIcon(LinearLayout parent, String label, int iconRes, int background, int foreground, Runnable click) {
         Button button = new Button(context);
@@ -216,24 +218,24 @@ public final class Views {
     }
 
     /**
-     * Gestiona social botón.
-     * Diseño lógico: (String label, int iconRes, Runnable click) → socialButton() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: label: Text, iconRes: Z, click: Text --> socialButton() --> Text
+     * Descripción: Procesa social button y devuelve el resultado correspondiente.
      */
     public LinearLayout socialButton(String label, int iconRes, Runnable click) {
         return socialButton(label, iconRes, WHITE, INK, 14, click);
     }
 
     /**
-     * Gestiona social botón.
-     * Diseño lógico: (String label, int iconRes, int background, int foreground, Runnable click) → socialButton() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: label: Text, iconRes: Z, background: Z, foreground: Z, click: Text --> socialButton() --> Text
+     * Descripción: Procesa social button y devuelve el resultado correspondiente.
      */
     public LinearLayout socialButton(String label, int iconRes, int background, int foreground, Runnable click) {
         return socialButton(label, iconRes, background, foreground, 14, click);
     }
 
     /**
-     * Gestiona social botón.
-     * Diseño lógico: (String label, int iconRes, int background, int foreground, int radius, Runnable click) → socialButton() → LinearLayout; según doc/android_design.md.
+     * Diseño lógico: label: Text, iconRes: Z, background: Z, foreground: Z, radius: Z, click: Text --> socialButton() --> Text
+     * Descripción: Procesa social button y devuelve el resultado correspondiente.
      */
     public LinearLayout socialButton(String label, int iconRes, int background, int foreground, int radius, Runnable click) {
         LinearLayout button = row();
@@ -258,8 +260,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona divider with texto.
-     * Diseño lógico: (LinearLayout parent, String text) → dividerWithText() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, text: Text --> dividerWithText()
+     * Descripción: Procesa divider with text y devuelve el resultado correspondiente..
      */
     public void dividerWithText(LinearLayout parent, String text) {
         LinearLayout row = row();
@@ -286,16 +288,16 @@ public final class Views {
     }
 
     /**
-     * Gestiona outline.
-     * Diseño lógico: (LinearLayout parent, String label, Runnable click) → outline() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, click: Text --> outline()
+     * Descripción: Procesa outline y devuelve el resultado correspondiente..
      */
     public void outline(LinearLayout parent, String label, Runnable click) {
         add(parent, action(label, WHITE, INK, click));
     }
 
     /**
-     * Gestiona vínculo.
-     * Diseño lógico: (LinearLayout parent, String label, Runnable click) → link() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, click: Text --> link()
+     * Descripción: Procesa link y devuelve el resultado correspondiente..
      */
     public void link(LinearLayout parent, String label, Runnable click) {
         TextView link = text(label, 13, true, GREEN);
@@ -306,8 +308,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona campo.
-     * Diseño lógico: (LinearLayout parent, String label, String value, int type) → field() → EditText; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, value: Text, type: Z --> field() --> Text
+     * Descripción: Procesa field y devuelve el resultado correspondiente.
      */
     public EditText field(LinearLayout parent, String label, String value, int type) {
         TextView caption = text(label, 13, true, INK);
@@ -356,8 +358,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona segments.
-     * Diseño lógico: (parámetros de la firma) → segments() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, labels: Text, initial: Z, selected: Text --> segments()
+     * Descripción: Procesa segments y devuelve el resultado correspondiente..
      */
     public void segments(LinearLayout parent, String[] labels, int initial,
                          java.util.function.IntConsumer selected) {
@@ -384,8 +386,8 @@ public final class Views {
     }
 
     /**
-     * Selecciona segment.
-     * Diseño lógico: (TextView[] items, int active) → selectSegment() → void; según doc/android_design.md.
+     * Diseño lógico: items: [ Text ], active: Z --> selectSegment()
+     * Descripción: Procesa select segment y devuelve el resultado correspondiente..
      */
     private void selectSegment(TextView[] items, int active) {
         for (int i = 0; i < items.length; i++) {
@@ -396,8 +398,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona info.
-     * Diseño lógico: (LinearLayout parent, String label, String value) → info() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, label: Text, value: Text --> info()
+     * Descripción: Procesa info y devuelve el resultado correspondiente..
      */
     public void info(LinearLayout parent, String label, String value) {
         LinearLayout line = row();
@@ -407,8 +409,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona menú.
-     * Diseño lógico: (LinearLayout parent, int icon, String title, int color, Runnable click) → menu() → void; según doc/android_design.md.
+     * Diseño lógico: parent: Text, icon: Z, title: Text, color: Z, click: Text --> menu()
+     * Descripción: Procesa menu y devuelve el resultado correspondiente..
      */
     public void menu(LinearLayout parent, int icon, String title, int color, Runnable click) {
         LinearLayout item = row();
@@ -430,9 +432,9 @@ public final class Views {
         parent.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
     }
 
-    /** Interruptor redondeado verde como en el diseño (52 × 30 dp). */
     /**
-     * Diseño lógico: (boolean checked) → toggle() → Switch; según doc/android_design.md.
+     * Diseño lógico: checked: B --> toggle() --> Text
+     * Descripción: Procesa toggle y devuelve el resultado correspondiente.
      */
     public Switch toggle(boolean checked) {
         Switch toggle = new Switch(context);
@@ -453,9 +455,9 @@ public final class Views {
         return toggle;
     }
 
-    /** Imagen recortada con esquinas redondeadas sobre fondo gris claro. */
     /**
-     * Diseño lógico: (int resource, int radius) → photo() → ImageView; según doc/android_design.md.
+     * Diseño lógico: resource: Z, radius: Z --> photo() --> Text
+     * Descripción: Procesa photo y devuelve el resultado correspondiente.
      */
     public ImageView photo(int resource, int radius) {
         ImageView image = new ImageView(context);
@@ -467,8 +469,8 @@ public final class Views {
     }
 
     /**
-     * Gestiona image.
-     * Diseño lógico: (int resource, int width, int height) → image() → ImageView; según doc/android_design.md.
+     * Diseño lógico: resource: Z, width: Z, height: Z --> image() --> Text
+     * Descripción: Procesa image y devuelve el resultado correspondiente.
      */
     public ImageView image(int resource, int width, int height) {
         ImageView image = new ImageView(context);

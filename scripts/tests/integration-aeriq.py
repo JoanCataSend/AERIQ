@@ -3,14 +3,7 @@
 # Descripción: Archivo fuente de scripts/tests.
 # Fecha: 2026-09-25
 # Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts/tests.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
-# Autor: Codigo Norte
-# Descripción: Archivo fuente de scripts/tests.
-# Fecha: 2026-09-25
-# Copyright (c) 2026 Codigo Norte
+
 """Integración aislada de PHP/MariaDB. No usa configuraciones ni correo de Plesk."""
 import argparse
 import datetime as dt
@@ -28,17 +21,15 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[2]
 
-# Gestiona port.
-# Diseño lógico: (sin parámetros) → port() → resultado de la operación; según scripts/README.md.
-# port() → Implementa la operación port del módulo.
+# Diseño lógico: port() --> Text
+# Descripción: Describe la operación realizada y su resultado.
 
 def port():
     with socket.socket() as s:
         s.bind(('127.0.0.1',0));return s.getsockname()[1]
 
-# Coordina la ejecución principal del componente o script.
-# Diseño lógico: (sin parámetros) → main() → resultado de la operación; según scripts/README.md.
-# main() → Punto de entrada que coordina la ejecución del programa.
+# Diseño lógico: main() --> Text
+# Descripción: Coordina la ejecución del programa y devuelve su código de salida.
 
 def main():
     args=argparse.ArgumentParser(description=__doc__)
@@ -54,9 +45,9 @@ def main():
     flags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0
     subprocess.run([str(binary/'mysql_install_db.exe'),f'--datadir={folder / "db"}',f'--port={dbport}','--silent'],check=True,capture_output=True,creationflags=flags)
     mysql=[str(binary/'mysql.exe'),'--no-defaults','--default-character-set=utf8mb4','--host=127.0.0.1',f'--port={dbport}','--user=root','--batch','--skip-column-names']
-    # Gestiona sql.
-    # Diseño lógico: (text) → sql() → resultado de la operación; según scripts/README.md.
-    # sql(text) → Implementa la operación sql del módulo.
+
+    # Diseño lógico: text: Text --> sql() --> Text
+    # Descripción: Describe la operación realizada y su resultado.
 
     def sql(text):
         r=subprocess.run(mysql,input=text,text=True,encoding='utf-8',errors='replace',capture_output=True,creationflags=flags)
@@ -131,9 +122,9 @@ class PHPMailer {
         httplog=(folder/'http.log').open('w')
         php=subprocess.Popen([opt.php,'-S',f'127.0.0.1:{httpport}','-t',str(web)],stdout=httplog,stderr=httplog,env=env,creationflags=flags)
         base=f'http://127.0.0.1:{httpport}/';cookies={};csrf={}
-        # Gestiona petición.
-        # Diseño lógico: (path,body=None,identity=None,token=None) → request() → resultado de la operación; según scripts/README.md.
-        # request(path,body=None,identity=None,token=None) → Envía una petición al servicio y procesa su respuesta.
+
+        # Diseño lógico: path: Text, body: Text, identity: Text, token: Text --> request() --> Text
+        # Descripción: Envía una solicitud al servicio y devuelve la respuesta validada.
 
         def request(path,body=None,identity=None,token=None):
             headers={'Accept':'application/json'}
@@ -153,9 +144,9 @@ class PHPMailer {
                 if cookie:cookies[identity]=cookie.split(';')[0]
                 if 'csrf' in data:csrf[identity]=data['csrf']
             return r.status,data
-        # Gestiona expect.
-        # Diseño lógico: (code,path,body=None,identity=None,token=None) → expect() → resultado de la operación; según scripts/README.md.
-        # expect(code,path,body=None,identity=None,token=None) → Implementa la operación expect del módulo.
+
+        # Diseño lógico: code: Text, path: Text, body: Text, identity: Text, token: Text --> expect() --> Text
+        # Descripción: Describe la operación realizada y su resultado.
 
         def expect(code,path,body=None,identity=None,token=None):
             status,data=request(path,body,identity,token)

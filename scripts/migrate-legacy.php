@@ -6,15 +6,9 @@
  * Fecha: 2026-09-25
  * Copyright (c) 2026 Codigo Norte
  */
-/** Importación no destructiva a una base AERIQ NUEVA y VACÍA. Solo CLI. */
-declare(strict_types=1);
-if (PHP_SAPI!=='cli') {http_response_code(404);exit;}
-$opt=getopt('',['source:','target:','apply']);
-if (!isset($opt['source'],$opt['target'])) {fwrite(STDERR,"Uso: php migrate-legacy.php --source=CONFIG_ORIGEN.php --target=CONFIG_DESTINO.php [--apply]\nSin --apply solo muestra el inventario.\n");exit(1);}
-mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);
 /**
- * Abre database.
- * Diseño lógico: (string $file) → open_database() → array; según scripts/README.md.
+ * Diseño lógico: file: Text --> open_database() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function open_database(string $file): array {
     $cfg=require $file;
@@ -22,20 +16,20 @@ function open_database(string $file): array {
     $db->set_charset('utf8mb4');$db->query("SET time_zone='+00:00'");return [$db,$cfg];
 }
 /**
- * Gestiona command.
- * Diseño lógico: (mysqli $db,string $sql,array $params=[]) → command() → mysqli_stmt; según scripts/README.md.
+ * Diseño lógico: db: Text, sql: Text, params: Text --> command() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function command(mysqli $db,string $sql,array $params=[]): mysqli_stmt {
     $s=$db->prepare($sql);if ($params) {$types='';foreach ($params as $v)$types.=is_int($v)?'i':(is_float($v)?'d':'s');$s->bind_param($types,...$params);}$s->execute();return $s;
 }
 /**
- * Gestiona filas.
- * Diseño lógico: (mysqli $db,string $sql,array $p=[]) → rows() → array; según scripts/README.md.
+ * Diseño lógico: db: Text, sql: Text, p: Text --> rows() --> Text
+ * Descripción: Procesa rows y devuelve el resultado correspondiente.
  */
 function rows(mysqli $db,string $sql,array $p=[]): array {return command($db,$sql,$p)->get_result()->fetch_all(MYSQLI_ASSOC);}
 /**
- * Gestiona evento id.
- * Diseño lógico: (string $key) → event_id() → string; según scripts/README.md.
+ * Diseño lógico: key: Text --> event_id() --> Text
+ * Descripción: Procesa event id y devuelve el resultado correspondiente.
  */
 function event_id(string $key): string {$h=md5($key);return substr($h,0,8).'-'.substr($h,8,4).'-4'.substr($h,13,3).'-8'.substr($h,17,3).'-'.substr($h,20,12);}
 try {

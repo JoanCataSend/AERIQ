@@ -24,7 +24,8 @@ const AERIQ_MAIL_MUTED='#5e6b66';
  * la carpeta del script en el host configurado del servidor (SERVER_NAME, no HTTP_HOST, que lo elige el cliente).
  */
 /**
- * Diseño lógico: (string $path='') → aeriq_public_url() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: path: Text --> aeriq_public_url() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_public_url(string $path=''): string {
     $base=trim((string)(getenv('AERIQ_PUBLIC_URL')?:''));
@@ -45,8 +46,8 @@ function aeriq_public_url(string $path=''): string {
 }
 
 /**
- * Gestiona mail escape.
- * Diseño lógico: (string $text) → aeriq_mail_escape() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: text: Text --> aeriq_mail_escape() --> Text
+ * Descripción: Procesa aeriq mail escape y devuelve el resultado correspondiente.
  */
 function aeriq_mail_escape(string $text): string { return htmlspecialchars($text,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'); }
 
@@ -60,7 +61,8 @@ function aeriq_mail_escape(string $text): string { return htmlspecialchars($text
  * Devuelve ['text'=>…, 'html'=>…].
  */
 /**
- * Diseño lógico: (string $title,array $blocks,string $preheader='') → aeriq_mail_compose() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: title: Text, blocks: Text, preheader: Text --> aeriq_mail_compose() --> Text
+ * Descripción: Procesa aeriq mail compose y devuelve el resultado correspondiente.
  */
 function aeriq_mail_compose(string $title,array $blocks,string $preheader=''): array {
     $e='aeriq_mail_escape';$green=AERIQ_MAIL_GREEN;$ink=AERIQ_MAIL_INK;$muted=AERIQ_MAIL_MUTED;

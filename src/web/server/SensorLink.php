@@ -8,9 +8,9 @@
  */
 declare(strict_types=1);
 
-/** Nombre de la campaña personal que crea aeriq_link_sensor para cada persona. */
 /**
- * Diseño lógico: (int $user) → aeriq_personal_campaign() → string; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: user: Z --> aeriq_personal_campaign() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_personal_campaign(int $user): string { return 'Mis mediciones · '.$user; }
 
@@ -20,7 +20,8 @@ function aeriq_personal_campaign(int $user): string { return 'Mis mediciones · 
  * decide quien la administra. Devuelve si la campaña queda publicada y si es la personal.
  */
 /**
- * Diseño lógico: (array $a, array $data) → aeriq_share() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, data: Text --> aeriq_share() --> Text
+ * Descripción: Describe la operación realizada y su resultado.
  */
 function aeriq_share(array $a, array $data): array {
     $device = aeriq_int($data['deviceId'] ?? null);
@@ -44,9 +45,9 @@ function aeriq_share(array $a, array $data): array {
             : ($published ? 'Esta campaña de tu organización ya es pública.' : 'Tus lecturas llegan a tu organización; ella decide si se publican.')];
 }
 
-/** Alta/asignación propia desde Android; nunca reasigna sensores de otra persona. */
 /**
- * Diseño lógico: (array $a, array $data) → aeriq_link_sensor() → array; según doc/aeriq_business_logic_design.md.
+ * Diseño lógico: a: Text, data: Text --> aeriq_link_sensor() --> Text
+ * Descripción: Procesa aeriq link sensor y devuelve el resultado correspondiente.
  */
 function aeriq_link_sensor(array $a, array $data): array {
     $org = aeriq_org($a);
